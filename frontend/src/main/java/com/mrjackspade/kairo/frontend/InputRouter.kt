@@ -9,7 +9,7 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
 
     @Synchronized fun addListener(listener: () -> Unit) { listeners.add(listener) }
     @Synchronized fun removeListener(listener: () -> Unit) { listeners.remove(listener) }
-    @Synchronized fun pressedScans(): Set<Int> = counts.indices.filterTo(mutableSetOf()) {
+    @Synchronized fun pressedKeys(): Set<Int> = counts.indices.filterTo(mutableSetOf()) {
         counts[it] > 0
     }
 
