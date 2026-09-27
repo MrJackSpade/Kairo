@@ -29,6 +29,7 @@ import kotlin.math.roundToInt
  * shared pieces every screen is built from. Screens use these instead of their own values.
  */
 object Ui {
+    data class ActionRow(val view: LinearLayout, val detail: TextView)
     // Color roles. Accents come from the original digital palette, softened for a dark screen.
     val BG = 0xff0c1017.toInt()
     val SURFACE = 0xff151b25.toInt()
@@ -159,6 +160,27 @@ object Ui {
             this.color = color
             setPadding(dp(context, 12), dp(context, 16), dp(context, 12), dp(context, 6))
         }
+
+    /** Shared menu and settings row. The caller controls navigation and refresh timing. */
+    fun actionRow(context: Context, title: String, description: () -> String,
+                  minHeight: Int = 56, verticalPadding: Int = 9,
+                  onClick: (View) -> Unit): ActionRow {
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            minimumHeight = dp(context, minHeight)
+            setPadding(dp(context, 14), dp(context, verticalPadding),
+                dp(context, 12), dp(context, verticalPadding))
+            isFocusable = true
+            isClickable = true
+            background = rowBackground(context)
+            setOnClickListener(onClick)
+        }
+        row.addView(text(context, title, BODY))
+        val value = text(context, description(), SECONDARY, TEXT_MUTED)
+        row.addView(value)
+        row.contentDescription = "$title. ${value.text}"
+        return ActionRow(row, value)
+    }
 
     fun styleDialog(dialog: AlertDialog) {
         val context = dialog.context
