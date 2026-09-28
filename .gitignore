@@ -4,3 +4,11 @@
 **/build/
 *.iml
 local.properties
+/.tmp/
+/tmp/
+*.tmp
+*.temp
+*.log
+*.bak
+*.swp
+*.swo
