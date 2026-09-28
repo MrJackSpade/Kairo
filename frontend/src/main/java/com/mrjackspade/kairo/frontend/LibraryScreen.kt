@@ -189,7 +189,7 @@ class LibraryScreen<T : LibraryItem>(
         val entry = entries[index]
         val pinned = index == 0 && pinnedId != null && items.firstOrNull() is Header
         val game = catalog.resolve(entry.contentId ?: "", entry.displayName)
-        holder.title.text = game.title
+        holder.title.text = if ("♥" in game.tags) "${game.title} ♥" else game.title
         holder.detail.text = entry.error?.let { "${fileLabel(entry)}  ·  $it. Fix the source, then Refresh." }
             ?: fileLabel(entry)
         holder.detail.setTextColor(if (entry.error != null) Ui.DANGER else Ui.TEXT_MUTED)
