@@ -2,7 +2,7 @@
 
 Kairo is the shared Android UI library for [Kairo98](https://github.com/MrJackSpade/Kairo98), a PC-98 emulator, and [KairoDos](https://github.com/MrJackSpade/KairoDos), a DOS emulator. It provides the game library and details, folder selection, navigation, session menu, controller editor, on-screen controls, keyboard presentation, and input routing. Each product pins a specific Kairo commit as its `shared/` submodule.
 
-For installation, adding games, and setup in LaunchBox or ES-DE, use the [Kairo98 README](https://github.com/MrJackSpade/Kairo98#readme) or [KairoDos README](https://github.com/MrJackSpade/KairoDos#readme).
+For installation and adding games, use the [Kairo98 README](https://github.com/MrJackSpade/Kairo98#readme) or [KairoDos README](https://github.com/MrJackSpade/KairoDos#readme). Each app has its own frontend setup guide: [Kairo98](https://github.com/MrJackSpade/Kairo98/blob/main/docs/frontends.md) and [KairoDos](https://github.com/MrJackSpade/KairoDos/blob/main/docs/frontends.md).
 
 ## Integration
 
