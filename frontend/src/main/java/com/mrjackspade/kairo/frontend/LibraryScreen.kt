@@ -36,7 +36,8 @@ fun variantLabel(name: String): String? {
 
 /**
  * Where a library entry lives: its folder and file name without the extension, plus the image
- * inside a ZIP when that name differs. It is what tells revisions and releases apart.
+ * inside a ZIP when that name differs. Keep this filename below the catalog title: different
+ * revisions can share a catalog title. Do not replace it with the title or a media label.
  */
 fun fileLabel(entry: LibraryItem): String {
     fun stem(name: String) = name.substringBeforeLast('.').takeIf { name.contains('.') } ?: name
