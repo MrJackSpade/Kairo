@@ -25,8 +25,7 @@ data class ControllerGuestSpec(
     val modifierCodes: Set<Int>,
     val joystickControls: List<Pair<String, String>>,
     val joystickHelp: String,
-    val actions: List<Pair<String, String>>,
-    val cycleKeyCodes: Map<Char, Int> = emptyMap()
+    val actions: List<Pair<String, String>>
 )
 
 /** Full-screen physical-to-virtual and virtual-to-guest controller mapping page. */
@@ -69,6 +68,7 @@ class ControllerEditor<Game : Any>(
     private var selectedInput = ""
     private var selectedControl: String? = null
     private val selectedScans = linkedSetOf<Int>()
+    private val selectedCycleKeys = ArrayList<Int>()
     private var deadZoneSlider: SeekBar? = null
     private val captureBaseline = HashMap<Pair<Int, Int>, Float>()
     var isOpen = false
@@ -266,7 +266,7 @@ class ControllerEditor<Game : Any>(
             Stage.TARGET -> "Choose target"
             Stage.VIRTUAL -> "Virtual controller"
             Stage.KEYS -> "${guest.name} keys"
-            Stage.CYCLE -> "Number hotkey cycle"
+            Stage.CYCLE -> "Key cycle"
             Stage.JOYSTICK -> "${guest.name} joystick"
             Stage.MOUSE -> "${guest.name} mouse"
             Stage.ACTIONS -> "Emulator actions"
@@ -474,8 +474,16 @@ class ControllerEditor<Game : Any>(
             stage = Stage.KEYS
             render()
         }
-        if (selectedInput in cycleInputs && guest.cycleKeyCodes.isNotEmpty()) {
-            row("Number hotkey cycle", "Set a sequence for this shoulder pair", true) {
+        if (selectedInput in cycleInputs) {
+            row("Key cycle", "Set an ordered key sequence for this shoulder pair", true) {
+                val (left, right) = cyclePair(selectedInput)
+                val current = load(scope).firstOrNull {
+                    it.input == selectedInput && it.cycleKeys.isNotEmpty()
+                } ?: load(scope).firstOrNull {
+                    (it.input == left || it.input == right) && it.cycleKeys.isNotEmpty()
+                }
+                selectedCycleKeys.clear()
+                selectedCycleKeys.addAll(current?.cycleKeys.orEmpty())
                 stage = Stage.CYCLE
                 render()
             }
@@ -539,31 +547,25 @@ class ControllerEditor<Game : Any>(
 
     private fun renderCycle() {
         val (left, right) = cyclePair(selectedInput)
-        val current = load(scope).firstOrNull { it.input == selectedInput && it.cycleKeys.isNotEmpty() }
-            ?: load(scope).firstOrNull {
-                (it.input == left || it.input == right) && it.cycleKeys.isNotEmpty()
-            }
-        val reverse = guest.cycleKeyCodes.entries.associate { (digit, code) -> code to digit }
-        val existing = current?.cycleKeys?.mapNotNull(reverse::get)?.joinToString("") ?: "1234567"
-        note("Enter 2 to 10 distinct number keys. ${virtualLabel(left.removePrefix("virtual:"))} " +
+        note("Select 2 to 16 different ${guest.name} keys in order. " +
+            "${virtualLabel(left.removePrefix("virtual:"))} " +
             "cycles backward; ${virtualLabel(right.removePrefix("virtual:"))} cycles forward. " +
             "The first press selects the last or first key respectively. The sequence wraps around. " +
-            "This sends hotkeys and cannot detect the game's current selection.")
-        val edit = EditText(activity).apply {
-            setSingleLine(true)
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setTextColor(Ui.TEXT)
-            setText(existing)
-            setSelection(text.length)
+            "This sends keys and cannot detect the game's current selection. Tap a selected key to remove it.")
+        val preview = note("")
+        val marks = HashMap<Int, TextView>()
+        fun refresh() {
+            preview.text = "Sequence: " + if (selectedCycleKeys.isEmpty()) "None" else
+                selectedCycleKeys.joinToString(" → ") { guest.keyLabel(it) }
+            for ((code, mark) in marks) {
+                val position = selectedCycleKeys.indexOf(code)
+                mark.text = if (position < 0) "Add" else "${position + 1} of ${selectedCycleKeys.size}"
+            }
         }
-        body.addView(edit)
-        footerAction("Save shoulder pair") {
-            val digits = edit.text.toString()
-            if (digits.length !in 2..10 || digits.toSet().size != digits.length ||
-                digits.any { it !in guest.cycleKeyCodes }) {
-                toast("Enter 2 to 10 different number keys")
-            } else change {
-                val sequence = digits.map { guest.cycleKeyCodes.getValue(it) }
+        footerAction("Save key cycle") {
+            if (selectedCycleKeys.size !in 2..16) toast("Select 2 to 16 different keys")
+            else change {
+                val sequence = selectedCycleKeys.toList()
                 val updated = load(scope).filterNot { it.input == left || it.input == right } +
                     ControllerBinding(left, cycleKeys = sequence) +
                     ControllerBinding(right, cycleKeys = sequence)
@@ -571,6 +573,15 @@ class ControllerEditor<Game : Any>(
                 save(scope, updated)
             }
         }
+        section("KEYS IN ORDER")
+        for (code in guest.keyCodes) {
+            marks[code] = row(guest.keyLabel(code), "", true) {
+                if (!selectedCycleKeys.remove(code) && selectedCycleKeys.size < 16)
+                    selectedCycleKeys.add(code)
+                refresh()
+            }
+        }
+        refresh()
     }
 
     private fun markText(scan: Int, saveButton: TextView) {
@@ -657,13 +668,15 @@ class ControllerEditor<Game : Any>(
         body.addView(Ui.sectionLabel(activity, label))
     }
 
-    private fun note(text: String) {
-        body.addView(TextView(activity).apply {
+    private fun note(text: String): TextView {
+        val view = TextView(activity).apply {
             this.text = text
             textSize = Ui.SECONDARY
             setTextColor(Ui.TEXT_MUTED)
             setPadding(dp(10), dp(8), dp(10), dp(16))
-        })
+        }
+        body.addView(view)
+        return view
     }
 
     private fun row(label: String, value: String, enabled: Boolean, action: () -> Unit): TextView {
@@ -720,10 +733,9 @@ class ControllerEditor<Game : Any>(
 
     private fun targetLabel(binding: ControllerBinding): String = when {
         binding.cycleKeys.isNotEmpty() -> {
-            val reverse = guest.cycleKeyCodes.entries.associate { (digit, code) -> code to digit }
             val direction = if (binding.input == "virtual:l1" || binding.input == "virtual:l2")
                 "previous" else "next"
-            "Cycle $direction " + binding.cycleKeys.mapNotNull(reverse::get).joinToString("")
+            "Cycle $direction " + binding.cycleKeys.joinToString(" → ") { guest.keyLabel(it) }
         }
         binding.mouse != null -> "Mouse " + when (binding.mouse) {
             "leftButton" -> "left button"

@@ -8,8 +8,7 @@ class ControllerBindingsCodec(
     private val defaults: () -> List<ControllerBinding>,
     private val validKey: (Int) -> Boolean,
     private val joystickControls: Collection<String>,
-    private val actions: Collection<String>,
-    private val cycleKeyCodes: Collection<Int> = emptyList()
+    private val actions: Collection<String>
 ) {
     private val input = Regex("(?:virtual:[a-z0-9]+|button:[0-9]{1,4}|(?:axis|hat):[0-9]{1,3}:[+-])")
     private val cycleInputs = setOf("virtual:l1", "virtual:r1", "virtual:l2", "virtual:r2")
@@ -45,14 +44,14 @@ class ControllerBindingsCodec(
             if (joystick != null && joystick !in joystickControls) return false
             if (mouse != null && mouse !in MouseInputRouter.TARGETS) return false
             if (cycleKeys != null) {
-                if (source !in cycleInputs || cycleKeys.length() !in 2..10) return false
+                if (source !in cycleInputs || cycleKeys.length() !in 2..16) return false
                 val mapped = ArrayList<Int>()
                 for (keyIndex in 0 until cycleKeys.length()) {
                     val value = cycleKeys.opt(keyIndex)
                     if (value !is Int && value !is Long) return false
                     mapped.add((value as Number).toInt())
                 }
-                if (mapped.any { it !in cycleKeyCodes } || mapped.distinct().size != mapped.size)
+                if (mapped.any { !validKey(it) } || mapped.distinct().size != mapped.size)
                     return false
             }
         }
