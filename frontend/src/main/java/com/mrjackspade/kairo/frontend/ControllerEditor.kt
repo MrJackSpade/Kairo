@@ -25,7 +25,8 @@ data class ControllerGuestSpec(
     val modifierCodes: Set<Int>,
     val joystickControls: List<Pair<String, String>>,
     val joystickHelp: String,
-    val actions: List<Pair<String, String>>
+    val actions: List<Pair<String, String>>,
+    val cycleKeyCodes: Map<Char, Int> = emptyMap()
 )
 
 /** Full-screen physical-to-virtual and virtual-to-guest controller mapping page. */
@@ -48,7 +49,7 @@ class ControllerEditor<Game : Any>(
     private val guest: ControllerGuestSpec,
     private val validateBindings: (List<ControllerBinding>) -> Unit
 ) {
-    private enum class Stage { LIST, SOURCES, CAPTURE, MANUAL, TARGET, VIRTUAL, KEYS, JOYSTICK, MOUSE, ACTIONS, DEAD_ZONE, RESET }
+    private enum class Stage { LIST, SOURCES, CAPTURE, MANUAL, TARGET, VIRTUAL, KEYS, CYCLE, JOYSTICK, MOUSE, ACTIONS, DEAD_ZONE, RESET }
     private data class Source(val group: String, val name: String, val input: String)
 
     private lateinit var page: LinearLayout
@@ -140,7 +141,7 @@ class ControllerEditor<Game : Any>(
             Stage.CAPTURE -> if (selectedControl == null) Stage.SOURCES else Stage.LIST
             Stage.MANUAL -> if (selectedControl == null) Stage.SOURCES else Stage.CAPTURE
             Stage.TARGET -> Stage.LIST
-            Stage.VIRTUAL, Stage.KEYS, Stage.JOYSTICK, Stage.MOUSE, Stage.ACTIONS -> Stage.TARGET
+            Stage.VIRTUAL, Stage.KEYS, Stage.CYCLE, Stage.JOYSTICK, Stage.MOUSE, Stage.ACTIONS -> Stage.TARGET
         }
         render()
     }
@@ -265,6 +266,7 @@ class ControllerEditor<Game : Any>(
             Stage.TARGET -> "Choose target"
             Stage.VIRTUAL -> "Virtual controller"
             Stage.KEYS -> "${guest.name} keys"
+            Stage.CYCLE -> "Number hotkey cycle"
             Stage.JOYSTICK -> "${guest.name} joystick"
             Stage.MOUSE -> "${guest.name} mouse"
             Stage.ACTIONS -> "Emulator actions"
@@ -279,6 +281,7 @@ class ControllerEditor<Game : Any>(
             Stage.TARGET -> renderTarget()
             Stage.VIRTUAL -> renderVirtual()
             Stage.KEYS -> renderKeys()
+            Stage.CYCLE -> renderCycle()
             Stage.JOYSTICK -> renderJoystick()
             Stage.MOUSE -> renderMouse()
             Stage.ACTIONS -> renderActions()
@@ -471,6 +474,12 @@ class ControllerEditor<Game : Any>(
             stage = Stage.KEYS
             render()
         }
+        if (selectedInput in cycleInputs && guest.cycleKeyCodes.isNotEmpty()) {
+            row("Number hotkey cycle", "Set a sequence for this shoulder pair", true) {
+                stage = Stage.CYCLE
+                render()
+            }
+        }
         row("${guest.name} joystick", "Choose a joystick control", true) {
             stage = Stage.JOYSTICK
             render()
@@ -519,6 +528,48 @@ class ControllerEditor<Game : Any>(
                 markText(scan, saveButton)
             }
             mark.tag = scan
+        }
+    }
+
+    private val cycleInputs get() = setOf("virtual:l1", "virtual:r1", "virtual:l2", "virtual:r2")
+
+    private fun cyclePair(input: String): Pair<String, String> =
+        if (input == "virtual:l1" || input == "virtual:r1") "virtual:l1" to "virtual:r1"
+        else "virtual:l2" to "virtual:r2"
+
+    private fun renderCycle() {
+        val (left, right) = cyclePair(selectedInput)
+        val current = load(scope).firstOrNull { it.input == selectedInput && it.cycleKeys.isNotEmpty() }
+            ?: load(scope).firstOrNull {
+                (it.input == left || it.input == right) && it.cycleKeys.isNotEmpty()
+            }
+        val reverse = guest.cycleKeyCodes.entries.associate { (digit, code) -> code to digit }
+        val existing = current?.cycleKeys?.mapNotNull(reverse::get)?.joinToString("") ?: "1234567"
+        note("Enter 2 to 10 distinct number keys. ${virtualLabel(left.removePrefix("virtual:"))} " +
+            "cycles backward; ${virtualLabel(right.removePrefix("virtual:"))} cycles forward. " +
+            "The first press selects the last or first key respectively. The sequence wraps around. " +
+            "This sends hotkeys and cannot detect the game's current selection.")
+        val edit = EditText(activity).apply {
+            setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setTextColor(Ui.TEXT)
+            setText(existing)
+            setSelection(text.length)
+        }
+        body.addView(edit)
+        footerAction("Save shoulder pair") {
+            val digits = edit.text.toString()
+            if (digits.length !in 2..10 || digits.toSet().size != digits.length ||
+                digits.any { it !in guest.cycleKeyCodes }) {
+                toast("Enter 2 to 10 different number keys")
+            } else change {
+                val sequence = digits.map { guest.cycleKeyCodes.getValue(it) }
+                val updated = load(scope).filterNot { it.input == left || it.input == right } +
+                    ControllerBinding(left, cycleKeys = sequence) +
+                    ControllerBinding(right, cycleKeys = sequence)
+                validateBindings(updated)
+                save(scope, updated)
+            }
         }
     }
 
@@ -668,6 +719,12 @@ class ControllerEditor<Game : Any>(
     }
 
     private fun targetLabel(binding: ControllerBinding): String = when {
+        binding.cycleKeys.isNotEmpty() -> {
+            val reverse = guest.cycleKeyCodes.entries.associate { (digit, code) -> code to digit }
+            val direction = if (binding.input == "virtual:l1" || binding.input == "virtual:l2")
+                "previous" else "next"
+            "Cycle $direction " + binding.cycleKeys.mapNotNull(reverse::get).joinToString("")
+        }
         binding.mouse != null -> "Mouse " + when (binding.mouse) {
             "leftButton" -> "left button"
             "rightButton" -> "right button"

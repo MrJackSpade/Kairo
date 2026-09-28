@@ -6,5 +6,7 @@ data class ControllerBinding(
     val keys: List<Int> = emptyList(),
     val action: String? = null,
     val joystick: String? = null,
-    val mouse: String? = null
+    val mouse: String? = null,
+    /** Number hotkeys sent one at a time by a shoulder pair. */
+    val cycleKeys: List<Int> = emptyList()
 )

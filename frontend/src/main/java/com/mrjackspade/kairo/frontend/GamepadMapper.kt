@@ -23,6 +23,7 @@ class GamepadMapper(private val router: InputRouter,
     var bindings: List<ControllerBinding> = defaultBindings
         set(value) {
             releaseAll()
+            cycleIndex.clear()
             field = value
             updateMotionInputs()
         }
@@ -31,6 +32,7 @@ class GamepadMapper(private val router: InputRouter,
 
     private val active = HashSet<String>()
     private val heldActions = HashMap<String, String>()
+    private val cycleIndex = HashMap<String, Int>()
     private var motionInputs = emptyList<String>()
     private val handler = Handler(Looper.getMainLooper())
     private var lastMouseTick = 0L
@@ -172,6 +174,18 @@ class GamepadMapper(private val router: InputRouter,
             binding.action != null -> {
                 heldActions[owner] = binding.action
                 runAction(binding.action)
+            }
+            binding.cycleKeys.isNotEmpty() -> {
+                val pair = if (binding.input == "virtual:l1" || binding.input == "virtual:r1") 1 else 2
+                val sequence = binding.cycleKeys
+                val group = "$pair:${sequence.joinToString(",")}"
+                val previous = cycleIndex[group] ?: -1
+                val backwards = binding.input == "virtual:l1" || binding.input == "virtual:l2"
+                val next = if (backwards) {
+                    if (previous < 0) sequence.lastIndex else (previous + sequence.size - 1) % sequence.size
+                } else (previous + 1) % sequence.size
+                cycleIndex[group] = next
+                router.hold(owner, listOf(sequence[next]))
             }
             else -> router.hold(owner, binding.keys)
         }
