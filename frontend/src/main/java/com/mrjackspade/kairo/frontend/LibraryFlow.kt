@@ -32,6 +32,10 @@ class LibraryFlow<T : LibraryItem>(
         it.uri == uri && it.isReadPermission && (!writable || it.isWritePermission)
     }
 
+    fun hasWriteGrant(uri: Uri): Boolean = activity.contentResolver.persistedUriPermissions.any {
+        it.uri == uri && it.isWritePermission
+    }
+
     fun restore(): Uri? {
         val saved = preferences.getString("rom_tree", null)?.let(Uri::parse)
         tree = saved
@@ -62,7 +66,7 @@ class LibraryFlow<T : LibraryItem>(
         @Suppress("DEPRECATION")
         activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                (if (writable) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0) or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
                 Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }, requestCode)
     }
@@ -76,9 +80,11 @@ class LibraryFlow<T : LibraryItem>(
             return true
         }
         try {
+            val keepWrite = writable ||
+                (data.flags and Intent.FLAG_GRANT_WRITE_URI_PERMISSION != 0)
             activity.contentResolver.takePersistableUriPermission(selected,
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    (if (writable) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0))
+                    (if (keepWrite) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0))
             scanCancelled.set(true)
             tree = selected
             entries = emptyList()
