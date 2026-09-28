@@ -552,6 +552,14 @@ class LibraryScreen<T : LibraryItem>(
         settingValues.forEach { (view, value) -> view.text = value() }
     }
 
+    /** Drop library search focus before a guest session takes over the window. */
+    fun dismissSystemKeyboard() {
+        search.clearFocus()
+        (context.getSystemService(Context.INPUT_METHOD_SERVICE)
+            as android.view.inputmethod.InputMethodManager)
+            .hideSoftInputFromWindow(search.windowToken, 0)
+    }
+
     private fun toggleSearch() {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
             as android.view.inputmethod.InputMethodManager

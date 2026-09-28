@@ -7,12 +7,15 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
 import android.os.Handler
+import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
+import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -43,6 +46,7 @@ class GuestKeyboardPanel(
         else handler.post { updateHighlights() }
     }
     private var page = 0
+    private var imeHiddenSinceOpen = false
 
     init {
         orientation = VERTICAL
@@ -126,6 +130,22 @@ class GuestKeyboardPanel(
         input.removeListener(inputListener)
         handler.removeCallbacksAndMessages(null)
         super.onDetachedFromWindow()
+    }
+
+    override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
+        if (Build.VERSION.SDK_INT >= 30 && visibility == View.VISIBLE) {
+            if (insets.isVisible(WindowInsets.Type.ime())) {
+                if (imeHiddenSinceOpen) close()
+            } else imeHiddenSinceOpen = true
+        }
+        return super.onApplyWindowInsets(insets)
+    }
+
+    fun open() {
+        imeHiddenSinceOpen = false
+        (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+            .hideSoftInputFromWindow(windowToken, 0)
+        visibility = View.VISIBLE
     }
 
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
