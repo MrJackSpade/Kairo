@@ -189,9 +189,11 @@ class LibraryScreen<T : LibraryItem>(
         val entry = entries[index]
         val pinned = index == 0 && pinnedId != null && items.firstOrNull() is Header
         val game = catalog.resolve(entry.contentId ?: "", entry.displayName)
-        holder.title.text = if ("♥" in game.tags) "${game.title} ♥" else game.title
-        holder.detail.text = entry.error?.let { "${fileLabel(entry)}  ·  $it. Fix the source, then Refresh." }
-            ?: fileLabel(entry)
+        holder.title.text = game.title
+        // Keep the source filename intact; the marker is only a prefix on its display row.
+        val file = (if ("♥" in game.tags) "♥ " else "") + fileLabel(entry)
+        holder.detail.text = entry.error?.let { "$file  ·  $it. Fix the source, then Refresh." }
+            ?: file
         holder.detail.setTextColor(if (entry.error != null) Ui.DANGER else Ui.TEXT_MUTED)
         val artwork = game.boxArt ?: game.preview
         val bitmap = artwork?.let(::loadArt)
