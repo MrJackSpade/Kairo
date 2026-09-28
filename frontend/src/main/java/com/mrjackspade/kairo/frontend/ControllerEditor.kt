@@ -18,6 +18,16 @@ import android.widget.TextView
 import android.widget.Toast
 import kotlin.math.abs
 
+data class ControllerGuestSpec(
+    val name: String,
+    val keyCodes: List<Int>,
+    val keyLabel: (Int) -> String,
+    val modifierCodes: Set<Int>,
+    val joystickControls: List<Pair<String, String>>,
+    val joystickHelp: String,
+    val actions: List<Pair<String, String>>
+)
+
 /** Full-screen physical-to-virtual and virtual-to-guest controller mapping page. */
 class ControllerEditor<Game : Any>(
     private val activity: Activity,
@@ -35,8 +45,7 @@ class ControllerEditor<Game : Any>(
     private val eightWayDpad: () -> Boolean,
     private val setEightWayDpad: (Boolean) -> Unit,
     private val gameId: (Game) -> String,
-    private val guestKeyLabel: (Int) -> String,
-    private val joystickControls: List<String>,
+    private val guest: ControllerGuestSpec,
     private val validateBindings: (List<ControllerBinding>) -> Unit
 ) {
     private enum class Stage { LIST, SOURCES, CAPTURE, MANUAL, TARGET, VIRTUAL, KEYS, JOYSTICK, MOUSE, ACTIONS, DEAD_ZONE, RESET }
@@ -255,9 +264,9 @@ class ControllerEditor<Game : Any>(
             Stage.MANUAL -> "Enter input code"
             Stage.TARGET -> "Choose target"
             Stage.VIRTUAL -> "Virtual controller"
-            Stage.KEYS -> "PC-98 keys"
-            Stage.JOYSTICK -> "PC-98 joystick 1"
-            Stage.MOUSE -> "PC-98 mouse"
+            Stage.KEYS -> "${guest.name} keys"
+            Stage.JOYSTICK -> "${guest.name} joystick"
+            Stage.MOUSE -> "${guest.name} mouse"
             Stage.ACTIONS -> "Emulator actions"
             Stage.DEAD_ZONE -> "Stick dead zone"
             Stage.RESET -> "Reset bindings"
@@ -341,7 +350,7 @@ class ControllerEditor<Game : Any>(
                 render()
             }
         } else {
-            section(if (scope == null) "VIRTUAL CONTROLLER → GLOBAL PC-98 PROFILE"
+            section(if (scope == null) "VIRTUAL CONTROLLER → GLOBAL ${guest.name.uppercase()} PROFILE"
                 else "VIRTUAL CONTROLLER → GAME PROFILE")
             val bindings = load(scope).associateBy { it.input }
             for (control in PhysicalControllerBindings.controls) {
@@ -456,21 +465,21 @@ class ControllerEditor<Game : Any>(
         }
         val existing = load(scope).firstOrNull { it.input == selectedInput }
         note("Current target: " + (existing?.let(::targetLabel) ?: "Unassigned"))
-        row("PC-98 key or key combination", "Choose from all scan codes", true) {
+        row("${guest.name} key or key combination", "Choose from available keys", true) {
             selectedScans.clear()
             selectedScans.addAll(existing?.keys ?: emptyList())
             stage = Stage.KEYS
             render()
         }
-        row("PC-98 joystick 1", "Up, down, left, right, button 1 or 2", true) {
+        row("${guest.name} joystick", "Choose a joystick control", true) {
             stage = Stage.JOYSTICK
             render()
         }
-        row("PC-98 mouse", "Cursor directions or left/right button", true) {
+        row("${guest.name} mouse", "Cursor directions or left/right button", true) {
             stage = Stage.MOUSE
             render()
         }
-        row("Emulator action", "Menu, pause, fast forward, restart, or exit", true) {
+        row("Emulator action", "Choose an app command", true) {
             stage = Stage.ACTIONS
             render()
         }
@@ -494,17 +503,17 @@ class ControllerEditor<Game : Any>(
     }
 
     private fun renderKeys() {
-        note("Select one to four real PC-98 keys. Modifiers are pressed before the other keys.")
+        note("Select one to four ${guest.name} keys. Modifiers are pressed before the other keys.")
         val saveButton = footerAction("Save selected keys") {
             if (selectedScans.isEmpty()) toast("Choose at least one key")
             else {
-                val scans = selectedScans.sortedWith(compareBy<Int> { it !in MODIFIERS }.thenBy { it })
+                val scans = selectedScans.sortedWith(compareBy<Int> { it !in guest.modifierCodes }.thenBy { it })
                 change { put(ControllerBinding(selectedInput, scans)) }
             }
         }
-        for (scan in 0..0x7f) {
+        for (scan in guest.keyCodes) {
             val selected = scan in selectedScans
-            val mark = row(guestKeyLabel(scan),
+            val mark = row(guest.keyLabel(scan),
                 "0x" + scan.toString(16).padStart(2, '0') + if (selected) "  ✓" else "", true) {
                 if (!selectedScans.remove(scan) && selectedScans.size < 4) selectedScans.add(scan)
                 markText(scan, saveButton)
@@ -528,10 +537,9 @@ class ControllerEditor<Game : Any>(
     }
 
     private fun renderJoystick() {
-        note("Uses the joystick input on the emulated sound board. Games must support joystick 1.")
-        val labels = listOf("Up", "Down", "Left", "Right", "Button 1", "Button 2")
-        joystickControls.forEachIndexed { index, control ->
-            row(labels[index], "Joystick 1", true) {
+        note(guest.joystickHelp)
+        guest.joystickControls.forEach { (control, label) ->
+            row(label, "Joystick", true) {
                 change { put(ControllerBinding(selectedInput, joystick = control)) }
             }
         }
@@ -542,16 +550,14 @@ class ControllerEditor<Game : Any>(
         val labels = listOf("Move up", "Move down", "Move left", "Move right",
             "Left button", "Right button")
         MouseInputRouter.TARGETS.forEachIndexed { index, target ->
-            row(labels[index], "PC-98 mouse", true) {
+            row(labels[index], "${guest.name} mouse", true) {
                 change { put(ControllerBinding(selectedInput, mouse = target)) }
             }
         }
     }
 
     private fun renderActions() {
-        val actions = listOf("menu" to "Open menu", "pause" to "Pause or resume",
-            "fastForward" to "Fast forward while held", "restart" to "Restart", "exit" to "Exit")
-        for ((id, label) in actions) row(label, "Emulator action", true) {
+        for ((id, label) in guest.actions) row(label, "Emulator action", true) {
             change { put(ControllerBinding(selectedInput, action = id)) }
         }
     }
@@ -667,14 +673,12 @@ class ControllerEditor<Game : Any>(
             "rightButton" -> "right button"
             else -> binding.mouse.removePrefix("move").lowercase()
         }
-        binding.joystick != null -> "Joystick 1 " + when (binding.joystick) {
-            "button1" -> "Button 1"
-            "button2" -> "Button 2"
-            else -> binding.joystick.replaceFirstChar(Char::uppercase)
-        }
+        binding.joystick != null -> "Joystick " +
+            (guest.joystickControls.firstOrNull { it.first == binding.joystick }?.second
+                ?: binding.joystick.replaceFirstChar(Char::uppercase))
         binding.action == "fastForward" -> "Fast forward"
         binding.action != null -> binding.action.replaceFirstChar(Char::uppercase)
-        else -> binding.keys.joinToString(" + ") { guestKeyLabel(it) }
+        else -> binding.keys.joinToString(" + ") { guest.keyLabel(it) }
     }
 
     private fun virtualLabel(control: String): String = when (control) {
@@ -755,6 +759,5 @@ class ControllerEditor<Game : Any>(
             "left", "right", "l1", "r1", "l2", "r2", "start", "select", "menu",
             "lsup", "lsdown", "lsleft", "lsright",
             "rsup", "rsdown", "rsleft", "rsright")
-        private val MODIFIERS = setOf(0x70, 0x71, 0x72, 0x73, 0x74, 0x7d)
     }
 }
