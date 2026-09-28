@@ -21,14 +21,15 @@ class LibraryFlow<T : LibraryItem>(
     private val scanSummary: (List<T>) -> String,
     private val onScanComplete: (List<T>) -> Unit = {},
     private val onFolderSelected: ((Uri) -> Unit)? = null,
-    private val onFolderError: (String) -> Unit = {}
+    private val onFolderError: (String) -> Unit = {},
+    private val writable: Boolean = false
 ) {
     var tree: Uri? = null
     var entries: List<T> = emptyList()
     private var scanCancelled = AtomicBoolean(false)
 
     fun hasGrant(uri: Uri): Boolean = activity.contentResolver.persistedUriPermissions.any {
-        it.uri == uri && it.isReadPermission
+        it.uri == uri && it.isReadPermission && (!writable || it.isWritePermission)
     }
 
     fun restore(): Uri? {
@@ -61,6 +62,7 @@ class LibraryFlow<T : LibraryItem>(
         @Suppress("DEPRECATION")
         activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                (if (writable) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0) or
                 Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }, requestCode)
     }
@@ -75,7 +77,8 @@ class LibraryFlow<T : LibraryItem>(
         }
         try {
             activity.contentResolver.takePersistableUriPermission(selected,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    (if (writable) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0))
             scanCancelled.set(true)
             tree = selected
             entries = emptyList()
