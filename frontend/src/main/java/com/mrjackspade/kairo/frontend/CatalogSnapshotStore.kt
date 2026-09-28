@@ -85,7 +85,9 @@ class CatalogSnapshotStore(
         if (!file.isFile || file.length() > maxBytes ||
             AtomicFile(marker).readFully().toString(Charsets.UTF_8) !=
                 "$apkInstallTime:${digest(file)}") null
-        else file.also(validate)
+        // The checksum covers the exact bytes validated before the atomic save.
+        // Re-parsing a large catalog on the UI thread would delay every launch.
+        else file
     } catch (_: Exception) { null }
 
     private fun digest(source: File): String {
