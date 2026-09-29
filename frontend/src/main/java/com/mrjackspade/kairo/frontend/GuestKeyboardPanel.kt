@@ -29,7 +29,8 @@ class GuestKeyboardPanel(
     private val showClose: Boolean = true,
     private val onSwap: (() -> Unit)? = null,
     mouse: MouseInputRouter? = null,
-    mouseReferenceSize: () -> Pair<Int, Int> = { 640 to 400 }
+    mouseReferenceSize: () -> Pair<Int, Int> = { 640 to 400 },
+    private val onVisibilityChanged: (() -> Unit)? = null
 ) : LinearLayout(context) {
     private companion object { const val TOUCHPAD_PAGE = -1 }
 
@@ -146,6 +147,7 @@ class GuestKeyboardPanel(
         (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
             .hideSoftInputFromWindow(windowToken, 0)
         visibility = View.VISIBLE
+        onVisibilityChanged?.invoke()
     }
 
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
@@ -171,6 +173,7 @@ class GuestKeyboardPanel(
         highlightUntil.clear()
         lastPressed = emptySet()
         updateLegends()
+        onVisibilityChanged?.invoke()
     }
 
     private fun attachPageSwitch(tab: View, target: Int) {
