@@ -12,12 +12,12 @@ import android.widget.ScrollView
 import java.text.DateFormat
 import java.util.Date
 
-/** Shared save/load slot picker. Emulator backends own the state and thumbnail files. */
+/** Shared save/load slot picker; owns the decoded preview bitmaps until dismissal. */
 object StateSlotDialog {
     data class Slot(val index: Int, val savedAt: Long?, val thumbnail: Bitmap?)
 
     fun show(activity: Activity, title: String?, saving: Boolean, slots: List<Slot>,
-             onSave: (Int) -> Unit, onLoad: (Int) -> Unit) {
+             onSave: (Int) -> Unit, onLoad: (Int) -> Unit, saveIconRes: Int = 0) {
         val format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
         val list = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -31,6 +31,11 @@ object StateSlotDialog {
             .setNegativeButton("Cancel", null).create()
         dialog.show()
         Ui.styleDialog(dialog)
+        val previews = mutableListOf<ImageView>()
+        dialog.setOnDismissListener {
+            previews.forEach { it.setImageDrawable(null) }
+            slots.forEach { it.thumbnail?.recycle() }
+        }
         slots.forEach { slot ->
             val available = saving || slot.savedAt != null
             val row = LinearLayout(activity).apply {
@@ -48,12 +53,16 @@ object StateSlotDialog {
                 background = Ui.rounded(activity, Ui.BG, 4)
                 clipToOutline = true
                 setImageBitmap(slot.thumbnail)
+                previews += this
             } else FrameLayout(activity).apply {
                 background = GradientDrawable().apply {
                     cornerRadius = Ui.dp(activity, 4).toFloat()
                     setStroke(Ui.dp(activity, 1), Ui.LINE,
                         Ui.dp(activity, 4).toFloat(), Ui.dp(activity, 3).toFloat())
                 }
+                if (saving && saveIconRes != 0) addView(Ui.icon(activity, saveIconRes,
+                    Ui.TEXT_FAINT, 20), FrameLayout.LayoutParams(Ui.dp(activity, 20),
+                    Ui.dp(activity, 20), Gravity.CENTER))
             }
             row.addView(preview, LinearLayout.LayoutParams(Ui.dp(activity, 128), Ui.dp(activity, 80)))
             val labels = LinearLayout(activity).apply {
