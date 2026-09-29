@@ -613,6 +613,14 @@ class LibraryScreen<T : LibraryItem>(
         selectionChanged(entry)
     }
 
+    /** Reannounce a cached selection when the library returns after gameplay.
+     * The companion display may have cleared its game information while hidden. */
+    fun reannounceSelection() {
+        val entry = entries.getOrNull(selectedIndex)
+        reportedSelection = entry?.id
+        selectionChanged(entry)
+    }
+
     private fun loadArt(path: String): Bitmap? {
         artCache.get(path)?.let { return it }
         if (path in missingArt || !pendingArt.add(path)) return null

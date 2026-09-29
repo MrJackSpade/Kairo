@@ -61,7 +61,7 @@ class LibraryFlow<T : LibraryItem>(
         if (displayedEntries !== entries) {
             screen.showEntries(entries)
             displayedEntries = entries
-        }
+        } else screen.reannounceSelection()
         screen.showStatus(when {
             tree == null -> emptyStatus
             !hasGrant(tree!!) -> expiredStatus
