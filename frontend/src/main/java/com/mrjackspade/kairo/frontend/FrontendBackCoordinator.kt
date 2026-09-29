@@ -17,7 +17,8 @@ class FrontendBackCoordinator(
     private val session: () -> SessionFlow?,
     private val closeSessionMenu: () -> Unit,
     private val keyboard: () -> GuestKeyboardPanel?,
-    private val onGameRoot: () -> Unit
+    private val onGameRoot: () -> Unit,
+    private val closeKeyboard: () -> Unit = { keyboard()?.close() }
 ) {
     private val callback = OnBackInvokedCallback { handle() }
     private var registered = false
@@ -59,7 +60,7 @@ class FrontendBackCoordinator(
             return
         }
         keyboard()?.takeIf { it.visibility == View.VISIBLE }?.let {
-            it.close()
+            closeKeyboard()
             return
         }
         onGameRoot()
