@@ -6,13 +6,14 @@ import kotlin.math.abs
 
 /** Shared edge navigation for the session menu and guest keyboard. */
 class EdgeSwipeNavigation(private val density: Float) {
-    enum class Result { PASS, CONSUME, OPEN_MENU, CLOSE_MENU, OPEN_KEYBOARD }
+    enum class Result { PASS, CONSUME, OPEN_MENU, CLOSE_MENU, OPEN_KEYBOARD, REPLAY_GUEST }
 
     private var startX: Float? = null
     private var startY = 0f
     private var direction = 0 // +1 from the left, -1 from the right, 0 for menu close.
     private var trackingMenu = false
     private var consumed = false
+    private var replayStart: Pair<Float, Float>? = null
 
     fun handle(event: MotionEvent, width: Int, menuOpen: Boolean,
                canOpenMenu: Boolean, canOpenKeyboard: Boolean,
@@ -22,6 +23,7 @@ class EdgeSwipeNavigation(private val density: Float) {
             MotionEvent.ACTION_DOWN -> {
                 consumed = false
                 startX = null
+                replayStart = null
                 trackingMenu = menuOpen
                 if (menuOpen) {
                     startX = event.x
@@ -54,23 +56,57 @@ class EdgeSwipeNavigation(private val density: Float) {
                         else -> Result.OPEN_KEYBOARD
                     }
                 }
-                if (!trackingMenu) return Result.CONSUME
+                if (!trackingMenu) {
+                    val vertical = abs(event.y - startY)
+                    if (horizontal <= -24f * density ||
+                        (vertical >= 24f * density && vertical * 1.3f >= abs(horizontal))) {
+                        replayStart = start to startY
+                        startX = null
+                        return Result.REPLAY_GUEST
+                    }
+                    return Result.CONSUME
+                }
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                if (startX != null && !trackingMenu) {
+                    replayStart = startX!! to startY
+                    startX = null
+                    return Result.REPLAY_GUEST
+                }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 val wasTrackingEdge = startX != null && !trackingMenu
+                if (wasTrackingEdge && event.actionMasked == MotionEvent.ACTION_UP)
+                    replayStart = startX!! to startY
                 startX = null
                 val wasConsumed = consumed
                 consumed = false
                 trackingMenu = false
-                return if (wasTrackingEdge || wasConsumed) Result.CONSUME else Result.PASS
+                return when {
+                    wasTrackingEdge && event.actionMasked == MotionEvent.ACTION_UP ->
+                        Result.REPLAY_GUEST
+                    wasTrackingEdge || wasConsumed -> Result.CONSUME
+                    else -> Result.PASS
+                }
             }
         }
         return Result.PASS
+    }
+
+    /** Restore a tap or diagonal drag after withholding its edge ACTION_DOWN. */
+    fun replay(event: MotionEvent, dispatch: (MotionEvent) -> Boolean): Boolean {
+        val (x, y) = replayStart ?: return dispatch(event)
+        replayStart = null
+        val down = MotionEvent.obtain(event.downTime, event.downTime,
+            MotionEvent.ACTION_DOWN, x, y, 0).apply { source = event.source }
+        val accepted = try { dispatch(down) } finally { down.recycle() }
+        return dispatch(event) || accepted
     }
 
     fun reset() {
         startX = null
         trackingMenu = false
         consumed = false
+        replayStart = null
     }
 }
