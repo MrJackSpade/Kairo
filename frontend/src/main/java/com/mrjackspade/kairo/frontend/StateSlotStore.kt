@@ -70,6 +70,14 @@ class StateSlotStore(root: File, contentId: String, private val stateName: Strin
     private fun recover(index: Int) {
         val previous = previous(index)
         if (!previous.exists()) return
+        // Recover the flat backup left by an interrupted save in an older DOS build.
+        if (legacySuffix != null && previous.isFile) {
+            val legacy = File(base, "slot$index$legacySuffix")
+            check(if (legacy.isFile) previous.delete() else previous.renameTo(legacy)) {
+                "Could not recover previous save"
+            }
+            return
+        }
         val target = directory(index)
         if (File(target, stateName).isFile) {
             check(previous.deleteRecursively()) { "Could not clear previous save" }
