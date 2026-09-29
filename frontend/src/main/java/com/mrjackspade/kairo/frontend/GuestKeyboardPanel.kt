@@ -48,6 +48,15 @@ class GuestKeyboardPanel(
     }
     private var page = 0
     private var imeHiddenSinceOpen = false
+    private val visibilityListeners = LinkedHashSet<() -> Unit>()
+
+    fun addVisibilityListener(listener: () -> Unit) { visibilityListeners.add(listener) }
+    fun removeVisibilityListener(listener: () -> Unit) { visibilityListeners.remove(listener) }
+
+    private fun notifyVisibilityChanged() {
+        onVisibilityChanged?.invoke()
+        visibilityListeners.toList().forEach { it() }
+    }
 
     init {
         orientation = VERTICAL
@@ -147,7 +156,7 @@ class GuestKeyboardPanel(
         (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
             .hideSoftInputFromWindow(windowToken, 0)
         visibility = View.VISIBLE
-        onVisibilityChanged?.invoke()
+        notifyVisibilityChanged()
     }
 
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
@@ -173,7 +182,7 @@ class GuestKeyboardPanel(
         highlightUntil.clear()
         lastPressed = emptySet()
         updateLegends()
-        onVisibilityChanged?.invoke()
+        notifyVisibilityChanged()
     }
 
     private fun attachPageSwitch(tab: View, target: Int) {

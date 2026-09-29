@@ -95,6 +95,19 @@ class OnScreenControls(
     private var settingsTitle: TextView? = null
     private var arrangement: FrameLayout? = null
     private var requestedVisible = false
+    private var guestKeyboard: GuestKeyboardPanel? = null
+    private val keyboardVisibilityListener: () -> Unit = {
+        refreshVisibility(requestedVisible)
+    }
+
+    /** Keep touch controls below the guest keyboard in both host apps. */
+    fun bindGuestKeyboard(panel: GuestKeyboardPanel?) {
+        guestKeyboard?.removeVisibilityListener(keyboardVisibilityListener)
+        guestKeyboard = panel
+        panel?.addVisibilityListener(keyboardVisibilityListener)
+        refreshVisibility(requestedVisible)
+    }
+
     private var enabled = preferences.getBoolean("onscreen_enabled",
         InputDevice.getDeviceIds().none { id ->
             InputDevice.getDevice(id)?.let { device ->
@@ -133,7 +146,7 @@ class OnScreenControls(
 
     fun refreshVisibility(playing: Boolean) {
         requestedVisible = playing
-        val show = playing && enabled && !isOpen
+        val show = playing && enabled && !isOpen && guestKeyboard?.visibility != View.VISIBLE
         if (!show) {
             mapper.releaseOnScreen()
             heldPointers.values.forEach(MutableSet<Int>::clear)
