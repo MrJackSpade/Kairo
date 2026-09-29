@@ -12,6 +12,8 @@ data class ExternalGameFile(val uri: Uri, val name: String, val size: Long,
                             val modified: Long)
 
 object ExternalGameIntent {
+    fun hasRequest(intent: Intent): Boolean = intent.data != null || intent.hasExtra("ROM")
+
     fun file(intent: Intent?, resolver: ContentResolver): ExternalGameFile? {
         if (intent == null || intent.action !in listOf(Intent.ACTION_VIEW,
                 Intent.ACTION_MAIN, null)) return null
