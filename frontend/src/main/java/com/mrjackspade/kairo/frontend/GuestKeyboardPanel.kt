@@ -47,7 +47,6 @@ class GuestKeyboardPanel(
         else handler.post { updateHighlights() }
     }
     private var page = 0
-    private var imeHiddenSinceOpen = false
     private val visibilityListeners = LinkedHashSet<() -> Unit>()
 
     fun addVisibilityListener(listener: () -> Unit) { visibilityListeners.add(listener) }
@@ -144,17 +143,14 @@ class GuestKeyboardPanel(
 
     override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
         if (Build.VERSION.SDK_INT >= 30 && visibility == View.VISIBLE) {
-            if (insets.isVisible(WindowInsets.Type.ime())) {
-                if (imeHiddenSinceOpen) close()
-            } else imeHiddenSinceOpen = true
+            if (insets.isVisible(WindowInsets.Type.ime())) close()
         }
         return super.onApplyWindowInsets(insets)
     }
 
     fun open() {
-        imeHiddenSinceOpen = false
         (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-            .hideSoftInputFromWindow(windowToken, 0)
+            .hideSoftInputFromWindow(rootView.windowToken, 0)
         visibility = View.VISIBLE
         notifyVisibilityChanged()
     }
