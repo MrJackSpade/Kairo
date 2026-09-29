@@ -4,6 +4,10 @@ import org.json.JSONObject
 
 /** Validated field and subfield precedence for shipped, updated, and local catalog records. */
 object CatalogFieldLayers {
+    /** The last explicit boolean in catalog priority order controls visibility. */
+    fun hidden(vararg values: Any?): Boolean =
+        values.filterIsInstance<Boolean>().lastOrNull() ?: false
+
     data class Source(val name: String, val record: JSONObject?)
     data class Result(val record: JSONObject, private val origins: Map<List<String>, String>) {
         fun sourceOf(vararg path: String): String? = origins[path.toList()]
