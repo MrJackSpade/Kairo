@@ -9,6 +9,23 @@ object CatalogFieldLayers {
         fun sourceOf(vararg path: String): String? = origins[path.toList()]
     }
 
+    /** The same field policy used by merge can reject a bad incoming record. */
+    fun invalidPath(record: JSONObject, objectField: (List<String>) -> Boolean,
+                    validValue: (List<String>, Any) -> Boolean): List<String>? {
+        fun inspect(source: JSONObject, path: List<String>): List<String>? {
+            for (key in source.keys()) {
+                val nextPath = path + key
+                val value = source.opt(key) ?: return nextPath
+                val invalid = if (value is JSONObject && objectField(nextPath))
+                    inspect(value, nextPath) else if (validValue(nextPath, value)) null
+                    else nextPath
+                if (invalid != null) return invalid
+            }
+            return null
+        }
+        return inspect(record, emptyList())
+    }
+
     fun merge(sources: List<Source>, objectField: (List<String>) -> Boolean,
               validValue: (List<String>, Any) -> Boolean): Result {
         val merged = JSONObject()
