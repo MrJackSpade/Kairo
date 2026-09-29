@@ -2,14 +2,22 @@ package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
 import android.os.Build
+import android.view.View
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 
 /** Routes system and physical Back through the same ordered frontend layers. */
 class FrontendBackCoordinator(
     private val activity: Activity,
-    private val layers: List<() -> Boolean>,
-    private val fallback: () -> Unit
+    private val firstRun: FirstRunScreen,
+    private val onScreenControls: () -> OnScreenControls?,
+    private val controllerEditor: ControllerEditor<*>,
+    private val library: LibraryScreen<*>,
+    private val onLibraryRoot: () -> Unit,
+    private val session: () -> SessionFlow?,
+    private val closeSessionMenu: () -> Unit,
+    private val keyboard: () -> GuestKeyboardPanel?,
+    private val onGameRoot: () -> Unit
 ) {
     private val callback = OnBackInvokedCallback { handle() }
     private var registered = false
@@ -28,7 +36,32 @@ class FrontendBackCoordinator(
     }
 
     fun handle() {
-        for (layer in layers) if (layer()) return
-        fallback()
+        if (firstRun.isOpen) {
+            firstRun.back()
+            return
+        }
+        onScreenControls()?.takeIf { it.isOpen }?.let {
+            it.back()
+            return
+        }
+        if (controllerEditor.isOpen) {
+            controllerEditor.back()
+            return
+        }
+        if (library.visibility == View.VISIBLE) {
+            if (library.closeDetail()) return
+            if (library.closeActions()) return
+            onLibraryRoot()
+            return
+        }
+        if (session()?.isOpen == true) {
+            closeSessionMenu()
+            return
+        }
+        keyboard()?.takeIf { it.visibility == View.VISIBLE }?.let {
+            it.close()
+            return
+        }
+        onGameRoot()
     }
 }
