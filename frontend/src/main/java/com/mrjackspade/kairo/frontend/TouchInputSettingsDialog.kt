@@ -19,7 +19,8 @@ object TouchInputSettingsDialog {
         val secondaryTouchpad: Boolean? = null,
         val directTouchExplanation: String,
         val onSave: (modeIndex: Int, directTouch: Boolean, secondaryTouchpad: Boolean?) -> Unit,
-        val onReset: (() -> Unit)? = null
+        val onReset: (() -> Unit)? = null,
+        val resetLabel: String = "Use catalog defaults"
     ) {
         init { require(modeLabels.isNotEmpty() && modeIndex in modeLabels.indices) }
     }
@@ -72,7 +73,7 @@ object TouchInputSettingsDialog {
                     secondaryGroup?.let { checkedIndex(it) == 1 })
             }
             .setNegativeButton("Cancel", null)
-        options.onReset?.let { dialog.setNeutralButton("Use catalog defaults") { _, _ -> it() } }
+        options.onReset?.let { dialog.setNeutralButton(options.resetLabel) { _, _ -> it() } }
         return dialog
     }
 }
