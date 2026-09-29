@@ -60,7 +60,9 @@ class SecondaryDisplayCoordinator(
         if (started) return
         started = true
         displayManager.registerDisplayListener(this, handler)
-        refresh()
+        // onResume can run before the decor view is attached to its display.
+        // Wait for its actual display before choosing where the companion belongs.
+        activity.window.decorView.post { if (started) refresh() }
     }
 
     fun stop() {
@@ -117,7 +119,7 @@ class SecondaryDisplayCoordinator(
             dismiss()
             return
         }
-        val primaryId = activity.window.decorView.display?.displayId ?: Display.DEFAULT_DISPLAY
+        val primaryId = activity.window.decorView.display?.displayId ?: return
         val presentationDisplays = displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
         val target = (presentationDisplays.asList() + displayManager.displays.asList())
             .firstOrNull { it.displayId != primaryId && it.isValid &&

@@ -6,12 +6,14 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
+import org.json.JSONObject
 
-/** Downloads and atomically keeps a validated catalog snapshot for the installed APK. */
+/** Checks a small revision file before downloading a validated catalog snapshot. */
 class CatalogSnapshotStore(
     context: Context,
     fileName: String,
     private val url: String,
+    private val metadataUrl: String,
     private val maxBytes: Long,
     private val validate: (File) -> Unit
 ) {
@@ -20,12 +22,15 @@ class CatalogSnapshotStore(
     private val cacheDir = context.cacheDir
     private val apkInstallTime = context.packageManager
         .getPackageInfo(context.packageName, 0).lastUpdateTime.toString()
+    private var knownChecksum: String? = null
     private var active = readSaved()
 
     @Synchronized fun activeFile(): File? = active
 
-    /** Call from a worker thread. Validation and writes finish before the new file becomes active. */
+    /** Call from a worker thread. Unchanged metadata does no archive work. */
     fun download(): Boolean {
+        val revision = fetchRevision()
+        if (revision.checksum == knownChecksum) return false
         val temporary = File.createTempFile("catalog-", ".tmp", cacheDir)
         try {
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -52,11 +57,10 @@ class CatalogSnapshotStore(
                     }
                 }
             } finally { connection.disconnect() }
+            require(temporary.length() == revision.size &&
+                digest(temporary) == revision.checksum) { "Catalog archive does not match metadata" }
             validate(temporary)
-            val checksum = digest(temporary)
             synchronized(this) {
-                if (active != null && temporary.length() == file.length() &&
-                    checksum == digest(file)) return false
                 val atomic = AtomicFile(file)
                 val output = atomic.startWrite()
                 try {
@@ -69,25 +73,69 @@ class CatalogSnapshotStore(
                 val markerAtomic = AtomicFile(marker)
                 val markerOutput = markerAtomic.startWrite()
                 try {
-                    markerOutput.write("$apkInstallTime:$checksum".toByteArray(Charsets.UTF_8))
+                    markerOutput.write("$apkInstallTime:${revision.checksum}".toByteArray(Charsets.UTF_8))
                     markerAtomic.finishWrite(markerOutput)
                 } catch (error: Exception) {
                     markerAtomic.failWrite(markerOutput)
                     throw error
                 }
                 active = file
+                knownChecksum = revision.checksum
             }
             return true
         } finally { temporary.delete() }
     }
 
+    private data class Revision(val checksum: String, val size: Long)
+
+    private fun fetchRevision(): Revision {
+        val connection = (URL(metadataUrl).openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
+            connectTimeout = 10000
+            readTimeout = 10000
+        }
+        try {
+            require(connection.responseCode == HttpURLConnection.HTTP_OK) {
+                "Catalog metadata server returned ${connection.responseCode}"
+            }
+            require(connection.contentLengthLong <= 4096) { "Catalog metadata is too large" }
+            val content = connection.inputStream.use { input ->
+                val output = java.io.ByteArrayOutputStream()
+                val buffer = ByteArray(1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    require(output.size() + count <= 4096) { "Catalog metadata is too large" }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            }
+            val json = JSONObject(content.toString(Charsets.UTF_8))
+            val checksum = json.optString("sha256")
+            val size = json.optLong("size", -1)
+            require(json.optInt("schemaVersion") == 1 &&
+                json.optString("archive") == URL(url).path.substringAfterLast('/') &&
+                checksum.matches(Regex("[0-9a-f]{64}")) && size in 1..maxBytes) {
+                "Invalid catalog metadata"
+            }
+            return Revision(checksum, size)
+        } finally { connection.disconnect() }
+    }
+
     private fun readSaved(): File? = try {
-        if (!file.isFile || file.length() > maxBytes ||
-            AtomicFile(marker).readFully().toString(Charsets.UTF_8) !=
-                "$apkInstallTime:${digest(file)}") null
+        if (!file.isFile || file.length() > maxBytes) null
+        else {
+            val saved = AtomicFile(marker).readFully().toString(Charsets.UTF_8)
+            val checksum = saved.substringAfterLast(':')
+            if (!checksum.matches(Regex("[0-9a-f]{64}"))) null
+            else if (saved.startsWith("$apkInstallTime:") && checksum != digest(file)) null
+            else {
+                knownChecksum = checksum
+                if (saved.startsWith("$apkInstallTime:")) file else null
+            }
+        }
         // The checksum covers the exact bytes validated before the atomic save.
-        // Re-parsing a large catalog on the UI thread would delay every launch.
-        else file
+        // A prior APK's snapshot remains inactive, but its revision avoids a download.
     } catch (_: Exception) { null }
 
     private fun digest(source: File): String {
