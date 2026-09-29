@@ -3,15 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+apply(from = projectDir.resolve("../gradle/android-module.gradle"))
+
 android {
     namespace = "com.mrjackspade.kairo.frontend"
-    compileSdk = 36
 
-    defaultConfig {
-        minSdk = 26
-    }
-}
-
-kotlin {
-    jvmToolchain(17)
 }

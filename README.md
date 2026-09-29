@@ -10,4 +10,6 @@ The shared frontend owns `LibraryFlow`, `SessionFlow`, `FrontendNavigation`, `Co
 
 Product repositories map their `:frontend` Gradle module to `shared/frontend`. A shared feature change is made here, then each product updates its pinned submodule commit. Emulator cores and catalog artwork remain in the product repositories.
 
+The pinned shared project also owns the [Android build conventions and CI setup](docs/android-build.md). Product wrappers delegate to its Gradle wrapper; product workflows consume its local setup action.
+
 The first-party frontend is [GPL-2.0-or-later](COPYING). See [licensing](docs/licensing.md) and [source provenance](docs/source-import.md) for bundled third-party materials.

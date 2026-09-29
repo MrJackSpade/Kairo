@@ -1,0 +1,21 @@
+// Common defaults only; native paths, ABIs, product identity and signing stay in each app.
+def versions = new Properties()
+new File(buildscript.sourceFile.parentFile, 'android-versions.properties').withInputStream {
+    versions.load(it)
+}
+
+def configureAndroid = { boolean application ->
+    def android = extensions.getByName('android')
+    android.compileSdk = versions.compile_sdk.toInteger()
+    android.ndkVersion = versions.ndk
+    android.defaultConfig.minSdk = versions.min_sdk.toInteger()
+    if (application) {
+        android.defaultConfig.targetSdk = versions.target_sdk.toInteger()
+        android.externalNativeBuild.cmake.version = versions.cmake
+    }
+}
+pluginManager.withPlugin('com.android.application') { configureAndroid(true) }
+pluginManager.withPlugin('com.android.library') { configureAndroid(false) }
+pluginManager.withPlugin('org.jetbrains.kotlin.android') {
+    extensions.getByName('kotlin').jvmToolchain(versions.java.toInteger())
+}

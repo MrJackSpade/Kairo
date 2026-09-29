@@ -1,0 +1,40 @@
+name: Kairo Android toolchain
+description: Set up the pinned shared Java, Android SDK and Gradle toolchain
+outputs:
+  build-tools:
+    description: Android build tools version
+    value: ${{ steps.versions.outputs.build-tools }}
+runs:
+  using: composite
+  steps:
+    - id: versions
+      shell: bash
+      env:
+        KAIRO_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        versions="$KAIRO_ACTION_PATH/../../../gradle/android-versions.properties"
+        value() {
+          local result
+          result=$(sed -n "s/^$1=//p" "$versions" | tr -d '\r')
+          [[ -n "$result" ]] || { echo "Missing toolchain property: $1" >&2; return 1; }
+          printf '%s' "$result"
+        }
+        java=$(value java)
+        compile_sdk=$(value compile_sdk)
+        build_tools=$(value build_tools)
+        ndk=$(value ndk)
+        cmake=$(value cmake)
+        echo "java=$java" >> "$GITHUB_OUTPUT"
+        echo "build-tools=$build_tools" >> "$GITHUB_OUTPUT"
+        echo "packages=platform-tools platforms;android-$compile_sdk build-tools;$build_tools ndk;$ndk cmake;$cmake" >> "$GITHUB_OUTPUT"
+    - uses: actions/setup-java@v6
+      with:
+        distribution: temurin
+        java-version: ${{ steps.versions.outputs.java }}
+    - uses: android-actions/setup-android@v4
+      with:
+        packages: ${{ steps.versions.outputs.packages }}
+    - uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-provider: basic

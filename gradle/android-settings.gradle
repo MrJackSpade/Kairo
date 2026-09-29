@@ -1,0 +1,26 @@
+// Applied by both products and the standalone shared-library build.
+def versions = new Properties()
+new File(buildscript.sourceFile.parentFile, 'android-versions.properties').withInputStream {
+    versions.load(it)
+}
+
+settings.pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+    plugins {
+        id('com.android.application').version(versions.agp)
+        id('com.android.library').version(versions.agp)
+        id('org.jetbrains.kotlin.android').version(versions.kotlin)
+    }
+}
+
+settings.dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
