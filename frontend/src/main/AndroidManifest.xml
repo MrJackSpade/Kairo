@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The companion screen returns controller focus to the game display. -->
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
     <application>
         <activity android:name=".SecondaryDisplayActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden"
