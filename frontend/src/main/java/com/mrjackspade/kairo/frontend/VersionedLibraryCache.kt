@@ -45,10 +45,17 @@ class VersionedLibraryCache<T>(
         return Snapshot(treeUri, entries, root)
     }
 
+    /** Never offer entries from another selected document tree as this library's cache. */
+    fun readForTree(treeUri: String): Snapshot<T>? =
+        read()?.takeIf { it.treeUri == treeUri }
+
     fun write(treeUri: String, entries: List<T>, extras: JSONObject = JSONObject()) {
         require(treeUri.startsWith("content://")) { "Invalid library folder" }
         require(entries.size <= maxEntries) { "Too many library entries" }
         val existing = raw()
+        require(!file.isFile || file.length() <= maxBytes) {
+            "Library cache is too large"
+        }
         require(existing == null || existing.optInt("schemaVersion") <= version) {
             "Library cache uses a newer schema; update the app before scanning"
         }
