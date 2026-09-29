@@ -26,6 +26,7 @@ class LibraryFlow<T : LibraryItem>(
 ) {
     var tree: Uri? = null
     var entries: List<T> = emptyList()
+    private var displayedEntries: List<T>? = null
     private var scanCancelled = AtomicBoolean(false)
 
     fun hasGrant(uri: Uri): Boolean = activity.contentResolver.persistedUriPermissions.any {
@@ -46,6 +47,7 @@ class LibraryFlow<T : LibraryItem>(
             else -> {
                 entries = cached(saved)
                 screen.showEntries(entries)
+                displayedEntries = entries
                 screen.showStatus(scanSummary(entries))
             }
         }
@@ -54,7 +56,12 @@ class LibraryFlow<T : LibraryItem>(
 
     fun show() {
         screen.showFolder(tree?.let(folderLabel))
-        screen.showEntries(entries)
+        // restore() and scan completion have already presented this list.
+        // Repeating showEntries reparses catalog records for every game.
+        if (displayedEntries !== entries) {
+            screen.showEntries(entries)
+            displayedEntries = entries
+        }
         screen.showStatus(when {
             tree == null -> emptyStatus
             !hasGrant(tree!!) -> expiredStatus
@@ -91,6 +98,7 @@ class LibraryFlow<T : LibraryItem>(
             preferences.edit().putString("rom_tree", selected.toString()).apply()
             screen.showFolder(folderLabel(selected))
             screen.showEntries(entries)
+            displayedEntries = entries
             onFolderSelected?.invoke(selected) ?: refresh(false)
         } catch (failure: Exception) {
             val message = "Cannot keep folder access: ${failure.message}"
@@ -118,6 +126,7 @@ class LibraryFlow<T : LibraryItem>(
                     if (!cancelled.get() && tree == selected && !activity.isDestroyed) {
                         entries = found
                         screen.showEntries(found)
+                        displayedEntries = found
                         onScanComplete(found)
                         screen.showStatus(scanSummary(found))
                     }
