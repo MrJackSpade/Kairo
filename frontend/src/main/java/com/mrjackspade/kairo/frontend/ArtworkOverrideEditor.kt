@@ -3,6 +3,8 @@ package com.mrjackspade.kairo.frontend
 import android.app.Activity
 import android.app.AlertDialog
 import android.widget.EditText
+import android.widget.Button
+import android.widget.LinearLayout
 
 /** Shared validation for app-specific packaged artwork namespaces. */
 object ArtworkOverridePath {
@@ -23,7 +25,8 @@ object ArtworkOverrideEditor {
         val resetLabel: String,
         val onSave: (String?) -> Unit,
         val onReset: () -> Unit,
-        val onCancel: () -> Unit = {}
+        val onCancel: () -> Unit = {},
+        val onChoose: (() -> Unit)? = null
     )
 
     fun show(activity: Activity, options: Options): AlertDialog {
@@ -33,13 +36,24 @@ object ArtworkOverrideEditor {
             setSelection(text.length)
             hint = options.hint
         }
+        val content = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(input)
+        }
+        var dialog: AlertDialog? = null
+        options.onChoose?.let { choose ->
+            content.addView(Button(activity).apply {
+                text = "Choose image…"
+                setOnClickListener { dialog?.dismiss(); choose() }
+            })
+        }
         return AlertDialog.Builder(activity).setTitle(options.title)
-            .setMessage(options.explanation).setView(input)
+            .setMessage(options.explanation).setView(content)
             .setPositiveButton("Save") { _, _ ->
                 options.onSave(input.text.toString().trim().takeIf(String::isNotEmpty))
             }
             .setNeutralButton(options.resetLabel) { _, _ -> options.onReset() }
             .setNegativeButton("Cancel") { _, _ -> options.onCancel() }
-            .create().also { it.show(); Ui.styleDialog(it) }
+            .create().also { dialog = it; it.show(); Ui.styleDialog(it) }
     }
 }

@@ -9,6 +9,7 @@ import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.roundToInt
@@ -28,6 +29,31 @@ class CatalogArtworkStore(
 
     fun open(path: String): InputStream = if (bundled(path)) context.assets.open(path)
         else fileFor(path).inputStream()
+
+    /** Copies a selected image into app storage; its URI permission need not persist. */
+    fun importLocal(input: InputStream): String {
+        val bytes = ArtworkImages.read(input)
+        val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        val path = "${pathPrefix}local/$digest.webp"
+        val image = thumbnail(bytes)
+        try {
+            val target = fileFor(path)
+            target.parentFile?.mkdirs()
+            val atomic = AtomicFile(target)
+            val output = atomic.startWrite()
+            try {
+                check(image.compress(Bitmap.CompressFormat.WEBP, 82, output)) {
+                    "Could not encode image"
+                }
+                atomic.finishWrite(output)
+            } catch (error: Exception) {
+                atomic.failWrite(output)
+                throw error
+            }
+        } finally { image.recycle() }
+        return path
+    }
 
     fun download(path: String, url: String, cancelled: AtomicBoolean) {
         require(validImageUrl(url)) { "Unsupported artwork URL" }
@@ -78,7 +104,10 @@ class CatalogArtworkStore(
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         require(bounds.outWidth in 1..MAX_SOURCE_DIMENSION &&
-            bounds.outHeight in 1..MAX_SOURCE_DIMENSION) { "Invalid image dimensions" }
+            bounds.outHeight in 1..MAX_SOURCE_DIMENSION &&
+            bounds.outWidth.toLong() * bounds.outHeight <= 32_000_000L) {
+            "Invalid image dimensions"
+        }
         var sample = 1
         while (bounds.outWidth / sample > MAX_WIDTH * 2 ||
             bounds.outHeight / sample > MAX_HEIGHT * 2) sample *= 2
