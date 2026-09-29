@@ -5,14 +5,23 @@ class GuestLifecycleCoordinator(
     private val releaseInputs: () -> Unit,
     private val applyPauseState: () -> Unit,
     private val pauseAudio: () -> Unit,
-    private val resumeAudio: () -> Unit
+    private val resumeAudio: () -> Unit,
+    initiallyVisible: Boolean = true,
+    private val companionActive: () -> Boolean = { false },
+    private val beforeSuspend: () -> Unit = {},
+    private val resetGestures: () -> Unit = {},
+    private val releaseOnFocusLoss: () -> Unit = releaseInputs
 ) {
-    var isVisible = true
+    var isVisible = initiallyVisible
         private set
 
-    fun onPause() = suspendGuest()
+    fun onPause(): Boolean = suspendGuest()
 
-    fun onStop() = suspendGuest()
+    fun onStop(): Boolean {
+        if (companionActive()) return false
+        resetGestures()
+        return suspendGuest()
+    }
 
     fun onResume() {
         isVisible = true
@@ -21,13 +30,16 @@ class GuestLifecycleCoordinator(
     }
 
     fun onWindowFocusChanged(hasFocus: Boolean) {
-        if (!hasFocus) releaseInputs()
+        if (!hasFocus) releaseOnFocusLoss()
     }
 
-    private fun suspendGuest() {
+    private fun suspendGuest(): Boolean {
+        if (companionActive()) return false
+        beforeSuspend()
         releaseInputs()
         isVisible = false
         applyPauseState()
         pauseAudio()
+        return true
     }
 }
