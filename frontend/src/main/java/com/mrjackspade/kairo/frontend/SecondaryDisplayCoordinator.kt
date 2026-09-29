@@ -46,6 +46,7 @@ class SecondaryDisplayCoordinator(
     private var presentation: KeyboardPresentation? = null
     private var companion: SecondaryDisplayActivity? = null
     private var companionStarting = false
+    private var companionStopped = false
     var swapped = false
         private set
 
@@ -134,7 +135,18 @@ class SecondaryDisplayCoordinator(
         }
         if (target.displayId == Display.DEFAULT_DISPLAY) {
             dismissPresentation()
-            if (companion != null || companionStarting) return
+            companion?.let { current ->
+                if (companionStopped && !current.isFinishing) {
+                    try {
+                        (activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager)
+                            .moveTaskToFront(current.taskId, 0)
+                    } catch (error: SecurityException) {
+                        Log.w(logTag, "Could not restore companion on display 0", error)
+                    }
+                }
+                return
+            }
+            if (companionStarting) return
             launchCompanion(target)
             return
         }
@@ -205,6 +217,7 @@ class SecondaryDisplayCoordinator(
     fun attachCompanion(value: SecondaryDisplayActivity): GuestKeyboardPanel {
         companionStarting = false
         companion = value
+        companionStopped = false
         onAvailabilityChanged(true)
         return GuestKeyboardPanel(value, input, keyboardLayout, {},
             showClose = false, onSwap = ::toggleSwap,
@@ -218,8 +231,19 @@ class SecondaryDisplayCoordinator(
     fun detachCompanion(value: SecondaryDisplayActivity) {
         if (companion !== value) return
         companion = null
+        companionStopped = false
         if (pendingCompanion === this) pendingCompanion = null
         onAvailabilityChanged(false)
+    }
+
+    fun companionStarted(value: SecondaryDisplayActivity) {
+        if (companion === value) companionStopped = false
+    }
+
+    fun companionStopped(value: SecondaryDisplayActivity) {
+        if (companion !== value) return
+        companionStopped = true
+        activity.window.decorView.post { if (started && companion === value) refresh() }
     }
 
     private fun dismiss() {
@@ -238,6 +262,7 @@ class SecondaryDisplayCoordinator(
         val previous = companion
         companion = null
         companionStarting = false
+        companionStopped = false
         if (pendingCompanion === this) pendingCompanion = null
         if (previous != null) {
             previous.finish()

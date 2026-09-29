@@ -60,6 +60,16 @@ class SecondaryDisplayActivity : Activity() {
     internal val activeGameSurface: android.view.SurfaceView?
         get() = if (::content.isInitialized) content.activeGameSurface else null
 
+    override fun onStart() {
+        super.onStart()
+        owner?.companionStarted(this)
+    }
+
+    override fun onStop() {
+        owner?.companionStopped(this)
+        super.onStop()
+    }
+
     override fun onDestroy() {
         Log.i(packageName, "Keyboard activity closing")
         if (::content.isInitialized) content.close()
