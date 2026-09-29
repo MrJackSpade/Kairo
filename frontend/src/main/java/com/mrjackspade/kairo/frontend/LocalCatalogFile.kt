@@ -10,6 +10,18 @@ object LocalCatalogFile {
     fun read(file: File, maxBytes: Int,
              validRecord: ((String, JSONObject) -> Boolean)? = null): JSONObject? =
         runCatching {
+            val root = readObject(file, maxBytes) ?: error("Unreadable local catalog")
+            require(root.optInt("schemaVersion") == 1)
+            val games = root.optJSONObject("games") ?: error("Missing games")
+            if (validRecord != null) for (id in games.keys()) {
+                val record = games.optJSONObject(id) ?: error("Invalid game record")
+                require(validRecord(id, record)) { "Invalid game record" }
+            }
+            root
+        }.getOrNull()
+
+    fun readObject(file: File, maxBytes: Int): JSONObject? = runCatching {
+            require(maxBytes > 0)
             val output = ByteArrayOutputStream()
             AtomicFile(file).openRead().use { input ->
                 val buffer = ByteArray(8192)
@@ -20,13 +32,6 @@ object LocalCatalogFile {
                     output.write(buffer, 0, count)
                 }
             }
-            val root = JSONObject(output.toString(Charsets.UTF_8.name()))
-            require(root.optInt("schemaVersion") == 1)
-            val games = root.optJSONObject("games") ?: error("Missing games")
-            if (validRecord != null) for (id in games.keys()) {
-                val record = games.optJSONObject(id) ?: error("Invalid game record")
-                require(validRecord(id, record)) { "Invalid game record" }
-            }
-            root
+            JSONObject(output.toString(Charsets.UTF_8.name()))
         }.getOrNull()
 }
