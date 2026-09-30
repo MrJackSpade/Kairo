@@ -202,6 +202,12 @@ class SecondaryDisplayCoordinator(
         return handled
     }
 
+    /** System Back on the companion must follow the same route as a physical key. */
+    fun forwardBack() {
+        forwardKey(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK))
+        forwardKey(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
+    }
+
     fun forwardMotion(event: MotionEvent): Boolean = activity.dispatchGenericMotionEvent(event)
 
     fun reclaimFocus() {
