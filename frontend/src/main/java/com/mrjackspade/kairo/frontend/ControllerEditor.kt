@@ -9,6 +9,9 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.os.Handler
+import android.os.Looper
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -73,6 +76,58 @@ class ControllerEditor<Game : Any>(
     private var mouseSpeedSlider: SeekBar? = null
     private var selectedMouse = "moveRight"
     private val captureBaseline = HashMap<Pair<Int, Int>, Float>()
+    private val navigationHandler = Handler(Looper.getMainLooper())
+    private var hatDirection: Int? = null
+    private val repeatHat = object : Runnable {
+        override fun run() {
+            val direction = hatDirection ?: return
+            if (!isOpen || stage == Stage.CAPTURE) return
+            moveFocus(direction)
+            navigationHandler.postDelayed(this, 120)
+        }
+    }
+
+    private fun focus(view: View?) {
+        view ?: return
+        val target = if (!view.isFocusable && view is ViewGroup)
+            controls(view).firstOrNull() ?: return else view
+        target.isFocusableInTouchMode = true
+        target.requestFocusFromTouch()
+    }
+
+    private fun controls(view: View): List<View> {
+        if (view.visibility != View.VISIBLE || !view.isEnabled) return emptyList()
+        val own = if (view.isFocusable && (view.isClickable || view is SeekBar || view is EditText)) listOf(view)
+            else emptyList()
+        return own + if (view is ViewGroup) (0 until view.childCount).flatMap { controls(view.getChildAt(it)) }
+            else emptyList()
+    }
+
+    private fun firstControl() = controls(body).firstOrNull()
+
+    private fun moveFocus(direction: Int) {
+        val current = page.findFocus()
+        val slider = current as? SeekBar
+        if (slider != null && direction in listOf(View.FOCUS_LEFT, View.FOCUS_RIGHT)) {
+            slider.progress += if (direction == View.FOCUS_LEFT) -1 else 1
+            return
+        }
+        if (direction == View.FOCUS_UP || direction == View.FOCUS_DOWN) {
+            // Spatial focus search stops at clipped ScrollView children. Traverse
+            // the complete control list so every off-screen mapping is reachable.
+            val controls = controls(page)
+            val index = controls.indexOf(current)
+            val next = if (index < 0) 0 else (index + if (direction == View.FOCUS_UP) -1 else 1)
+                .coerceIn(0, (controls.size - 1).coerceAtLeast(0))
+            focus(controls.getOrNull(next))
+            return
+        }
+        val next = current?.focusSearch(direction)
+        var ancestor: android.view.ViewParent? = next?.parent
+        while (ancestor != null && ancestor !== page) ancestor = ancestor.parent
+        if (next != null && ancestor === page) focus(next)
+        else if (current == null || current === page) focus(firstControl())
+    }
     var isOpen = false
         private set
 
@@ -122,7 +177,6 @@ class ControllerEditor<Game : Any>(
         page.addView(footer)
         isOpen = true
         render()
-        page.requestFocus()
         onVisibilityChanged()
     }
 
@@ -130,6 +184,8 @@ class ControllerEditor<Game : Any>(
         if (!isOpen) return
         root.removeView(page)
         isOpen = false
+        hatDirection = null
+        navigationHandler.removeCallbacks(repeatHat)
         captureBaseline.clear()
         selectedControl = null
         onVisibilityChanged()
@@ -176,9 +232,9 @@ class ControllerEditor<Game : Any>(
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) back()
             return true
         }
-        if (control == "a" || event.keyCode == KeyEvent.KEYCODE_ENTER) {
+        if (control == "a" || event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0)
-                activity.currentFocus?.performClick()
+                page.findFocus()?.performClick()
             return true
         }
         val direction = when (control) {
@@ -186,7 +242,13 @@ class ControllerEditor<Game : Any>(
             "down" -> View.FOCUS_DOWN
             "left" -> View.FOCUS_LEFT
             "right" -> View.FOCUS_RIGHT
-            else -> null
+            else -> when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> View.FOCUS_UP
+                KeyEvent.KEYCODE_DPAD_DOWN -> View.FOCUS_DOWN
+                KeyEvent.KEYCODE_DPAD_LEFT -> View.FOCUS_LEFT
+                KeyEvent.KEYCODE_DPAD_RIGHT -> View.FOCUS_RIGHT
+                else -> null
+            }
         }
         if (stage == Stage.MOUSE_SPEED && activity.currentFocus == mouseSpeedSlider &&
             direction in listOf(View.FOCUS_LEFT, View.FOCUS_RIGHT)) {
@@ -197,7 +259,7 @@ class ControllerEditor<Game : Any>(
         }
         if (direction != null) {
             if (event.action == KeyEvent.ACTION_DOWN)
-                activity.currentFocus?.focusSearch(direction)?.requestFocus()
+                moveFocus(direction)
             return true
         }
         return false
@@ -205,7 +267,24 @@ class ControllerEditor<Game : Any>(
 
     fun captureMotion(event: MotionEvent): Boolean {
         if (!isOpen) return false
-        if (stage != Stage.CAPTURE) return true
+        if (stage != Stage.CAPTURE) {
+            val x = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+            val y = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+            val direction = when {
+                abs(y) >= 0.5f -> if (y < 0) View.FOCUS_UP else View.FOCUS_DOWN
+                abs(x) >= 0.5f -> if (x < 0) View.FOCUS_LEFT else View.FOCUS_RIGHT
+                else -> null
+            }
+            if (direction != hatDirection) {
+                hatDirection = direction
+                navigationHandler.removeCallbacks(repeatHat)
+                if (direction != null) {
+                    moveFocus(direction)
+                    navigationHandler.postDelayed(repeatHat, 400)
+                }
+            }
+            return true
+        }
         if (!event.isFromSource(InputDevice.SOURCE_JOYSTICK) &&
             !event.isFromSource(InputDevice.SOURCE_GAMEPAD)) return true
         val axes = event.device?.motionRanges?.filter {
@@ -262,6 +341,8 @@ class ControllerEditor<Game : Any>(
     }
 
     private fun render() {
+        hatDirection = null
+        navigationHandler.removeCallbacks(repeatHat)
         if (renderedStage == Stage.LIST) {
             listScrollY = scroll.scrollY
             listFocusIndex = (0 until body.childCount).indexOfFirst { body.getChildAt(it).hasFocus() }
@@ -306,12 +387,12 @@ class ControllerEditor<Game : Any>(
         val key = physicalScope to scope?.let(gameId)
         if (stage == Stage.LIST && key == listKey) {
             val y = listScrollY
-            val focus = listFocusIndex
+            val focusIndex = listFocusIndex
             scroll.post {
                 scroll.scrollTo(0, y)
-                if (focus >= 0) body.getChildAt(focus)?.requestFocus()
+                if (focusIndex >= 0) focus(body.getChildAt(focusIndex)) else focus(firstControl())
             }
-        } else scroll.post { scroll.scrollTo(0, 0) }
+        } else scroll.post { scroll.scrollTo(0, 0); focus(firstControl()) }
         if (stage == Stage.LIST) listKey = key
     }
 

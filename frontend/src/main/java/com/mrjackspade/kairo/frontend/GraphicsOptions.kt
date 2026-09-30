@@ -45,14 +45,18 @@ class GraphicsOptions(
     fun settingsLabel(): String = scalingLabel() +
         if (isPortrait()) " · notch $portraitNotchPadding dp" else ""
 
-    fun show() {
+    fun show() = show(emptyList())
+
+    fun show(extraEntries: List<SettingsEntry>, includeDisplaySettings: Boolean = true) {
         val orientation = if (isPortrait()) "portrait" else "landscape"
-        val items = if (isPortrait()) arrayOf(
+        val displayItems = if (!includeDisplaySettings) emptyArray() else if (isPortrait()) arrayOf(
             "Scaling  ·  ${scalingLabel()}", "Notch padding  ·  $portraitNotchPadding dp")
         else arrayOf("Scaling  ·  ${scalingLabel()}")
-        showDialog(AlertDialog.Builder(activity).setTitle("Graphics · $orientation")
+        val items = displayItems + extraEntries.map { "${it.title} · ${it.value()}" }
+        showDialog(AlertDialog.Builder(activity).setTitle(if (includeDisplaySettings) "Graphics · $orientation" else "Graphics")
             .setItems(items) { _, which ->
-                if (which == 0) showScalingChoices(orientation) else showNotchPadding()
+                if (which >= displayItems.size) extraEntries[which - displayItems.size].action()
+                else if (which == 0) showScalingChoices(orientation) else showNotchPadding()
             }.setNegativeButton("Close", null))
     }
 

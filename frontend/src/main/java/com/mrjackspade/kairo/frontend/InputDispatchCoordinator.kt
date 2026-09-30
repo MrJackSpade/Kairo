@@ -17,6 +17,12 @@ class InputDispatchCoordinator(
     private val cancelAutomation: () -> Unit = {},
     private val automationOwners: Set<String> = emptySet()
 ) {
+    private var motionScreen: Screen? = null
+    private val menuMotion = DpadMotionNavigation { event ->
+        val screen = frontend.screen()
+        if (screen == motionScreen && screen != Screen.GUEST && screen != Screen.INACTIVE)
+            frontend.key(screen, FrontendNavigation.control(event, mapper), event)
+    }
     enum class Screen { FIRST_RUN, TOUCH_EDITOR, CONTROLLER_EDITOR, LIBRARY, SESSION, GUEST, INACTIVE }
 
     interface Frontend {
@@ -55,10 +61,14 @@ class InputDispatchCoordinator(
 
     fun dispatchMotion(event: MotionEvent, android: (MotionEvent) -> Boolean): Boolean {
         return when (val screen = frontend.screen()) {
-            Screen.FIRST_RUN, Screen.TOUCH_EDITOR -> true
             Screen.CONTROLLER_EDITOR -> frontend.motion(screen, event)
             Screen.GUEST -> mapper.motion(event) || android(event)
-            else -> android(event)
+            Screen.INACTIVE -> android(event)
+            else -> {
+                if (motionScreen != screen) menuMotion.stop()
+                motionScreen = screen
+                menuMotion.motion(event) || android(event)
+            }
         }
     }
 
@@ -78,6 +88,7 @@ class InputDispatchCoordinator(
     }
 
     fun releaseInputs(preserveAutomation: Boolean = false) {
+        menuMotion.stop()
         if (!preserveAutomation) cancelAutomation()
         mapper.releaseAll()
         keys.releaseAll(if (preserveAutomation) automationOwners else emptySet())

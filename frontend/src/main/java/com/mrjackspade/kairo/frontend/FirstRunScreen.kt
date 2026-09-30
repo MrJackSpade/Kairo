@@ -71,7 +71,7 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(Ui.dp(activity, 18), Ui.dp(activity, 10),
                     Ui.dp(activity, 18), Ui.dp(activity, 10))
-                background = Ui.rounded(activity, if (action.primary) Ui.SELECTED else Ui.RAISED, 9)
+                background = Ui.focusable(activity, if (action.primary) Ui.SELECTED else Ui.RAISED, null)
                 isEnabled = action.enabled
                 isClickable = action.enabled
                 isFocusable = action.enabled
@@ -88,7 +88,7 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         card.post {
             if (isOpen && activity.currentFocus?.isDescendantOf(card) != true)
                 (0 until card.childCount).map(card::getChildAt).firstOrNull { it.isFocusable }
-                    ?.requestFocus()
+                    ?.requestFocusFromTouch()
         }
     }
 
@@ -111,9 +111,14 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         }
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP ||
             event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            if (event.action == KeyEvent.ACTION_DOWN)
-                activity.currentFocus?.focusSearch(if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP)
-                    View.FOCUS_UP else View.FOCUS_DOWN)?.requestFocus()
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                val controls = card.getFocusables(View.FOCUS_FORWARD).filter { it.isEnabled && it.isClickable }
+                val current = controls.indexOf(card.findFocus())
+                val index = if (current < 0) 0 else (current +
+                    if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) -1 else 1)
+                    .coerceIn(0, (controls.size - 1).coerceAtLeast(0))
+                controls.getOrNull(index)?.requestFocusFromTouch()
+            }
             return true
         }
         return true

@@ -183,6 +183,7 @@ object Ui {
     }
 
     fun styleDialog(dialog: AlertDialog) {
+        DialogControllerNavigation.install(dialog)
         val context = dialog.context
         dialog.window?.setBackgroundDrawable(rounded(context, RAISED, RADIUS_LARGE))
         listOf(AlertDialog.BUTTON_POSITIVE to ACCENT, AlertDialog.BUTTON_NEGATIVE to TEXT_MUTED,
