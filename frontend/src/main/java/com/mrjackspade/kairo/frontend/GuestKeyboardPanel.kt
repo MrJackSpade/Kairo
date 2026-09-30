@@ -14,6 +14,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
@@ -221,6 +222,7 @@ class GuestKeyboardPanel(
         val line = LinearLayout(context).apply { orientation = HORIZONTAL }
         for (key in keys) {
             val modifier = key.code in layout.modifiers
+            val holdToLatch = modifier && key.code != layout.capsCode
             // Letters, digits, and symbols sit on the lighter key; named keys are darker.
             val action = modifier || key.label.length > 1
             val view = TextView(context).apply {
@@ -231,23 +233,36 @@ class GuestKeyboardPanel(
                 setOnTouchListener { _, event ->
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            if (modifier) toggleModifier(key.code)
+                            if (holdToLatch) {
+                                if (key.code in latched) toggleModifier(key.code)
+                                press(key)
+                            } else if (modifier) toggleModifier(key.code)
                             else press(key)
                             true
                         }
                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                            if (!modifier) release(key)
+                            if (holdToLatch) {
+                                if (event.actionMasked == MotionEvent.ACTION_UP &&
+                                    event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout())
+                                    toggleModifier(key.code)
+                                release(key)
+                            } else if (!modifier) release(key)
                             true
                         }
                         else -> true
                     }
                 }
                 setOnClickListener {
-                    if (modifier) toggleModifier(key.code)
+                    if (modifier && !holdToLatch) toggleModifier(key.code)
                     else {
+                        if (key.code in latched) toggleModifier(key.code)
                         press(key)
                         handler.postDelayed({ release(key) }, 90)
                     }
+                }
+                if (holdToLatch) setOnLongClickListener {
+                    toggleModifier(key.code)
+                    true
                 }
             }
             view.background = keyBackground(action)
