@@ -162,12 +162,12 @@ class GamepadMapper(private val router: InputRouter,
     private fun activate(owner: String, binding: ControllerBinding, strength: Float = 1f) {
         if (!active.add(owner)) {
             if (binding.mouse?.startsWith("move") == true)
-                mouse.hold(owner, binding.mouse, strength)
+                mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)
             return
         }
         when {
             binding.mouse != null -> {
-                mouse.hold(owner, binding.mouse, strength)
+                mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)
                 startMouseTick()
             }
             binding.joystick != null -> joystick.hold(owner, binding.joystick)

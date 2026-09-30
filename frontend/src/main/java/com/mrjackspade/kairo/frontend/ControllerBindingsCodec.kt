@@ -43,6 +43,13 @@ class ControllerBindingsCodec(
             if (action != null && action !in actions) return false
             if (joystick != null && joystick !in joystickControls) return false
             if (mouse != null && mouse !in MouseInputRouter.TARGETS) return false
+            if (item.has("mouseSpeed")) {
+                val speed = item.opt("mouseSpeed") as? Number ?: return false
+                val value = speed.toDouble()
+                if (mouse?.startsWith("move") != true || !value.isFinite() ||
+                    value.toFloat() !in MouseInputRouter.MIN_SPEED..MouseInputRouter.MAX_SPEED)
+                    return false
+            }
             if (cycleKeys != null) {
                 if (source !in cycleInputs || cycleKeys.length() !in 2..16) return false
                 val mapped = ArrayList<Int>()
@@ -71,7 +78,8 @@ class ControllerBindingsCodec(
                     item.optString("joystick").takeIf(String::isNotEmpty),
                     item.optString("mouse").takeIf(String::isNotEmpty),
                     if (cycleKeys == null) emptyList() else
-                        (0 until cycleKeys.length()).map(cycleKeys::getInt))
+                        (0 until cycleKeys.length()).map(cycleKeys::getInt),
+                    item.optDouble("mouseSpeed", 1.0).toFloat())
             }
         }
     } catch (_: Exception) { defaults() }
@@ -86,6 +94,7 @@ class ControllerBindingsCodec(
                 binding.cycleKeys.isNotEmpty() -> item.put("cycleKeys", JSONArray(binding.cycleKeys))
                 else -> item.put("keys", JSONArray(binding.keys))
             }
+            if (binding.mouseSpeed != 1f) item.put("mouseSpeed", binding.mouseSpeed.toDouble())
             array.put(item)
         }
         require(valid(array)) { "Invalid controller mapping" }

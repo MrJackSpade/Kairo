@@ -48,7 +48,7 @@ class ControllerEditor<Game : Any>(
     private val guest: ControllerGuestSpec,
     private val validateBindings: (List<ControllerBinding>) -> Unit
 ) {
-    private enum class Stage { LIST, SOURCES, CAPTURE, MANUAL, TARGET, VIRTUAL, KEYS, CYCLE, JOYSTICK, MOUSE, ACTIONS, DEAD_ZONE, RESET }
+    private enum class Stage { LIST, SOURCES, CAPTURE, MANUAL, TARGET, VIRTUAL, KEYS, CYCLE, JOYSTICK, MOUSE, MOUSE_SPEED, ACTIONS, DEAD_ZONE, RESET }
     private data class Source(val group: String, val name: String, val input: String)
 
     private lateinit var page: LinearLayout
@@ -70,6 +70,8 @@ class ControllerEditor<Game : Any>(
     private val selectedScans = linkedSetOf<Int>()
     private val selectedCycleKeys = ArrayList<Int>()
     private var deadZoneSlider: SeekBar? = null
+    private var mouseSpeedSlider: SeekBar? = null
+    private var selectedMouse = "moveRight"
     private val captureBaseline = HashMap<Pair<Int, Int>, Float>()
     var isOpen = false
         private set
@@ -141,6 +143,7 @@ class ControllerEditor<Game : Any>(
             Stage.CAPTURE -> if (selectedControl == null) Stage.SOURCES else Stage.LIST
             Stage.MANUAL -> if (selectedControl == null) Stage.SOURCES else Stage.CAPTURE
             Stage.TARGET -> Stage.LIST
+            Stage.MOUSE_SPEED -> Stage.MOUSE
             Stage.VIRTUAL, Stage.KEYS, Stage.CYCLE, Stage.JOYSTICK, Stage.MOUSE, Stage.ACTIONS -> Stage.TARGET
         }
         render()
@@ -184,6 +187,13 @@ class ControllerEditor<Game : Any>(
             "left" -> View.FOCUS_LEFT
             "right" -> View.FOCUS_RIGHT
             else -> null
+        }
+        if (stage == Stage.MOUSE_SPEED && activity.currentFocus == mouseSpeedSlider &&
+            direction in listOf(View.FOCUS_LEFT, View.FOCUS_RIGHT)) {
+            if (event.action == KeyEvent.ACTION_DOWN) mouseSpeedSlider?.let {
+                it.progress += if (direction == View.FOCUS_LEFT) -1 else 1
+            }
+            return true
         }
         if (direction != null) {
             if (event.action == KeyEvent.ACTION_DOWN)
@@ -269,6 +279,7 @@ class ControllerEditor<Game : Any>(
             Stage.CYCLE -> "Key cycle"
             Stage.JOYSTICK -> "${guest.name} joystick"
             Stage.MOUSE -> "${guest.name} mouse"
+            Stage.MOUSE_SPEED -> "Mouse movement speed"
             Stage.ACTIONS -> "Emulator actions"
             Stage.DEAD_ZONE -> "Stick dead zone"
             Stage.RESET -> "Reset bindings"
@@ -284,6 +295,7 @@ class ControllerEditor<Game : Any>(
             Stage.CYCLE -> renderCycle()
             Stage.JOYSTICK -> renderJoystick()
             Stage.MOUSE -> renderMouse()
+            Stage.MOUSE_SPEED -> renderMouseSpeed()
             Stage.ACTIONS -> renderActions()
             Stage.DEAD_ZONE -> renderDeadZone()
             Stage.RESET -> renderReset()
@@ -613,8 +625,42 @@ class ControllerEditor<Game : Any>(
             "Left button", "Right button")
         MouseInputRouter.TARGETS.forEachIndexed { index, target ->
             row(labels[index], "${guest.name} mouse", true) {
-                change { put(ControllerBinding(selectedInput, mouse = target)) }
+                if (target.startsWith("move")) {
+                    selectedMouse = target
+                    stage = Stage.MOUSE_SPEED
+                    render()
+                } else change { put(ControllerBinding(selectedInput, mouse = target)) }
             }
+        }
+    }
+
+    private fun renderMouseSpeed() {
+        note("Speed for this mouse direction at full stick deflection. Buttons use full speed. " +
+            "Touch movement and other mappings keep their own speed.")
+        val current = load(scope).firstOrNull { it.input == selectedInput && it.mouse == selectedMouse }
+            ?.mouseSpeed ?: 1f
+        val label = note("")
+        fun showSpeed(progress: Int) {
+            label.text = java.lang.String.format(java.util.Locale.ROOT,
+                "Speed: %.1f×", (progress + 1) / 10f)
+        }
+        mouseSpeedSlider = SeekBar(activity).apply {
+            max = 199
+            progress = (current * 10).toInt() - 1
+            contentDescription = "Mouse movement speed"
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, value: Int, fromUser: Boolean) {
+                    showSpeed(value)
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) {}
+                override fun onStopTrackingTouch(bar: SeekBar?) {}
+            })
+        }
+        showSpeed(mouseSpeedSlider!!.progress)
+        body.addView(mouseSpeedSlider)
+        footerAction("Save mouse mapping") {
+            val speed = (mouseSpeedSlider!!.progress + 1) / 10f
+            change { put(ControllerBinding(selectedInput, mouse = selectedMouse, mouseSpeed = speed)) }
         }
     }
 
@@ -741,7 +787,8 @@ class ControllerEditor<Game : Any>(
             "leftButton" -> "left button"
             "rightButton" -> "right button"
             else -> binding.mouse.removePrefix("move").lowercase()
-        }
+        } + if (binding.mouse.startsWith("move")) java.lang.String.format(
+            java.util.Locale.ROOT, " · %.1f×", binding.mouseSpeed) else ""
         binding.joystick != null -> "Joystick " +
             (guest.joystickControls.firstOrNull { it.first == binding.joystick }?.second
                 ?: binding.joystick.replaceFirstChar(Char::uppercase))
