@@ -70,12 +70,18 @@ class LibraryFlow<T : LibraryItem>(
     }
 
     fun chooseFolder() {
-        @Suppress("DEPRECATION")
-        activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }, requestCode)
+        try {
+            @Suppress("DEPRECATION")
+            activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+            }, requestCode)
+        } catch (error: Exception) {
+            val message = error.message ?: "Could not open folder chooser"
+            screen.showStatus(message)
+            onFolderError(message)
+        }
     }
 
     /** Returns true when the result belongs to this library. */

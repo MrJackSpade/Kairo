@@ -3,6 +3,7 @@ package com.mrjackspade.kairo.frontend
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.os.Bundle
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -15,14 +16,27 @@ class ArtworkCoordinator<Game : Any>(
     private val resolve: (Game, String) -> Record,
     private val validPath: (String) -> Boolean,
     private val saveOverride: (String, String, String?) -> Unit,
-    private val pathHint: String,
     private val changed: () -> Unit,
     private val settings: (Game) -> Unit,
     private val message: (String) -> Unit,
     private val validImageUrl: (String) -> Boolean = { false }
 ) {
     data class Record(val path: String?, val largerUrl: String? = null)
-    private var selection: Pair<Game, String>? = null
+    private data class Selection<Game>(val id: String, val kind: String, val game: Game?)
+    private var selection: Selection<Game>? = null
+
+    fun saveInstanceState(state: Bundle) {
+        selection?.let {
+            state.putString("artwork_selection_id", it.id)
+            state.putString("artwork_selection_kind", it.kind)
+        }
+    }
+
+    fun restoreInstanceState(state: Bundle?) {
+        val id = state?.getString("artwork_selection_id") ?: return
+        val kind = state.getString("artwork_selection_kind") ?: return
+        if (kind in setOf("boxArt", "preview")) selection = Selection(id, kind, null)
+    }
 
     fun edit(game: Game, kind: String) {
         requireKind(kind)
@@ -33,23 +47,13 @@ class ArtworkCoordinator<Game : Any>(
         val label = label(kind)
         ArtworkOverrideEditor.show(activity, ArtworkOverrideEditor.Options(
             title = label,
-            currentPath = resolve(game, kind).path.orEmpty(),
-            hint = pathHint,
-            explanation = "Choose an image from this device or enter a packaged artwork path.",
             resetLabel = "Reset $label",
-            onSave = { save(game, kind, it) },
             onReset = { save(game, kind, null) },
             onCancel = { settings(game) },
             onChoose = {
-                selection = game to kind
-                try {
-                    activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                        addCategory(Intent.CATEGORY_OPENABLE)
-                        type = "image/*"
-                    }, REQUEST_IMAGE)
-                } catch (error: Exception) {
+                selection = Selection(contentId(game)!!, kind, game)
+                if (!DocumentPicker.open(activity, REQUEST_IMAGE, "image/*", message)) {
                     selection = null
-                    message(error.message ?: "Could not open image chooser")
                     settings(game)
                 }
             }))
@@ -58,9 +62,9 @@ class ArtworkCoordinator<Game : Any>(
     fun handleActivityResult(request: Int, result: Int, data: Intent?): Boolean {
         if (request != REQUEST_IMAGE) return false
         val pending = selection.also { selection = null } ?: return true
-        val uri = data?.data
-        if (result != Activity.RESULT_OK || uri == null) {
-            settings(pending.first)
+        val uri = DocumentPicker.selectedUri(result, data)
+        if (uri == null) {
+            pending.game?.let(settings)
             return true
         }
         // Image validation and encoding stay off the UI thread.
@@ -71,24 +75,28 @@ class ArtworkCoordinator<Game : Any>(
             }
             activity.runOnUiThread {
                 if (!activity.isFinishing && !activity.isDestroyed) imported.fold(
-                    { save(pending.first, pending.second, it) },
-                    { message(it.message ?: "Could not import image"); settings(pending.first) })
+                    { save(pending.id, pending.kind, it, pending.game) },
+                    { message(it.message ?: "Could not import image"); pending.game?.let(settings) })
             }
         }, "Kairo-artwork-import").start()
         return true
     }
 
     private fun save(game: Game, kind: String, path: String?) {
+        val id = contentId(game) ?: run { message("Hash this game first"); return }
+        save(id, kind, path, game)
+    }
+
+    private fun save(id: String, kind: String, path: String?, game: Game?) {
         try {
             require(path == null || validPath(path)) { "Invalid artwork path" }
-            val id = contentId(game) ?: error("Hash this game first")
             saveOverride(id, kind, path)
             changed()
             message(if (path == null) "Artwork reset" else "Artwork saved")
         } catch (error: Exception) {
             message(error.message ?: "Could not save artwork")
         }
-        settings(game)
+        game?.let(settings)
     }
 
     fun view(game: Game, kind: String = "preview", returnToSettings: Boolean = false) {
