@@ -13,8 +13,8 @@ object FrontendNavigation {
             KeyEvent.KEYCODE_DPAD_DOWN -> return "down"
             KeyEvent.KEYCODE_DPAD_LEFT -> return "left"
             KeyEvent.KEYCODE_DPAD_RIGHT -> return "right"
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> return "a"
-            KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BACK -> return "b"
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_A -> return "a"
+            KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_B -> return "b"
             KeyEvent.KEYCODE_MENU -> return "menu"
         }
         if (KeyEvent.isGamepadButton(event.keyCode) ||

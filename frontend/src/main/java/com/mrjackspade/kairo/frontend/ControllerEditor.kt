@@ -76,12 +76,13 @@ class ControllerEditor<Game : Any>(
     private var mouseSpeedSlider: SeekBar? = null
     private var selectedMouse = "moveRight"
     private val captureBaseline = HashMap<Pair<Int, Int>, Float>()
+    private var captureArmed = false
     private val navigationHandler = Handler(Looper.getMainLooper())
     private var hatDirection: Int? = null
     private val repeatHat = object : Runnable {
         override fun run() {
             val direction = hatDirection ?: return
-            if (!isOpen || stage == Stage.CAPTURE) return
+            if (!isOpen || (stage == Stage.CAPTURE && captureArmed)) return
             moveFocus(direction)
             navigationHandler.postDelayed(this, 120)
         }
@@ -137,6 +138,7 @@ class ControllerEditor<Game : Any>(
         scope = gameEntry
         physicalScope = startPhysical
         stage = Stage.LIST
+        captureArmed = false
         selectedControl = null
         renderedStage = null
         listKey = null
@@ -193,6 +195,7 @@ class ControllerEditor<Game : Any>(
 
     fun back() {
         if (!isOpen) return
+        captureArmed = false
         stage = when (stage) {
             Stage.LIST -> { close(); return }
             Stage.SOURCES, Stage.DEAD_ZONE, Stage.RESET -> Stage.LIST
@@ -207,7 +210,7 @@ class ControllerEditor<Game : Any>(
 
     fun handleKey(event: KeyEvent): Boolean {
         if (!isOpen) return false
-        if (stage == Stage.CAPTURE) {
+        if (stage == Stage.CAPTURE && captureArmed) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 &&
                 (KeyEvent.isGamepadButton(event.keyCode) ||
                     event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
@@ -228,11 +231,13 @@ class ControllerEditor<Game : Any>(
             event.isFromSource(InputDevice.SOURCE_JOYSTICK))
             loadPhysical().firstOrNull { it.input == "button:${event.keyCode}" }?.control
         else null
-        if (control == "b" || event.keyCode == KeyEvent.KEYCODE_ESCAPE) {
+        if (control == "b" || event.keyCode == KeyEvent.KEYCODE_ESCAPE ||
+            (control == null && event.keyCode == KeyEvent.KEYCODE_BUTTON_B)) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) back()
             return true
         }
-        if (control == "a" || event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+        if (control == "a" || event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
+            (control == null && event.keyCode == KeyEvent.KEYCODE_BUTTON_A)) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0)
                 page.findFocus()?.performClick()
             return true
@@ -267,7 +272,7 @@ class ControllerEditor<Game : Any>(
 
     fun captureMotion(event: MotionEvent): Boolean {
         if (!isOpen) return false
-        if (stage != Stage.CAPTURE) {
+        if (stage != Stage.CAPTURE || !captureArmed) {
             val x = event.getAxisValue(MotionEvent.AXIS_HAT_X)
             val y = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
             val direction = when {
@@ -327,6 +332,7 @@ class ControllerEditor<Game : Any>(
     }
 
     private fun captureInput(input: String) {
+        captureArmed = false
         val control = selectedControl
         if (control == null) {
             chooseInput(input)
@@ -507,6 +513,11 @@ class ControllerEditor<Game : Any>(
     }
 
     private fun renderCapture() {
+        if (!captureArmed) row("Listen for input", "Start capturing a button or axis", true) {
+            captureArmed = true
+            captureBaseline.clear()
+            render()
+        }
         val control = selectedControl
         if (control == null) {
             note("Release the controller, then press a button or move a stick, trigger, or D-pad.")
