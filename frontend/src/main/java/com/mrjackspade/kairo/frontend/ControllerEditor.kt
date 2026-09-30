@@ -645,6 +645,7 @@ class ControllerEditor<Game : Any>(
                 "Speed: %.1f×", (progress + 1) / 10f)
         }
         mouseSpeedSlider = SeekBar(activity).apply {
+            isFocusableInTouchMode = true
             max = 199
             progress = (current * 10).toInt() - 1
             contentDescription = "Mouse movement speed"
@@ -658,6 +659,7 @@ class ControllerEditor<Game : Any>(
         }
         showSpeed(mouseSpeedSlider!!.progress)
         body.addView(mouseSpeedSlider)
+        mouseSpeedSlider!!.post { mouseSpeedSlider?.requestFocus() }
         footerAction("Save mouse mapping") {
             val speed = (mouseSpeedSlider!!.progress + 1) / 10f
             change { put(ControllerBinding(selectedInput, mouse = selectedMouse, mouseSpeed = speed)) }
