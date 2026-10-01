@@ -9,3 +9,7 @@ android {
     namespace = "com.mrjackspade.kairo.frontend"
 
 }
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}

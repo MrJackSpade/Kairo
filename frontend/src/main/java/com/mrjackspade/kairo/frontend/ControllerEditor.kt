@@ -49,7 +49,10 @@ class ControllerEditor<Game : Any>(
     private val setEightWayDpad: (Boolean) -> Unit,
     private val gameId: (Game) -> String,
     private val guest: ControllerGuestSpec,
-    private val validateBindings: (List<ControllerBinding>) -> Unit
+    private val validateBindings: (List<ControllerBinding>) -> Unit,
+    private val configuration: ControllerConfiguration? = null,
+    private val onConfigurationChanged: () -> Unit = {},
+    private val mappingStatus: (Game?) -> String? = { null }
 ) {
     private enum class Stage { LIST, SOURCES, CAPTURE, MANUAL, TARGET, VIRTUAL, KEYS, CYCLE, JOYSTICK, MOUSE, MOUSE_SPEED, ACTIONS, DEAD_ZONE, RESET }
     private data class Source(val group: String, val name: String, val input: String)
@@ -411,6 +414,12 @@ class ControllerEditor<Game : Any>(
         }, LinearLayout.LayoutParams(0, dp(48), 1f))
         body.addView(tabs)
         section("OPTIONS")
+        configuration?.let { config ->
+            row("Controller configuration (global)", config.label, true) {
+                config.show(activity) { onConfigurationChanged(); render() }
+            }
+        }
+        if (!physicalScope) mappingStatus(scope)?.let { note(it) }
         row("On-screen controls", "Show, hide, and arrange", true) {
             close()
             onScreenSettings()
