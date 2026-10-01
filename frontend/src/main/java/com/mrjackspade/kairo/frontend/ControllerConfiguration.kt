@@ -2,10 +2,13 @@ package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
 import android.content.SharedPreferences
 import android.os.Build
 import android.view.InputDevice
 import android.view.MotionEvent
+import android.view.KeyEvent
+import android.view.Window
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -79,13 +82,15 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
     fun endSession() { session = false; devicesChanged() }
 
     /** No selection is made when no controller is detected, including upgraded installations. */
-    fun show(activity: Activity, required: Boolean = false, onSelected: () -> Unit) {
+    fun show(activity: Activity, required: Boolean = false, product: String = "KAIRO", onSelected: () -> Unit) {
+        if (required) {
+            showSetup(activity, product, onSelected)
+            return
+        }
         val detection = detect()
         val choices = if (detection.device == null) listOf(Choice.WITH_STICKS, Choice.WITHOUT_STICKS)
             else Choice.entries
-        var selected: Choice? = if (required) {
-            if (detection.device == null) null else Choice.AUTO
-        } else choice.takeIf { it in choices }
+        var selected: Choice? = choice.takeIf { it in choices }
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(Ui.dp(activity, 20), Ui.dp(activity, 16), Ui.dp(activity, 20), Ui.dp(activity, 16))
@@ -96,8 +101,8 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
         val rows = mutableMapOf<Choice, TextView>()
         val dialog = AlertDialog.Builder(activity).setTitle("Controller configuration")
             .setView(ScrollView(activity).apply { addView(content) })
-            .setPositiveButton(if (required) "Continue" else "Apply", null)
-            .apply { if (!required) setNegativeButton("Cancel", null) }
+            .setPositiveButton("Apply", null)
+            .setNegativeButton("Cancel", null)
             .create()
         choices.forEach { option ->
             val row = Ui.text(activity, if (option == Choice.AUTO)
@@ -118,8 +123,7 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
             content.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = Ui.dp(activity, 12) })
         }
         dialog.setCancelable(true)
-        if (required) dialog.setOnCancelListener { activity.finish() }
-        dialog.setCanceledOnTouchOutside(!required)
+        dialog.setCanceledOnTouchOutside(true)
         dialog.show()
         Ui.styleDialog(dialog)
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
@@ -128,7 +132,7 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                 selected?.let {
                     if (it == Choice.AUTO && detect().device == null) {
                         dialog.dismiss()
-                        show(activity, required, onSelected)
+                        show(activity, required, product, onSelected)
                     } else {
                         select(it)
                         dialog.dismiss()
@@ -137,9 +141,70 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                 }
             }
         }
-        // Required setup is a full-screen page; the separate window also owns controller navigation.
-        if (required) dialog.window?.setLayout(-1, -1)
         rows[selected ?: choices.first()]?.requestFocusFromTouch()
+    }
+
+    /** The boot selector uses the same page component as folder and firmware setup. */
+    private fun showSetup(activity: Activity, product: String, onSelected: () -> Unit) {
+        val screen = FirstRunScreen(activity)
+        val dialog = Dialog(activity)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(screen)
+        dialog.setCanceledOnTouchOutside(false)
+        dialog.setOnCancelListener { activity.finish() }
+        val detection = detect()
+        val choices = if (detection.device == null) listOf(Choice.WITH_STICKS, Choice.WITHOUT_STICKS)
+            else Choice.entries
+        renderSetup(screen, dialog, activity, product, choices, detection, onSelected)
+        dialog.show()
+        dialog.window?.let { window ->
+            ImmersiveWindow.apply(window)
+            window.setBackgroundDrawableResource(android.R.color.transparent)
+            window.decorView.setPadding(0, 0, 0, 0)
+            window.setLayout(-1, -1)
+            val delegate = window.callback
+            val hats = DpadMotionNavigation { screen.handleKey(it) }
+            window.callback = object : Window.Callback by delegate {
+                override fun dispatchKeyEvent(event: KeyEvent) = screen.handleKey(event)
+                override fun dispatchGenericMotionEvent(event: MotionEvent) = hats.motion(event) ||
+                    delegate.dispatchGenericMotionEvent(event)
+            }
+            dialog.setOnDismissListener { hats.stop() }
+        }
+    }
+
+    private fun renderSetup(screen: FirstRunScreen, dialog: Dialog, activity: Activity,
+                            product: String, choices: List<Choice>, detection: ControllerCapabilities.Detection,
+                            onSelected: () -> Unit) {
+        var selected: Choice? = if (detection.device == null) null else Choice.AUTO
+        fun renderRows(focused: Int?) {
+            val actions = choices.mapIndexed { index, option ->
+                FirstRunScreen.Action(option.label,
+                    if (option == Choice.AUTO) "Detected: ${detection.layout.label}"
+                    else if (option == selected) "Selected" else "",
+                    primary = option == selected) {
+                    selected = option
+                    renderRows(index)
+                }
+            } + FirstRunScreen.Action("Continue", "", primary = true, enabled = selected != null) {
+                selected?.let {
+                    if (it == Choice.AUTO && detect().device == null) {
+                        dialog.dismiss()
+                        showSetup(activity, product, onSelected)
+                    } else {
+                        select(it)
+                        dialog.dismiss()
+                        onSelected()
+                    }
+                }
+            }
+            screen.show(FirstRunScreen.Page(product, "SETUP", "Controller configuration",
+                if (detection.device == null) "No controller detected. Select a configuration to continue."
+                else "Select your controller configuration.", actions, focusAction = focused)) {
+                dialog.cancel()
+            }
+        }
+        renderRows(0)
     }
 }
 

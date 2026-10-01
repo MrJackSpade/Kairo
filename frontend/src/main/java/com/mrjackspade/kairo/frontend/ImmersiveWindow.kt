@@ -4,13 +4,15 @@ import android.app.Activity
 import android.graphics.Color
 import android.os.Build
 import android.view.View
+import android.view.Window
 import android.view.WindowInsets
 import android.view.WindowManager
 
 /** Common fullscreen policy for the library and guest display. */
 object ImmersiveWindow {
-    fun apply(activity: Activity) {
-        val window = activity.window
+    fun apply(activity: Activity) = apply(activity.window)
+
+    fun apply(window: Window) {
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
         window.decorView.setBackgroundColor(Color.BLACK)
@@ -25,12 +27,14 @@ object ImmersiveWindow {
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
                 View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-        hideBars(activity)
+        hideBars(window)
     }
 
-    fun hideBars(activity: Activity) {
+    fun hideBars(activity: Activity) = hideBars(activity.window)
+
+    private fun hideBars(window: Window) {
         if (Build.VERSION.SDK_INT >= 30) {
-            activity.window.insetsController?.hide(WindowInsets.Type.statusBars() or
+            window.insetsController?.hide(WindowInsets.Type.statusBars() or
                 WindowInsets.Type.navigationBars())
         }
     }

@@ -24,7 +24,8 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         val title: String,
         val description: String,
         val actions: List<Action>,
-        val status: String? = null
+        val status: String? = null,
+        val focusAction: Int? = null
     )
 
     private val card = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
@@ -61,6 +62,7 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 14) })
         card.addView(Ui.text(activity, page.description, 17f, Ui.TEXT_MUTED),
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 28) })
+        val actionRows = ArrayList<View>()
         page.actions.forEachIndexed { index, action ->
             if (index == page.actions.lastIndex) page.status?.let { status ->
                 card.addView(Ui.text(activity, status, Ui.SECONDARY, Ui.ACCENT),
@@ -84,9 +86,12 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
             card.addView(row, LinearLayout.LayoutParams(-1, Ui.dp(activity, 76)).apply {
                 bottomMargin = Ui.dp(activity, 10)
             })
+            actionRows.add(row)
         }
         card.post {
-            if (isOpen && activity.currentFocus?.isDescendantOf(card) != true)
+            val requested = page.focusAction?.let(actionRows::getOrNull)?.takeIf { it.isEnabled }
+            if (isOpen && requested != null) requested.requestFocusFromTouch()
+            else if (isOpen && findFocus()?.isDescendantOf(card) != true)
                 (0 until card.childCount).map(card::getChildAt).firstOrNull { it.isFocusable }
                     ?.requestFocusFromTouch()
         }
@@ -106,7 +111,7 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
             event.keyCode == KeyEvent.KEYCODE_DPAD_CENTER ||
             event.keyCode == KeyEvent.KEYCODE_BUTTON_A) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0)
-                activity.currentFocus?.performClick()
+                findFocus()?.performClick()
             return true
         }
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP ||
