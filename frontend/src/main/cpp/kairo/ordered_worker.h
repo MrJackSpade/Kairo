@@ -19,10 +19,22 @@ namespace kairo {
 // not reenter this object; a throwing consumer is fatal to its operation stream.
 // drain() completes all submitted work. Destruction cancels pending work and
 // joins the active operation; callers needing its results must drain first.
-template<class Command, class Result, size_t Capacity = 64>
+template<class Command, class Result, size_t Capacity = 64, bool Track = false>
 class OrderedWorker {
     static_assert(Capacity > 0);
 public:
+    struct Statistics {
+        size_t maxCommands = 0, maxResults = 0;
+        size_t currentCommands = 0, currentResults = 0;
+        uint64_t submitDrains = 0, submitWaits = 0;
+    };
+    Statistics statistics() {
+        std::lock_guard lock(mutex_);
+        auto result = statistics_;
+        result.currentCommands = commandCount_;
+        result.currentResults = resultCount_;
+        return result;
+    }
     explicit OrderedWorker(std::function<Result(const Command&)> process)
         : process_(std::move(process)) {
         thread_ = std::thread([this] { run(); });
@@ -46,14 +58,20 @@ public:
             if (commandCount_ < Capacity) {
                 commands_[(commandHead_ + commandCount_) % Capacity] = std::move(command);
                 ++commandCount_;
+                if constexpr (Track) {
+                    if (commandCount_ > statistics_.maxCommands)
+                        statistics_.maxCommands = commandCount_;
+                }
                 ++issued_;
                 lock.unlock();
                 changed_.notify_all();
                 return;
             }
             if (resultCount_) {
+                if constexpr (Track) ++statistics_.submitDrains;
                 consumeOne(lock, consume);
             } else {
+                if constexpr (Track) ++statistics_.submitWaits;
                 changed_.wait(lock, [this] {
                     return error_ || commandCount_ < Capacity || resultCount_;
                 });
@@ -108,6 +126,10 @@ private:
                 if (stopping_) return;
                 results_[(resultHead_ + resultCount_) % Capacity] = std::move(result);
                 ++resultCount_;
+                if constexpr (Track) {
+                    if (resultCount_ > statistics_.maxResults)
+                        statistics_.maxResults = resultCount_;
+                }
                 lock.unlock();
                 changed_.notify_all();
             }
@@ -130,6 +152,7 @@ private:
     uint64_t issued_ = 0, consumed_ = 0;
     bool stopping_ = false;
     std::exception_ptr error_;
+    Statistics statistics_;
     std::thread thread_;
 };
 } // namespace kairo
