@@ -101,6 +101,7 @@ class LibraryScreen<T : LibraryItem>(
     private val missingArt = HashSet<String>()
     private var entries = emptyList<T>()
     private var selectedIndex = 0
+    private var selectionVisibilityPending = false
 
     private sealed interface ListItem
     private data class Header(val label: String, val pinned: Boolean) : ListItem
@@ -293,6 +294,20 @@ class LibraryScreen<T : LibraryItem>(
         body.addView(artworkBanner, LinearLayout.LayoutParams(-1, -2))
         val gameArea = FrameLayout(context)
         list.apply {
+            viewTreeObserver.addOnPreDrawListener {
+                if (!selectionVisibilityPending || !isShown) true
+                else {
+                    // Several repeats can arrive before ListView applies a requested
+                    // scroll. Recheck the latest selection against the resulting rows,
+                    // and do not draw a stale scroll with the selection clipped away.
+                    val visible = keepSelectionVisible()
+                    if (visible) {
+                        selectionVisibilityPending = false
+                        updateSelectionHighlight()
+                    }
+                    visible
+                }
+            }
             divider = ColorDrawable(Color.TRANSPARENT)
             dividerHeight = dp(4)
             selector = ColorDrawable(Color.TRANSPARENT)
@@ -468,11 +483,20 @@ class LibraryScreen<T : LibraryItem>(
     fun moveSelection(delta: Int) {
         if (entries.isEmpty()) return
         val next = (selectedIndex + delta).coerceIn(0, entries.lastIndex)
-        if (next == selectedIndex) return
+        if (next == selectedIndex) {
+            requestSelectionVisibility()
+            return
+        }
         selectedIndex = next
         updateSelectionHighlight()
-        keepSelectionVisible()
+        requestSelectionVisibility()
         notifySelection()
+    }
+
+    private fun requestSelectionVisibility() {
+        selectionVisibilityPending = true
+        keepSelectionVisible()
+        list.invalidate()
     }
 
     /** Selection only changes activation, not row data. Rebinding the whole viewport
@@ -485,27 +509,34 @@ class LibraryScreen<T : LibraryItem>(
         }
     }
 
-    private fun keepSelectionVisible() {
-        if (list.height == 0) return
-        // Keep the section label above the first game in view.
-        val selectedPosition = if (selectedIndex == 0) 0 else positionOf(selectedIndex)
+    private fun keepSelectionVisible(): Boolean {
+        if (list.height == 0 || entries.isEmpty()) return true
+        // Section headers are not selectable; visibility belongs to the game row.
+        val selectedPosition = positionOf(selectedIndex)
         val first = list.firstVisiblePosition
         val last = list.lastVisiblePosition
         val viewportBottom = list.height - list.paddingBottom
         val child = list.getChildAt(selectedPosition - first)
+        // A row taller than the available viewport can only be top-aligned.
+        if (child != null && child.height > viewportBottom - list.paddingTop &&
+            child.top == list.paddingTop) return true
         when {
-            selectedPosition < first -> list.setSelectionFromTop(selectedPosition, list.paddingTop)
+            // setSelectionFromTop adds list padding itself: offsets are relative
+            // to the padded origin, unlike child.top/bottom coordinates.
+            selectedPosition < first -> list.setSelectionFromTop(selectedPosition, 0)
             selectedPosition > last -> {
                 val rowHeight = list.getChildAt(last - first)?.height ?: dp(75)
                 list.setSelectionFromTop(selectedPosition,
-                    (viewportBottom - rowHeight).coerceAtLeast(list.paddingTop))
+                    (viewportBottom - rowHeight - list.paddingTop).coerceAtLeast(0))
             }
             child != null && child.top < list.paddingTop ->
-                list.setSelectionFromTop(selectedPosition, list.paddingTop)
+                list.setSelectionFromTop(selectedPosition, 0)
             child != null && child.bottom > viewportBottom ->
                 list.setSelectionFromTop(selectedPosition,
-                    (viewportBottom - child.height).coerceAtLeast(list.paddingTop))
+                    (viewportBottom - child.height - list.paddingTop).coerceAtLeast(0))
+            else -> return true
         }
+        return false
     }
     fun activateSelection() {
         entries.getOrNull(selectedIndex)?.let(::openDetail)
@@ -631,6 +662,7 @@ class LibraryScreen<T : LibraryItem>(
             (1 until entries.size).map(::Game)
             else entries.indices.map(::Game)
         adapter.notifyDataSetChanged()
+        requestSelectionVisibility()
         notifySelection()
     }
 
@@ -645,6 +677,7 @@ class LibraryScreen<T : LibraryItem>(
     /** Reannounce a cached selection when the library returns after gameplay.
      * The companion display may have cleared its game information while hidden. */
     fun reannounceSelection() {
+        requestSelectionVisibility()
         val entry = entries.getOrNull(selectedIndex)
         reportedSelection = entry?.id
         selectionChanged(entry)
@@ -679,6 +712,7 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     override fun onDetachedFromWindow() {
+        selectionVisibilityPending = false
         artExecutor.shutdownNow()
         super.onDetachedFromWindow()
     }
