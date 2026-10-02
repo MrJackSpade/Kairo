@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import android.app.AlertDialog
 import android.view.View
 
 /** Common session state: pausing a machine does not hide its display or keyboard. */
@@ -20,7 +21,7 @@ class SessionNavigationState {
     }
 }
 
-/** Owns library-over-game and resume transitions; native session work stays in adapters. */
+/** Owns confirmed return-to-library and presentation transitions; native teardown stays in adapters. */
 class SessionNavigationCoordinator(
     private val state: SessionNavigationState,
     private val library: LibraryScreen<*>,
@@ -33,8 +34,34 @@ class SessionNavigationCoordinator(
     private val prepareGame: () -> Unit,
     private val refreshLibrary: () -> Unit,
     private val applyState: () -> Unit,
-    private val focusGame: () -> Unit
+    private val focusGame: () -> Unit,
+    private val endSession: (() -> Unit) -> Unit
 ) {
+    private var returnPending = false
+
+    /** User action; internal startup/teardown calls use showLibrary directly. */
+    fun requestLibrary() {
+        if (returnPending) return
+        if (!hasGame()) { showLibrary(); return }
+        returnPending = true
+        fun cancel() {
+            returnPending = false
+            session()?.close()
+        }
+        AlertDialog.Builder(library.context)
+            .setTitle("End game session?")
+            .setMessage("Return to Library and stop the current game. Unsaved progress will be lost.")
+            .setNegativeButton("Cancel") { _, _ -> cancel() }
+            .setPositiveButton("End session") { _, _ ->
+                endSession {
+                    returnPending = false
+                    showLibrary()
+                }
+            }
+            .setOnCancelListener { cancel() }
+            .show().also(Ui::styleDialog)
+    }
+
     fun showLibrary() {
         resetGestures()
         if (externalSession()) { exitExternalSession(); return }
