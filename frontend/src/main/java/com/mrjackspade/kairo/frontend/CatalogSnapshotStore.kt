@@ -27,6 +27,11 @@ class CatalogSnapshotStore(
     private var rejectedSaved: Pair<String, Exception>? = null
     private var active = readSaved()
 
+    /**
+     * A checksum-verified snapshot accepted by this APK's validator. Consumers may
+     * decode their format directly; repeating full schema validation here would
+     * undo the worker-thread validation and block frontend construction.
+     */
     @Synchronized fun activeFile(): File? = active
 
     /** Call from a worker thread. Unchanged metadata does no archive work. */
