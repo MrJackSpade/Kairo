@@ -40,6 +40,8 @@ class SecondaryDisplayCoordinator(
 ) : DisplayManager.DisplayListener {
     private val displayManager = activity.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     private var started = false
+    private var setupVisible = false
+    private var stopObservingSetup: (() -> Unit)? = null
     private var keyboardVisible = false
     private var backgroundColor = Color.BLACK
     private var touchpadMode = false
@@ -52,7 +54,7 @@ class SecondaryDisplayCoordinator(
 
     val isShowing: Boolean get() = presentation?.isShowing == true ||
         companion?.isFinishing == false
-    val isKeyboardVisible: Boolean get() = isShowing && keyboardVisible
+    val isKeyboardVisible: Boolean get() = isShowing && visibleKeyboard
     val isCompanionActive: Boolean get() = companionStarting || companion != null
     val activeGameSurface: SurfaceView?
         get() = presentation?.content?.activeGameSurface ?: companion?.activeGameSurface
@@ -60,6 +62,10 @@ class SecondaryDisplayCoordinator(
     fun start(handler: Handler) {
         if (started) return
         started = true
+        stopObservingSetup = FirstRunVisibility.forActivity(activity).observe {
+            setupVisible = it
+            updateContent()
+        }
         displayManager.registerDisplayListener(this, handler)
         // onResume can run before the decor view is attached to its display.
         // Wait for its actual display before choosing where the companion belongs.
@@ -69,6 +75,8 @@ class SecondaryDisplayCoordinator(
     fun stop() {
         if (!started) return
         started = false
+        stopObservingSetup?.invoke()
+        stopObservingSetup = null
         displayManager.unregisterDisplayListener(this)
         if (swapped) {
             swapped = false
@@ -78,10 +86,9 @@ class SecondaryDisplayCoordinator(
     }
 
     fun toggleSwap() {
-        if (!isShowing) return
+        if (!isShowing || setupVisible) return
         swapped = !swapped
-        presentation?.content?.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
-        companion?.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
+        updateContent()
         onSwapChanged(swapped)
     }
 
@@ -90,19 +97,27 @@ class SecondaryDisplayCoordinator(
                            val art: android.graphics.Bitmap?)
 
     private var libraryInfo: LibraryInfo? = null
+    private val visibleKeyboard get() = keyboardVisible && !setupVisible
+    private val visibleBackground get() = if (setupVisible) Ui.BG else backgroundColor
+    private val visibleLibraryInfo get() = libraryInfo.takeUnless { setupVisible }
+
+    private fun updateContent() {
+        presentation?.content?.setAppearance(visibleKeyboard, visibleBackground,
+            swapped && !setupVisible, visibleLibraryInfo)
+        companion?.setAppearance(visibleKeyboard, visibleBackground,
+            swapped && !setupVisible, visibleLibraryInfo)
+    }
 
     fun setLibraryInfo(info: LibraryInfo?) {
         libraryInfo = info
-        presentation?.content?.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
-        companion?.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
+        updateContent()
     }
 
     fun setAppearance(showKeyboard: Boolean, color: Int) {
         keyboardVisible = showKeyboard
         backgroundColor = color
         refresh()
-        presentation?.content?.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
-        companion?.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
+        updateContent()
     }
 
     fun setInitialMode(touchpad: Boolean) {
@@ -157,7 +172,7 @@ class SecondaryDisplayCoordinator(
         try {
             next.show()
             presentation = next
-            next.content.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
+            updateContent()
             next.content.setInitialMode(touchpadMode)
             next.setOnDismissListener {
                 if (presentation === next) {
@@ -231,7 +246,7 @@ class SecondaryDisplayCoordinator(
     }
 
     fun updateCompanion(value: SecondaryDisplayActivity) {
-        if (companion === value) value.setAppearance(keyboardVisible, backgroundColor, swapped, libraryInfo)
+        if (companion === value) updateContent()
     }
 
     fun detachCompanion(value: SecondaryDisplayActivity) {

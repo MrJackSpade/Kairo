@@ -51,6 +51,7 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
     fun show(page: Page, onBack: () -> Unit) {
         this.onBack = onBack
         visibility = View.VISIBLE
+        FirstRunVisibility.forActivity(activity).setVisible(this, true)
         card.removeAllViews()
         val header = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -139,7 +140,20 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         }
     }
 
-    fun close() { visibility = View.GONE }
+    fun close() {
+        visibility = View.GONE
+        FirstRunVisibility.forActivity(activity).setVisible(this, false)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        FirstRunVisibility.forActivity(activity).setVisible(this, isOpen)
+    }
+
+    override fun onDetachedFromWindow() {
+        FirstRunVisibility.forActivity(activity).setVisible(this, false)
+        super.onDetachedFromWindow()
+    }
     fun back() { if (isOpen) onBack() }
 
     private fun actionBackground(primary: Boolean, footer: Boolean) = StateListDrawable().apply {
