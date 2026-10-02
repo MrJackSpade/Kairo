@@ -6,7 +6,7 @@ import struct
 import zipfile
 
 
-def inspect(path, prefix):
+def inspect(path, prefix, allow_art=False):
     with zipfile.ZipFile(path) as archive:
         payload = {}
         native = 0
@@ -37,7 +37,12 @@ def inspect(path, prefix):
         assert native, f'No native libraries in {path}'
         for name in ('assets/THIRD_PARTY_NOTICES.txt', 'assets/PRIVACY_POLICY.txt'):
             assert name in payload, f'Missing {name}'
-        assert not any(n.startswith('assets/art/') for n in payload), 'Unreviewed bundled artwork'
+        artwork = {n for n in payload if n.startswith('assets/art/')}
+        if allow_art:
+            assert any(n.endswith(('.webp', '.png', '.jpg')) for n in artwork), 'No bundled images'
+            print(f'{path}: {len(artwork)} bundled artwork files')
+        else:
+            assert not artwork, 'Unexpected bundled artwork'
         print(f'{path}: {native} ARM64 libraries, 16 KB ELF alignment verified')
         return payload
 
@@ -46,6 +51,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('apk')
     parser.add_argument('aab')
+    parser.add_argument('with_images_apk', nargs='?')
     args = parser.parse_args()
-    assert inspect(args.apk, '') == inspect(args.aab, 'base/'), 'APK/AAB payload mismatch'
+    common = inspect(args.apk, '')
+    assert common == inspect(args.aab, 'base/'), 'APK/AAB payload mismatch'
+    if args.with_images_apk:
+        with_images = inspect(args.with_images_apk, '', allow_art=True)
+        assert {n: v for n, v in with_images.items() if not n.startswith('assets/art/')} == common, 'Image variant changes non-artwork payload'
     print('APK and Play bundle have identical assets and native libraries')
