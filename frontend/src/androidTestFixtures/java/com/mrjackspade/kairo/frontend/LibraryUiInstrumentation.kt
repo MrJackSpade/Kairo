@@ -20,8 +20,10 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var exitDialog = false
     private var traceSearch = false
     private var keyboard = false
+    private var touchKeyboardUri: String? = null
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
+        touchKeyboardUri = arguments?.getString("touchKeyboardUri")
         artwork = arguments?.getString("libraryArtwork") == "true"
         menu = arguments?.getString("libraryMenu") == "true"
         deadZone = arguments?.getString("deadZone") == "true"
@@ -45,6 +47,16 @@ class LibraryUiInstrumentation : Instrumentation() {
     }
     override fun onStart() {
         val result = Bundle()
+        touchKeyboardUri?.let { uri ->
+            try {
+                result.putString("stream", com.mrjackspade.kairo.frontend.TouchKeyboardFixture.verify(this, uri))
+                finish(Activity.RESULT_OK, result)
+            } catch (failure: Throwable) {
+                result.putString("stream", failure.stackTraceToString())
+                finish(Activity.RESULT_CANCELED, result)
+            }
+            return
+        }
         if (directoryPicker) {
             try {
                 DirectoryPickerFixture.verify(this)
