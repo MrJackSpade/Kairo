@@ -1,15 +1,20 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.AlertDialog
+import android.os.Build
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.Window
 import android.widget.Button
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 
 /** Dialogs own a separate window, so Activity controller dispatch cannot reach them. */
 internal object DialogControllerNavigation {
     private class Callback(val delegate: Window.Callback, val dialog: AlertDialog) : Window.Callback by delegate {
+        var backAction: (() -> Unit)? = null
+        var systemBack: OnBackInvokedCallback? = null
         val hats = DpadMotionNavigation { dispatchKeyEvent(it) }
         // Plain confirmations have no list/editor to navigate. Own their button focus
         // explicitly; Android can otherwise leave every button unfocused in touch mode.
@@ -37,7 +42,8 @@ internal object DialogControllerNavigation {
                 else -> event.keyCode
             }
             if (code == KeyEvent.KEYCODE_BACK) {
-                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) dialog.cancel()
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0)
+                    backAction?.invoke() ?: dialog.cancel()
                 return true
             }
             val buttons = buttons()
@@ -71,7 +77,24 @@ internal object DialogControllerNavigation {
         callback.initialFocus()
         window.decorView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(view: View) = Unit
-            override fun onViewDetachedFromWindow(view: View) { callback.hats.stop() }
+            override fun onViewDetachedFromWindow(view: View) {
+                callback.hats.stop()
+                if (Build.VERSION.SDK_INT >= 33) callback.systemBack?.let {
+                    dialog.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it)
+                    callback.systemBack = null
+                }
+            }
         })
+    }
+
+    fun setBackAction(dialog: AlertDialog, action: () -> Unit) {
+        install(dialog)
+        val callback = dialog.window?.callback as? Callback ?: return
+        callback.backAction = action
+        if (Build.VERSION.SDK_INT >= 33 && callback.systemBack == null) {
+            callback.systemBack = OnBackInvokedCallback { callback.backAction?.invoke() ?: dialog.cancel() }
+            dialog.onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback.systemBack!!)
+        }
     }
 }

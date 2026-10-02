@@ -14,6 +14,7 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var catalogProgress = false
     private var snapshotActivation = false
     private var keyCycle = false
+    private var directoryPicker = false
     private var startup = false
     private var traceStartup = false
     private var exitDialog = false
@@ -32,6 +33,7 @@ class LibraryUiInstrumentation : Instrumentation() {
         catalogProgress = arguments?.getString("catalogProgress") == "true"
         snapshotActivation = arguments?.getString("snapshotActivation") == "true"
         keyCycle = arguments?.getString("keyCycle") == "true"
+        directoryPicker = arguments?.getString("directoryPicker") == "true"
         startup = arguments?.getString("startup") == "true"
         traceStartup = arguments?.getString("traceStartup") == "true"
         start()
@@ -43,6 +45,17 @@ class LibraryUiInstrumentation : Instrumentation() {
     }
     override fun onStart() {
         val result = Bundle()
+        if (directoryPicker) {
+            try {
+                DirectoryPickerFixture.verify(this)
+                result.putString("stream", "Shared directory picker: async load, retry, controller navigation/selection and cancellation: OK\n")
+                finish(Activity.RESULT_OK, result)
+            } catch (failure: Throwable) {
+                result.putString("stream", failure.stackTraceToString())
+                finish(Activity.RESULT_CANCELED, result)
+            }
+            return
+        }
         if (keyCycle) {
             try {
                 com.mrjackspade.kairo.frontend.KeyCycleFixture.verify(this)
