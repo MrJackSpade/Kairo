@@ -9,15 +9,29 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var artwork = false
     private var menu = false
     private var deadZone = false
+    private var search = false
+    private var traceSearch = false
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         artwork = arguments?.getString("libraryArtwork") == "true"
         menu = arguments?.getString("libraryMenu") == "true"
         deadZone = arguments?.getString("deadZone") == "true"
+        search = arguments?.getString("librarySearch") == "true"
+        traceSearch = arguments?.getString("traceSearch") == "true"
         start()
     }
     override fun onStart() {
         val result = Bundle()
+        if (search) {
+            try {
+                result.putString("stream", LibrarySearchFixture.measure(this, traceSearch))
+                finish(Activity.RESULT_OK, result)
+            } catch (failure: Throwable) {
+                result.putString("stream", failure.stackTraceToString())
+                finish(Activity.RESULT_CANCELED, result)
+            }
+            return
+        }
         try {
             if (deadZone) DeadZoneFixture.verify(this)
             else if (menu) LibraryMenuFixture.verify(this)

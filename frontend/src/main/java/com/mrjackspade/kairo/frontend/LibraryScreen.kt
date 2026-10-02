@@ -83,6 +83,10 @@ class LibraryScreen<T : LibraryItem>(
     // A library snapshot can span far more catalog shards than either backend's
     // small shard cache. Retain the resolved row records, not entire shard JSON.
     private val rowMetadata = HashMap<String, LibraryGame>()
+    private val searchIndex = LibrarySearchIndex<T>(catalog, { action -> post(action) }) { records ->
+        rowMetadata.putAll(records)
+    }
+    private var searchSnapshot = 0L
     /** Reuse the row snapshot for selection previews instead of rereading catalog shards. */
     fun metadata(entry: T): LibraryGame = rowMetadata.getOrPut(entry.id) {
         catalog.resolve(entry.contentId ?: "", entry.displayName)
@@ -411,9 +415,11 @@ class LibraryScreen<T : LibraryItem>(
     }
     fun refreshArtwork() {
         rowMetadata.clear()
+        resetSearchIndex()
         missingArt.clear()
         adapter.notifyDataSetChanged()
         detailPage.refreshArtwork()
+        if (search.text.isNotEmpty()) applyFilter()
     }
     fun showStatus(message: String) {
         status.text = message
@@ -436,6 +442,7 @@ class LibraryScreen<T : LibraryItem>(
         }
         pinnedId = lastPlayedId()?.takeIf { id -> allEntries.any { it.id == id } }
         reportedSelection = "none"
+        resetSearchIndex()
         applyFilter()
         if (entries.isNotEmpty()) list.setSelection(if (selectedIndex == 0) 0 else positionOf(selectedIndex))
         if (detailOpen) {
@@ -648,17 +655,29 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     private fun applyFilter() {
+        val query = search.text.toString().trim()
+        if (query.isNotEmpty()) {
+            searchIndex.search(query) { matches -> publishFilter(query, matches, null) }
+            return
+        }
+        searchIndex.cancelQuery()
+        val pinned = pinnedId?.let { id -> allEntries.firstOrNull { it.id == id } }
+        publishFilter(query, pinned?.let { listOf(it) + allEntries } ?: allEntries, pinned)
+    }
+
+    private fun resetSearchIndex() {
+        searchIndex.replace(allEntries, rowMetadata)
+        val generation = ++searchSnapshot
+        postOnAnimation { post {
+            if (generation == searchSnapshot && isAttachedToWindow) searchIndex.warm()
+        } }
+    }
+
+    private fun publishFilter(query: String, matches: List<T>, pinned: T?) {
         val selectedId = entries.getOrNull(selectedIndex)?.id
         val selectedWasPinned = selectedIndex == 0 &&
             (items.firstOrNull() as? Header)?.pinned == true
-        val query = search.text.toString().trim()
-        val pinned = pinnedId?.takeIf { query.isEmpty() }?.let { id -> allEntries.firstOrNull { it.id == id } }
-        // Keep the recent shortcut while leaving its game in the full library below.
-        val ordered = pinned?.let { listOf(it) + allEntries } ?: allEntries
-        entries = if (query.isEmpty()) ordered else ordered.filter { entry ->
-            metadata(entry).title.contains(query, ignoreCase = true) ||
-                entry.displayName.contains(query, ignoreCase = true)
-        }
+        entries = matches
         emptyState.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
         if (entries.isEmpty() && allEntries.isNotEmpty()) emptyState.text = "No games match \"$query\""
         val selectedMatch = when {
@@ -722,7 +741,17 @@ class LibraryScreen<T : LibraryItem>(
         return null
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        if (allEntries.isNotEmpty()) {
+            resetSearchIndex()
+            applyFilter()
+        }
+    }
+
     override fun onDetachedFromWindow() {
+        searchSnapshot++
+        searchIndex.close()
         selectionVisibilityPending = false
         artExecutor.shutdownNow()
         super.onDetachedFromWindow()
