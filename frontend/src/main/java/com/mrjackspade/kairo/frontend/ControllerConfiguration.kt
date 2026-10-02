@@ -198,9 +198,8 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                     }
                 }
             }
-            screen.show(FirstRunScreen.Page(product, "SETUP", "Controller configuration",
-                if (detection.device == null) "No controller detected. Select a configuration to continue."
-                else "Select your controller configuration.", actions, focusAction = focused)) {
+            screen.show(FirstRunScreen.Page(product, "", "Controller Configuration",
+                "", actions, focusAction = focused)) {
                 dialog.cancel()
             }
         }

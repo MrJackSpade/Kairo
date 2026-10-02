@@ -25,7 +25,9 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         val description: String,
         val actions: List<Action>,
         val status: String? = null,
-        val focusAction: Int? = null
+        val focusAction: Int? = null,
+        // The terminal action stays at the bottom right on every setup page.
+        val footerAction: Int = actions.lastIndex
     )
 
     private val card = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
@@ -37,40 +39,49 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         setBackgroundColor(Ui.BG)
         elevation = Ui.dp(activity, 24).toFloat()
         isFocusableInTouchMode = true
-        val scroll = ScrollView(activity).apply { isFillViewport = true }
-        val center = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(Ui.dp(activity, 20), Ui.dp(activity, 32),
-                Ui.dp(activity, 20), Ui.dp(activity, 32))
-        }
-        center.addView(card, LinearLayout.LayoutParams(
-            minOf(Ui.dp(activity, 520), activity.resources.displayMetrics.widthPixels - Ui.dp(activity, 40)), -2))
-        scroll.addView(center)
-        addView(scroll, LayoutParams(-1, -1))
+        card.setPadding(Ui.dp(activity, 20), Ui.dp(activity, 20),
+            Ui.dp(activity, 20), Ui.dp(activity, 20))
+        addView(card, LayoutParams(-1, -1, Gravity.CENTER))
     }
 
     fun show(page: Page, onBack: () -> Unit) {
         this.onBack = onBack
         visibility = View.VISIBLE
         card.removeAllViews()
-        card.addView(Ui.text(activity, page.product, Ui.TITLE, bold = true),
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 26) })
-        card.addView(Ui.text(activity, page.step, 13f, Ui.ACCENT),
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 10) })
-        card.addView(Ui.text(activity, page.title, Ui.DISPLAY, bold = true),
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 14) })
-        card.addView(Ui.text(activity, page.description, 17f, Ui.TEXT_MUTED),
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 28) })
+        val header = LinearLayout(activity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.TOP
+        }
+        header.addView(Ui.text(activity, page.product, Ui.TITLE, bold = true))
+        header.addView(Ui.text(activity, page.title, 22f, bold = true).apply {
+            gravity = Gravity.END
+        }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = Ui.dp(activity, 20) })
+        card.addView(header, LinearLayout.LayoutParams(-1, -2).apply {
+            bottomMargin = Ui.dp(activity, 16)
+        })
+        val body = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        if (page.description.isNotBlank()) body.addView(
+            Ui.text(activity, page.description, Ui.BODY, Ui.TEXT_MUTED),
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 12) })
+        // Normal 640x480 pages fit without scrolling. Keep an overflow fallback
+        // for smaller windows and enlarged accessibility text, not a scrolling footer.
+        val scroll = ScrollView(activity).apply {
+            isVerticalScrollBarEnabled = false
+            addView(body)
+        }
+        card.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        val footer = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.END
+        }
         val actionRows = ArrayList<View>()
         page.actions.forEachIndexed { index, action ->
-            if (index == page.actions.lastIndex) page.status?.let { status ->
-                card.addView(Ui.text(activity, status, Ui.SECONDARY, Ui.ACCENT),
-                    LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(activity, 10) })
-            }
+            val isFooter = index == page.footerAction
             val row = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_VERTICAL
+                minimumHeight = Ui.dp(activity, if (isFooter) 48 else 60)
+                minimumWidth = if (isFooter) Ui.dp(activity, 144) else 0
                 setPadding(Ui.dp(activity, 18), Ui.dp(activity, 10),
                     Ui.dp(activity, 18), Ui.dp(activity, 10))
                 background = Ui.focusable(activity, if (action.primary) Ui.SELECTED else Ui.RAISED, null)
@@ -81,19 +92,29 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
                 contentDescription = "${action.title}. ${action.subtitle}"
                 setOnClickListener { action.onClick() }
             }
-            row.addView(Ui.text(activity, action.title, Ui.TITLE))
-            row.addView(Ui.text(activity, action.subtitle, Ui.SECONDARY, Ui.TEXT_MUTED))
-            card.addView(row, LinearLayout.LayoutParams(-1, Ui.dp(activity, 76)).apply {
-                bottomMargin = Ui.dp(activity, 10)
+            row.addView(Ui.text(activity, action.title, Ui.TITLE).apply {
+                if (isFooter) gravity = Gravity.CENTER
             })
+            if (!isFooter && action.subtitle.isNotBlank())
+                row.addView(Ui.text(activity, action.subtitle, Ui.SECONDARY, Ui.TEXT_MUTED))
+            (if (isFooter) footer else body).addView(row,
+                LinearLayout.LayoutParams(if (isFooter) -2 else -1, -2).apply {
+                    if (!isFooter) bottomMargin = Ui.dp(activity, 8)
+                })
             actionRows.add(row)
         }
+        page.status?.let { status ->
+            card.addView(Ui.text(activity, status, Ui.SECONDARY, Ui.ACCENT),
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = Ui.dp(activity, 8) })
+        }
+        card.addView(footer, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = Ui.dp(activity, 12)
+        })
         card.post {
             val requested = page.focusAction?.let(actionRows::getOrNull)?.takeIf { it.isEnabled }
             if (isOpen && requested != null) requested.requestFocusFromTouch()
             else if (isOpen && findFocus()?.isDescendantOf(card) != true)
-                (0 until card.childCount).map(card::getChildAt).firstOrNull { it.isFocusable }
-                    ?.requestFocusFromTouch()
+                actionRows.firstOrNull { it.isEnabled }?.requestFocusFromTouch()
         }
     }
 
@@ -131,8 +152,7 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
 
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
         super.onSizeChanged(width, height, oldWidth, oldHeight)
-        val widthAvailable = (width - Ui.dp(activity, 40)).coerceAtLeast(Ui.dp(activity, 240))
-        card.layoutParams = card.layoutParams.apply { this.width = minOf(Ui.dp(activity, 520), widthAvailable) }
+        card.layoutParams = card.layoutParams.apply { this.width = minOf(Ui.dp(activity, 840), width) }
     }
 
     private fun View.isDescendantOf(ancestor: View): Boolean {
