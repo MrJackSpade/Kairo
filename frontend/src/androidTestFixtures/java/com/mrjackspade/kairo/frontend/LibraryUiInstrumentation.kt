@@ -12,6 +12,8 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var search = false
     private var endSessionUri: String? = null
     private var catalogProgress = false
+    private var catalogInstall = false
+    private var catalogPackageFile: String? = null
     private var snapshotActivation = false
     private var keyCycle = false
     private var directoryPicker = false
@@ -32,6 +34,8 @@ class LibraryUiInstrumentation : Instrumentation() {
         keyboard = arguments?.getString("libraryKeyboard") == "true"
         exitDialog = arguments?.getString("exitDialog") == "true"
         endSessionUri = arguments?.getString("endSessionUri")
+        catalogPackageFile = arguments?.getString("catalogPackageFile")
+        catalogInstall = arguments?.getString("catalogInstall") == "true"
         catalogProgress = arguments?.getString("catalogProgress") == "true"
         snapshotActivation = arguments?.getString("snapshotActivation") == "true"
         keyCycle = arguments?.getString("keyCycle") == "true"
@@ -47,6 +51,16 @@ class LibraryUiInstrumentation : Instrumentation() {
     }
     override fun onStart() {
         val result = Bundle()
+        if (catalogInstall) {
+            try {
+                result.putString("stream", com.mrjackspade.kairo.frontend.CatalogInstallFixture.verify(this, catalogPackageFile))
+                finish(Activity.RESULT_OK, result)
+            } catch (failure: Throwable) {
+                result.putString("stream", failure.stackTraceToString())
+                finish(Activity.RESULT_CANCELED, result)
+            }
+            return
+        }
         touchKeyboardUri?.let { uri ->
             try {
                 result.putString("stream", com.mrjackspade.kairo.frontend.TouchKeyboardFixture.verify(this, uri))

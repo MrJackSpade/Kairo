@@ -65,6 +65,17 @@ class LibraryScreen<T : LibraryItem>(
     private val selectionChanged: (T?) -> Unit
 ) : FrameLayout(context) {
     private var reportedSelection: String? = "none"
+    private val catalogInstaller by lazy { catalog.installedCatalogs?.let {
+        CatalogInstallController(context as android.app.Activity, it, {
+            artCache.evictAll()
+            missingArt.clear()
+            showEntries(catalogEntries)
+            detailPage.refreshArtwork()
+        }, ::showCatalogUpdate)
+    } }
+    private var catalogEntries = emptyList<T>()
+    fun handleCatalogResult(request: Int, result: Int, data: android.content.Intent?): Boolean =
+        catalogInstaller?.handleActivityResult(request, result, data) ?: false
     private val status = TextView(context)
     private val folder = TextView(context)
     private val list = ListView(context)
@@ -434,6 +445,11 @@ class LibraryScreen<T : LibraryItem>(
         drawerAction("Refresh", "Scan for added, changed, or removed games", refresh)
         drawerAction("Rehash", "Recheck every game image", rehash)
         drawerAction("Update game catalog", "Fetch game details and controller defaults", updateCatalog)
+        if (catalog.installedCatalogs != null) {
+            drawerAction("Import catalog file", "Select a catalog file from this device") { catalogInstaller?.chooseFile() }
+            drawerAction("Update installed catalogs", "Check catalogs you have installed") { catalogInstaller?.update() }
+            drawerAction("Remove catalog", "Manage installed catalogs") { catalogInstaller?.remove() }
+        }
         if (downloadMissingImages != null) drawerAction("Download missing images",
             "Fetch artwork for games in this library", downloadMissingImages)
         actionsDrawer.addView(Ui.sectionLabel(context, "SETTINGS"))
@@ -490,6 +506,7 @@ class LibraryScreen<T : LibraryItem>(
         }
     }
     fun showEntries(items: List<T>) {
+        catalogEntries = items
         // Scans, catalog updates and metadata edits arrive as a new snapshot.
         rowMetadata.clear()
         allEntries = items.filterNot { entry ->

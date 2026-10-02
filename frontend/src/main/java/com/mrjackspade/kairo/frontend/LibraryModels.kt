@@ -24,6 +24,7 @@ interface LibraryGame {
 }
 
 interface LibraryCatalog {
+    val installedCatalogs: InstalledCatalogs? get() = null
     fun resolve(contentId: String, fileName: String): LibraryGame
     fun hiddenFromLibrary(contentId: String): Boolean
     fun openArtwork(path: String): InputStream
