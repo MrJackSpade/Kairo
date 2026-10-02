@@ -597,7 +597,18 @@ class LibraryScreen<T : LibraryItem>(
     private fun focusAction(index: Int) {
         selectedAction = index
         actionItems.forEachIndexed { position, item -> item.isSelected = position == index }
-        actionItems.getOrNull(index)?.requestFocus()
+        actionItems.getOrNull(index)?.let { item ->
+            item.isFocusableInTouchMode = true
+            item.requestFocusFromTouch()
+        }
+        revealAction()
+        // Opening or refreshing the menu can change row bounds on the next layout.
+        actionsScroll.post { if (actionsOpen) revealAction() }
+    }
+
+    private fun revealAction() {
+        val item = actionItems.getOrNull(selectedAction) ?: return
+        item.requestRectangleOnScreen(android.graphics.Rect(0, 0, item.width, item.height), true)
     }
 
     private fun drawerAction(title: String, description: String, action: () -> Unit): TextView {
