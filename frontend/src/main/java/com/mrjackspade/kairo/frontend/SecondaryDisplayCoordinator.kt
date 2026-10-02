@@ -42,6 +42,9 @@ class SecondaryDisplayCoordinator(
     private var started = false
     private var setupVisible = false
     private var stopObservingSetup: (() -> Unit)? = null
+    private val setupHats = DpadMotionNavigation {
+        FirstRunVisibility.forActivity(activity).handleKey(it) ?: false
+    }
     private var keyboardVisible = false
     private var backgroundColor = Color.BLACK
     private var touchpadMode = false
@@ -64,6 +67,7 @@ class SecondaryDisplayCoordinator(
         started = true
         stopObservingSetup = FirstRunVisibility.forActivity(activity).observe {
             setupVisible = it
+            if (!it) setupHats.stop()
             updateContent()
         }
         displayManager.registerDisplayListener(this, handler)
@@ -77,6 +81,7 @@ class SecondaryDisplayCoordinator(
         started = false
         stopObservingSetup?.invoke()
         stopObservingSetup = null
+        setupHats.stop()
         displayManager.unregisterDisplayListener(this)
         if (swapped) {
             swapped = false
@@ -212,7 +217,8 @@ class SecondaryDisplayCoordinator(
      * focus as soon as the second display gains it cancels touches on its mode tabs.
      */
     fun forwardKey(event: KeyEvent): Boolean {
-        val handled = activity.dispatchKeyEvent(event)
+        val handled = FirstRunVisibility.forActivity(activity).handleKey(event)
+            ?: activity.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_UP) reclaimFocus()
         return handled
     }
@@ -223,7 +229,13 @@ class SecondaryDisplayCoordinator(
         forwardKey(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
     }
 
-    fun forwardMotion(event: MotionEvent): Boolean = activity.dispatchGenericMotionEvent(event)
+    fun forwardMotion(event: MotionEvent): Boolean {
+        if (setupVisible) {
+            setupHats.motion(event)
+            return true
+        }
+        return activity.dispatchGenericMotionEvent(event)
+    }
 
     fun reclaimFocus() {
         if (activity.isFinishing || activity.isDestroyed) return

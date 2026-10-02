@@ -1,19 +1,21 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.view.View
+import android.view.KeyEvent
 
 /** Activity-owned state shared by embedded setup pages and the controller dialog. */
 internal class FirstRunVisibility private constructor() {
-    private val screens = mutableSetOf<View>()
+    private val screens = mutableSetOf<FirstRunScreen>()
     private val observers = mutableSetOf<(Boolean) -> Unit>()
 
-    fun setVisible(screen: View, visible: Boolean) {
+    fun setVisible(screen: FirstRunScreen, visible: Boolean) {
         val wasVisible = screens.isNotEmpty()
         if (visible) screens.add(screen) else screens.remove(screen)
         if (wasVisible != screens.isNotEmpty())
             observers.toList().forEach { it(screens.isNotEmpty()) }
     }
+
+    fun handleKey(event: KeyEvent): Boolean? = screens.lastOrNull()?.handleKey(event)
 
     fun observe(observer: (Boolean) -> Unit): () -> Unit {
         observers.add(observer)
