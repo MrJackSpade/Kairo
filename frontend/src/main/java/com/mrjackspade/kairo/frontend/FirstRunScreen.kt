@@ -1,6 +1,9 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.StateListDrawable
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -36,7 +39,8 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
 
     init {
         visibility = View.GONE
-        setBackgroundColor(Ui.BG)
+        background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+            intArrayOf(0xff142832.toInt(), Ui.BG, 0xff111a29.toInt()))
         elevation = Ui.dp(activity, 24).toFloat()
         isFocusableInTouchMode = true
         card.setPadding(Ui.dp(activity, 20), Ui.dp(activity, 20),
@@ -52,11 +56,22 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.TOP
         }
-        header.addView(Ui.text(activity, page.product, Ui.TITLE, bold = true))
+        header.addView(PixelTextView(activity).apply {
+            text = page.product
+            color = Ui.ACCENT
+            scale = 2
+            contentDescription = page.product
+        })
         header.addView(Ui.text(activity, page.title, 22f, bold = true).apply {
             gravity = Gravity.END
         }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = Ui.dp(activity, 20) })
         card.addView(header, LinearLayout.LayoutParams(-1, -2).apply {
+            bottomMargin = Ui.dp(activity, 12)
+        })
+        card.addView(View(activity).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Ui.ACCENT, Ui.LINE))
+        }, LinearLayout.LayoutParams(-1, Ui.dp(activity, 1)).apply {
             bottomMargin = Ui.dp(activity, 16)
         })
         val body = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
@@ -84,7 +99,7 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
                 minimumWidth = if (isFooter) Ui.dp(activity, 144) else 0
                 setPadding(Ui.dp(activity, 18), Ui.dp(activity, 10),
                     Ui.dp(activity, 18), Ui.dp(activity, 10))
-                background = Ui.focusable(activity, if (action.primary) Ui.SELECTED else Ui.RAISED, null)
+                background = actionBackground(action.primary, isFooter)
                 isEnabled = action.enabled
                 isClickable = action.enabled
                 isFocusable = action.enabled
@@ -92,7 +107,13 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
                 contentDescription = "${action.title}. ${action.subtitle}"
                 setOnClickListener { action.onClick() }
             }
-            row.addView(Ui.text(activity, action.title, Ui.TITLE).apply {
+            val titleColor = when {
+                isFooter && action.primary -> Ui.ON_ACCENT
+                action.primary || isFooter -> Ui.ACCENT_SOFT
+                else -> Ui.TEXT
+            }
+            row.addView(Ui.text(activity, if (isFooter) "${action.title}  →" else action.title,
+                Ui.TITLE, titleColor, bold = action.primary).apply {
                 if (isFooter) gravity = Gravity.CENTER
             })
             if (!isFooter && action.subtitle.isNotBlank())
@@ -120,6 +141,24 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
 
     fun close() { visibility = View.GONE }
     fun back() { if (isOpen) onBack() }
+
+    private fun actionBackground(primary: Boolean, footer: Boolean) = StateListDrawable().apply {
+        fun shape(focused: Boolean) = GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            when {
+                footer && primary -> intArrayOf(Ui.ACCENT_SOFT, Ui.ACCENT)
+                primary -> intArrayOf(0xff203e49.toInt(), Ui.SELECTED)
+                else -> intArrayOf(Ui.RAISED, Ui.SURFACE)
+            }
+        ).apply {
+            cornerRadius = Ui.dp(activity, Ui.RADIUS_SMALL).toFloat()
+            setStroke(Ui.dp(activity, if (focused) 2 else 1),
+                if (focused) Color.WHITE else if (primary || footer) Ui.ACCENT else Ui.LINE)
+        }
+        addState(intArrayOf(android.R.attr.state_focused), shape(true))
+        addState(intArrayOf(android.R.attr.state_pressed), shape(true))
+        addState(intArrayOf(), shape(false))
+    }
 
     fun handleKey(event: KeyEvent): Boolean {
         if (!isOpen) return false
