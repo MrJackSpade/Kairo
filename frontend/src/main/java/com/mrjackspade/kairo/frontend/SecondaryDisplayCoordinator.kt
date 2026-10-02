@@ -99,7 +99,7 @@ class SecondaryDisplayCoordinator(
 
     /** What the second screen shows about the selected game while the library is open. */
     data class LibraryInfo(val title: String, val tags: List<String>, val description: String,
-                           val art: android.graphics.Bitmap?)
+                           val art: android.graphics.Bitmap?, val hasArtwork: Boolean = art != null)
 
     private var libraryInfo: LibraryInfo? = null
     private val visibleKeyboard get() = keyboardVisible && !setupVisible
@@ -376,17 +376,20 @@ internal class SecondaryDisplayContent(
 
     private fun layoutGameSurface(width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
-        libraryArt.layoutParams = (libraryArt.layoutParams as LinearLayout.LayoutParams).apply {
-            this.width = minOf(dp(300), ((width - dp(48)).coerceAtLeast(0) * 0.46f).roundToInt())
+        val artWidth = minOf(dp(300), ((width - dp(48)).coerceAtLeast(0) * 0.46f).roundToInt())
+        if (libraryArt.layoutParams.width != artWidth) {
+            libraryArt.layoutParams = libraryArt.layoutParams.apply { this.width = artWidth }
         }
         val aspect = gameAspect().takeIf { it in 0.5..3.0 } ?: 1.6
         val sourceHeight = 640.0 / aspect
         val scale = minOf(width / 640f, height / sourceHeight.toFloat())
         val gameWidth = (640 * scale).roundToInt().coerceAtLeast(1)
         val gameHeight = (sourceHeight * scale).roundToInt().coerceAtLeast(1)
-        gameSurface.layoutParams = LayoutParams(gameWidth, gameHeight,
-            Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
-            topMargin = (height - gameHeight) / 2
+        val margin = (height - gameHeight) / 2
+        val current = gameSurface.layoutParams as LayoutParams
+        if (current.width != gameWidth || current.height != gameHeight || current.topMargin != margin) {
+            gameSurface.layoutParams = LayoutParams(gameWidth, gameHeight,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = margin }
         }
     }
 
@@ -397,17 +400,13 @@ internal class SecondaryDisplayContent(
     }
     private val libraryArt = ImageView(context).apply {
         scaleType = ImageView.ScaleType.FIT_START
-        adjustViewBounds = true
     }
     private val libraryTitle = Ui.text(context, "", Ui.TITLE, bold = true).apply { maxLines = 3 }
     private val libraryTags = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).apply { maxLines = 5 }
-    private val libraryDescription = Ui.text(context, "", Ui.BODY, Ui.TEXT_BODY).apply {
-        setLineSpacing(dp(3).toFloat(), 1f)
-        ellipsize = android.text.TextUtils.TruncateAt.END
-    }
+    private val libraryDescription = LibraryDescriptionView(context)
 
     init {
-        libraryPanel.addView(libraryArt, LinearLayout.LayoutParams(dp(180), -2))
+        libraryPanel.addView(libraryArt, LinearLayout.LayoutParams(dp(180), -1))
         val text = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), 0, 0, 0)
@@ -429,12 +428,21 @@ internal class SecondaryDisplayContent(
         setBackgroundColor(if (!showKeyboard && info != null) Ui.BG else color)
         libraryPanel.visibility = if (!showKeyboard && info != null) View.VISIBLE else View.GONE
         if (info != null) {
-            libraryTitle.text = info.title
-            libraryTags.text = info.tags.joinToString("\n")
-            libraryDescription.text = info.description
+            // Artwork arrives separately. Reassigning unchanged text forces another
+            // text layout on that update, including the full catalog description.
+            val tags = info.tags.joinToString("\n")
+            if (libraryTitle.text.toString() != info.title) libraryTitle.text = info.title
+            if (libraryTags.text.toString() != tags) libraryTags.text = tags
+            if (libraryDescription.text.toString() != info.description) libraryDescription.text = info.description
             libraryArt.setImageBitmap(info.art)
-            libraryArt.visibility = if (info.art == null) View.GONE else View.VISIBLE
-            libraryDescription.maxLines = if (info.art == null) 12 else 9
+            // Reserve catalog artwork space before decoding. Image arrival must not
+            // change the text width or lay out the entire description a second time.
+            libraryArt.visibility = when {
+                info.art != null -> View.VISIBLE
+                info.hasArtwork -> View.INVISIBLE
+                else -> View.GONE
+            }
+            libraryDescription.maxLines = if (info.hasArtwork || info.art != null) 9 else 12
         }
         gameActive = showKeyboard && swapped
         gameSurface.visibility = if (gameActive) View.VISIBLE else View.GONE

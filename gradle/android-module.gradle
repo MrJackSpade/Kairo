@@ -1,5 +1,6 @@
 // Common defaults only; native paths, ABIs, product identity and signing stay in each app.
 def versions = new Properties()
+def sharedRoot = buildscript.sourceFile.parentFile.parentFile
 new File(buildscript.sourceFile.parentFile, 'android-versions.properties').withInputStream {
     versions.load(it)
 }
@@ -12,6 +13,11 @@ def configureAndroid = { boolean application ->
     if (application) {
         android.defaultConfig.targetSdk = versions.target_sdk.toInteger()
         android.externalNativeBuild.cmake.version = versions.cmake
+        // Product-specific runners may override this; reusable frontend fixtures
+        // must compile against and run inside each actual application.
+        android.defaultConfig.testInstrumentationRunner = 'com.mrjackspade.kairo.frontend.LibraryUiInstrumentation'
+        android.sourceSets.getByName('androidTest').java.srcDir(
+            new File(sharedRoot, 'frontend/src/androidTestFixtures/java'))
     }
 }
 pluginManager.withPlugin('com.android.application') { configureAndroid(true) }

@@ -80,6 +80,13 @@ class LibraryScreen<T : LibraryItem>(
     private val settingValues = ArrayList<Pair<TextView, () -> String>>()
     private val search = android.widget.EditText(context)
     private var allEntries = emptyList<T>()
+    // A library snapshot can span far more catalog shards than either backend's
+    // small shard cache. Retain the resolved row records, not entire shard JSON.
+    private val rowMetadata = HashMap<String, LibraryGame>()
+    /** Reuse the row snapshot for selection previews instead of rereading catalog shards. */
+    fun metadata(entry: T): LibraryGame = rowMetadata.getOrPut(entry.id) {
+        catalog.resolve(entry.contentId ?: "", entry.displayName)
+    }
     private var pinnedId: String? = null
     private var detailEntryId: String? = null
     private var selectedAction = 0
@@ -101,7 +108,9 @@ class LibraryScreen<T : LibraryItem>(
     private var items = emptyList<ListItem>()
 
     private data class Row(val art: ImageView, val mark: TextView,
-                           val title: TextView, val detail: TextView)
+                           val title: TextView, val detail: TextView,
+                           var index: Int = -1, var pinned: Boolean? = null,
+                           var artwork: String? = null)
 
     private fun positionOf(index: Int) = items.indexOfFirst { it is Game && it.index == index }
     private fun indexAt(position: Int) = (items.getOrNull(position) as? Game)?.index
@@ -188,7 +197,7 @@ class LibraryScreen<T : LibraryItem>(
         }
         val entry = entries[index]
         val pinned = index == 0 && pinnedId != null && items.firstOrNull() is Header
-        val game = catalog.resolve(entry.contentId ?: "", entry.displayName)
+        val game = metadata(entry)
         holder.title.text = game.title
         // Keep the source filename intact; the marker is only a prefix on its display row.
         val file = (if ("♥" in game.tags) "♥ " else "") + fileLabel(entry)
@@ -201,8 +210,13 @@ class LibraryScreen<T : LibraryItem>(
         holder.mark.visibility = if (bitmap == null) View.VISIBLE else View.GONE
         holder.art.setImageBitmap(bitmap)
         holder.mark.text = game.title.firstOrNull()?.uppercase() ?: "?"
-        view.background = if (pinned) Ui.rowBackground(context, Ui.PIN_SURFACE, Ui.PIN, Ui.PIN_SELECTED, activatedOnly = true)
-            else Ui.rowBackground(context, activatedOnly = true)
+        holder.index = index
+        holder.artwork = artwork
+        if (holder.pinned != pinned) {
+            view.background = if (pinned) Ui.rowBackground(context, Ui.PIN_SURFACE, Ui.PIN, Ui.PIN_SELECTED, activatedOnly = true)
+                else Ui.rowBackground(context, activatedOnly = true)
+            holder.pinned = pinned
+        }
         view.isActivated = index == selectedIndex
         view.alpha = if (entry.playable) 1f else 0.6f
         return view
@@ -292,14 +306,14 @@ class LibraryScreen<T : LibraryItem>(
             setOnItemClickListener { _, _, position, _ ->
                 val index = indexAt(position) ?: return@setOnItemClickListener
                 selectedIndex = index
-                this@LibraryScreen.adapter.notifyDataSetChanged()
+                updateSelectionHighlight()
                 notifySelection()
                 openDetail(entries[index])
             }
             setOnItemLongClickListener { _, _, position, _ ->
                 val index = indexAt(position) ?: return@setOnItemLongClickListener false
                 selectedIndex = index
-                this@LibraryScreen.adapter.notifyDataSetChanged()
+                updateSelectionHighlight()
                 details(entries[index])
                 true
             }
@@ -381,6 +395,7 @@ class LibraryScreen<T : LibraryItem>(
         (context as? android.app.Activity)?.let { Ui.message(it, message, long = true) }
     }
     fun refreshArtwork() {
+        rowMetadata.clear()
         missingArt.clear()
         adapter.notifyDataSetChanged()
         detailPage.refreshArtwork()
@@ -399,6 +414,8 @@ class LibraryScreen<T : LibraryItem>(
         }
     }
     fun showEntries(items: List<T>) {
+        // Scans, catalog updates and metadata edits arrive as a new snapshot.
+        rowMetadata.clear()
         allEntries = items.filterNot { entry ->
             entry.contentId?.let(catalog::hiddenFromLibrary) == true
         }
@@ -419,14 +436,14 @@ class LibraryScreen<T : LibraryItem>(
         val index = entries.indexOfFirst { it.displayName.equals(needle, ignoreCase = true) }
             .takeIf { it >= 0 }
             ?: entries.indexOfFirst {
-                catalog.resolve(it.contentId ?: "", it.displayName).title.equals(needle, ignoreCase = true)
+                metadata(it).title.equals(needle, ignoreCase = true)
             }.takeIf { it >= 0 }
             ?: entries.indices.filter { entries[it].displayName.contains(needle, ignoreCase = true) }
                 .singleOrNull() ?: -1
         if (index < 0) return false
         selectedIndex = index
         list.setSelection(positionOf(index))
-        adapter.notifyDataSetChanged()
+        updateSelectionHighlight()
         openDetail(entries[index])
         return true
     }
@@ -444,16 +461,28 @@ class LibraryScreen<T : LibraryItem>(
         return unique(playable.filter { it.contentId?.equals(needle, ignoreCase = true) == true })
             ?: unique(playable.filter { it.displayName.equals(needle, ignoreCase = true) })
             ?: unique(playable.filter {
-                catalog.resolve(it.contentId ?: "", it.displayName).title.equals(needle, ignoreCase = true)
+                metadata(it).title.equals(needle, ignoreCase = true)
             })
             ?: unique(playable.filter { it.displayName.contains(needle, ignoreCase = true) })
     }
     fun moveSelection(delta: Int) {
         if (entries.isEmpty()) return
-        selectedIndex = (selectedIndex + delta).coerceIn(0, entries.lastIndex)
-        this@LibraryScreen.adapter.notifyDataSetChanged()
+        val next = (selectedIndex + delta).coerceIn(0, entries.lastIndex)
+        if (next == selectedIndex) return
+        selectedIndex = next
+        updateSelectionHighlight()
         keepSelectionVisible()
         notifySelection()
+    }
+
+    /** Selection only changes activation, not row data. Rebinding the whole viewport
+     * performs catalog IO/text layout for every visible game on every repeat event. */
+    private fun updateSelectionHighlight() {
+        for (index in 0 until list.childCount) {
+            val child = list.getChildAt(index)
+            val row = child.tag as? Row ?: continue
+            child.isActivated = row.index == selectedIndex
+        }
     }
 
     private fun keepSelectionVisible() {
@@ -585,7 +614,7 @@ class LibraryScreen<T : LibraryItem>(
         // Keep the recent shortcut while leaving its game in the full library below.
         val ordered = pinned?.let { listOf(it) + allEntries } ?: allEntries
         entries = if (query.isEmpty()) ordered else ordered.filter { entry ->
-            catalog.resolve(entry.contentId ?: "", entry.displayName).title.contains(query, ignoreCase = true) ||
+            metadata(entry).title.contains(query, ignoreCase = true) ||
                 entry.displayName.contains(query, ignoreCase = true)
         }
         emptyState.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
@@ -635,7 +664,15 @@ class LibraryScreen<T : LibraryItem>(
             post {
                 pendingArt.remove(path)
                 if (bitmap == null) missingArt.add(path) else artCache.put(path, bitmap)
-                adapter.notifyDataSetChanged()
+                // Async artwork must only update rows still bound to this image.
+                // A dataset notification would repeat catalog lookup and text layout.
+                for (index in 0 until list.childCount) {
+                    val row = list.getChildAt(index).tag as? Row ?: continue
+                    if (row.artwork != path) continue
+                    row.art.setImageBitmap(bitmap)
+                    row.art.visibility = if (bitmap == null) View.GONE else View.VISIBLE
+                    row.mark.visibility = if (bitmap == null) View.VISIBLE else View.GONE
+                }
             }
         }
         return null
