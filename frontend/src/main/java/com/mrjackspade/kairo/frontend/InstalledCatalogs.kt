@@ -191,13 +191,18 @@ class InstalledCatalogs(
         require(connection.contentLengthLong <= limit)
         connection.inputStream.use { input -> file.outputStream().use { copyBounded(input, it, limit, task) } }
     }
-    private fun <T> connect(url: String, block: (HttpURLConnection) -> T): T {
+    private fun <T> connect(url: String, redirects: Int = 0, block: (HttpURLConnection) -> T): T {
         require(secureUrl(url))
+        require(redirects <= 5) { "Too many catalog redirects" }
         val connection = URI(url).toURL().openConnection() as HttpURLConnection
         connection.instanceFollowRedirects = false
         connection.connectTimeout = 10000
         connection.readTimeout = 30000
         try {
+            if (connection.responseCode in setOf(301, 302, 303, 307, 308)) {
+                val location = connection.getHeaderField("Location") ?: error("Missing redirect location")
+                return connect(URI(url).resolve(location).toString(), redirects + 1, block)
+            }
             require(connection.responseCode == 200) { "Catalog server returned ${connection.responseCode}" }
             return block(connection)
         } finally { connection.disconnect() }

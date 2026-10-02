@@ -34,13 +34,15 @@ object CatalogInstallFixture {
         val source = "https://catalog-fixture.invalid/installed.json"
         val download = "https://catalog-fixture.invalid/package.zip"
         val replies = HashMap<String, ByteArray>()
+        val redirects = HashMap<String, String>()
         val requests = ArrayList<String>()
         URL.setURLStreamHandlerFactory { protocol -> if (protocol != "https") null else object : URLStreamHandler() {
             override fun openConnection(url: URL) = object : HttpURLConnection(url) {
                 override fun connect() = Unit
                 override fun disconnect() = Unit
                 override fun usingProxy() = false
-                override fun getResponseCode(): Int { requests += url.toString(); return if (replies.containsKey(url.toString())) 200 else 404 }
+                override fun getResponseCode(): Int { requests += url.toString(); return if (redirects.containsKey(url.toString())) 302 else if (replies.containsKey(url.toString())) 200 else 404 }
+                override fun getHeaderField(name: String): String? = if (name == "Location") redirects[url.toString()] else null
                 override fun getInputStream() = (replies[url.toString()] ?: error("Uninstalled source requested")).inputStream()
                 override fun getContentLengthLong() = replies[url.toString()]?.size?.toLong() ?: -1L
             }
@@ -119,7 +121,15 @@ object CatalogInstallFixture {
             val local = artStore.importLocal(image.inputStream())
             type.getMethod("setArtworkOverride", String::class.java, String::class.java, String::class.java).invoke(catalog, id, "boxArt", local)
             offer(3, pack(3))
+            redirects[download] = "http://catalog-fixture.invalid/insecure.zip"
+            check(runCatching { store.update() }.isFailure)
+            redirects[download] = download
+            check(runCatching { store.update() }.isFailure)
+            val cdn = "https://cdn-fixture.invalid/package.zip"
+            replies[cdn] = replies.getValue(download)
+            redirects[download] = cdn
             check(store.update())
+            redirects.clear()
             check(catalog.resolve(id, "fixture.zip").title == "Personal title")
             check(catalog.resolve(id, "fixture.zip").boxArt == local)
             store.remove("fixture")

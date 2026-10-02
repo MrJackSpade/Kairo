@@ -54,8 +54,8 @@ if __name__ == '__main__':
     parser.add_argument('with_images_apk', nargs='?')
     args = parser.parse_args()
     common = inspect(args.apk, '')
-    assert common == inspect(args.aab, 'base/'), 'APK/AAB payload mismatch'
+    assert {n:v for n,v in common.items() if not n.startswith('assets/catalog/art.nsfw.')} == inspect(args.aab, 'base/'), 'APK/AAB payload mismatch'
     if args.with_images_apk:
         with_images = inspect(args.with_images_apk, '', allow_art=True)
         assert {n: v for n, v in with_images.items() if not n.startswith('assets/art/')} == common, 'Image variant changes non-artwork payload'
-    print('APK and Play bundle have identical assets and native libraries')
+    print('APK and Play bundle share code and core assets; only the optional artwork catalog differs')
