@@ -609,7 +609,7 @@ class ControllerEditor<Game : Any>(
             render()
         }
         if (selectedInput in cycleInputs) {
-            row("Key cycle", "Set an ordered key sequence for this shoulder pair", true) {
+            row("Key cycle", "Set an ordered key sequence for this control pair", true) {
                 val (left, right) = cyclePair(selectedInput)
                 val current = load(scope).firstOrNull {
                     it.input == selectedInput && it.cycleKeys.isNotEmpty()
@@ -700,11 +700,10 @@ class ControllerEditor<Game : Any>(
         }
     }
 
-    private val cycleInputs get() = setOf("virtual:l1", "virtual:r1", "virtual:l2", "virtual:r2")
+    private val cycleInputs get() = ControllerKeyCycles.inputs
 
     private fun cyclePair(input: String): Pair<String, String> =
-        if (input == "virtual:l1" || input == "virtual:r1") "virtual:l1" to "virtual:r1"
-        else "virtual:l2" to "virtual:r2"
+        requireNotNull(ControllerKeyCycles.pair(input))
 
     private fun renderCycle() {
         val (left, right) = cyclePair(selectedInput)
@@ -935,7 +934,7 @@ class ControllerEditor<Game : Any>(
 
     private fun targetLabel(binding: ControllerBinding): String = when {
         binding.cycleKeys.isNotEmpty() -> {
-            val direction = if (binding.input == "virtual:l1" || binding.input == "virtual:l2")
+            val direction = if (binding.input == ControllerKeyCycles.pair(binding.input)?.first)
                 "previous" else "next"
             "Cycle $direction " + binding.cycleKeys.joinToString(" → ") { guest.keyLabel(it) }
         }

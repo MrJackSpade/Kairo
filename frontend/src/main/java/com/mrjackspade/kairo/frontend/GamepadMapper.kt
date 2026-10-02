@@ -176,11 +176,11 @@ class GamepadMapper(private val router: InputRouter,
                 runAction(binding.action)
             }
             binding.cycleKeys.isNotEmpty() -> {
-                val pair = if (binding.input == "virtual:l1" || binding.input == "virtual:r1") 1 else 2
+                val pair = ControllerKeyCycles.pair(binding.input) ?: return
                 val sequence = binding.cycleKeys
-                val group = "$pair:${sequence.joinToString(",")}"
+                val group = "${pair.first}:${sequence.joinToString(",")}"
                 val previous = cycleIndex[group] ?: -1
-                val backwards = binding.input == "virtual:l1" || binding.input == "virtual:l2"
+                val backwards = binding.input == pair.first
                 val next = if (backwards) {
                     if (previous < 0) sequence.lastIndex else (previous + sequence.size - 1) % sequence.size
                 } else (previous + 1) % sequence.size

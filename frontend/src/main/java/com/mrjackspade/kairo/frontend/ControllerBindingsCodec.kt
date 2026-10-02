@@ -11,7 +11,6 @@ class ControllerBindingsCodec(
     private val actions: Collection<String>
 ) {
     private val input = Regex("(?:virtual:[a-z0-9]+|button:[0-9]{1,4}|(?:axis|hat):[0-9]{1,3}:[+-])")
-    private val cycleInputs = setOf("virtual:l1", "virtual:r1", "virtual:l2", "virtual:r2")
 
     fun valid(array: JSONArray): Boolean {
         if (array.length() > 128) return false
@@ -51,7 +50,7 @@ class ControllerBindingsCodec(
                     return false
             }
             if (cycleKeys != null) {
-                if (source !in cycleInputs || cycleKeys.length() !in 2..16) return false
+                if (source !in ControllerKeyCycles.inputs || cycleKeys.length() !in 2..16) return false
                 val mapped = ArrayList<Int>()
                 for (keyIndex in 0 until cycleKeys.length()) {
                     val value = cycleKeys.opt(keyIndex)

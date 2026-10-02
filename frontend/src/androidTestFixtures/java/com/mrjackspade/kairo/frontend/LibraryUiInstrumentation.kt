@@ -13,6 +13,7 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var endSessionUri: String? = null
     private var catalogProgress = false
     private var snapshotActivation = false
+    private var keyCycle = false
     private var startup = false
     private var traceStartup = false
     private var exitDialog = false
@@ -30,6 +31,7 @@ class LibraryUiInstrumentation : Instrumentation() {
         endSessionUri = arguments?.getString("endSessionUri")
         catalogProgress = arguments?.getString("catalogProgress") == "true"
         snapshotActivation = arguments?.getString("snapshotActivation") == "true"
+        keyCycle = arguments?.getString("keyCycle") == "true"
         startup = arguments?.getString("startup") == "true"
         traceStartup = arguments?.getString("traceStartup") == "true"
         start()
@@ -41,6 +43,17 @@ class LibraryUiInstrumentation : Instrumentation() {
     }
     override fun onStart() {
         val result = Bundle()
+        if (keyCycle) {
+            try {
+                com.mrjackspade.kairo.frontend.KeyCycleFixture.verify(this)
+                result.putString("stream", "D-pad/shoulder cycles, independent sequences, wrap, hats, release, codec and editor save: OK\n")
+                finish(Activity.RESULT_OK, result)
+            } catch (failure: Throwable) {
+                result.putString("stream", failure.stackTraceToString())
+                finish(Activity.RESULT_CANCELED, result)
+            }
+            return
+        }
         if (startup) {
             try {
                 result.putString("stream", com.mrjackspade.kairo.frontend.StartupFixture.measure(this, traceStartup))
