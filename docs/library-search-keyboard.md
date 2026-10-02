@@ -28,6 +28,16 @@ Both hosts passed. Initial fixture attempts requested only view focus while
 the companion window held window focus; those failed to show the IME and
 were corrected to use a real display-targeted tap.
 
+## Search selection regression (Kairo #11)
+
+The fixture additionally moves selection five entries down, taps the actual
+Search icon, taps the search field, and checks the selected entry ID has not
+changed. It verifies search focus and that no game detail opened. Controller A
+is included alongside Enter and the IME Search action. Both hosts passed on
+RGDS with the same installed application APKs below. No further production
+change was required: #10 stopped frontend confirm handling from activating a
+library game while search owned text focus.
+
 Installed and tested APK SHA-256:
 
 - DOS: `43621eacc844ed324b2e752c5ab89eb277b322bb86f7e1fd7d6cc92eca6fee7c`

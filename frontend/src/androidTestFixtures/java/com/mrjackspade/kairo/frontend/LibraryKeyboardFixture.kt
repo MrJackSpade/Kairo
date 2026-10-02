@@ -27,6 +27,10 @@ object LibraryKeyboardFixture {
             .apply { isAccessible = true }.get(owner)
         lateinit var screen: LibraryScreen<*>
         lateinit var search: EditText
+        fun selectedId(): String? {
+            val entries = field(screen, "entries") as List<*>
+            return (entries.getOrNull(field(screen, "selectedIndex") as Int) as? LibraryItem)?.id
+        }
         fun awaitIme(visible: Boolean) {
             repeat(80) {
                 var matches = false
@@ -78,14 +82,40 @@ object LibraryKeyboardFixture {
                 val flow = field(activity, "libraryFlow")!!
                 screen = flow.javaClass.getMethod("getScreen").invoke(flow) as LibraryScreen<*>
                 search = field(screen, "search") as EditText
-                screen.javaClass.getDeclaredMethod("toggleSearch").apply { isAccessible = true }.invoke(screen)
-                search.setText("a")
+                screen.moveSelection(5)
             }
+            var beforeOpen: String? = null
+            var searchButton: View? = null
+            fun findSearch(view: View): View? {
+                if (view.contentDescription == "Search games") return view
+                return (view as? ViewGroup)?.let { group ->
+                    (0 until group.childCount).firstNotNullOfOrNull { findSearch(group.getChildAt(it)) }
+                }
+            }
+            val buttonPosition = IntArray(2)
+            var display = 0
+            ui {
+                beforeOpen = selectedId()
+                check((field(screen, "selectedIndex") as Int) > 0)
+                searchButton = findSearch(screen)!!
+                searchButton!!.getLocationOnScreen(buttonPosition)
+                buttonPosition[0] += searchButton!!.width / 2
+                buttonPosition[1] += searchButton!!.height / 2
+                display = screen.display.displayId
+            }
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(test.uiAutomation.executeShellCommand(
+                "input -d $display tap ${buttonPosition[0]} ${buttonPosition[1]}" )).use { it.readBytes() }
             focusSearchWindow()
             awaitIme(true)
+            ui {
+                check(selectedId() == beforeOpen) { "Opening/tapping Search changed the library selection" }
+                check(!screen.detailOpen && search.hasFocus())
+                search.setText("a")
+            }
             ui { search.onEditorAction(EditorInfo.IME_ACTION_SEARCH) }
             unchanged()
-            for (code in listOf(KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_ENTER)) {
+            for (code in listOf(KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_B,
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_ENTER)) {
                 reopen(); key(code); unchanged()
             }
             reopen()
