@@ -23,6 +23,8 @@ class CatalogSnapshotStore(
     private val apkInstallTime = context.packageManager
         .getPackageInfo(context.packageName, 0).lastUpdateTime.toString()
     private var knownChecksum: String? = null
+    private var pendingSaved: String? = null
+    private var rejectedSaved: Pair<String, Exception>? = null
     private var active = readSaved()
 
     @Synchronized fun activeFile(): File? = active
@@ -30,9 +32,19 @@ class CatalogSnapshotStore(
     /** Call from a worker thread. Unchanged metadata does no archive work. */
     fun download(task: CatalogUpdateTask = CatalogUpdateTask()): Boolean {
         task.report(CatalogUpdateState.CHECKING)
-        val revision = fetchRevision(task)
+        val restored = restoreSaved(task)
+        val revision = try { fetchRevision(task) } catch (error: Exception) {
+            task.ensureActive()
+            // A compatible local snapshot is useful offline too. Report its activation
+            // so the host reloads its catalog layers even when the network is unavailable.
+            if (restored) return true
+            throw error
+        }
         task.ensureActive()
-        if (revision.checksum == knownChecksum) return false
+        if (revision.checksum == knownChecksum) return restored
+        rejectedSaved?.takeIf { it.first == revision.checksum }?.let {
+            throw IllegalStateException("Saved catalog is incompatible with this app", it.second)
+        }
         task.report(CatalogUpdateState.DOWNLOADING)
         task.ensureActive()
         val temporary = File.createTempFile("catalog-", ".tmp", cacheDir)
@@ -77,17 +89,10 @@ class CatalogSnapshotStore(
                     atomic.failWrite(output)
                     throw error
                 }
-                val markerAtomic = AtomicFile(marker)
-                val markerOutput = markerAtomic.startWrite()
-                try {
-                    markerOutput.write("$apkInstallTime:${revision.checksum}".toByteArray(Charsets.UTF_8))
-                    markerAtomic.finishWrite(markerOutput)
-                } catch (error: Exception) {
-                    markerAtomic.failWrite(markerOutput)
-                    throw error
-                }
+                writeMarker(revision.checksum)
                 active = file
                 knownChecksum = revision.checksum
+                rejectedSaved = null
             }
             return true
         } finally { temporary.delete() }
@@ -136,15 +141,55 @@ class CatalogSnapshotStore(
             val saved = AtomicFile(marker).readFully().toString(Charsets.UTF_8)
             val checksum = saved.substringAfterLast(':')
             if (!checksum.matches(Regex("[0-9a-f]{64}"))) null
-            else if (saved.startsWith("$apkInstallTime:") && checksum != digest(file)) null
+            else if (!saved.startsWith("$apkInstallTime:")) {
+                // Revalidation can parse the complete catalog. Defer it to download's
+                // worker, and never let an inactive candidate satisfy an unchanged check.
+                pendingSaved = checksum
+                null
+            } else if (checksum != digest(file)) null
             else {
                 knownChecksum = checksum
-                if (saved.startsWith("$apkInstallTime:")) file else null
+                file
             }
         }
-        // The checksum covers the exact bytes validated before the atomic save.
-        // A prior APK's snapshot remains inactive, but its revision avoids a download.
     } catch (_: Exception) { null }
+
+    private fun restoreSaved(task: CatalogUpdateTask): Boolean {
+        val checksum = pendingSaved ?: return false
+        task.report(CatalogUpdateState.APPLYING)
+        task.ensureActive()
+        if (!file.isFile || file.length() > maxBytes || digest(file) != checksum) {
+            pendingSaved = null
+            return false // A corrupt candidate must be repaired from the server.
+        }
+        try { validate(file) } catch (error: Exception) {
+            task.ensureActive()
+            rejectedSaved = checksum to error
+            pendingSaved = null
+            return false // A newer server revision may still be compatible.
+        }
+        synchronized(this) {
+            task.ensureActive()
+            writeMarker(checksum)
+            active = file
+            knownChecksum = checksum
+            pendingSaved = null
+        }
+        task.report(CatalogUpdateState.CHECKING)
+        return true
+    }
+
+    private fun writeMarker(checksum: String) {
+        val atomic = AtomicFile(marker)
+        val output = atomic.startWrite()
+        try {
+            output.write("$apkInstallTime:$checksum".toByteArray(Charsets.UTF_8))
+            atomic.finishWrite(output)
+        } catch (error: Exception) {
+            atomic.failWrite(output)
+            throw error
+        }
+    }
 
     private fun digest(source: File): String {
         val sha = MessageDigest.getInstance("SHA-256")
