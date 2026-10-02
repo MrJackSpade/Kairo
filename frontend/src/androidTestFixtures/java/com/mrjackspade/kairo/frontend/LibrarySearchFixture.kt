@@ -34,6 +34,7 @@ object LibrarySearchFixture {
                 search = field(screen, "search") as EditText
                 out.append("librarySize=${(field(screen, "allEntries") as List<*>).size}\n")
                 search.visibility = android.view.View.VISIBLE
+                (field(screen, "searchRow") as android.view.View).visibility = android.view.View.VISIBLE
             }
             if (trace) {
                 Debug.startMethodTracingSampling(File(test.targetContext.filesDir, "search-profile.trace").path,

@@ -26,6 +26,15 @@ object FrontendNavigation {
     fun library(screen: LibraryScreen<*>, control: String?, event: KeyEvent,
                 back: () -> Unit): Boolean {
         if (control == null) return false
+        if (screen.searchFocused && !screen.detailOpen && !screen.actionsOpen) {
+            if (control == "a" || control == "b") {
+                if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0)
+                    screen.dismissSearchKeyboard()
+                return true
+            }
+            // Text cursor navigation belongs to Android while the search field is focused.
+            return false
+        }
         if (screen.detailOpen) {
             if (control !in setOf("a", "b", "menu")) return false
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) when (control) {

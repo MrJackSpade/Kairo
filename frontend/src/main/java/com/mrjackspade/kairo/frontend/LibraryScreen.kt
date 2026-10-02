@@ -78,7 +78,17 @@ class LibraryScreen<T : LibraryItem>(
     private val actionItems = ArrayList<View>()
     private val detailPage = GameDetailPage<T>(context, catalog, play, preview, details) { closeDetail() }
     private val settingValues = ArrayList<Pair<TextView, () -> String>>()
-    private val search = android.widget.EditText(context)
+    private val searchRow = LinearLayout(context)
+    private val search = object : android.widget.EditText(context) {
+        override fun onKeyPreIme(keyCode: Int, event: android.view.KeyEvent): Boolean {
+            if (keyCode == android.view.KeyEvent.KEYCODE_BACK && hasFocus()) {
+                if (event.action == android.view.KeyEvent.ACTION_UP) dismissSearchKeyboard()
+                return true
+            }
+            return super.onKeyPreIme(keyCode, event)
+        }
+    }
+    val searchFocused: Boolean get() = search.hasFocus()
     private var allEntries = emptyList<T>()
     // A library snapshot can span far more catalog shards than either backend's
     // small shard cache. Retain the resolved row records, not entire shard JSON.
@@ -261,13 +271,30 @@ class LibraryScreen<T : LibraryItem>(
             background = Ui.rounded(context, Ui.SURFACE, Ui.RADIUS_SMALL, Ui.LINE)
             setPadding(dp(14), dp(10), dp(14), dp(10))
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            setOnEditorActionListener { _, action, event ->
+                if (action == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH ||
+                    action == android.view.inputmethod.EditorInfo.IME_ACTION_DONE ||
+                    event?.keyCode == android.view.KeyEvent.KEYCODE_ENTER) {
+                    dismissSearchKeyboard()
+                    true
+                } else false
+            }
             addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(text: android.text.Editable?) { applyFilter() }
             })
         }
-        body.addView(search, LinearLayout.LayoutParams(-1, -2).apply {
+        searchRow.visibility = View.GONE
+        searchRow.gravity = Gravity.CENTER_VERTICAL
+        searchRow.addView(search, LinearLayout.LayoutParams(0, -2, 1f))
+        searchRow.addView(Ui.text(context, "View results", Ui.SECONDARY, Ui.ACCENT).apply {
+            setPadding(dp(12), dp(12), dp(4), dp(12))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { dismissSearchKeyboard() }
+        }, LinearLayout.LayoutParams(-2, -2))
+        body.addView(searchRow, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(8)
             bottomMargin = dp(4)
         })
@@ -640,14 +667,26 @@ class LibraryScreen<T : LibraryItem>(
             .hideSoftInputFromWindow(search.windowToken, 0)
     }
 
+    /** Keep the query and results; only end Android text entry. */
+    fun dismissSearchKeyboard(): Boolean {
+        if (!search.hasFocus()) return false
+        // Give focus a stable destination so Android cannot immediately refocus the editor.
+        isFocusableInTouchMode = true
+        requestFocus()
+        dismissSystemKeyboard()
+        return true
+    }
+
     private fun toggleSearch() {
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
             as android.view.inputmethod.InputMethodManager
         if (search.visibility == View.VISIBLE) {
             search.setText("")
             search.visibility = View.GONE
+            searchRow.visibility = View.GONE
             imm.hideSoftInputFromWindow(search.windowToken, 0)
         } else {
+            searchRow.visibility = View.VISIBLE
             search.visibility = View.VISIBLE
             search.requestFocus()
             imm.showSoftInput(search, 0)

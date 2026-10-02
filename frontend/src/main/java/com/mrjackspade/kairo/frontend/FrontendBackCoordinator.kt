@@ -50,6 +50,7 @@ class FrontendBackCoordinator(
             return
         }
         if (library.visibility == View.VISIBLE) {
+            if (library.dismissSearchKeyboard()) return
             if (library.closeDetail()) return
             if (library.closeActions()) return
             onLibraryRoot()
