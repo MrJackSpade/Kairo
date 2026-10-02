@@ -70,6 +70,10 @@ class LibraryScreen<T : LibraryItem>(
     private val list = ListView(context)
     private val emptyState = TextView(context)
     private val scanProgress = ProgressBar(context)
+    private val catalogBanner = LinearLayout(context)
+    private val catalogProgress = ProgressBar(context)
+    private val catalogStatus = TextView(context)
+    private var catalogStatusVersion = 0
     private val artworkBanner = LinearLayout(context)
     private val artworkStatus = TextView(context)
     private val scrim = View(context)
@@ -298,6 +302,17 @@ class LibraryScreen<T : LibraryItem>(
             topMargin = dp(8)
             bottomMargin = dp(4)
         })
+        catalogBanner.apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            visibility = View.GONE
+            setPadding(dp(8), dp(7), dp(8), dp(7))
+            setBackgroundColor(Ui.RAISED)
+        }
+        catalogBanner.addView(catalogProgress, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(10) })
+        catalogStatus.apply { textSize = Ui.SECONDARY; setTextColor(Ui.TEXT) }
+        catalogBanner.addView(catalogStatus, LinearLayout.LayoutParams(0, -2, 1f))
+        body.addView(catalogBanner, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         artworkBanner.apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -429,6 +444,19 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     fun showFolder(label: String?) { folder.text = label ?: strings.noFolder }
+    fun showCatalogUpdate(state: CatalogUpdateState?) {
+        val version = ++catalogStatusVersion
+        catalogBanner.visibility = if (state == null) View.GONE else View.VISIBLE
+        catalogProgress.visibility = if (state?.busy == true) View.VISIBLE else View.GONE
+        catalogStatus.text = state?.label ?: ""
+        requestSelectionVisibility()
+        if (state != null && !state.busy) postDelayed({
+            if (catalogStatusVersion == version) {
+                catalogBanner.visibility = View.GONE
+                requestSelectionVisibility()
+            }
+        }, 3000)
+    }
     fun showArtworkProgress(completed: Int, total: Int, failures: Int) {
         artworkBanner.visibility = View.VISIBLE
         artworkStatus.text = if (total == 0) "Checking library artwork…"

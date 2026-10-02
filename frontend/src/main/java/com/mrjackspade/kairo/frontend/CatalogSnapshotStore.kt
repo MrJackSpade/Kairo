@@ -28,9 +28,13 @@ class CatalogSnapshotStore(
     @Synchronized fun activeFile(): File? = active
 
     /** Call from a worker thread. Unchanged metadata does no archive work. */
-    fun download(): Boolean {
-        val revision = fetchRevision()
+    fun download(task: CatalogUpdateTask = CatalogUpdateTask()): Boolean {
+        task.report(CatalogUpdateState.CHECKING)
+        val revision = fetchRevision(task)
+        task.ensureActive()
         if (revision.checksum == knownChecksum) return false
+        task.report(CatalogUpdateState.DOWNLOADING)
+        task.ensureActive()
         val temporary = File.createTempFile("catalog-", ".tmp", cacheDir)
         try {
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -48,6 +52,7 @@ class CatalogSnapshotStore(
                         val buffer = ByteArray(8192)
                         var total = 0L
                         while (true) {
+                            task.ensureActive()
                             val count = input.read(buffer)
                             if (count < 0) break
                             total += count
@@ -57,10 +62,12 @@ class CatalogSnapshotStore(
                     }
                 }
             } finally { connection.disconnect() }
+            task.report(CatalogUpdateState.APPLYING)
             require(temporary.length() == revision.size &&
                 digest(temporary) == revision.checksum) { "Catalog archive does not match metadata" }
             validate(temporary)
             synchronized(this) {
+                task.ensureActive()
                 val atomic = AtomicFile(file)
                 val output = atomic.startWrite()
                 try {
@@ -88,7 +95,7 @@ class CatalogSnapshotStore(
 
     private data class Revision(val checksum: String, val size: Long)
 
-    private fun fetchRevision(): Revision {
+    private fun fetchRevision(task: CatalogUpdateTask): Revision {
         val connection = (URL(metadataUrl).openConnection() as HttpURLConnection).apply {
             instanceFollowRedirects = false
             connectTimeout = 10000
@@ -103,6 +110,7 @@ class CatalogSnapshotStore(
                 val output = java.io.ByteArrayOutputStream()
                 val buffer = ByteArray(1024)
                 while (true) {
+                    task.ensureActive()
                     val count = input.read(buffer)
                     if (count < 0) break
                     require(output.size() + count <= 4096) { "Catalog metadata is too large" }
