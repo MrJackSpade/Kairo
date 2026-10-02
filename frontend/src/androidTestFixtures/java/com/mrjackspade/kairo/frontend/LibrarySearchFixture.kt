@@ -36,35 +36,29 @@ object LibrarySearchFixture {
                 search.visibility = android.view.View.VISIBLE
                 (field(screen, "searchRow") as android.view.View).visibility = android.view.View.VISIBLE
             }
+            val catalog = field(screen, "catalog") as LibraryCatalog
+            @Suppress("UNCHECKED_CAST")
+            val all = field(screen, "allEntries") as List<LibraryItem>
+            val shards = all.mapNotNull { it.contentId?.substringAfterLast(':')?.take(2) }.distinct().size
+            out.append("catalogShardPrefixes=$shards\n")
+            if (!trace) {
+                check(shards > 8) { "Need a real library spanning more than eight shards" }
+                // Stop the previous snapshot before clearing the actual host caches.
+                ui { field(screen, "searchIndex")!!.javaClass.getMethod("close").invoke(field(screen, "searchIndex")) }
+                synchronized(catalog) {
+                    catalog.javaClass.declaredFields.filter { android.util.LruCache::class.java.isAssignableFrom(it.type) }
+                        .forEach { cache ->
+                            (cache.apply { isAccessible = true }.get(catalog) as android.util.LruCache<*, *>).evictAll()
+                        }
+                }
+                ui { screen.refreshArtwork() }
+            }
             if (trace) {
                 Debug.startMethodTracingSampling(File(test.targetContext.filesDir, "search-profile.trace").path,
                     32 * 1024 * 1024, 1000)
                 tracing = true
             }
-            for (query in listOf("a", "al", "ali", "alic", "alice", "alic", "ali", "al", "a", "")) {
-                val drawn = CountDownLatch(1)
-                var editMs = 0L
-                var frameMs = 0L
-                ui {
-                    val start = SystemClock.elapsedRealtimeNanos()
-                    val listener = object : android.view.ViewTreeObserver.OnDrawListener {
-                        override fun onDraw() {
-                            frameMs = (SystemClock.elapsedRealtimeNanos() - start) / 1_000_000
-                            search.post { search.viewTreeObserver.removeOnDrawListener(this) }
-                            drawn.countDown()
-                        }
-                    }
-                    search.viewTreeObserver.addOnDrawListener(listener)
-                    search.setText(query)
-                    editMs = (SystemClock.elapsedRealtimeNanos() - start) / 1_000_000
-                }
-                check(drawn.await(30, TimeUnit.SECONDS)) { "Search did not draw" }
-                out.append("query='$query' editMs=$editMs drawMs=$frameMs\n")
-                Thread.sleep(100)
-            }
-            if (!trace) {
-                @Suppress("UNCHECKED_CAST")
-                val all = field(screen, "allEntries") as List<LibraryItem>
+            fun awaitIndex() {
                 val indexWait = SystemClock.elapsedRealtime()
                 var ready = false
                 var count = 0
@@ -78,7 +72,34 @@ object LibrarySearchFixture {
                     if (!ready) Thread.sleep(20)
                 }
                 check(ready) { "Search index incomplete: $count/${all.size}, attached=${screen.isAttachedToWindow}\n$out" }
-                out.append("indexWaitAfterTypingMs=${SystemClock.elapsedRealtime() - indexWait}\n")
+                out.append("indexWaitMs=${SystemClock.elapsedRealtime() - indexWait}\n")
+            }
+            for (phase in if (trace) listOf("trace") else listOf("cold", "warm")) {
+                if (phase == "warm") awaitIndex()
+                for (query in listOf("a", "al", "ali", "alic", "alice", "alic", "ali", "al", "a", "")) {
+                    val drawn = CountDownLatch(1)
+                    var editMs = 0L
+                    var frameMs = 0L
+                    ui {
+                        val start = SystemClock.elapsedRealtimeNanos()
+                        val listener = object : android.view.ViewTreeObserver.OnDrawListener {
+                            override fun onDraw() {
+                                frameMs = (SystemClock.elapsedRealtimeNanos() - start) / 1_000_000
+                                search.post { search.viewTreeObserver.removeOnDrawListener(this) }
+                                drawn.countDown()
+                            }
+                        }
+                        search.viewTreeObserver.addOnDrawListener(listener)
+                        search.setText(query)
+                        editMs = (SystemClock.elapsedRealtimeNanos() - start) / 1_000_000
+                    }
+                    check(drawn.await(30, TimeUnit.SECONDS)) { "Search did not draw" }
+                    out.append("phase=$phase query='$query' editMs=$editMs drawMs=$frameMs\n")
+                    if (!trace) check(editMs < 500 && frameMs < 1000) { "Search input stalled: $out" }
+                }
+            }
+            if (!trace) {
+                awaitIndex()
                 for (query in listOf("a", "unmatched_987654321", "ALICE")) {
                     var expected = emptyList<String>()
                     ui {
@@ -103,6 +124,45 @@ object LibrarySearchFixture {
                     out.append("results='$query' count=${expected.size} settledMs=${SystemClock.elapsedRealtime() - start}\n")
                 }
             }
+            if (!trace) {
+                val entry = all.first { it.contentId != null }
+                val id = entry.contentId!!
+                val overrides = field(catalog, "overrides") as GameMetadataOverrides
+                val file = field(catalog, "overridesFile") as File
+                val originalBytes = file.takeIf { it.exists() }?.readBytes()
+                val original = overrides.record(id)
+                val originalTitle = original?.optString("title")?.takeIf { original.has("title") }
+                val marker = "Kairo search fixture 50 unique title"
+                check(all.none { it.displayName.contains(marker, true) })
+                fun awaitRows(expected: Set<String>) {
+                    val deadline = SystemClock.elapsedRealtime() + 15000
+                    var matched = false
+                    while (!matched && SystemClock.elapsedRealtime() < deadline) {
+                        ui {
+                            val rows = field(screen, "entries") as List<*>
+                            matched = rows.map { (it as LibraryItem).id }.toSet() == expected
+                        }
+                        if (!matched) Thread.sleep(10)
+                    }
+                    check(matched) { "Metadata refresh left stale search results" }
+                }
+                try {
+                    overrides.set(id, "title", marker)
+                    ui { screen.refreshArtwork(); search.setText(marker) }
+                    awaitRows(all.filter { it.contentId == id }.map { it.id }.toSet())
+                    overrides.set(id, "title", originalTitle)
+                    @Suppress("UNCHECKED_CAST")
+                    ui { (screen as LibraryScreen<LibraryItem>).showEntries(all) }
+                    awaitRows(emptySet())
+                    check(overrides.record(id)?.toString() == original?.toString())
+                    out.append("Live title override and catalog snapshot refresh invalidate an active query: OK\n")
+                } finally {
+                    overrides.set(id, "title", originalTitle)
+                    if (originalBytes == null) check(!file.exists() || file.delete())
+                    else file.writeBytes(originalBytes)
+                }
+            }
+
         } finally {
             if (tracing) Debug.stopMethodTracing()
             ui { activity.finish() }

@@ -1,0 +1,30 @@
+librarySize=49
+catalogShardPrefixes=44
+phase=cold query='a' editMs=38 drawMs=43
+phase=cold query='al' editMs=19 drawMs=23
+phase=cold query='ali' editMs=19 drawMs=23
+phase=cold query='alic' editMs=31 drawMs=35
+phase=cold query='alice' editMs=20 drawMs=28
+phase=cold query='alic' editMs=18 drawMs=24
+phase=cold query='ali' editMs=29 drawMs=45
+phase=cold query='al' editMs=18 drawMs=22
+phase=cold query='a' editMs=18 drawMs=22
+phase=cold query='' editMs=14 drawMs=68
+indexWaitMs=1826
+phase=warm query='a' editMs=19 drawMs=24
+phase=warm query='al' editMs=20 drawMs=26
+phase=warm query='ali' editMs=19 drawMs=24
+phase=warm query='alic' editMs=19 drawMs=24
+phase=warm query='alice' editMs=22 drawMs=28
+phase=warm query='alic' editMs=29 drawMs=38
+phase=warm query='ali' editMs=25 drawMs=37
+phase=warm query='al' editMs=30 drawMs=35
+phase=warm query='a' editMs=20 drawMs=26
+phase=warm query='' editMs=14 drawMs=82
+indexWaitMs=1
+results='a' count=44 settledMs=106
+results='unmatched_987654321' count=0 settledMs=122
+results='ALICE' count=0 settledMs=41
+Live title override and catalog snapshot refresh invalidate an active query: OK
+Latest query, snapshot replacement, clear, close, case/title matching: OK
+

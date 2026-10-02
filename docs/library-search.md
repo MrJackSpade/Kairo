@@ -43,9 +43,42 @@ runners passed this fixture and real-library result-ID checks on RGDS.
 Run the host instrumentation with `-e librarySearch true`; add
 `-e traceSearch true` only for an attribution trace. Tracing writes
 `files/search-profile.trace` in the target app. Tests do not alter catalog
-files, saved controls, or games.
+downloads, saved controls, or games. The expanded test temporarily changes one
+title override and restores the original override record and file bytes in `finally`.
 
 Validated APK SHA-256:
 
 - DOS: `d86fb859c0907a7413e9e25ea6edcf57df0d37c263920bdfa7b5491ef61f0db8`
 - PC98: `dd6c7fbd2f9da5f93bff092c8fbd73067450c8ec24a6d5ed3a16d20ef986e5ee`
+
+## KairoDos #50 acceptance follow-up
+
+RGDS, October 2 2026, production shared source `65b1bd4` (search fix originally
+`3152acd`). The expanded fixture closes the prior search snapshot, clears the
+host's actual LRU catalog caches under its catalog lock, refreshes metadata, and
+immediately types/backspaces without the old 100 ms delay between keys. The warm
+pass waits for indexing to finish. No game/core is running.
+
+| Host | Entries / distinct shard prefixes | Cold nonempty edit / draw range | Warm nonempty edit / draw range | Empty-query draw cold / warm |
+| --- | --- | --- | --- | --- |
+| KairoDos | 49 / 44 | 18–38 / 22–45 ms | 19–30 / 24–38 ms | 68 / 82 ms |
+| Kairo98 | 215 / 133 | 19–43 / 24–48 ms | 21–45 / 27–55 ms | 109 / 92 ms |
+
+Cold indexing still had 1826 ms (DOS) / 2712 ms (PC98) left after rapid typing;
+this background work did not block character rendering. Settled result checks
+were 41–122 ms / 209–345 ms, including UI idle/layout. They matched independently
+computed case-insensitive catalog-title OR filename results, including empty
+matches. These measurements describe this device/library, not all storage or
+library sizes.
+
+Both hosts also passed actual metadata override invalidation while a query was
+active: a temporary unique title became searchable after `refreshArtwork`, then
+restoring the title and publishing the same entries through `showEntries` removed
+the obsolete match. DOS title edits and successful catalog downloads both call
+`showEntries`; the test exercises that same refresh boundary without publishing
+fake downloaded metadata. `SearchIndexFixture` continues to assert off-main-thread
+resolution, one resolve per row per snapshot, 50 superseded queries, replacement,
+clear and close. No additional production fix was required for #50.
+
+Raw instrumented results are in `search-issue50-dos.txt` and
+`search-issue50-pc98.txt` next to this report. Both test runners passed on the RGDS.
