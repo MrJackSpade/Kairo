@@ -10,6 +10,7 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var menu = false
     private var deadZone = false
     private var search = false
+    private var exitDialog = false
     private var traceSearch = false
     private var keyboard = false
     override fun onCreate(arguments: Bundle?) {
@@ -20,10 +21,22 @@ class LibraryUiInstrumentation : Instrumentation() {
         search = arguments?.getString("librarySearch") == "true"
         traceSearch = arguments?.getString("traceSearch") == "true"
         keyboard = arguments?.getString("libraryKeyboard") == "true"
+        exitDialog = arguments?.getString("exitDialog") == "true"
         start()
     }
     override fun onStart() {
         val result = Bundle()
+        if (exitDialog) {
+            try {
+                com.mrjackspade.kairo.frontend.ExitDialogFixture.verify(this)
+                result.putString("stream", "Exit dialog keys, hats, cancel and exit: OK\n")
+                finish(Activity.RESULT_OK, result)
+            } catch (failure: Throwable) {
+                result.putString("stream", failure.stackTraceToString())
+                finish(Activity.RESULT_CANCELED, result)
+            }
+            return
+        }
         if (search) {
             try {
                 result.putString("stream", LibrarySearchFixture.measure(this, traceSearch))
