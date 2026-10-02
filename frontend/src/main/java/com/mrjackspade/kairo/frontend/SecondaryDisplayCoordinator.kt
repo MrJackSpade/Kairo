@@ -65,6 +65,7 @@ class SecondaryDisplayCoordinator(
     fun start(handler: Handler) {
         if (started) return
         started = true
+        libraryArtwork.resume()
         stopObservingSetup = FirstRunVisibility.forActivity(activity).observe {
             setupVisible = it
             if (!it) setupHats.stop()
@@ -77,6 +78,7 @@ class SecondaryDisplayCoordinator(
     }
 
     fun stop() {
+        libraryArtwork.suspend()
         if (!started) return
         started = false
         stopObservingSetup?.invoke()
@@ -102,6 +104,10 @@ class SecondaryDisplayCoordinator(
                            val art: android.graphics.Bitmap?, val hasArtwork: Boolean = art != null)
 
     private var libraryInfo: LibraryInfo? = null
+    private val libraryArtwork = LibraryArtworkLoader {
+        libraryInfo = it
+        updateContent()
+    }
     private val visibleKeyboard get() = keyboardVisible && !setupVisible
     private val visibleBackground get() = if (setupVisible) Ui.BG else backgroundColor
     private val visibleLibraryInfo get() = libraryInfo.takeUnless { setupVisible }
@@ -113,9 +119,9 @@ class SecondaryDisplayCoordinator(
             swapped && !setupVisible, visibleLibraryInfo)
     }
 
-    fun setLibraryInfo(info: LibraryInfo?) {
-        libraryInfo = info
-        updateContent()
+    fun setLibraryInfo(info: LibraryInfo?, artworkPath: String? = null,
+                       openArtwork: ((String) -> java.io.InputStream)? = null) {
+        libraryArtwork.show(info, artworkPath, openArtwork)
     }
 
     fun setAppearance(showKeyboard: Boolean, color: Int) {
