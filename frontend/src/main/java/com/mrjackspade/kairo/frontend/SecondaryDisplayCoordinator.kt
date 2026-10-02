@@ -223,8 +223,9 @@ class SecondaryDisplayCoordinator(
      * focus as soon as the second display gains it cancels touches on its mode tabs.
      */
     fun forwardKey(event: KeyEvent): Boolean {
-        val handled = FirstRunVisibility.forActivity(activity).handleKey(event)
-            ?: activity.dispatchKeyEvent(event)
+        val handled = if (DialogControllerNavigation.forwardKey(activity, event)) true
+            else FirstRunVisibility.forActivity(activity).handleKey(event)
+              ?: activity.dispatchKeyEvent(event)
         if (event.action == KeyEvent.ACTION_UP) reclaimFocus()
         return handled
     }
@@ -236,6 +237,7 @@ class SecondaryDisplayCoordinator(
     }
 
     fun forwardMotion(event: MotionEvent): Boolean {
+        if (DialogControllerNavigation.forwardMotion(activity, event)) return true
         if (setupVisible) {
             setupHats.motion(event)
             return true

@@ -27,6 +27,9 @@ object ExitDialogFixture {
             ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { descendants(group.getChildAt(it)) } }
                 ?: emptyList())
         lateinit var decor: View
+        val secondary by lazy { activity.javaClass.declaredFields.single { it.type == SecondaryDisplayCoordinator::class.java }
+            .apply { isAccessible = true }.get(activity) as SecondaryDisplayCoordinator }
+        var companionInput = false
         fun focused() = (decor.findFocus() as? Button)?.text?.toString()
         fun open() {
             test.setInTouchMode(true)
@@ -39,8 +42,10 @@ object ExitDialogFixture {
             }
         }
         fun key(code: Int) = ui {
-            decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
-            decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+            for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
+                val event = KeyEvent(action, code)
+                if (companionInput) secondary.forwardKey(event) else decor.dispatchKeyEvent(event)
+            }
         }
         fun hat(x: Float, y: Float) {
             val now = SystemClock.uptimeMillis()
@@ -51,7 +56,7 @@ object ExitDialogFixture {
             }
             val event = MotionEvent.obtain(now, now, MotionEvent.ACTION_MOVE, 1, arrayOf(props), arrayOf(coords),
                 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_JOYSTICK, 0)
-            ui { decor.dispatchGenericMotionEvent(event) }
+            ui { if (companionInput) secondary.forwardMotion(event) else decor.dispatchGenericMotionEvent(event) }
             event.recycle()
         }
         try {
@@ -63,6 +68,7 @@ object ExitDialogFixture {
             ui { check(focused() == "Cancel") }
             key(KeyEvent.KEYCODE_BUTTON_A)
             ui { check(!decor.isAttachedToWindow && !activity.isFinishing) { "Cancel did not keep app open" } }
+            companionInput = true
             open()
             hat(1f, 0f); hat(0f, 0f)
             ui { check(focused() == "Exit") { "Hat right did not focus Exit: ${focused()}" } }

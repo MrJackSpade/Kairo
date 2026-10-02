@@ -1,6 +1,8 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.AlertDialog
+import android.app.Activity
+import android.content.ContextWrapper
 import android.os.Build
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -9,9 +11,42 @@ import android.view.Window
 import android.widget.Button
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
+import java.lang.ref.WeakReference
 
 /** Dialogs own a separate window, so Activity controller dispatch cannot reach them. */
 internal object DialogControllerNavigation {
+    private val dialogs = ArrayList<WeakReference<AlertDialog>>()
+
+    private fun track(dialog: AlertDialog) {
+        dialogs.removeAll { it.get() == null || it.get() === dialog }
+        dialogs += WeakReference(dialog)
+    }
+
+    private fun active(activity: Activity): AlertDialog? {
+        dialogs.removeAll { it.get() == null }
+        return dialogs.asReversed().firstNotNullOfOrNull { reference ->
+            reference.get()?.takeIf { dialog ->
+                var context = dialog.context
+                while (context is ContextWrapper && context !is Activity && context.baseContext !== context)
+                    context = context.baseContext
+                dialog.isShowing && context === activity
+            }
+        }
+    }
+
+    /** Companion-screen events must reach the frontmost modal before the host
+     * activity, otherwise they can navigate menus or send keys behind it. */
+    fun forwardKey(activity: Activity, event: KeyEvent): Boolean {
+        val dialog = active(activity) ?: return false
+        dialog.window?.callback?.dispatchKeyEvent(event)
+        return true
+    }
+
+    fun forwardMotion(activity: Activity, event: MotionEvent): Boolean {
+        val dialog = active(activity) ?: return false
+        dialog.window?.callback?.dispatchGenericMotionEvent(event)
+        return true
+    }
     private class Callback(val delegate: Window.Callback, val dialog: AlertDialog) : Window.Callback by delegate {
         var backAction: (() -> Unit)? = null
         var systemBack: OnBackInvokedCallback? = null
@@ -36,6 +71,11 @@ internal object DialogControllerNavigation {
         }
         override fun dispatchGenericMotionEvent(event: MotionEvent) = hats.motion(event) || delegate.dispatchGenericMotionEvent(event)
         override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+            // Forwarded events bypass this window's ViewRoot input dispatch.
+            // Leave touch mode here too, after touching the companion keyboard.
+            val decor = dialog.window?.decorView
+            if (event.action == KeyEvent.ACTION_DOWN && decor?.isInTouchMode == true)
+                (decor.findFocus() ?: decor).requestFocusFromTouch()
             val code = when (event.keyCode) {
                 KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_DPAD_CENTER
                 KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BACK
@@ -74,10 +114,12 @@ internal object DialogControllerNavigation {
         if (window.callback is Callback) return
         val callback = Callback(window.callback, dialog)
         window.callback = callback
+        track(dialog)
         callback.initialFocus()
         window.decorView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(view: View) = Unit
+            override fun onViewAttachedToWindow(view: View) { track(dialog) }
             override fun onViewDetachedFromWindow(view: View) {
+                dialogs.removeAll { it.get() == null || it.get() === dialog }
                 callback.hats.stop()
                 if (Build.VERSION.SDK_INT >= 33) callback.systemBack?.let {
                     dialog.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it)

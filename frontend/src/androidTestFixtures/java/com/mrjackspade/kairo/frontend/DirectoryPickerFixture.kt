@@ -50,7 +50,15 @@ object DirectoryPickerFixture {
             }
             error(message)
         }
-        fun key(code: Int) { test.sendKeyDownUpSync(code); test.waitForIdleSync() }
+        val secondary by lazy { activity.javaClass.declaredFields.single { it.type == SecondaryDisplayCoordinator::class.java }
+            .apply { isAccessible = true }.get(activity) as SecondaryDisplayCoordinator }
+        var companionInput = false
+        fun key(code: Int) {
+            if (companionInput) ui {
+                secondary.forwardKey(KeyEvent(KeyEvent.ACTION_DOWN, code))
+                secondary.forwardKey(KeyEvent(KeyEvent.ACTION_UP, code))
+            } else { test.sendKeyDownUpSync(code); test.waitForIdleSync() }
+        }
         var selected: DirectoryPicker.Entry? = null
         var cancelled = 0
         val loads = AtomicInteger()
@@ -74,6 +82,18 @@ object DirectoryPickerFixture {
             await("Controller did not enter directory") { text("child.bat") != null }
             key(KeyEvent.KEYCODE_BACK)
             await("Back did not return to parent") { text("Folder/") != null }
+            companionInput = true
+            test.setInTouchMode(true)
+            await("Picker did not enter touch mode") { list().isInTouchMode }
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+            await("Companion D-pad did not restore list selection") {
+                !list().isInTouchMode && list().selectedItem != null
+            }
+            ui { list().setSelection(0) }
+            key(KeyEvent.KEYCODE_BUTTON_A)
+            await("Bottom-display confirm did not enter folder") { text("child.bat") != null }
+            ui { secondary.forwardBack() }
+            await("Bottom-display Back did not return to parent") { text("Folder/") != null }
             ui { list().requestFocus(); list().setSelection(0) }
             repeat(40) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
             ui {
