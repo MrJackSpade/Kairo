@@ -4,6 +4,7 @@ import android.net.Uri
 import org.json.JSONObject
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Coordinates a library scan while the emulator supplies media recognition and hashing. */
 class LibraryScanPipeline<Work : Any, Entry : Any>(
@@ -39,8 +40,8 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         fun hashStarted() = countHash()
     }
 
-    @Volatile var hashCount = 0
-        private set
+    private val hashes = AtomicInteger()
+    val hashCount: Int get() = hashes.get()
 
     @Synchronized fun scan(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean,
                            progress: (String) -> Unit): List<Entry> {
@@ -48,25 +49,29 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         val previous = cache.readForTree(tree.toString())
         val prior = if (forceHash) emptyMap() else
             previous?.entries?.associateBy(entryId).orEmpty()
-        hashCount = 0
-        val context = ScanContext(previous, prior, forceHash, cancelled, progress) { hashCount++ }
+        hashes.set(0)
+        val progressLock = Any()
+        val report: (String) -> Unit = { message -> synchronized(progressLock) {
+            if (!cancelled.get()) progress(message)
+        } }
+        val context = ScanContext(previous, prior, forceHash, cancelled, report) { hashes.incrementAndGet(); Unit }
         val plan = enumerate(tree, cancelled, progress)
         context.checkCancelled()
         val entries = ArrayList<Entry>()
         entries.addAll(plan.initialEntries)
-        plan.work.forEachIndexed { index, work ->
+        val inspected = ParallelScanWork.map(plan.work, cancelled) { index, work ->
             context.checkCancelled()
-            label(work, index, plan.work.size)?.let(progress)
+            label(work, index, plan.work.size)?.let(report)
             try {
-                entries.addAll(inspect(work, context))
+                inspect(work, context)
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (error: Exception) {
                 context.checkCancelled()
-                entries.addAll(failed(work, context, error))
+                failed(work, context, error)
             }
-            context.checkCancelled()
         }
+        inspected.forEach(entries::addAll)
         entries.addAll(plan.finalEntries)
         context.checkCancelled()
         val saved = cacheOrder(entries)
