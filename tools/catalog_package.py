@@ -15,6 +15,10 @@ def write_zip(path, files, stored=False):
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for name, content in sorted(files.items()):
             info = zipfile.ZipInfo(name, (2026, 1, 1, 0, 0, 0))
+            # ZipInfo defaults this field from the host OS. Pin it so the same
+            # reviewed payload has the same checksum on Windows and Linux CI.
+            info.create_system = 3
+            info.external_attr = 0o600 << 16
             info.compress_type = zipfile.ZIP_STORED if stored else zipfile.ZIP_DEFLATED
             archive.writestr(info, content)
 

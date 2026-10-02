@@ -55,11 +55,15 @@ def generate_parts(root, app, full_documents, optional_data, expand, compact_art
         payload = {'schemaVersion':1,'games':art.get('games',{}),'nameIndex':{'schemaVersion':1,
             'games':games,'names':{k:v for k,v in optional_data['nameIndex']['names'].items() if v in games}}}
     if not check:
+        release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
+        assert release['schemaVersion'] == 1 and release['revision'] > 0
+        import re
+        assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', release['tag'])
         build_package(payload, image_paths(payload, expand), root/'catalog/artwork',
             root/f'catalog/optional/{app}-art.nsfw.zip', product='dos' if app=='kairodos' else 'pc98',
-            identity=app+'-art',name=app.replace('kairo','Kairo')+' artwork',revision=1,
+            identity=app+'-art',name=app.replace('kairo','Kairo')+' artwork',revision=release['revision'],
             source=f'https://raw.githubusercontent.com/MrJackSpade/{"KairoDos" if app=="kairodos" else "Kairo98"}/main/catalog/optional/{app}-art.nsfw.meta.json',
-            archive_url=f'https://github.com/MrJackSpade/{"KairoDos" if app=="kairodos" else "Kairo98"}/releases/download/v0.9.7/{app}-art.nsfw.zip', stored=True)
+            archive_url=f'https://github.com/MrJackSpade/{"KairoDos" if app=="kairodos" else "Kairo98"}/releases/download/{release["tag"]}/{app}-art.nsfw.zip', stored=True)
         (root/'catalog/artwork-exclusions-v1.json').write_bytes(compact({'schemaVersion':1,'artwork':sorted(withheld)}))
     print(f'{app}: {len(all_images)} artwork paths; {len(withheld)} restricted; {len(approved)} reviewed')
 

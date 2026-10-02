@@ -51,6 +51,9 @@ def audit(root, product, artifacts=()):
         assert hashlib.sha256((root/'catalog/artwork'/path).read_bytes()).hexdigest() == sha
     package = root/f'catalog/optional/{app}-art.nsfw.zip'
     manifest = json.loads(package.with_suffix('.meta.json').read_text('utf8'))
+    release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
+    assert manifest['revision'] == release['revision']
+    assert manifest['archive'].endswith(f'/releases/download/{release["tag"]}/{app}-art.nsfw.zip')
     if package.exists():
         assert manifest['size'] == package.stat().st_size
         assert manifest['sha256'] == hashlib.sha256(package.read_bytes()).hexdigest()
