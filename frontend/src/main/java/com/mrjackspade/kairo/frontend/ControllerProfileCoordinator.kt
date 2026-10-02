@@ -69,7 +69,7 @@ class ControllerEditorFlow<Game : Any>(
     private val closeMenu: () -> Unit,
     private val releaseInputs: () -> Unit,
     private val hideKeyboard: () -> Unit,
-    private val openOnScreenControls: () -> Unit,
+    private val openOnScreenControls: ((Boolean) -> Unit) -> Unit,
     private val showMessage: (String) -> Unit
 ) {
     fun showScope(game: Game?) {
@@ -93,10 +93,10 @@ class ControllerEditorFlow<Game : Any>(
     }
 
     fun showOnScreenControls() {
+        val returnToEditor = editor.suspendForChild()
         closeMenu()
         releaseInputs()
         hideKeyboard()
-        editor.close()
-        openOnScreenControls()
+        openOnScreenControls(returnToEditor)
     }
 }

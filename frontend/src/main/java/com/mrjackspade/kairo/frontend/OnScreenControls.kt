@@ -94,6 +94,7 @@ class OnScreenControls(
     private var settingsScroll: ScrollView? = null
     private var settingsTitle: TextView? = null
     private var arrangement: FrameLayout? = null
+    private var returnToParent: ((Boolean) -> Unit)? = null
     private var requestedVisible = false
     private var guestKeyboard: GuestKeyboardPanel? = null
     private val keyboardVisibilityListener: () -> Unit = {
@@ -167,8 +168,9 @@ class OnScreenControls(
         }
     }
 
-    fun show() {
+    fun show(onReturn: (Boolean) -> Unit = {}) {
         if (isOpen) return
+        returnToParent = onReturn
         positionAll()
         val settings = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -214,10 +216,12 @@ class OnScreenControls(
             renderSettings()
             return
         }
-        close()
+        close(returning = true)
     }
 
-    fun close() {
+    fun close(returning: Boolean = false) {
+        val returnAction = returnToParent
+        returnToParent = null
         arrangement?.let(root::removeView)
         arrangement = null
         page?.let(root::removeView)
@@ -227,6 +231,7 @@ class OnScreenControls(
         settingsTitle = null
         refreshVisibility(requestedVisible)
         onVisibilityChanged()
+        returnAction?.invoke(returning)
     }
 
     fun handleKey(event: KeyEvent): Boolean {

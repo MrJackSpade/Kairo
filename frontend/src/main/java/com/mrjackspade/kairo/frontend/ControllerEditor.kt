@@ -196,6 +196,27 @@ class ControllerEditor<Game : Any>(
         onVisibilityChanged()
     }
 
+    /** Keep the originating scope and list position while a child editor owns input. */
+    fun suspendForChild(): (Boolean) -> Unit {
+        if (!isOpen) return {}
+        val parent = page
+        listScrollY = scroll.scrollY
+        listFocusIndex = (0 until body.childCount).indexOfFirst { body.getChildAt(it).hasFocus() }
+        hatDirection = null
+        navigationHandler.removeCallbacks(repeatHat)
+        page.visibility = View.GONE
+        return { returning ->
+            if (isOpen && page === parent) {
+                if (returning) {
+                    page.visibility = View.VISIBLE
+                    // The hidden page lost Android focus; retain the saved row instead.
+                    renderedStage = null
+                    render()
+                } else close()
+            }
+        }
+    }
+
     fun back() {
         if (!isOpen) return
         captureArmed = false
@@ -421,7 +442,6 @@ class ControllerEditor<Game : Any>(
         }
         if (!physicalScope) mappingStatus(scope)?.let { note(it) }
         row("On-screen controls", "Show, hide, and arrange", true) {
-            close()
             onScreenSettings()
         }
         row("On-screen D-pad", if (eightWayDpad()) "8-way pad" else "4 buttons", true) {
