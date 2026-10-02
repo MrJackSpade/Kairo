@@ -2,6 +2,7 @@ package com.mrjackspade.kairo.frontend
 
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -665,8 +666,35 @@ class ControllerEditor<Game : Any>(
             val selected = scan in selectedScans
             val mark = row(guest.keyLabel(scan),
                 "0x" + scan.toString(16).padStart(2, '0') + if (selected) "  ✓" else "", true) {
-                if (!selectedScans.remove(scan) && selectedScans.size < 4) selectedScans.add(scan)
-                markText(scan, saveButton)
+                if (selectedScans.remove(scan)) {
+                    markText(scan, saveButton)
+                } else if (selectedScans.isEmpty()) {
+                    selectedScans.add(scan)
+                    markText(scan, saveButton)
+                } else {
+                    val dialog = AlertDialog.Builder(activity)
+                        .setTitle("Change key selection")
+                        .setMessage("Current: ${selectedScans.joinToString(" + ") { guest.keyLabel(it) }}\n" +
+                            "Selected: ${guest.keyLabel(scan)}")
+                        .setPositiveButton("Add") { _, _ ->
+                            if (selectedScans.size < 4) selectedScans.add(scan)
+                            markText(scan, saveButton)
+                        }
+                        .setNeutralButton("Replace") { _, _ ->
+                            val previous = selectedScans.toList()
+                            selectedScans.clear()
+                            selectedScans.add(scan)
+                            (previous + scan).forEach { markText(it, saveButton) }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .create()
+                    dialog.show()
+                    Ui.styleDialog(dialog)
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
+                        isEnabled = selectedScans.size < 4
+                        alpha = if (isEnabled) 1f else .4f
+                    }
+                }
             }
             mark.tag = scan
         }
