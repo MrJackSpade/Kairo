@@ -13,3 +13,18 @@ Product settings apply `shared/gradle/android-settings.gradle`; Android modules 
 Before building a clean product checkout, run `bash tools/checkout_shared.sh` (or `git submodule update --init shared` locally). Each product retains only the bootstrap needed to fetch the pinned shared checkout, then delegates commit and cleanliness validation to `tools/verify_checkout.sh` here. Missing shared files produce an explicit initialization error from the product wrapper.
 
 To update the toolchain, change this repository's version file or wrapper, verify the standalone library and both products, then update both product pins. Do not copy versions back into the app builds or workflows. Tag triggers, signing secrets, native build commands and publication remain product-owned.
+
+## Native Debug optimization
+
+Include `shared/cmake/KairoNativeDefaults.cmake` from the product's native build
+and call `kairo_native_debug_defaults(target)` after declaring each native target.
+The shared function adds `-O2` for Debug only. It does not add `NDEBUG`, remove
+symbols, alter assertions, change release optimization, or set emulator-specific
+compiler flags. Android/NDK Debug `-g` and `-fno-limit-debug-info` remain active.
+
+KairoDos applies it to `kairodos_host`; its existing non-Debug `-O2` remains
+product-owned. Kairo98 applies it to `kairo98` and `np21w_core`, preserving their
+previous Debug `-O2`. Kairo98 LTO, aliasing and signed-char flags and DOSBox Staging
+core compiler/PGO flags remain in the product integrations. The optional DOS
+`presentationProfile` switch still explicitly adds `NDEBUG` and its profiling
+marker; normal Debug presentation is already optimized without that switch.
