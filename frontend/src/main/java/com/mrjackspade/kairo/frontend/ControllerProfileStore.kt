@@ -46,6 +46,6 @@ class ControllerProfileStore(
     fun resetPhysical() { preferences.edit().remove("controller_physical_v1").apply() }
 
     var deadZone: Float
-        get() = preferences.getFloat("controller_dead_zone", 0.35f)
+        get() = preferences.getFloat("controller_dead_zone", GamepadMapper.DEFAULT_DEAD_ZONE)
         set(value) { preferences.edit().putFloat("controller_dead_zone", value).apply() }
 }

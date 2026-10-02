@@ -829,7 +829,12 @@ class ControllerEditor<Game : Any>(
         }
         body.addView(deadZoneSlider)
         footerAction("Save dead zone") {
-            setDeadZone(((deadZoneSlider?.progress ?: 25) + 10) / 100f)
+            setDeadZone(((deadZoneSlider?.progress ?: 0) + 10) / 100f)
+            stage = Stage.LIST
+            render()
+        }
+        row("Reset dead zone", "10%", true) {
+            setDeadZone(GamepadMapper.DEFAULT_DEAD_ZONE)
             stage = Stage.LIST
             render()
         }

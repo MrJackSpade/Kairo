@@ -8,18 +8,21 @@ import android.os.Bundle
 class LibraryUiInstrumentation : Instrumentation() {
     private var artwork = false
     private var menu = false
+    private var deadZone = false
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         artwork = arguments?.getString("libraryArtwork") == "true"
         menu = arguments?.getString("libraryMenu") == "true"
+        deadZone = arguments?.getString("deadZone") == "true"
         start()
     }
     override fun onStart() {
         val result = Bundle()
         try {
-            if (menu) LibraryMenuFixture.verify(this)
+            if (deadZone) DeadZoneFixture.verify(this)
+            else if (menu) LibraryMenuFixture.verify(this)
             else if (artwork) LibraryArtworkFixture.verify(this) else LibraryScrollFixture.verify(this)
-            result.putString("stream", "${targetContext.packageName}: ${if (menu) "library menu key/hat scrolling" else if (artwork) "library artwork cache, ordering, failures and lifecycle" else "library selection avoids row rebinding and preserves activation"}: OK\n")
+            result.putString("stream", "${targetContext.packageName}: ${if (deadZone) "default/custom/reset deadzone and axis activation" else if (menu) "library menu key/hat scrolling" else if (artwork) "library artwork cache, ordering, failures and lifecycle" else "library selection avoids row rebinding and preserves activation"}: OK\n")
             finish(Activity.RESULT_OK, result)
         } catch (failure: Throwable) {
             result.putString("stream", failure.stackTraceToString())

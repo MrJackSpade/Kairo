@@ -27,7 +27,7 @@ class GamepadMapper(private val router: InputRouter,
             field = value
             updateMotionInputs()
         }
-    var deadZone = 0.35f
+    var deadZone = DEFAULT_DEAD_ZONE
         set(value) { field = value.coerceIn(0.10f, 0.90f) }
 
     private val active = HashSet<String>()
@@ -220,5 +220,9 @@ class GamepadMapper(private val router: InputRouter,
         if (mouse.hasMovement()) return
         handler.removeCallbacks(mouseTick)
         lastMouseTick = 0L
+    }
+
+    companion object {
+        const val DEFAULT_DEAD_ZONE = 0.10f
     }
 }
