@@ -638,6 +638,12 @@ class LibraryScreen<T : LibraryItem>(
     fun closeActions(): Boolean {
         if (!actionsOpen) return false
         actionsOpen = false
+        actionItems.forEach { it.isSelected = false; it.isPressed = false }
+        // Hiding a focused drawer lets Android focus the first header button,
+        // leaving Menu highlighted beside the library's selected game. Return
+        // focus to the library itself; shared navigation owns its game cursor.
+        isFocusableInTouchMode = true
+        requestFocus()
         scrim.animate().cancel()
         actionsScroll.animate().cancel()
         scrim.animate().alpha(0f).setDuration(160).withEndAction {

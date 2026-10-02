@@ -54,3 +54,27 @@ tested builds:
 Real library input was also checked in each app with ten Down long-press
 commands on display 2. The selected row remained fully visible at the bottom
 of the viewport in both captured screenshots.
+
+## Library flyout focus, Kairo #20
+
+The baseline regression reproduced the reported stuck Menu highlight on the
+RGDS: after a touch-opened flyout was closed, the Menu button had `focused=true`
+while selected, pressed and activated were false. The disappearing focused
+drawer caused Android to focus the first header button; its focus drawable
+then appeared beside the library's separately selected game.
+
+`LibraryScreen.closeActions()` now clears drawer selection/pressed states and
+returns focus to the library before hiding the drawer. Shared frontend
+navigation continues to own the game cursor. Focus is restored immediately,
+so a setting that subsequently opens a dialog can take focus normally; the
+animation completion does not steal focus back.
+
+`LibraryMenuFixture` covers touch-open/Back, touch-open/scrim dismissal,
+controller Menu/Back, touch-to-hat switching, exactly one selected visible
+drawer row, no focused/selected/pressed/activated Menu button after closing,
+no hidden drawer selection, and D-pad game selection afterward. It also
+retains the full menu scrolling, held-hat and reopen-from-bottom checks.
+
+The expanded fixture passed in both updated RGDS apps on October 2, 2026.
+APK SHA-256: DOS `468884b91f80508999bb696007c9a907ba08f3c73f2163c53a6cbd364b0d4acd`;
+PC98 `265a4779df038bfd7e9b12c7443e30c8313372e3063ef9fb06da57bd71dd5f4b`.

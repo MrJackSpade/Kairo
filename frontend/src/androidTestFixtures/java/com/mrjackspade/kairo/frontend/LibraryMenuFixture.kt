@@ -7,6 +7,7 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ScrollView
 
 /** Traverse each host's real menu, including held hat input and touch-mode entry. */
@@ -59,6 +60,54 @@ object LibraryMenuFixture {
                 test.setInTouchMode(true)
                 screen.openActions()
             }
+            Thread.sleep(250)
+            ui { visible(); check(selected() == 0) }
+            ui { screen.closeActions() }
+            Thread.sleep(200)
+            fun descendants(view: View): List<View> = listOf(view) + if (view is ViewGroup)
+                (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
+            lateinit var menu: View
+            ui { menu = descendants(screen).first { it.contentDescription == "Library menu" } }
+            fun cleanClose() = ui {
+                check(!screen.actionsOpen)
+                check(!menu.hasFocus() && !menu.isSelected && !menu.isPressed && !menu.isActivated) {
+                    "Stale Menu highlight: focused=${menu.hasFocus()} selected=${menu.isSelected} pressed=${menu.isPressed} activated=${menu.isActivated}"
+                }
+                check(items.none { it.isSelected || it.isPressed || it.hasFocus() }) { "Hidden menu retains selection/focus" }
+            }
+            for (closeWithBack in listOf(true, false)) {
+                ui {
+                    test.setInTouchMode(true)
+                    val now = SystemClock.uptimeMillis()
+                    for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                        val event = MotionEvent.obtain(now, now, action, menu.width / 2f, menu.height / 2f, 0)
+                        try { menu.dispatchTouchEvent(event) } finally { event.recycle() }
+                    }
+                }
+                Thread.sleep(250)
+                ui { check(screen.actionsOpen); visible() }
+                if (closeWithBack) key(KeyEvent.KEYCODE_BACK)
+                else ui { (field(screen, "scrim") as View).performClick() }
+                Thread.sleep(250)
+                cleanClose()
+            }
+            // Controller entry and mixed touch/hat navigation retain one intentional cursor.
+            key(KeyEvent.KEYCODE_MENU)
+            Thread.sleep(250)
+            axis(1f); axis(0f)
+            ui { visible(); check(selected() == 1) }
+            key(KeyEvent.KEYCODE_BACK)
+            Thread.sleep(250)
+            cleanClose()
+            var before = 0
+            ui { before = field(screen, "selectedIndex") as Int }
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
+            ui {
+                val count = (field(screen, "entries") as List<*>).size
+                check(field(screen, "selectedIndex") == (before + 1).coerceAtMost(count - 1))
+                check(!menu.hasFocus())
+            }
+            ui { screen.openActions() }
             Thread.sleep(250)
             ui { visible(); check(selected() == 0) }
             repeat(items.lastIndex) { key(KeyEvent.KEYCODE_DPAD_DOWN); ui { visible() } }
