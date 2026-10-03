@@ -94,6 +94,10 @@ class LibraryScreen<T : LibraryItem>(
     private val actionItems = ArrayList<View>()
     private val detailPage = GameDetailPage<T>(context, catalog, play, preview, details, { closeDetail() }, ::metadata)
     private val settingValues = ArrayList<Pair<TextView, () -> String>>()
+    private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openActions() }
+    private val searchButton = Ui.iconButton(context, R.drawable.ic_search, "Search games") { toggleSearch() }
+    private var headerSelection = -1
+    private var lastHeaderSelection = 0
     private val searchRow = LinearLayout(context)
     private val search = object : android.widget.EditText(context) {
         override fun onKeyPreIme(keyCode: Int, event: android.view.KeyEvent): Boolean {
@@ -260,7 +264,7 @@ class LibraryScreen<T : LibraryItem>(
                 else Ui.rowBackground(context, activatedOnly = true)
             holder.pinned = pinned
         }
-        view.isActivated = index == selectedIndex
+        view.isActivated = headerSelection < 0 && index == selectedIndex
         view.alpha = if (entry.playable) 1f else 0.6f
         return view
     }
@@ -276,7 +280,7 @@ class LibraryScreen<T : LibraryItem>(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        header.addView(Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openActions() },
+        header.addView(menuButton,
             LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(10) })
         header.addView(PixelTextView(context).apply {
             text = strings.productName
@@ -286,7 +290,7 @@ class LibraryScreen<T : LibraryItem>(
         header.addView(scanProgress, LinearLayout.LayoutParams(dp(28), dp(28)).apply {
             marginEnd = dp(12)
         })
-        header.addView(Ui.iconButton(context, R.drawable.ic_search, "Search games") { toggleSearch() },
+        header.addView(searchButton,
             LinearLayout.LayoutParams(dp(48), dp(48)))
         body.addView(header)
         search.apply {
@@ -391,14 +395,14 @@ class LibraryScreen<T : LibraryItem>(
             setOnItemClickListener { _, _, position, _ ->
                 val index = indexAt(position) ?: return@setOnItemClickListener
                 selectedIndex = index
-                updateSelectionHighlight()
+                focusGames()
                 notifySelection()
                 openDetail(entries[index])
             }
             setOnItemLongClickListener { _, _, position, _ ->
                 val index = indexAt(position) ?: return@setOnItemLongClickListener false
                 selectedIndex = index
-                updateSelectionHighlight()
+                focusGames()
                 details(entries[index])
                 true
             }
@@ -611,6 +615,14 @@ class LibraryScreen<T : LibraryItem>(
             ?: unique(playable.filter { it.displayName.contains(needle, ignoreCase = true) })
     }
     fun moveSelection(delta: Int) {
+        if (headerSelection >= 0) {
+            if (delta > 0) focusGames()
+            return
+        }
+        if (delta < 0 && (entries.isEmpty() || selectedIndex == 0)) {
+            focusHeader(lastHeaderSelection)
+            return
+        }
         if (entries.isEmpty()) return
         val next = (selectedIndex + delta).coerceIn(0, entries.lastIndex)
         if (next == selectedIndex) {
@@ -621,6 +633,38 @@ class LibraryScreen<T : LibraryItem>(
         updateSelectionHighlight()
         requestSelectionVisibility()
         notifySelection()
+    }
+
+    private fun focusHeader(index: Int) {
+        headerSelection = index.coerceIn(0, 1)
+        lastHeaderSelection = headerSelection
+        val button = if (headerSelection == 0) menuButton else searchButton
+        button.isFocusableInTouchMode = true
+        button.requestFocusFromTouch()
+        updateSelectionHighlight()
+    }
+
+    private fun focusGames() {
+        headerSelection = -1
+        isFocusableInTouchMode = true
+        requestFocus()
+        updateSelectionHighlight()
+        requestSelectionVisibility()
+    }
+
+    fun moveHeaderSelection(delta: Int) {
+        if (headerSelection >= 0) focusHeader(headerSelection + delta)
+    }
+
+    fun leaveHeader(): Boolean {
+        if (headerSelection < 0) return false
+        focusGames()
+        return true
+    }
+
+    fun leaveSearch(up: Boolean) {
+        dismissSearchKeyboard()
+        if (up) focusHeader(1)
     }
 
     private fun requestSelectionVisibility() {
@@ -635,7 +679,7 @@ class LibraryScreen<T : LibraryItem>(
         for (index in 0 until list.childCount) {
             val child = list.getChildAt(index)
             val row = child.tag as? Row ?: continue
-            child.isActivated = row.index == selectedIndex
+            child.isActivated = headerSelection < 0 && row.index == selectedIndex
         }
     }
 
@@ -669,6 +713,10 @@ class LibraryScreen<T : LibraryItem>(
         return false
     }
     fun activateSelection() {
+        if (headerSelection >= 0) {
+            (if (headerSelection == 0) menuButton else searchButton).performClick()
+            return
+        }
         entries.getOrNull(selectedIndex)?.let(::openDetail)
     }
     fun detailsSelection() { entries.getOrNull(selectedIndex)?.let(details) }
@@ -707,11 +755,7 @@ class LibraryScreen<T : LibraryItem>(
         if (!actionsOpen) return false
         actionsOpen = false
         actionItems.forEach { it.isSelected = false; it.isPressed = false }
-        // Hiding a focused drawer lets Android focus the first header button,
-        // leaving Menu highlighted beside the library's selected game. Return
-        // focus to the library itself; shared navigation owns its game cursor.
-        isFocusableInTouchMode = true
-        requestFocus()
+        if (headerSelection >= 0) focusHeader(headerSelection) else focusGames()
         scrim.animate().cancel()
         actionsScroll.animate().cancel()
         scrim.animate().alpha(0f).setDuration(160).withEndAction {
@@ -773,8 +817,7 @@ class LibraryScreen<T : LibraryItem>(
     fun dismissSearchKeyboard(): Boolean {
         if (!search.hasFocus()) return false
         // Give focus a stable destination so Android cannot immediately refocus the editor.
-        isFocusableInTouchMode = true
-        requestFocus()
+        focusGames()
         dismissSystemKeyboard()
         return true
     }

@@ -32,7 +32,11 @@ object FrontendNavigation {
                     screen.dismissSearchKeyboard()
                 return true
             }
-            // Text cursor navigation belongs to Android while the search field is focused.
+            if (control == "up" || control == "down") {
+                if (event.action == KeyEvent.ACTION_DOWN) screen.leaveSearch(control == "up")
+                return true
+            }
+            // Horizontal text cursor navigation belongs to Android.
             return false
         }
         if (screen.detailOpen) {
@@ -57,9 +61,11 @@ object FrontendNavigation {
         if (event.action == KeyEvent.ACTION_DOWN) when (control) {
             "down" -> screen.moveSelection(1)
             "up" -> screen.moveSelection(-1)
+            "left" -> screen.moveHeaderSelection(-1)
+            "right" -> screen.moveHeaderSelection(1)
             "a" -> if (event.repeatCount == 0) screen.activateSelection()
             "menu" -> if (event.repeatCount == 0) screen.openActions()
-            "b" -> if (event.repeatCount == 0) back()
+            "b" -> if (event.repeatCount == 0 && !screen.leaveHeader()) back()
         }
         return true
     }

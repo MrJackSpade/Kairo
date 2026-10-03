@@ -53,6 +53,7 @@ class FrontendBackCoordinator(
             if (library.dismissSearchKeyboard()) return
             if (library.closeDetail()) return
             if (library.closeActions()) return
+            if (library.leaveHeader()) return
             onLibraryRoot()
             return
         }

@@ -102,6 +102,48 @@ object CatalogProgressFixture {
                 check(!menu.isShowing && screen.actionsOpen)
                 screen.closeActions()
             }
+            ui {
+                fun nav(code: Int) {
+                    for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
+                        activity.dispatchKeyEvent(android.view.KeyEvent(action, code))
+                }
+                screen.leaveHeader()
+                screen.moveSelection(-100000)
+                screen.leaveHeader()
+                nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                check((field(screen, "menuButton") as View).hasFocus()) { "Up cannot reach Menu" }
+                nav(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+                check(screen.actionsOpen)
+                nav(android.view.KeyEvent.KEYCODE_BACK)
+                check(!screen.actionsOpen && (field(screen, "menuButton") as View).hasFocus())
+                nav(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+                check((field(screen, "searchButton") as View).hasFocus()) { "Right cannot reach Search" }
+                nav(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+                check(screen.searchFocused) { "Confirm did not open Search" }
+                nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                check(!screen.searchFocused && (field(screen, "searchButton") as View).hasFocus())
+                val now = android.os.SystemClock.uptimeMillis()
+                val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
+                val coords = arrayOf(android.view.MotionEvent.PointerCoords().apply {
+                    setAxisValue(android.view.MotionEvent.AXIS_HAT_X, -1f)
+                })
+                val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
+                    1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
+                activity.dispatchGenericMotionEvent(event)
+                event.recycle()
+                coords[0].setAxisValue(android.view.MotionEvent.AXIS_HAT_X, 0f)
+                val neutral = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
+                    1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
+                activity.dispatchGenericMotionEvent(neutral)
+                neutral.recycle()
+                check((field(screen, "menuButton") as View).hasFocus()) { "Hat cannot move across header" }
+                nav(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                check(field(screen, "headerSelection") == -1 && field(screen, "selectedIndex") == 0)
+                nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                nav(android.view.KeyEvent.KEYCODE_BACK)
+                check(field(screen, "headerSelection") == -1) { "Back did not leave header" }
+            }
+            test.sendStatus(0, android.os.Bundle().apply { putString("stream", "Header Menu/Search key/hat navigation and return: OK\n") })
             // Reproduce the ANR: the real catalog monitor is held by indexing while
             // UI navigation, visibility refresh and detail rendering need metadata.
             val catalog = field(screen, "catalog")!!
