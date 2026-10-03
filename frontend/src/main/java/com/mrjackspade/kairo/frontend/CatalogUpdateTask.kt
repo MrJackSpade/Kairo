@@ -3,11 +3,11 @@ package com.mrjackspade.kairo.frontend
 import java.util.concurrent.CancellationException
 
 enum class CatalogUpdateState(val label: String, val busy: Boolean) {
-    CHECKING("Checking game catalog…", true),
-    DOWNLOADING("Downloading game catalog…", true),
-    APPLYING("Applying game catalog…", true),
-    CURRENT("Game catalog is current", false),
-    UPDATED("Game catalog updated", false),
+    CHECKING("Checking catalogs…", true),
+    DOWNLOADING("Downloading catalogs…", true),
+    APPLYING("Applying catalogs…", true),
+    CURRENT("Catalogs are current", false),
+    UPDATED("Catalogs updated", false),
     FAILED("Catalog check failed", false)
 }
 

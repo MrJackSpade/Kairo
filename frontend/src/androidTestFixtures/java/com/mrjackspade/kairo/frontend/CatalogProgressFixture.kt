@@ -59,6 +59,49 @@ object CatalogProgressFixture {
                 spinner = field(screen, "catalogProgress") as View
                 label = field(screen, "catalogStatus") as TextView
             }
+            lateinit var menu: android.app.AlertDialog
+            fun texts(view: View): List<String> = when (view) {
+                is TextView -> listOf(view.text.toString())
+                is android.view.ViewGroup -> (0 until view.childCount).flatMap { texts(view.getChildAt(it)) }
+                else -> emptyList()
+            }
+            fun key(code: Int) {
+                for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
+                    menu.window!!.callback.dispatchKeyEvent(android.view.KeyEvent(action, code))
+            }
+            ui {
+                screen.openActions()
+                @Suppress("UNCHECKED_CAST")
+                val rows = field(screen, "actionItems") as List<View>
+                check(rows.flatMap(::texts).none { it in setOf("Update game catalog", "Update installed catalogs", "Import catalog file", "Remove catalog", "Download missing images") })
+                rows.single { "Catalog management" in texts(it) }.performClick()
+                menu = field(screen, "catalogManagementDialog") as android.app.AlertDialog
+                check((0 until menu.listView.count).map { menu.listView.adapter.getItem(it).toString() } ==
+                    listOf("Update catalogs", "Import catalog file", "Remove catalog", "Download missing images"))
+            }
+            Thread.sleep(200) // Allow the new dialog window to acquire input focus.
+            ui { menu.listView.requestFocusFromTouch(); menu.listView.setSelection(0) }
+            repeat(3) { test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_DPAD_DOWN); test.waitForIdleSync() }
+            ui { check(menu.listView.selectedItemPosition == 3) { "D-pad selected ${menu.listView.selectedItemPosition}" } }
+            ui {
+                val now = android.os.SystemClock.uptimeMillis()
+                val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
+                val coords = arrayOf(android.view.MotionEvent.PointerCoords().apply {
+                    setAxisValue(android.view.MotionEvent.AXIS_HAT_Y, -1f)
+                })
+                val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
+                    1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
+                menu.window!!.callback.dispatchGenericMotionEvent(event)
+                event.recycle()
+            }
+            ui {
+                check(menu.listView.selectedItemPosition == 2)
+                key(android.view.KeyEvent.KEYCODE_BACK)
+            }
+            ui {
+                check(!menu.isShowing && screen.actionsOpen)
+                screen.closeActions()
+            }
             val gates = List(3) { CountDownLatch(1) }
             ui { create { task ->
                 check(Looper.myLooper() != Looper.getMainLooper())
@@ -108,6 +151,29 @@ object CatalogProgressFixture {
             awaitState(null)
             ui { check(changed == 1); create { false }.check(true) }
             awaitState(CatalogUpdateState.CURRENT)
+            val beforeCombined = changed
+            var installedChecks = 0
+            ui {
+                controller = CatalogUpdateController(activity, { false }, {}, { changed++ }, {},
+                    screen::showCatalogUpdate, { installedChecks++; true })
+                controller!!.check(false)
+            }
+            awaitState(CatalogUpdateState.UPDATED)
+            ui { check(changed == beforeCombined + 1 && installedChecks == 1) }
+            ui {
+                controller = CatalogUpdateController(activity, { error("Core unavailable") }, {},
+                    { changed++ }, {}, screen::showCatalogUpdate, { installedChecks++; true })
+                controller!!.check(false)
+            }
+            awaitState(CatalogUpdateState.FAILED)
+            ui { check(changed == beforeCombined + 2 && installedChecks == 2) }
+            ui {
+                controller = CatalogUpdateController(activity, { true }, {}, { changed++ }, {},
+                    screen::showCatalogUpdate, { error("Installed source unavailable") })
+                controller!!.check(false)
+            }
+            awaitState(CatalogUpdateState.FAILED)
+            ui { check(changed == beforeCombined + 3) }
             snapshot(test)
         } finally {
             ui { controller?.cancel(); activity.finish() }

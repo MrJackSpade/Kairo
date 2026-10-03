@@ -9,7 +9,8 @@ class CatalogUpdateController(
     private val showStatus: (String) -> Unit,
     private val onChanged: () -> Unit,
     private val onSilentChanged: () -> Unit,
-    private val showProgress: (CatalogUpdateState?) -> Unit
+    private val showProgress: (CatalogUpdateState?) -> Unit,
+    private val fetchInstalled: ((CatalogUpdateTask) -> Boolean)? = null
 ) {
     private var task: CatalogUpdateTask? = null
     private var worker: Thread? = null
@@ -33,12 +34,20 @@ class CatalogUpdateController(
         } }
         task = current
         showProgress(CatalogUpdateState.CHECKING)
-        if (!silent) showStatus("Checking game catalog…")
+        if (!silent) showStatus("Checking catalogs…")
         worker = Thread {
             var changed = false
             var failure: String? = null
             try { changed = fetch(current) }
             catch (error: Exception) { failure = error.message ?: "Unknown error" }
+            // A failed core feed must not prevent an installed catalog from updating.
+            // Preserve partial successes so their metadata is refreshed in the UI.
+            try {
+                current.ensureActive()
+                if (fetchInstalled?.invoke(current) == true) changed = true
+            } catch (error: Exception) {
+                failure = listOfNotNull(failure, error.message ?: "Unknown error").joinToString("; ")
+            }
             activity.runOnUiThread {
                 if (task !== current) return@runOnUiThread
                 task = null
@@ -51,9 +60,9 @@ class CatalogUpdateController(
                         else -> CatalogUpdateState.CURRENT
                     })
                     if (!silent) showStatus(when {
-                        failure != null -> "Catalog update failed: $failure"
-                        changed -> "Game catalog updated"
-                        else -> "Game catalog is already current"
+                        failure != null -> "Catalog update ${if (changed) "partially completed" else "failed"}: $failure"
+                        changed -> "Catalogs updated"
+                        else -> "Catalogs are already current"
                     })
                     else if (changed) onSilentChanged()
                 }

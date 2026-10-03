@@ -65,6 +65,7 @@ class LibraryScreen<T : LibraryItem>(
     private val selectionChanged: (T?) -> Unit
 ) : FrameLayout(context) {
     private var reportedSelection: String? = "none"
+    private var catalogManagementDialog: android.app.AlertDialog? = null
     private val catalogInstaller by lazy { catalog.installedCatalogs?.let {
         CatalogInstallController(context as android.app.Activity, it, {
             artCache.evictAll()
@@ -444,14 +445,7 @@ class LibraryScreen<T : LibraryItem>(
         drawerAction(strings.selectFolder, strings.folderHint, chooseFolder)
         drawerAction("Refresh", "Scan for added, changed, or removed games", refresh)
         drawerAction("Rehash", "Recheck every game image", rehash)
-        drawerAction("Update game catalog", "Fetch game details and controller defaults", updateCatalog)
-        if (catalog.installedCatalogs != null) {
-            drawerAction("Import catalog file", "Select a catalog file from this device") { catalogInstaller?.chooseFile() }
-            drawerAction("Update installed catalogs", "Check catalogs you have installed") { catalogInstaller?.update() }
-            drawerAction("Remove catalog", "Manage installed catalogs") { catalogInstaller?.remove() }
-        }
-        if (downloadMissingImages != null) drawerAction("Download missing images",
-            "Fetch artwork for games in this library", downloadMissingImages)
+        drawerAction("Catalog management", "Update catalogs, import files, and manage artwork", ::showCatalogManagement)
         actionsDrawer.addView(Ui.sectionLabel(context, "SETTINGS"))
         settings.forEach { entry ->
             settingValues.add(drawerAction(entry.title, entry.value(), entry.action) to entry.value)
@@ -459,7 +453,37 @@ class LibraryScreen<T : LibraryItem>(
         addView(detailPage, FrameLayout.LayoutParams(-1, -1))
     }
 
+    private fun showCatalogManagement() {
+        if (catalogManagementDialog?.isShowing == true) return
+        val actions = mutableListOf<Pair<String, () -> Unit>>("Update catalogs" to updateCatalog)
+        if (catalog.installedCatalogs != null) {
+            actions += "Import catalog file" to { catalogInstaller?.chooseFile(); Unit }
+            actions += "Remove catalog" to { catalogInstaller?.remove(); Unit }
+        }
+        downloadMissingImages?.let { actions += "Download missing images" to it }
+        val dialog = android.app.AlertDialog.Builder(context).setTitle("Catalog management")
+            .setItems(actions.map { it.first }.toTypedArray(), null)
+            .setNegativeButton("Back") { _, _ -> openActions() }
+            .create()
+        dialog.setOnCancelListener { openActions() }
+        catalogManagementDialog = dialog
+        dialog.setOnDismissListener { catalogManagementDialog = null }
+        dialog.show()
+        Ui.styleDialog(dialog)
+        dialog.listView.setOnItemClickListener { _, _, index, _ ->
+            // Keep the parent menu underneath the removal picker/confirmation.
+            if (actions[index].first != "Remove catalog") dialog.dismiss()
+            actions[index].second()
+        }
+    }
+
     fun showFolder(label: String?) { folder.text = label ?: strings.noFolder }
+    fun refreshCatalog() {
+        artCache.evictAll()
+        missingArt.clear()
+        showEntries(catalogEntries)
+        detailPage.refreshArtwork()
+    }
     fun showCatalogUpdate(state: CatalogUpdateState?) {
         val version = ++catalogStatusVersion
         catalogBanner.visibility = if (state == null) View.GONE else View.VISIBLE

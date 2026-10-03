@@ -28,14 +28,14 @@ class CatalogInstallController(private val activity: Activity, private val store
         } }
         return true
     }
-    fun update() = run("Updating installed catalogs…") {
-        if (store.update(CatalogUpdateTask { state -> activity.runOnUiThread { progress(state) } }))
-            "Installed catalogs updated" else "Installed catalogs are up to date"
-    }
     fun remove() {
         if (busy) return
         val catalogs = store.catalogs()
-        if (catalogs.isEmpty()) { Ui.message(activity, "No installed catalogs"); return }
+        if (catalogs.isEmpty()) {
+            AlertDialog.Builder(activity).setTitle("Remove catalog").setMessage("No installed catalogs")
+                .setPositiveButton("Back", null).create().also { it.show(); Ui.styleDialog(it) }
+            return
+        }
         AlertDialog.Builder(activity).setTitle("Remove catalog")
             .setItems(catalogs.map { it.name }.toTypedArray()) { _, index ->
                 val catalog = catalogs[index]
