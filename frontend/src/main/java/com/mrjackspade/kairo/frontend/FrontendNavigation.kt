@@ -40,11 +40,13 @@ object FrontendNavigation {
             return false
         }
         if (screen.detailOpen) {
-            if (control !in setOf("a", "b", "menu")) return false
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) when (control) {
-                "a" -> screen.activateDetail()
-                "menu" -> screen.detailsSelection()
-                else -> screen.closeDetail()
+            if (control !in setOf("up", "down", "left", "right", "a", "b", "menu")) return false
+            if (event.action == KeyEvent.ACTION_DOWN) when (control) {
+                "up", "left" -> screen.moveDetailSelection(-1)
+                "down", "right" -> screen.moveDetailSelection(1)
+                "a" -> if (event.repeatCount == 0) screen.activateDetail()
+                "menu" -> if (event.repeatCount == 0) screen.detailsSelection()
+                "b" -> if (event.repeatCount == 0) screen.closeDetail()
             }
             return true
         }

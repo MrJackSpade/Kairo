@@ -78,10 +78,13 @@ object TouchStickFixture {
                     check(axis(left, "stickX") == 0f && axis(left, "stickY") == 0f)
                     event(right, MotionEvent.ACTION_CANCEL, 0f, 0f)
                     check(keys.pressedKeys().isEmpty() && axis(right, "stickX") == 0f)
-                    // Preserve a rendered view of the default layout and rim-clipped thumb.
+                    // Preserve a rendered view and verify the thumb extends outside its view/ring.
                     event(left, MotionEvent.ACTION_DOWN, left.width.toFloat(), left.height / 2f)
                     val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
                     Canvas(bitmap).also { it.drawColor(0xff18212a.toInt()); root.draw(it) }
+                    check(bitmap.getPixel(left.right + Ui.dp(activity, 8), left.top + left.height / 2) == 0xffd8e8ef.toInt()) {
+                        "Thumb is clipped at the outer ring/view bounds"
+                    }
                     File(activity.cacheDir, "touch-sticks-$w.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
                     bitmap.recycle()
                     controls.refreshVisibility(false)

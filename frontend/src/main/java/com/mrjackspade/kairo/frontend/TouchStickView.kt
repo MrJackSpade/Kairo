@@ -3,7 +3,6 @@ package com.mrjackspade.kairo.frontend
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.hypot
@@ -12,7 +11,6 @@ import kotlin.math.min
 /** A pointer-owned circle pad. Its thumb center can reach, but never cross, the rim. */
 class TouchStickView(context: Context, private val moved: (Float, Float) -> Unit) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val circle = Path()
     private var pointer = -1
     private var stickX = 0f
     private var stickY = 0f
@@ -61,17 +59,14 @@ class TouchStickView(context: Context, private val moved: (Float, Float) -> Unit
         paint.style = Paint.Style.FILL
         paint.color = 0x55253344
         canvas.drawCircle(cx, cy, r, paint)
-        circle.reset()
-        circle.addCircle(cx, cy, r, Path.Direction.CW)
-        val save = canvas.save()
-        canvas.clipPath(circle)
-        paint.color = 0xffd8e8ef.toInt()
-        canvas.drawCircle(cx + stickX * r, cy + stickY * r, r * .36f, paint)
-        canvas.restoreToCount(save)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = Ui.dp(context, 2).toFloat()
         paint.color = 0xccffffff.toInt()
         canvas.drawCircle(cx, cy, r, paint)
+        // The thumb center is bounded; its full circle deliberately overhangs the rim.
+        paint.style = Paint.Style.FILL
+        paint.color = 0xffd8e8ef.toInt()
+        canvas.drawCircle(cx + stickX * r, cy + stickY * r, r * .36f, paint)
     }
 
     override fun onDetachedFromWindow() {

@@ -193,9 +193,8 @@ class GameDetailPage<T : LibraryItem>(
         visibility = View.VISIBLE
         if (!refresh) {
             scroll.scrollTo(0, 0)
-            if (entry.playable) playButton.requestFocus()
-            else settingsButton.requestFocus()
-        } else if (!playButton.isEnabled && playButton.hasFocus()) settingsButton.requestFocus()
+            focusAction(if (entry.playable) playButton else settingsButton)
+        } else if (!playButton.isEnabled && playButton.hasFocus()) focusAction(settingsButton)
 
         val generation = ++imageGeneration
         loadImage(game.boxArt, generation, 2) { bitmap ->
@@ -239,6 +238,28 @@ class GameDetailPage<T : LibraryItem>(
     fun refreshArtwork() { currentEntry?.let(::show) }
 
     fun playSelected() { currentEntry?.takeIf { it.playable }?.let(play) }
+
+    /** Explicit traversal also handles hat events, which never go through Android focus search. */
+    fun moveSelection(delta: Int) {
+        val actions = listOf(backButton, imagePanel, playButton, settingsButton)
+            .filter { it.isEnabled && it.visibility == View.VISIBLE }
+        val current = actions.indexOfFirst { it.hasFocus() }
+        val next = if (current < 0) actions.indexOf(playButton).coerceAtLeast(0)
+            else (current + delta).coerceIn(0, actions.lastIndex)
+        if (current == next && delta > 0) scroll.smoothScrollBy(0, dp(96))
+        else focusAction(actions[next])
+    }
+
+    private fun focusAction(view: View) {
+        view.isFocusableInTouchMode = true
+        view.requestFocusFromTouch()
+        fun reveal() {
+            if (isOpen && view.hasFocus())
+                view.requestRectangleOnScreen(android.graphics.Rect(0, 0, view.width, view.height), true)
+        }
+        reveal()
+        view.post { reveal() }
+    }
 
     fun activateFocused() {
         when {

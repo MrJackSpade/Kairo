@@ -89,6 +89,8 @@ class OnScreenControls(
         isClickable = false
         isFocusable = false
         setMotionEventSplittingEnabled(true)
+        clipChildren = false
+        clipToPadding = false
     }
     private var page: LinearLayout? = null
     private var settingsBody: LinearLayout? = null
@@ -296,6 +298,8 @@ class OnScreenControls(
     private fun showArrangement() {
         page?.visibility = View.GONE
         val layer = FrameLayout(activity).apply {
+            clipChildren = false
+            clipToPadding = false
             setBackgroundColor(0x33000000)
             isClickable = true
             elevation = dp(22).toFloat()

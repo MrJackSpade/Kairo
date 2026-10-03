@@ -735,6 +735,7 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     fun activateDetail() { detailPage.activateFocused() }
+    fun moveDetailSelection(delta: Int) { detailPage.moveSelection(delta) }
 
     fun openActions() {
         if (actionsOpen) return

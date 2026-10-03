@@ -144,6 +144,63 @@ object CatalogProgressFixture {
                 check(field(screen, "headerSelection") == -1) { "Back did not leave header" }
             }
             test.sendStatus(0, android.os.Bundle().apply { putString("stream", "Header Menu/Search key/hat navigation and return: OK\n") })
+            lateinit var detail: GameDetailPage<*>
+            fun detailKey(code: Int) {
+                for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
+                    activity.dispatchKeyEvent(android.view.KeyEvent(action, code))
+            }
+            ui {
+                screen.activateSelection()
+                check(screen.detailOpen)
+                detail = field(screen, "detailPage") as GameDetailPage<*>
+                check((field(detail, "playButton") as View).hasFocus())
+                detailKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                check((field(detail, "settingsButton") as View).hasFocus()) { "Cannot navigate to Game settings" }
+                detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                check((field(detail, "playButton") as View).hasFocus()) { "Cannot return to Play" }
+                val now = android.os.SystemClock.uptimeMillis()
+                val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
+                val coords = arrayOf(android.view.MotionEvent.PointerCoords())
+                for (value in listOf(1f, 0f)) {
+                    coords[0].setAxisValue(android.view.MotionEvent.AXIS_HAT_Y, value)
+                    val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
+                        1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
+                    activity.dispatchGenericMotionEvent(event)
+                    event.recycle()
+                }
+                check((field(detail, "settingsButton") as View).hasFocus()) { "Hat cannot navigate game details" }
+                detailKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+            }
+            // The actual product settings sheet must open and return to the same detail button.
+            Thread.sleep(200)
+            test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+            test.waitForIdleSync()
+            ui {
+                check(screen.detailOpen && (field(detail, "settingsButton") as View).hasFocus())
+                detail.javaClass.getDeclaredMethod("updateHeroLayout", Boolean::class.javaPrimitiveType)
+                    .apply { isAccessible = true }.invoke(detail, true)
+            }
+            ui {
+                detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                detailKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            }
+            ui {
+                val settings = field(detail, "settingsButton") as View
+                val visible = android.graphics.Rect()
+                check(settings.getGlobalVisibleRect(visible) && visible.height() == settings.height) {
+                    "Focused detail action remains off screen"
+                }
+                repeat(4) { detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP) }
+                check((field(detail, "backButton") as View).hasFocus())
+                detailKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+                check(!screen.detailOpen)
+                detail.javaClass.getDeclaredMethod("updateHeroLayout", Boolean::class.javaPrimitiveType)
+                    .apply { isAccessible = true }.invoke(detail, activity.resources.configuration.orientation ==
+                        android.content.res.Configuration.ORIENTATION_PORTRAIT)
+            }
+            test.sendStatus(0, android.os.Bundle().apply {
+                putString("stream", "Game details key/hat traversal, settings return and off-screen focus: OK\n")
+            })
             // Reproduce the ANR: the real catalog monitor is held by indexing while
             // UI navigation, visibility refresh and detail rendering need metadata.
             val catalog = field(screen, "catalog")!!
