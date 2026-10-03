@@ -92,7 +92,7 @@ class LibraryScreen<T : LibraryItem>(
     private val actionsScroll = ScrollView(context)
     private val actionsDrawer = LinearLayout(context)
     private val actionItems = ArrayList<View>()
-    private val detailPage = GameDetailPage<T>(context, catalog, play, preview, details) { closeDetail() }
+    private val detailPage = GameDetailPage<T>(context, catalog, play, preview, details, { closeDetail() }, ::metadata)
     private val settingValues = ArrayList<Pair<TextView, () -> String>>()
     private val searchRow = LinearLayout(context)
     private val search = object : android.widget.EditText(context) {
@@ -111,12 +111,24 @@ class LibraryScreen<T : LibraryItem>(
     private val rowMetadata = HashMap<String, LibraryGame>()
     private val searchIndex = LibrarySearchIndex<T>(catalog, { action -> post(action) }) { records ->
         rowMetadata.putAll(records)
+        adapter.notifyDataSetChanged()
+        if (entries.getOrNull(selectedIndex)?.id in records) reannounceSelection()
+        if (detailOpen && detailEntryId in records) {
+            allEntries.firstOrNull { it.id == detailEntryId }?.let(detailPage::show)
+        }
     }
     private var searchSnapshot = 0L
     /** Reuse the row snapshot for selection previews instead of rereading catalog shards. */
-    fun metadata(entry: T): LibraryGame = rowMetadata.getOrPut(entry.id) {
-        catalog.resolve(entry.contentId ?: "", entry.displayName)
+    // UI rendering and D-pad selection must never wait for the catalog's worker lock.
+    fun metadata(entry: T): LibraryGame = rowMetadata[entry.id] ?: object : LibraryGame {
+        override val title = entry.displayName
+        override val description: String? = null
+        override val boxArt: String? = null
+        override val preview: String? = null
+        override val tags = emptyList<String>()
     }
+    private var visibilityExecutor: java.util.concurrent.ExecutorService? = null
+    @Volatile private var entriesGeneration = 0L
     private var pinnedId: String? = null
     private var detailEntryId: String? = null
     private var selectedAction = 0
@@ -531,11 +543,26 @@ class LibraryScreen<T : LibraryItem>(
     }
     fun showEntries(items: List<T>) {
         catalogEntries = items
-        // Scans, catalog updates and metadata edits arrive as a new snapshot.
-        rowMetadata.clear()
-        allEntries = items.filterNot { entry ->
-            entry.contentId?.let(catalog::hiddenFromLibrary) == true
+        val generation = ++entriesGeneration
+        // Invalidate pending metadata results, retaining the displayed snapshot while
+        // the replacement's visibility flags are read on a worker.
+        searchSnapshot++
+        searchIndex.replace(emptyList(), emptyMap())
+        val worker = visibilityExecutor ?: Executors.newSingleThreadExecutor().also { visibilityExecutor = it }
+        worker.execute {
+            val visible = items.filterNot { entry ->
+                if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
+                entry.contentId?.let(catalog::hiddenFromLibrary) == true
+            }
+            post {
+                if (generation == entriesGeneration) publishEntries(visible)
+            }
         }
+    }
+
+    private fun publishEntries(visible: List<T>) {
+        allEntries = visible
+        rowMetadata.keys.retainAll(visible.map { it.id }.toSet())
         pinnedId = lastPlayedId()?.takeIf { id -> allEntries.any { it.id == id } }
         reportedSelection = "none"
         resetSearchIndex()
@@ -780,7 +807,7 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     private fun resetSearchIndex() {
-        searchIndex.replace(allEntries, rowMetadata)
+        searchIndex.replace(allEntries, emptyMap())
         val generation = ++searchSnapshot
         postOnAnimation { post {
             if (generation == searchSnapshot && isAttachedToWindow) searchIndex.warm()
@@ -857,13 +884,13 @@ class LibraryScreen<T : LibraryItem>(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (allEntries.isNotEmpty()) {
-            resetSearchIndex()
-            applyFilter()
-        }
+        if (catalogEntries.isNotEmpty()) showEntries(catalogEntries)
     }
 
     override fun onDetachedFromWindow() {
+        entriesGeneration++
+        visibilityExecutor?.shutdownNow()
+        visibilityExecutor = null
         searchSnapshot++
         searchIndex.close()
         selectionVisibilityPending = false

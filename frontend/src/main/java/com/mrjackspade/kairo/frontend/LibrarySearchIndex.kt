@@ -34,16 +34,26 @@ internal class LibrarySearchIndex<T : LibraryItem>(
     private fun build(source: Snapshot<T>): List<Row<T>>? {
         source.rows?.let { return it }
         val rows = ArrayList<Row<T>>(source.entries.size)
+        val pending = HashMap<String, LibraryGame>()
+        var publishedAt = android.os.SystemClock.uptimeMillis()
+        fun publishPending() {
+            if (pending.isEmpty()) return
+            val records = pending.toMap()
+            pending.clear()
+            post { if (snapshot === source && !source.cancelled) indexed(records) }
+            publishedAt = android.os.SystemClock.uptimeMillis()
+        }
         for (entry in source.entries) {
             if (source.cancelled || Thread.currentThread().isInterrupted) return null
             val name = entry.displayName
             val game = source.metadata.getOrPut(entry.id) { catalog.resolve(entry.contentId ?: "", name) }
             rows.add(Row(entry, game.title, name))
+            pending[entry.id] = game
+            if (android.os.SystemClock.uptimeMillis() - publishedAt >= 100) publishPending()
         }
         if (source.cancelled) return null
         source.rows = rows
-        val records = source.metadata.toMap()
-        post { if (snapshot === source && !source.cancelled) indexed(records) }
+        publishPending()
         return rows
     }
 

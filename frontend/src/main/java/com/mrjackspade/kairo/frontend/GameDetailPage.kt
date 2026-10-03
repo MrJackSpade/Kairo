@@ -21,7 +21,8 @@ class GameDetailPage<T : LibraryItem>(
     private val play: (T) -> Unit,
     private val viewScreenshot: (T) -> Unit,
     private val settings: (T) -> Unit,
-    private val back: () -> Unit
+    private val back: () -> Unit,
+    private val metadata: (T) -> LibraryGame
 ) : FrameLayout(context) {
     private val imagePanel = FrameLayout(context)
     private val image = ImageView(context)
@@ -162,7 +163,7 @@ class GameDetailPage<T : LibraryItem>(
         // A library rescan or artwork refresh re-shows the open game; keep the user's place.
         val refresh = isOpen && currentEntry?.id == entry.id
         currentEntry = entry
-        val game = catalog.resolve(entry.contentId ?: "", entry.displayName)
+        val game = metadata(entry)
         title.text = game.title
         tags.removeAllViews()
         tags.addView(tag(entry.mediaLabel),

@@ -102,6 +102,40 @@ object CatalogProgressFixture {
                 check(!menu.isShowing && screen.actionsOpen)
                 screen.closeActions()
             }
+            // Reproduce the ANR: the real catalog monitor is held by indexing while
+            // UI navigation, visibility refresh and detail rendering need metadata.
+            val catalog = field(screen, "catalog")!!
+            val locked = CountDownLatch(1)
+            val unlock = CountDownLatch(1)
+            val holder = Thread {
+                synchronized(catalog) { locked.countDown(); unlock.await(15, TimeUnit.SECONDS) }
+            }.apply { start() }
+            check(locked.await(20, TimeUnit.SECONDS))
+            val responsive = CountDownLatch(1)
+            var navigationFailure: Throwable? = null
+            val began = android.os.SystemClock.elapsedRealtime()
+            android.os.Handler(Looper.getMainLooper()).post {
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    (field(screen, "rowMetadata") as MutableMap<String, LibraryGame>).clear()
+                    val before = field(screen, "selectedIndex") as Int
+                    for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
+                        activity.dispatchKeyEvent(android.view.KeyEvent(action, android.view.KeyEvent.KEYCODE_DPAD_DOWN))
+                    check(field(screen, "selectedIndex") == before + 1) { "D-pad did not advance" }
+                    screen.activateSelection()
+                    check(screen.detailOpen)
+                    screen.closeDetail()
+                    screen.refreshCatalog()
+                } catch (error: Throwable) { navigationFailure = error }
+                finally { responsive.countDown() }
+            }
+            val passed = responsive.await(2, TimeUnit.SECONDS)
+            unlock.countDown()
+            holder.join(2000)
+            check(passed) { "UI waited for background catalog lock" }
+            navigationFailure?.let { throw it }
+            test.sendStatus(0, android.os.Bundle().apply { putString("stream",
+                "D-pad/detail/refresh with catalog locked: ${android.os.SystemClock.elapsedRealtime() - began}ms\n") })
             val gates = List(3) { CountDownLatch(1) }
             ui { create { task ->
                 check(Looper.myLooper() != Looper.getMainLooper())
@@ -175,6 +209,7 @@ object CatalogProgressFixture {
             awaitState(CatalogUpdateState.FAILED)
             ui { check(changed == beforeCombined + 3) }
             snapshot(test)
+            SearchIndexFixture.verify(test)
         } finally {
             ui { controller?.cancel(); activity.finish() }
         }
