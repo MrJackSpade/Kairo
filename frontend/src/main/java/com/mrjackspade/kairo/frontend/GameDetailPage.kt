@@ -22,7 +22,8 @@ class GameDetailPage<T : LibraryItem>(
     private val viewScreenshot: (T) -> Unit,
     private val settings: (T) -> Unit,
     private val back: () -> Unit,
-    private val metadata: (T) -> LibraryGame
+    private val metadata: (T) -> LibraryGame,
+    private val commandLaunch: ((T) -> Unit)? = null
 ) : FrameLayout(context) {
     private val imagePanel = FrameLayout(context)
     private val image = ImageView(context)
@@ -33,6 +34,13 @@ class GameDetailPage<T : LibraryItem>(
     private val tags = LinearLayout(context)
     private val description = Ui.text(context, "", Ui.BODY, Ui.TEXT_BODY)
     private val playButton = Ui.primaryButton(context, "Play", R.drawable.ic_play) { playSelected() }
+    private val launchRow = LinearLayout(context)
+    private val commandButton = Ui.iconButton(context, R.drawable.ic_terminal, "DOS prompt or run program") {
+        launchCommand()
+    }.apply {
+        visibility = if (commandLaunch == null) View.GONE else View.VISIBLE
+        background = Ui.focusable(context, Color.TRANSPARENT, Ui.LINE)
+    }
     private val settingsButton = Ui.secondaryButton(context, "Game settings", R.drawable.ic_tune) {
         currentEntry?.let(settings)
     }
@@ -116,7 +124,12 @@ class GameDetailPage<T : LibraryItem>(
         titles.addView(tags, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(6) })
         heading.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
         right.addView(heading, LinearLayout.LayoutParams(-1, 0, 1f))
-        right.addView(playButton, LinearLayout.LayoutParams(-1, dp(52)))
+        launchRow.orientation = LinearLayout.HORIZONTAL
+        launchRow.addView(playButton, LinearLayout.LayoutParams(0, -1, 2f))
+        launchRow.addView(commandButton, LinearLayout.LayoutParams(0, -1, 1f).apply {
+            marginStart = dp(8)
+        })
+        right.addView(launchRow, LinearLayout.LayoutParams(-1, dp(52)))
         right.addView(settingsButton, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
         unavailable.visibility = View.GONE
         unavailable.setPadding(0, dp(8), 0, 0)
@@ -148,7 +161,7 @@ class GameDetailPage<T : LibraryItem>(
             else LinearLayout.LayoutParams(0, -1, 0.85f)
         heading.layoutParams = LinearLayout.LayoutParams(-1, if (portrait) -2 else 0,
             if (portrait) 0f else 1f)
-        playButton.layoutParams = LinearLayout.LayoutParams(-1, dp(52)).apply {
+        launchRow.layoutParams = LinearLayout.LayoutParams(-1, dp(52)).apply {
             if (portrait) topMargin = dp(18)
         }
     }
@@ -177,6 +190,8 @@ class GameDetailPage<T : LibraryItem>(
         }
         description.text = game.description ?: "No description available yet."
         file.text = "File: " + fileLabel(entry)
+        commandButton.isEnabled = entry.playable
+        commandButton.alpha = if (entry.playable) 1f else 0.4f
         playButton.isEnabled = entry.playable
         playButton.alpha = if (entry.playable) 1f else 0.4f
         unavailable.text = if (entry.playable) "" else
@@ -194,7 +209,7 @@ class GameDetailPage<T : LibraryItem>(
         if (!refresh) {
             scroll.scrollTo(0, 0)
             focusAction(if (entry.playable) playButton else settingsButton)
-        } else if (!playButton.isEnabled && playButton.hasFocus()) focusAction(settingsButton)
+        } else if (!entry.playable && (playButton.hasFocus() || commandButton.hasFocus())) focusAction(settingsButton)
 
         val generation = ++imageGeneration
         loadImage(game.boxArt, generation, 2) { bitmap ->
@@ -239,9 +254,14 @@ class GameDetailPage<T : LibraryItem>(
 
     fun playSelected() { currentEntry?.takeIf { it.playable }?.let(play) }
 
+    private fun launchCommand() {
+        val action = commandLaunch ?: return
+        currentEntry?.takeIf { it.playable }?.let(action)
+    }
+
     /** Explicit traversal also handles hat events, which never go through Android focus search. */
     fun moveSelection(delta: Int) {
-        val actions = listOf(backButton, imagePanel, playButton, settingsButton)
+        val actions = listOf(backButton, imagePanel, playButton, commandButton, settingsButton)
             .filter { it.isEnabled && it.visibility == View.VISIBLE }
         val current = actions.indexOfFirst { it.hasFocus() }
         val next = if (current < 0) actions.indexOf(playButton).coerceAtLeast(0)
@@ -265,6 +285,7 @@ class GameDetailPage<T : LibraryItem>(
         when {
             backButton.hasFocus() -> back()
             imagePanel.hasFocus() -> currentEntry?.let(viewScreenshot)
+            commandButton.hasFocus() -> launchCommand()
             settingsButton.hasFocus() -> currentEntry?.let(settings)
             else -> playSelected()
         }

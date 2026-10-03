@@ -155,13 +155,19 @@ object CatalogProgressFixture {
                 detail = field(screen, "detailPage") as GameDetailPage<*>
                 check((field(detail, "playButton") as View).hasFocus())
                 detailKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                val command = field(detail, "commandButton") as View
+                if (command.visibility == View.VISIBLE) {
+                    check(command.hasFocus()) { "Cannot navigate to command launch" }
+                    detailKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                }
                 check((field(detail, "settingsButton") as View).hasFocus()) { "Cannot navigate to Game settings" }
                 detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                if (command.visibility == View.VISIBLE) detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
                 check((field(detail, "playButton") as View).hasFocus()) { "Cannot return to Play" }
                 val now = android.os.SystemClock.uptimeMillis()
                 val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
                 val coords = arrayOf(android.view.MotionEvent.PointerCoords())
-                for (value in listOf(1f, 0f)) {
+                for (value in if (command.visibility == View.VISIBLE) listOf(1f, 0f, 1f, 0f) else listOf(1f, 0f)) {
                     coords[0].setAxisValue(android.view.MotionEvent.AXIS_HAT_Y, value)
                     val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
                         1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
@@ -190,7 +196,7 @@ object CatalogProgressFixture {
                 check(settings.getGlobalVisibleRect(visible) && visible.height() == settings.height) {
                     "Focused detail action remains off screen"
                 }
-                repeat(4) { detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP) }
+                repeat(5) { detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP) }
                 check((field(detail, "backButton") as View).hasFocus())
                 detailKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
                 check(!screen.detailOpen)

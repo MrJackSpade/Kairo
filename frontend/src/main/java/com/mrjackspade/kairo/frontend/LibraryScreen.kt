@@ -62,7 +62,8 @@ class LibraryScreen<T : LibraryItem>(
     private val play: (T) -> Unit,
     private val preview: (T) -> Unit,
     private val details: (T) -> Unit,
-    private val selectionChanged: (T?) -> Unit
+    private val selectionChanged: (T?) -> Unit,
+    commandLaunch: ((T) -> Unit)? = null
 ) : FrameLayout(context) {
     private var reportedSelection: String? = "none"
     private var catalogManagementDialog: android.app.AlertDialog? = null
@@ -92,7 +93,7 @@ class LibraryScreen<T : LibraryItem>(
     private val actionsScroll = ScrollView(context)
     private val actionsDrawer = LinearLayout(context)
     private val actionItems = ArrayList<View>()
-    private val detailPage = GameDetailPage<T>(context, catalog, play, preview, details, { closeDetail() }, ::metadata)
+    private val detailPage = GameDetailPage<T>(context, catalog, play, preview, details, { closeDetail() }, ::metadata, commandLaunch)
     private val settingValues = ArrayList<Pair<TextView, () -> String>>()
     private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openActions() }
     private val searchButton = Ui.iconButton(context, R.drawable.ic_search, "Search games") { toggleSearch() }

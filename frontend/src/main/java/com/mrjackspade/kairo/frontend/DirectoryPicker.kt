@@ -20,7 +20,8 @@ class DirectoryPicker private constructor(
     root: Location,
     private val load: (String) -> List<Entry>,
     private val selected: (Entry) -> Unit,
-    private val cancelled: () -> Unit
+    private val cancelled: () -> Unit,
+    private val rootEntries: List<Entry>
 ) : AutoCloseable {
     data class Location(val id: String, val label: String)
     data class Entry(val id: String, val label: String, val directory: Boolean)
@@ -105,12 +106,12 @@ class DirectoryPicker private constructor(
                 if (finished || request != generation) return@post
                 if (activity.isFinishing || activity.isDestroyed) { close(); return@post }
                 result.onSuccess { loaded ->
-                    entries = loaded
-                    adapter.addAll(loaded.map { if (it.directory) "${it.label}/" else it.label })
-                    list.isEnabled = loaded.isNotEmpty()
+                    entries = (if (history.size == 1) rootEntries else emptyList()) + loaded
+                    adapter.addAll(entries.map { if (it.directory) "${it.label}/" else it.label })
+                    list.isEnabled = entries.isNotEmpty()
                     status.text = "No files here"
-                    status.visibility = if (loaded.isEmpty()) View.VISIBLE else View.GONE
-                    if (loaded.isNotEmpty()) { list.requestFocus(); list.setSelection(0) }
+                    status.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
+                    if (entries.isNotEmpty()) { list.requestFocus(); list.setSelection(0) }
                 }.onFailure { error ->
                     status.text = error.message ?: "Could not list files"
                     dialog.getButton(AlertDialog.BUTTON_POSITIVE).visibility = View.VISIBLE
@@ -133,7 +134,7 @@ class DirectoryPicker private constructor(
     companion object {
         fun show(activity: Activity, title: String, root: Location,
                  load: (String) -> List<Entry>, selected: (Entry) -> Unit,
-                 cancelled: () -> Unit): DirectoryPicker =
-            DirectoryPicker(activity, title, root, load, selected, cancelled)
+                 cancelled: () -> Unit, rootEntries: List<Entry> = emptyList()): DirectoryPicker =
+            DirectoryPicker(activity, title, root, load, selected, cancelled, rootEntries)
     }
 }

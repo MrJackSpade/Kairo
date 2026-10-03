@@ -5,7 +5,7 @@ host supplies filesystem access and file selection behavior; the frontend owns
 the dialog, directory history, worker, loading/error/empty states, retry,
 controller navigation, and cancellation. Directory reads and sorting run on a
 single worker. Generation checks discard results after navigation or dismissal.
-Call `close()` when the owning session/activity ends.
+Call `close()` when the owning session/activity ends. Hosts may supply `rootEntries` for actions shown before the sorted directory listing at the root only; selection uses the same callback as files.
 
 Back and Up return to the parent directory. Back at the root and Cancel close
 the picker. D-pad and confirm select directories/files through the shared dialog
