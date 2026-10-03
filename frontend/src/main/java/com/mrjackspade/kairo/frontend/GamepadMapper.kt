@@ -57,9 +57,31 @@ class GamepadMapper(private val router: InputRouter,
 
     fun pressVirtual(control: String, owner: String) {
         if (control !in PhysicalControllerBindings.controls || !owner.startsWith("onscreen:")) return
-        val binding = bindings.firstOrNull { it.input == "virtual:$control" }
-            ?: if (control == "menu") ControllerBinding("virtual:menu", action = "menu") else null
+        val binding = resolveVirtual(control)
         if (binding != null) activate(owner, binding)
+    }
+
+    /** Use the same directional mappings/dead zone as hardware, including proportional mouse speed. */
+    fun moveVirtualStick(stick: String, x: Float, y: Float) {
+        require(stick == "ls" || stick == "rs")
+        for ((direction, signed) in listOf("left" to -x, "right" to x, "up" to -y, "down" to y)) {
+            val owner = "onscreen:$stick:$direction"
+            val binding = resolveVirtual(stick + direction)
+            if (binding == null || !signed.isFinite()) deactivate(owner)
+            else if (binding.mouse?.startsWith("move") == true) {
+                if (signed > deadZone) activate(owner, binding,
+                    ((signed - deadZone) / (1f - deadZone)).coerceIn(0f, 1f))
+                else deactivate(owner)
+            } else if (signed >= deadZone) activate(owner, binding)
+            else if (signed <= deadZone * .5f) deactivate(owner)
+        }
+    }
+
+    private fun resolveVirtual(control: String): ControllerBinding? {
+        bindings.firstOrNull { it.input == "virtual:$control" }?.let { return it }
+        if (control.startsWith("ls") && control.removePrefix("ls") in setOf("up", "down", "left", "right"))
+            bindings.firstOrNull { it.input == "virtual:${control.removePrefix("ls")}" }?.let { return it }
+        return if (control == "menu") ControllerBinding("virtual:menu", action = "menu") else null
     }
 
     fun releaseVirtual(owner: String) {

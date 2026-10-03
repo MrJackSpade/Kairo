@@ -27,7 +27,8 @@ class OnScreenControls(
     private val root: FrameLayout,
     private val mapper: GamepadMapper,
     private val preferences: SharedPreferences,
-    private val onVisibilityChanged: () -> Unit
+    private val onVisibilityChanged: () -> Unit,
+    private val controllerLayout: () -> ControllerLayout
 ) {
     private enum class LayoutOrientation(val label: String, val preference: String) {
         PORTRAIT("Portrait", "onscreen_layout_portrait_v2"),
@@ -55,10 +56,8 @@ class OnScreenControls(
         Spec("start", "Start", "SYSTEM", .57f, .91f, true),
         Spec("select", "Select", "SYSTEM", .43f, .91f, true),
         Spec("menu", "Menu", "SYSTEM", .50f, .18f, true),
-        Spec("rsup", "R↑", "RIGHT STICK", .69f, .35f, false),
-        Spec("rsdown", "R↓", "RIGHT STICK", .69f, .47f, false),
-        Spec("rsleft", "R←", "RIGHT STICK", .63f, .41f, false),
-        Spec("rsright", "R→", "RIGHT STICK", .75f, .41f, false)
+        Spec("ls", "L", "STICKS", .30f, .80f, false),
+        Spec("rs", "R", "STICKS", .70f, .80f, false)
     )
     private val portraitPositions = mapOf(
         "up" to (.18f to .62f), "down" to (.18f to .78f),
@@ -69,14 +68,16 @@ class OnScreenControls(
         "l2" to (.12f to .53f), "r2" to (.88f to .53f),
         "start" to (.59f to .91f), "select" to (.41f to .91f),
         "menu" to (.50f to .54f),
-        "rsup" to (.51f to .66f), "rsdown" to (.51f to .78f),
-        "rsleft" to (.45f to .72f), "rsright" to (.57f to .72f)
+        "ls" to (.23f to .85f), "rs" to (.77f to .85f)
     )
-    private val layouts = LayoutOrientation.entries.associateWith { LinkedHashMap<String, State>() }
+    private val layouts = ControllerLayout.entries.associateWith {
+        LayoutOrientation.entries.associateWith { LinkedHashMap<String, State>() }
+    }
+    private var profile = controllerLayout()
     private var orientation = if (activity.resources.configuration.orientation ==
         Configuration.ORIENTATION_PORTRAIT) LayoutOrientation.PORTRAIT
         else LayoutOrientation.LANDSCAPE
-    private val states: LinkedHashMap<String, State> get() = layouts.getValue(orientation)
+    private val states: LinkedHashMap<String, State> get() = layouts.getValue(profile).getValue(orientation)
     private val buttons = LinkedHashMap<String, View>()
     private val heldPointers = HashMap<String, MutableSet<Int>>()
     /** Directions each D-pad pointer holds, for the four arrows and for the 8-way pad. A finger
@@ -124,7 +125,7 @@ class OnScreenControls(
         get() = states.getValue(PAD8).shown
         set(value) {
             for (layout in LayoutOrientation.entries) {
-                val controls = layouts.getValue(layout)
+                val controls = layouts.getValue(profile).getValue(layout)
                 controls.getValue(PAD8).shown = value
                 DPAD.forEach { controls.getValue(it).shown = !value }
                 saveLayout(layout)
@@ -154,7 +155,8 @@ class OnScreenControls(
             dpadPointers.clear()
             padPointers.clear()
             (buttons[PAD8] as? DpadView)?.held = emptySet()
-            buttons.values.forEach { it.isPressed = false; it.alpha = .72f }
+            buttons.values.filterIsInstance<TouchStickView>().forEach { it.reset() }
+            buttons.values.forEach { it.isPressed = false; it.alpha = if (it is TouchStickView) 1f else .72f }
         }
         overlay.visibility = if (show) View.VISIBLE else View.GONE
         if (show) positionAll()
@@ -248,7 +250,7 @@ class OnScreenControls(
         val body = settingsBody ?: return
         val scrollY = settingsScroll?.scrollY ?: 0
         body.removeAllViews()
-        note(body, "Edit ${orientation.label.lowercase()} buttons here. Positions and visible buttons are saved separately for portrait and landscape. Each button follows the Global or This game controller mapping.")
+        note(body, "Edit ${orientation.label.lowercase()} buttons here. Positions and visible buttons are saved separately for portrait and landscape. Each control follows the Global or This game controller mapping. Layouts are also saved separately for With Sticks and Without Sticks.")
         row(body, "Show on-screen controls", if (enabled) "On" else "Off") {
             enabled = !enabled
             preferences.edit().putBoolean("onscreen_enabled", enabled).apply()
@@ -283,7 +285,7 @@ class OnScreenControls(
             renderSettings()
         }
         row(body, "Reset visible buttons", "Restore the standard selection") {
-            specs.forEach { spec -> states.getValue(spec.id).shown = spec.shown }
+            specs.forEach { spec -> states.getValue(spec.id).shown = defaultShown(spec, profile) }
             saveLayout()
             positionAll()
             renderSettings()
@@ -326,12 +328,18 @@ class OnScreenControls(
 
     private fun controlView(spec: Spec, editing: Boolean): View {
         val held = if (editing) HashSet<Int>() else heldPointers.getOrPut(spec.id) { HashSet() }
-        val view: View = if (spec.id == PAD8) DpadView(activity) else TextView(activity).apply {
-            text = spec.label
-            textSize = if (spec.label.length > 2) 11f else 20f
-            setTextColor(Ui.TEXT)
-            gravity = Gravity.CENTER
-            background = buttonBackground(editing)
+        val view: View = when (spec.id) {
+            PAD8 -> DpadView(activity)
+            "ls", "rs" -> TouchStickView(activity) { x, y ->
+                if (!editing) mapper.moveVirtualStick(spec.id, x, y)
+            }
+            else -> TextView(activity).apply {
+                text = spec.label
+                textSize = if (spec.label.length > 2) 11f else 20f
+                setTextColor(Ui.TEXT)
+                gravity = Gravity.CENTER
+                background = buttonBackground(editing)
+            }
         }
         return view.apply {
             tag = spec.id
@@ -351,7 +359,7 @@ class OnScreenControls(
                             view.alpha = 1f
                         }
                         MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
-                            val size = if (spec.id == PAD8) dp(148) else dp(54)
+                            val size = controlSize(spec.id)
                             val x = (startX + event.rawX - rawX)
                                 .coerceIn(size / 2f, (root.width - size / 2f).coerceAtLeast(size / 2f))
                             val y = (startY + event.rawY - rawY)
@@ -363,7 +371,7 @@ class OnScreenControls(
                             }
                             position(view, states.getValue(spec.id), root.width, root.height)
                             if (event.actionMasked == MotionEvent.ACTION_UP) {
-                                view.alpha = .85f
+                                view.alpha = if (view is TouchStickView) 1f else .85f
                                 saveLayout()
                             }
                         }
@@ -373,7 +381,7 @@ class OnScreenControls(
                                 y = startY / root.height.coerceAtLeast(1)
                             }
                             position(view, states.getValue(spec.id), root.width, root.height)
-                            view.alpha = .85f
+                            view.alpha = if (view is TouchStickView) 1f else .85f
                         }
                     }
                     true
@@ -381,7 +389,7 @@ class OnScreenControls(
             } else if (spec.id in DPAD || spec.id == PAD8) setOnTouchListener { view, event ->
                 dpadTouch(view, event, eightWay = spec.id == PAD8)
                 true
-            } else setOnTouchListener { view, event ->
+            } else if (spec.id !in setOf("ls", "rs")) setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                         val pointer = event.getPointerId(event.actionIndex)
@@ -408,7 +416,7 @@ class OnScreenControls(
                 }
                 true
             }
-            alpha = if (editing) .85f else .72f
+            alpha = if (spec.id in setOf("ls", "rs")) 1f else if (editing) .85f else .72f
         }
     }
 
@@ -471,14 +479,17 @@ class OnScreenControls(
         if (root.width <= 0 || root.height <= 0) return
         val next = if (root.height > root.width) LayoutOrientation.PORTRAIT
             else LayoutOrientation.LANDSCAPE
-        if (next != orientation) {
+        val nextProfile = controllerLayout()
+        if (next != orientation || nextProfile != profile) {
             orientation = next
+            profile = nextProfile
             mapper.releaseOnScreen()
             heldPointers.values.forEach(MutableSet<Int>::clear)
             dpadPointers.clear()
             padPointers.clear()
             (buttons[PAD8] as? DpadView)?.held = emptySet()
-            buttons.values.forEach { it.isPressed = false; it.alpha = .72f }
+            buttons.values.filterIsInstance<TouchStickView>().forEach { it.reset() }
+            buttons.values.forEach { it.isPressed = false; it.alpha = if (it is TouchStickView) 1f else .72f }
             settingsTitle?.text = "Controls · ${orientation.label}"
             if (isOpen) renderSettings()
             rebuildArrangementButtons()
@@ -508,7 +519,7 @@ class OnScreenControls(
     }
 
     private fun position(view: View, state: State, width: Int, height: Int) {
-        val size = if (view.tag == PAD8) dp(148) else dp(54)
+        val size = controlSize(view.tag as String)
         val left = (state.x * width - size / 2f).roundToInt().coerceIn(0, (width - size).coerceAtLeast(0))
         val top = (state.y * height - size / 2f).roundToInt().coerceIn(0, (height - size).coerceAtLeast(0))
         val params = view.layoutParams as? FrameLayout.LayoutParams ?: FrameLayout.LayoutParams(size, size)
@@ -519,46 +530,73 @@ class OnScreenControls(
         view.layoutParams = params
     }
 
+    private fun layoutPreference(layout: LayoutOrientation, profile: ControllerLayout) =
+        "${layout.preference}_${profile.key}"
+
     private fun loadLayouts() {
-        for (layout in LayoutOrientation.entries) {
-            val saved = preferences.getString(layout.preference, null)
-                ?: if (layout == orientation) preferences.getString("onscreen_layout_v1", null)
-                    else null
-            val stored = try { JSONObject(saved ?: "{}") } catch (_: Exception) { JSONObject() }
+        for (profile in ControllerLayout.entries) for (layout in LayoutOrientation.entries) {
+            val saved = preferences.getString(layoutPreference(layout, profile), null)
+            val legacy = preferences.getString(layout.preference, null)
+                ?: if (layout == orientation) preferences.getString("onscreen_layout_v1", null) else null
+            val stored = try { JSONObject(saved ?: legacy ?: "{}") } catch (_: Exception) { JSONObject() }
             val controls = stored.optJSONObject("controls")
             for (spec in specs) {
                 val item = controls?.optJSONObject(spec.id)
-                val default = defaultPosition(spec, layout)
-                val x = item?.optDouble("x", default.first.toDouble())?.toFloat() ?: default.first
-                val y = item?.optDouble("y", default.second.toDouble())?.toFloat() ?: default.second
-                layouts.getValue(layout)[spec.id] = State(
-                    item?.optBoolean("shown", spec.shown) ?: spec.shown,
+                val default = defaultPosition(spec, layout, profile)
+                val oldDefault = if (layout == LayoutOrientation.PORTRAIT) portraitPositions.getValue(spec.id)
+                    else spec.x to spec.y
+                var x = item?.optDouble("x", default.first.toDouble())?.toFloat() ?: default.first
+                var y = item?.optDouble("y", default.second.toDouble())?.toFloat() ?: default.second
+                // Carry customized legacy positions forward, but give untouched defaults the new profile layout.
+                if (saved == null && kotlin.math.abs(x - oldDefault.first) < .001f &&
+                    kotlin.math.abs(y - oldDefault.second) < .001f) {
+                    x = default.first; y = default.second
+                }
+                layouts.getValue(profile).getValue(layout)[spec.id] = State(
+                    item?.optBoolean("shown", defaultShown(spec, profile)) ?: defaultShown(spec, profile),
                     if (x.isFinite()) x.coerceIn(0f, 1f) else default.first,
                     if (y.isFinite()) y.coerceIn(0f, 1f) else default.second)
             }
         }
     }
 
-    private fun defaultPosition(spec: Spec, layout: LayoutOrientation): Pair<Float, Float> =
-        if (layout == LayoutOrientation.PORTRAIT) portraitPositions.getValue(spec.id)
-        else spec.x to spec.y
+    private fun defaultShown(spec: Spec, profile: ControllerLayout) =
+        if (spec.id == "ls" || spec.id == "rs") profile == ControllerLayout.WITH_STICKS else spec.shown
+
+    private fun defaultPosition(spec: Spec, layout: LayoutOrientation,
+                                profile: ControllerLayout = this.profile): Pair<Float, Float> {
+        val original = if (layout == LayoutOrientation.PORTRAIT) portraitPositions.getValue(spec.id)
+            else spec.x to spec.y
+        if (profile != ControllerLayout.WITH_STICKS || spec.id in setOf("ls", "rs")) return original
+        return when (spec.group) {
+            "D-PAD", "FACE BUTTONS" -> original.first to (original.second -
+                if (layout == LayoutOrientation.PORTRAIT) .12f else .27f)
+            "SHOULDERS" -> original.first to (original.second - .22f)
+            else -> original
+        }
+    }
+
+    private fun controlSize(id: String) = when (id) {
+        PAD8 -> dp(148)
+        "ls", "rs" -> minOf(dp(120), (minOf(root.width, root.height) * .28f).roundToInt().coerceAtLeast(dp(72)))
+        else -> dp(54)
+    }
 
     private fun saveLayout(layout: LayoutOrientation = orientation) {
         val controls = JSONObject()
         specs.forEach { spec ->
-            val state = layouts.getValue(layout).getValue(spec.id)
+            val state = layouts.getValue(profile).getValue(layout).getValue(spec.id)
             controls.put(spec.id, JSONObject().put("shown", state.shown)
                 .put("x", state.x.toDouble()).put("y", state.y.toDouble()))
         }
-        preferences.edit().putString(layout.preference,
-            JSONObject().put("version", 2).put("controls", controls).toString()).apply()
+        preferences.edit().putString(layoutPreference(layout, profile),
+            JSONObject().put("version", 3).put("controls", controls).toString()).apply()
     }
 
     private fun controlName(id: String) = when (id) {
         "up" -> "D-pad up"; "down" -> "D-pad down"
         "left" -> "D-pad left"; "right" -> "D-pad right"
-        "rsup" -> "Right stick up"; "rsdown" -> "Right stick down"
-        "rsleft" -> "Right stick left"; "rsright" -> "Right stick right"
+        "ls" -> "Left stick"; "rs" -> "Right stick"
         PAD8 -> "8-way D-pad"
         else -> id.uppercase()
     }

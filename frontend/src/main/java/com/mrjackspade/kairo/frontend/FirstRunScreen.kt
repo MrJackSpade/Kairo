@@ -30,11 +30,13 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         val status: String? = null,
         val focusAction: Int? = null,
         // The terminal action stays at the bottom right on every setup page.
-        val footerAction: Int = actions.lastIndex
+        val footerAction: Int = actions.lastIndex,
+        val focusFirstAction: Boolean = true
     )
 
     private val card = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
     private var onBack: () -> Unit = {}
+    private var navigationRows: List<View> = emptyList()
     val isOpen: Boolean get() = visibility == View.VISIBLE
 
     init {
@@ -100,15 +102,16 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
                 minimumWidth = if (isFooter) Ui.dp(activity, 144) else 0
                 setPadding(Ui.dp(activity, 18), Ui.dp(activity, 10),
                     Ui.dp(activity, 18), Ui.dp(activity, 10))
-                background = actionBackground(action.primary, isFooter)
+                background = actionBackground(action.primary && action.enabled, isFooter && action.enabled)
                 isEnabled = action.enabled
                 isClickable = action.enabled
                 isFocusable = action.enabled
                 alpha = if (action.enabled) 1f else .55f
                 contentDescription = "${action.title}. ${action.subtitle}"
-                setOnClickListener { action.onClick() }
+                if (action.enabled) setOnClickListener { action.onClick() }
             }
             val titleColor = when {
+                !action.enabled -> Ui.TEXT_MUTED
                 isFooter && action.primary -> Ui.ON_ACCENT
                 action.primary || isFooter -> Ui.ACCENT_SOFT
                 else -> Ui.TEXT
@@ -132,9 +135,12 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         card.addView(footer, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = Ui.dp(activity, 12)
         })
+        navigationRows = actionRows
+        if (!page.focusFirstAction && page.focusAction == null) requestFocus()
         card.post {
             val requested = page.focusAction?.let(actionRows::getOrNull)?.takeIf { it.isEnabled }
             if (isOpen && requested != null) requested.requestFocusFromTouch()
+            else if (isOpen && !page.focusFirstAction) requestFocus()
             else if (isOpen && findFocus()?.isDescendantOf(card) != true)
                 actionRows.firstOrNull { it.isEnabled }?.requestFocusFromTouch()
         }
@@ -191,12 +197,15 @@ open class FirstRunScreen(private val activity: Activity) : FrameLayout(activity
         if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP ||
             event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             if (event.action == KeyEvent.ACTION_DOWN) {
-                val controls = card.getFocusables(View.FOCUS_FORWARD).filter { it.isEnabled && it.isClickable }
+                val controls = navigationRows.filter { it.isEnabled && it.isClickable }
                 val current = controls.indexOf(card.findFocus())
                 val index = if (current < 0) 0 else (current +
                     if (event.keyCode == KeyEvent.KEYCODE_DPAD_UP) -1 else 1)
                     .coerceIn(0, (controls.size - 1).coerceAtLeast(0))
-                controls.getOrNull(index)?.requestFocusFromTouch()
+                controls.getOrNull(index)?.let {
+                    it.isFocusableInTouchMode = true
+                    it.requestFocusFromTouch()
+                }
             }
             return true
         }

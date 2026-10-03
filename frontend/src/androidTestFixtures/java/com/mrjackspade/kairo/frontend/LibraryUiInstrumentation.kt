@@ -11,6 +11,7 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var deadZone = false
     private var search = false
     private var endSessionUri: String? = null
+    private var touchSticks = false
     private var nextSessionUri: String? = null
     private var catalogProgress = false
     private var catalogInstall = false
@@ -35,6 +36,7 @@ class LibraryUiInstrumentation : Instrumentation() {
         keyboard = arguments?.getString("libraryKeyboard") == "true"
         exitDialog = arguments?.getString("exitDialog") == "true"
         endSessionUri = arguments?.getString("endSessionUri")
+        touchSticks = arguments?.getString("touchSticks") == "true"
         nextSessionUri = arguments?.getString("nextSessionUri")
         catalogPackageFile = arguments?.getString("catalogPackageFile")
         catalogInstall = arguments?.getString("catalogInstall") == "true"
@@ -53,6 +55,17 @@ class LibraryUiInstrumentation : Instrumentation() {
     }
     override fun onStart() {
         val result = Bundle()
+        if (touchSticks) {
+            try {
+                com.mrjackspade.kairo.frontend.TouchStickFixture.verify(this)
+                result.putString("stream", "Circle pads, profile layouts and touch setup focus: OK\n")
+                finish(Activity.RESULT_OK, result)
+            } catch (failure: Throwable) {
+                result.putString("stream", failure.stackTraceToString())
+                finish(Activity.RESULT_CANCELED, result)
+            }
+            return
+        }
         if (catalogInstall) {
             try {
                 result.putString("stream", com.mrjackspade.kairo.frontend.CatalogInstallFixture.verify(this, catalogPackageFile))

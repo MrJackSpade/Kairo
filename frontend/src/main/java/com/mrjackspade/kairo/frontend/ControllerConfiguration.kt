@@ -143,7 +143,12 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                 }
             }
         }
-        rows[selected ?: choices.first()]?.requestFocusFromTouch()
+        if (selected != null || detection.device != null)
+            rows[selected ?: choices.first()]?.requestFocusFromTouch()
+        else {
+            content.isFocusableInTouchMode = true
+            content.requestFocus()
+        }
     }
 
     /** The boot selector uses the same page component as folder and firmware setup. */
@@ -194,7 +199,7 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                     else if (option == selected) "Selected" else "",
                     primary = option == selected) {
                     selected = option
-                    renderRows(index)
+                    renderRows(if (screen.isInTouchMode) null else index)
                 }
             } + FirstRunScreen.Action("Continue", "", primary = true, enabled = selected != null) {
                 selected?.let {
@@ -209,11 +214,13 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                 }
             }
             screen.show(FirstRunScreen.Page(product, "", "Controller Configuration",
-                "", actions, focusAction = focused)) {
+                "", actions, focusAction = focused, focusFirstAction = focused != null)) {
                 dialog.cancel()
             }
         }
-        renderRows(0)
+        // Focus is navigation, not a selection. A touch-only device must start
+        // with neither choice highlighted and Continue visibly disabled.
+        renderRows(if (detection.device == null) null else 0)
     }
 }
 
