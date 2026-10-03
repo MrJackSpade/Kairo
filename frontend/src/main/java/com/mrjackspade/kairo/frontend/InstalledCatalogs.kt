@@ -1,7 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.util.AtomicFile
 import org.json.JSONObject
 import java.io.File
@@ -15,7 +14,7 @@ import java.util.zip.ZipFile
 class InstalledCatalogs(
     context: Context,
     private val product: String,
-    private val validateData: (JSONObject) -> Set<String>,
+    private val validateData: (JSONObject) -> Unit,
     private val changed: () -> Unit
 ) {
     data class Catalog(val id: String, val name: String, val revision: Long,
@@ -32,7 +31,7 @@ class InstalledCatalogs(
                 val file = File(directory, name)
                 runCatching {
                     AtomicFile(file).openRead().close()
-                    val catalog = inspect(file, false)
+                    val catalog = inspect(file)
                     require(file.name == "${catalog.id}.zip")
                     installed = installed + (catalog.id to catalog)
                 }
@@ -49,16 +48,23 @@ class InstalledCatalogs(
         // Replacement/removal closes the old generation before touching its archive.
         val zip = archives.getOrPut(catalog.id) { ZipFile(catalog.file) }
         return zip.getInputStream(zip.getEntry(path)).use {
-            it.readBytes().inputStream()
+            val output = java.io.ByteArrayOutputStream()
+            copyBounded(it, output, MAX_IMAGE)
+            output.toByteArray().inputStream()
         }
     }
     @Synchronized fun close() { archives.values.forEach { it.close() }; archives.clear() }
 
-    @Synchronized fun importFile(input: InputStream): String {
+    @Synchronized fun importFile(input: InputStream, task: CatalogUpdateTask = CatalogUpdateTask()): String {
         val temporary = File.createTempFile("catalog-import-", ".zip", temporaryDirectory)
         try {
-            input.use { source -> temporary.outputStream().use { copyBounded(source, it, MAX_ARCHIVE) } }
-            val candidate = inspect(temporary, true)
+            task.report(CatalogUpdateState.IMPORTING)
+            input.use { source -> temporary.outputStream().use {
+                copyBounded(source, it, MAX_ARCHIVE, task)
+                it.fd.sync()
+            } }
+            task.report(CatalogUpdateState.APPLYING)
+            val candidate = inspect(temporary)
             installed[candidate.id]?.let { previous ->
                 require(candidate.source == previous.source && candidate.revision > previous.revision) {
                     "Catalog already installed or source/revision changed"
@@ -97,10 +103,10 @@ class InstalledCatalogs(
             val temporary = File.createTempFile("catalog-update-", ".zip", temporaryDirectory)
             try {
                 task.report(CatalogUpdateState.DOWNLOADING)
-                download(url, temporary, size, task)
-                require(temporary.length() == size && digest(temporary) == checksum) { "Catalog checksum mismatch" }
+                val downloadedChecksum = download(url, temporary, size, task)
+                require(temporary.length() == size && downloadedChecksum == checksum) { "Catalog checksum mismatch" }
                 task.report(CatalogUpdateState.APPLYING)
-                val candidate = inspect(temporary, true)
+                val candidate = inspect(temporary)
                 require(candidate.id == old.id && candidate.source == old.source && candidate.revision == revision) {
                     "Catalog update changed identity or update source"
                 }
@@ -115,20 +121,15 @@ class InstalledCatalogs(
     private fun activate(candidate: Catalog) {
         val destination = File(directory, "${candidate.id}.zip")
         archives.remove(candidate.id)?.close()
-        val atomic = AtomicFile(destination)
-        val output = atomic.startWrite()
-        try {
-            candidate.file.inputStream().use { it.copyTo(output) }
-            atomic.finishWrite(output)
-        } catch (error: Exception) { atomic.failWrite(output); throw error }
+        // Both files are on app-private storage. Rename replaces the old generation
+        // atomically without copying hundreds of megabytes a second time.
+        android.system.Os.rename(candidate.file.absolutePath, destination.absolutePath)
         installed = (installed + (candidate.id to candidate.copy(file = destination))).toSortedMap()
         changed()
     }
 
-    private fun inspect(file: File, full: Boolean): Catalog = ZipFile(file).use { zip ->
-        require(file.length() in 1..MAX_ARCHIVE && zip.size() in 2..20002) { "Invalid catalog size" }
-        val entries = zip.entries().asSequence().toList()
-        require(entries.map { it.name }.distinct().size == entries.size && entries.none { it.isDirectory })
+    private fun inspect(file: File): Catalog = ZipFile(file).use { zip ->
+        require(file.length() in 1..MAX_ARCHIVE && zip.size() in 2..20004) { "Invalid catalog size" }
         fun read(name: String, limit: Long): ByteArray {
             val entry = zip.getEntry(name) ?: error("Catalog is missing $name")
             require(entry.size in 1..limit) { "Invalid catalog entry size" }
@@ -138,7 +139,11 @@ class InstalledCatalogs(
                 output.toByteArray()
             }
         }
-        val manifest = JSONObject(read("catalog.json", 4L * 1024 * 1024).toString(Charsets.UTF_8))
+        // New packages separate the small runtime header/index from the publishing
+        // inventory. Older manually downloaded packages remain readable too.
+        val indexed = zip.getEntry("runtime.json") != null
+        val manifest = JSONObject(read(if (indexed) "runtime.json" else "catalog.json",
+            4L * 1024 * 1024).toString(Charsets.UTF_8))
         require(manifest.optInt("schemaVersion") == 1 && manifest.optString("product") == product)
         val id = manifest.getString("id")
         val name = manifest.getString("name")
@@ -146,39 +151,12 @@ class InstalledCatalogs(
         val source = manifest.getString("updateManifest")
         require(id.matches(Regex("[a-z0-9][a-z0-9-]{0,63}")) && name.length in 1..100 &&
             name.none { it.isISOControl() } && revision > 0 && secureUrl(source)) { "Invalid catalog identity" }
-        val inventory = manifest.getJSONObject("files")
-        require(inventory.keys().asSequence().toSet() + "catalog.json" == entries.map { it.name }.toSet()) {
-            "Unexpected catalog files"
-        }
-        var total = 0L
-        for (path in inventory.keys()) {
-            require(path == "data.json" || path.matches(Regex("art/catalog/[a-zA-Z0-9/_-]+(?:[.][a-zA-Z0-9_-]+)*[.]webp"))) {
-                "Unsafe catalog path"
-            }
-            require(!path.contains("..") && !path.contains("/local/")) { "Reserved artwork path" }
-            val entry = zip.getEntry(path)
-            val spec = inventory.getJSONObject(path)
-            val size = spec.getLong("size")
-            require(size in 1..(if (path == "data.json") MAX_DATA else MAX_IMAGE) && entry.size == size &&
-                spec.getString("sha256").matches(HASH)) { "Invalid catalog file inventory" }
-            total += size
-            require(total <= MAX_ARCHIVE) { "Expanded catalog is too large" }
-            if (full || path == "data.json") {
-                val bytes = read(path, size)
-                require(bytes.size.toLong() == size && digest(bytes) == spec.getString("sha256")) { "Catalog file checksum mismatch" }
-                if (path != "data.json") {
-                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-                    require(options.outMimeType == "image/webp" && options.outWidth in 1..4096 &&
-                        options.outHeight in 1..4096 && options.outWidth.toLong() * options.outHeight <= 4_000_000) {
-                        "Invalid catalog image"
-                    }
-                }
-            }
-        }
         val data = JSONObject(read("data.json", MAX_DATA).toString(Charsets.UTF_8))
-        val images = inventory.keys().asSequence().filter { it != "data.json" }.toSet()
-        require(validateData(data) == images) { "Artwork does not match catalog records" }
+        // Index names are looked up inside the ZIP, never extracted to filesystem paths.
+        val images = if (indexed) read("artwork.idx", 4L * 1024 * 1024).toString(Charsets.UTF_8)
+            .lineSequence().filter { it.isNotEmpty() }.toSet()
+        else manifest.getJSONObject("files").keys().asSequence().filter { it != "data.json" }.toSet()
+        validateData(data)
         Catalog(id, name, revision, source, data, images, file)
     }
 
@@ -187,9 +165,16 @@ class InstalledCatalogs(
         connect(url) { connection -> connection.inputStream.use { copyBounded(it, output, limit, task) } }
         return output.toByteArray()
     }
-    private fun download(url: String, file: File, limit: Long, task: CatalogUpdateTask) = connect(url) { connection ->
-        require(connection.contentLengthLong <= limit)
-        connection.inputStream.use { input -> file.outputStream().use { copyBounded(input, it, limit, task) } }
+    private fun download(url: String, file: File, limit: Long, task: CatalogUpdateTask): String {
+        val sha = MessageDigest.getInstance("SHA-256")
+        connect(url) { connection ->
+            require(connection.contentLengthLong <= limit)
+            connection.inputStream.use { input -> file.outputStream().use {
+                copyBounded(input, it, limit, task, sha)
+                it.fd.sync()
+            } }
+        }
+        return sha.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
     }
     private fun <T> connect(url: String, redirects: Int = 0, block: (HttpURLConnection) -> T): T {
         require(secureUrl(url))
@@ -216,17 +201,8 @@ class InstalledCatalogs(
             value.length <= 2048 && it.scheme == "https" && !it.host.isNullOrBlank() &&
                 it.userInfo == null && it.fragment == null && it.port in setOf(-1, 443)
         } }.getOrDefault(false)
-        private fun digest(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
-            .joinToString("") { "%02x".format(it.toInt() and 255) }
-        private fun digest(file: File): String {
-            val sha = MessageDigest.getInstance("SHA-256")
-            file.inputStream().use { input -> val buffer = ByteArray(65536)
-                while (true) { val count = input.read(buffer); if (count < 0) break; sha.update(buffer, 0, count) }
-            }
-            return sha.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
-        }
         private fun copyBounded(input: InputStream, output: java.io.OutputStream, limit: Long,
-                                task: CatalogUpdateTask? = null) {
+                                task: CatalogUpdateTask? = null, sha: MessageDigest? = null) {
             val buffer = ByteArray(65536)
             var total = 0L
             while (true) {
@@ -235,6 +211,7 @@ class InstalledCatalogs(
                 if (count < 0) break
                 total += count
                 require(total <= limit) { "Catalog exceeds size limit" }
+                sha?.update(buffer, 0, count)
                 output.write(buffer, 0, count)
             }
         }

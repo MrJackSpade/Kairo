@@ -5,6 +5,7 @@ import java.util.concurrent.CancellationException
 enum class CatalogUpdateState(val label: String, val busy: Boolean) {
     CHECKING("Checking catalogs…", true),
     DOWNLOADING("Downloading catalogs…", true),
+    IMPORTING("Importing catalog�", true),
     APPLYING("Applying catalogs…", true),
     CURRENT("Catalogs are current", false),
     UPDATED("Catalogs updated", false),

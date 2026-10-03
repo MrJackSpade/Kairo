@@ -28,9 +28,8 @@ class CatalogSnapshotStore(
     private var active = readSaved()
 
     /**
-     * A checksum-verified snapshot accepted by this APK's validator. Consumers may
-     * decode their format directly; repeating full schema validation here would
-     * undo the worker-thread validation and block frontend construction.
+     * A checksum-verified snapshot accepted by this APK's format reader.
+     * Content audits run in publishing, not during runtime activation.
      */
     @Synchronized fun activeFile(): File? = active
 
@@ -54,6 +53,7 @@ class CatalogSnapshotStore(
         task.ensureActive()
         val temporary = File.createTempFile("catalog-", ".tmp", cacheDir)
         try {
+            val sha = MessageDigest.getInstance("SHA-256")
             val connection = (URL(url).openConnection() as HttpURLConnection).apply {
                 instanceFollowRedirects = false
                 connectTimeout = 10000
@@ -74,6 +74,7 @@ class CatalogSnapshotStore(
                             if (count < 0) break
                             total += count
                             require(total <= maxBytes) { "Catalog update is too large" }
+                            sha.update(buffer, 0, count)
                             output.write(buffer, 0, count)
                         }
                     }
@@ -81,7 +82,7 @@ class CatalogSnapshotStore(
             } finally { connection.disconnect() }
             task.report(CatalogUpdateState.APPLYING)
             require(temporary.length() == revision.size &&
-                digest(temporary) == revision.checksum) { "Catalog archive does not match metadata" }
+                sha.digest().joinToString("") { "%02x".format(it) } == revision.checksum) { "Catalog archive does not match metadata" }
             validate(temporary)
             synchronized(this) {
                 task.ensureActive()
@@ -147,7 +148,7 @@ class CatalogSnapshotStore(
             val checksum = saved.substringAfterLast(':')
             if (!checksum.matches(Regex("[0-9a-f]{64}"))) null
             else if (!saved.startsWith("$apkInstallTime:")) {
-                // Revalidation can parse the complete catalog. Defer it to download's
+                // Format checks can parse JSON. Defer them to download's
                 // worker, and never let an inactive candidate satisfy an unchanged check.
                 pendingSaved = checksum
                 null

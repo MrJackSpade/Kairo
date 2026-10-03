@@ -22,9 +22,12 @@ class CatalogInstallController(private val activity: Activity, private val store
     }
     fun handleActivityResult(request: Int, result: Int, data: Intent?): Boolean {
         if (request != REQUEST) return false
-        if (result == Activity.RESULT_OK) data?.data?.let { uri -> run("Importing catalog…") {
+        if (result == Activity.RESULT_OK) data?.data?.let { uri -> run("Importing catalog…", CatalogUpdateState.IMPORTING) {
             val input = activity.contentResolver.openInputStream(uri) ?: error("Cannot open catalog file")
-            "Installed ${store.importFile(input)}"
+            val task = CatalogUpdateTask { state -> activity.runOnUiThread {
+                if (!activity.isDestroyed) progress(state)
+            } }
+            "Installed ${store.importFile(input, task)}"
         } }
         return true
     }
@@ -47,11 +50,11 @@ class CatalogInstallController(private val activity: Activity, private val store
                     .setNegativeButton("Cancel", null).create().also { it.show(); Ui.styleDialog(it) }
             }.setNegativeButton("Cancel", null).create().also { it.show(); Ui.styleDialog(it) }
     }
-    private fun run(status: String, action: () -> String) {
+    private fun run(status: String, initial: CatalogUpdateState = CatalogUpdateState.APPLYING, action: () -> String) {
         if (busy) return
         busy = true
         Ui.message(activity, status)
-        progress(CatalogUpdateState.APPLYING)
+        progress(initial)
         worker.execute {
             val result = runCatching(action)
             val message = result.getOrElse { "Catalog operation failed: ${it.message}" }

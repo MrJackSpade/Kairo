@@ -28,10 +28,16 @@ def build_package(data, images, artwork_root, output, *, product, identity, name
     for path in sorted(images):
         assert path.startswith("art/catalog/") and ".." not in path
         files[path] = (artwork_root / path).read_bytes()
+    header = {"schemaVersion": 1, "id": identity, "product": product,
+              "name": name, "revision": revision, "updateManifest": source}
+    if stored:
+        # Runtime reads this small header and flat index. The complete inventory
+        # remains available below for generation/CI auditing.
+        files["runtime.json"] = compact(header)
+        files["artwork.idx"] = ("\n".join(sorted(images)) + "\n").encode("utf8")
     inventory = {path: {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
                  for path, content in files.items()}
-    files["catalog.json"] = compact({"schemaVersion": 1, "id": identity, "product": product,
-        "name": name, "revision": revision, "updateManifest": source, "files": inventory})
+    files["catalog.json"] = compact({**header, "files": inventory})
     # WebP is already compressed. Stored entries make release downloads byte-for-byte
     # reproducible across the Windows generator and Linux CI zlib versions.
     write_zip(output, files, stored=stored)

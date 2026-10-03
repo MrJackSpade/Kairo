@@ -64,6 +64,11 @@ def audit(root, product, artifacts=()):
             for name,spec in header['files'].items():
                 payload = z.read(name)
                 assert len(payload) == spec['size'] and hashlib.sha256(payload).hexdigest() == spec['sha256']
+            runtime = json.loads(z.read('runtime.json'))
+            assert runtime == {k:v for k,v in header.items() if k != 'files'}
+            indexed = z.read('artwork.idx').decode('utf8').splitlines()
+            assert indexed == sorted(withheld)
+            assert set(header['files']) == {'data.json', 'runtime.json', 'artwork.idx', *withheld}
             optional = json.loads(z.read('data.json'))
             assert image_paths(optional,expand) == withheld
             def artwork_only(records):
