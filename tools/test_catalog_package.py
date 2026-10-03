@@ -31,6 +31,21 @@ class CatalogPackageTests(unittest.TestCase):
                     payload = archive.read(name)
                     self.assertEqual(spec, {'size': len(payload), 'sha256': hashlib.sha256(payload).hexdigest()})
 
+    def test_repository_reference_package_has_no_image_payloads(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / 'catalog.zip'
+            data = {'schemaVersion': 1, 'games': {'example': {'artwork': {'boxArt': 'art/catalog/example.webp'}}}}
+            meta = build_package(data, set(), root, output, product='dos', identity='fixture',
+                name='Fixture', revision=4, source='https://example.test/main/catalog.meta.json',
+                archive_url='https://example.test/main/catalog.zip', stored=True)
+            with zipfile.ZipFile(output) as archive:
+                self.assertEqual(json.loads(archive.read('data.json')), data)
+                self.assertEqual(archive.read('artwork.idx'), b'\n')
+                self.assertEqual(set(archive.namelist()), {'catalog.json', 'runtime.json', 'artwork.idx', 'data.json'})
+            self.assertEqual(meta['size'], output.stat().st_size)
+            self.assertEqual(meta['sha256'], hashlib.sha256(output.read_bytes()).hexdigest())
+
     def test_archive_bytes_do_not_depend_on_host_platform(self):
         original = zipfile.ZipInfo
         with tempfile.TemporaryDirectory() as directory:

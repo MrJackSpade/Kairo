@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import sys
+import subprocess
 import zipfile
 from pathlib import Path
 from catalog_parts import merge, split, indexed_document
@@ -12,6 +13,28 @@ from catalog_package import image_paths
 
 def audit(root, product, artifacts=()):
     app = 'kairodos' if product == 'dos' else 'kairo98'
+    tracked = set(subprocess.check_output(['git', 'ls-files'], cwd=root, text=True).splitlines())
+    def repository_file(path):
+        assert path.relative_to(root).as_posix() in tracked, f'Catalog file is not tracked: {path}'
+        assert path.is_file(), f'Missing catalog file: {path}'
+    # Check every public snapshot and optional update manifest against committed bytes.
+    manifests = list((root/'catalog/optional').glob('*.meta.json'))
+    manifests += ([root/'catalog/core-v2.json', root/'catalog/online-v1.json'] if product == 'dos'
+        else [root/'catalog/core-v2.meta.json', root/'catalog/online-v1.meta.json'])
+    repo = 'KairoDos' if product == 'dos' else 'Kairo98'
+    prefix = f'https://raw.githubusercontent.com/MrJackSpade/{repo}/main/'
+    for path in manifests:
+        repository_file(path)
+        meta = json.loads(path.read_text('utf8'))
+        address = meta['archive']
+        if '://' in address:
+            assert address.startswith(prefix), f'Non-repository catalog source: {address}'
+            archive = root/address.removeprefix(prefix)
+        else:
+            archive = path.parent/address
+        repository_file(archive)
+        payload = archive.read_bytes()
+        assert len(payload) == meta['size'] and hashlib.sha256(payload).hexdigest() == meta['sha256'], path
     sys.path.insert(0, str(root/'tools'))
     if product == 'dos': from dos_artwork import expand
     else: from artwork_references import expand
@@ -21,6 +44,8 @@ def audit(root, product, artifacts=()):
     assert set(parts) == {'data.json','controls.json','art.json','art.nsfw.json'}
     documents = {name:json.loads(data)['documents'] for name,data in parts.items()}
     for name, value in documents.items():
+        repository_file(root/'catalog/parts'/name)
+        repository_file(root/'catalog/parts'/name.replace('.json', '.idx'))
         payload, index = indexed_document(value)
         assert payload == parts[name]
         filename = name.removesuffix('.json')+'.idx'
@@ -53,7 +78,12 @@ def audit(root, product, artifacts=()):
     manifest = json.loads(package.with_suffix('.meta.json').read_text('utf8'))
     release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
     assert manifest['revision'] == release['revision']
-    assert manifest['archive'].endswith(f'/releases/download/{release["tag"]}/{app}-art.nsfw.zip')
+    repo = 'KairoDos' if product == 'dos' else 'Kairo98'
+    base = f'https://raw.githubusercontent.com/MrJackSpade/{repo}/main/catalog/'
+    assert manifest['archive'] == base + f'optional/{app}-art.nsfw.zip'
+    assert package.is_file(), 'Importable catalog must be committed in the repository'
+    for path in image_paths(merge(safe, extra), expand):
+        repository_file(root/'catalog/artwork'/path)
     if package.exists():
         assert manifest['size'] == package.stat().st_size
         assert manifest['sha256'] == hashlib.sha256(package.read_bytes()).hexdigest()
@@ -66,9 +96,10 @@ def audit(root, product, artifacts=()):
                 assert len(payload) == spec['size'] and hashlib.sha256(payload).hexdigest() == spec['sha256']
             runtime = json.loads(z.read('runtime.json'))
             assert runtime == {k:v for k,v in header.items() if k != 'files'}
-            indexed = z.read('artwork.idx').decode('utf8').splitlines()
-            assert indexed == sorted(withheld)
-            assert set(header['files']) == {'data.json', 'runtime.json', 'artwork.idx', *withheld}
+            indexed = [line for line in z.read('artwork.idx').decode('utf8').splitlines() if line]
+            assert indexed == [], 'Artwork payloads stay in catalog/artwork, not the import file'
+            assert header['updateManifest'] == base + f'optional/{app}-art.nsfw.meta.json'
+            assert set(header['files']) == {'data.json', 'runtime.json', 'artwork.idx'}
             optional = json.loads(z.read('data.json'))
             assert image_paths(optional,expand) == withheld
             def artwork_only(records):
