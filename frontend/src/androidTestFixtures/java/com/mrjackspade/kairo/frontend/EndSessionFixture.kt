@@ -11,7 +11,7 @@ import android.widget.TextView
 
 /** Real game cancellation, complete teardown, and relaunch in both emulator hosts. */
 object EndSessionFixture {
-    fun verify(test: Instrumentation, uri: String) {
+    fun verify(test: Instrumentation, uri: String, nextUri: String? = null) {
         val dos = test.targetContext.packageName.endsWith("kairodos")
         val launch = test.targetContext.packageManager.getLaunchIntentForPackage(test.targetContext.packageName)!!
             .setAction(Intent.ACTION_VIEW).setData(Uri.parse(uri))
@@ -63,8 +63,34 @@ object EndSessionFixture {
             decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A))
             decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_A))
         }
+        val controls = field("onScreenControls") as OnScreenControls
+        val enabled = OnScreenControls::class.java.getDeclaredField("enabled").apply { isAccessible = true }
+        val wasEnabled = enabled.getBoolean(controls)
+        fun verifyTouchControls() {
+            ui {
+                check(field("onScreenControls") === controls) { "Activity controls lost during session teardown" }
+                enabled.setBoolean(controls, true)
+                call(if (dos) "refreshControllerUi" else "applyPauseState")
+                val overlay = OnScreenControls::class.java.getDeclaredField("overlay")
+                    .apply { isAccessible = true }.get(controls) as View
+                check(overlay.isShown) { "On-screen controls are not visible after launch" }
+                val editor = field("controllerEditor") as ControllerEditor<*>
+                editor.show(null)
+                call("showOnScreenControls")
+                check(controls.isOpen) { "On-screen settings did not open" }
+                controls.back()
+                val page = ControllerEditor::class.java.getDeclaredField("page")
+                    .apply { isAccessible = true }.get(editor) as View
+                check(editor.isOpen && page.isShown) { "Returning from on-screen settings lost the parent editor" }
+                editor.close()
+                call(if (dos) "refreshControllerUi" else "applyPauseState")
+                check(overlay.isShown) { "Controls did not return after closing settings" }
+            }
+            await("Game did not resume after control settings", ::running)
+        }
         try {
             await("Game did not start", ::running)
+            verifyTouchControls()
             val identity = field(if (dos) "currentGame" else "currentDisk")
             request(); choose(false)
             await("Cancel did not resume game", ::running)
@@ -84,6 +110,7 @@ object EndSessionFixture {
                     check(field(if (dos) "currentGame" else "currentDisk") == null)
                     val keys = field(if (dos) "keys" else "inputRouter") as InputRouter
                     check(keys.pressedKeys().isEmpty())
+                    check(field("onScreenControls") === controls) { "Activity controls discarded on return to library" }
                     if (dos) {
                         check(field("gameThread") == null && field("audioThread") == null && field("audio") == null)
                         check(field("gameRoot") == null && field("sessionFlow") == null)
@@ -97,17 +124,20 @@ object EndSessionFixture {
                 }
                 if (cycle < (if (dos) 2 else 1)) {
                     ui { activity.javaClass.getDeclaredMethod("onNewIntent", Intent::class.java)
-                        .apply { isAccessible = true }.invoke(activity, launch) }
+                        .apply { isAccessible = true }.invoke(activity, Intent(launch).setData(Uri.parse(nextUri ?: uri))) }
                     if (dos && cycle == 1) {
                         await("Early launch did not create session") { field("currentGame") != null }
                         test.sendStatus(0, android.os.Bundle().apply {
                             putString("stream", "Early DOS return native status=${status()}\n")
                         })
-                    } else await("Game did not restart after teardown", ::running)
+                    } else {
+                        await("Game did not restart after teardown", ::running)
+                        verifyTouchControls()
+                    }
                 }
             }
         } finally {
-            ui { activity.finish() }
+            ui { enabled.setBoolean(controls, wasEnabled); activity.finish() }
         }
     }
 }

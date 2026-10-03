@@ -11,6 +11,7 @@ class LibraryUiInstrumentation : Instrumentation() {
     private var deadZone = false
     private var search = false
     private var endSessionUri: String? = null
+    private var nextSessionUri: String? = null
     private var catalogProgress = false
     private var catalogInstall = false
     private var catalogPackageFile: String? = null
@@ -34,6 +35,7 @@ class LibraryUiInstrumentation : Instrumentation() {
         keyboard = arguments?.getString("libraryKeyboard") == "true"
         exitDialog = arguments?.getString("exitDialog") == "true"
         endSessionUri = arguments?.getString("endSessionUri")
+        nextSessionUri = arguments?.getString("nextSessionUri")
         catalogPackageFile = arguments?.getString("catalogPackageFile")
         catalogInstall = arguments?.getString("catalogInstall") == "true"
         catalogProgress = arguments?.getString("catalogProgress") == "true"
@@ -128,7 +130,7 @@ class LibraryUiInstrumentation : Instrumentation() {
         }
         endSessionUri?.let { uri ->
             try {
-                com.mrjackspade.kairo.frontend.EndSessionFixture.verify(this, uri)
+                com.mrjackspade.kairo.frontend.EndSessionFixture.verify(this, uri, nextSessionUri)
                 result.putString("stream", "Library cancellation, teardown and relaunch: OK\n")
                 finish(Activity.RESULT_OK, result)
             } catch (failure: Throwable) {
