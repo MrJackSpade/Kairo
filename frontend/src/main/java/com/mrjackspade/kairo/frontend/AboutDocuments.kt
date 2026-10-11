@@ -13,7 +13,8 @@ object AboutDocuments {
         val dialog = AlertDialog.Builder(activity).setTitle("$appName $version")
             .setMessage(message)
             .setNeutralButton("Licenses") { _, _ ->
-                showAsset(activity, "Third-party licenses", noticesAsset, Ui.LABEL)
+                showAssets(activity, "Third-party licenses",
+                    listOf(noticesAsset, "SLANG_RUNTIME_NOTICES.txt"), Ui.LABEL)
             }
             .setNegativeButton("Privacy policy") { _, _ ->
                 showAsset(activity, "$appName Privacy Policy", privacyAsset, Ui.SECONDARY)
@@ -24,8 +25,15 @@ object AboutDocuments {
     }
 
     fun showAsset(activity: Activity, title: String, asset: String, textSize: Float) {
+        showAssets(activity, title, listOf(asset), textSize)
+    }
+
+    private fun showAssets(activity: Activity, title: String, assets: List<String>,
+                           textSize: Float) {
         val content = try {
-            activity.assets.open(asset).bufferedReader().use { it.readText() }
+            assets.joinToString("\n\n") { asset ->
+                activity.assets.open(asset).bufferedReader().use { it.readText() }
+            }
         } catch (_: Exception) {
             "This document could not be opened."
         }

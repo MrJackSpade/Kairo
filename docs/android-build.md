@@ -7,6 +7,7 @@ Both products and this standalone library build use the same pinned setup:
 - `gradle/android-module.gradle` supplies common Android and Kotlin defaults. Application IDs, namespaces, native paths/options, ABIs, flavors, signing and release rules stay in the product modules.
 - `gradle/wrapper/` and this repository's `gradlew` scripts own the Gradle distribution and its checksum. Product wrapper scripts delegate here with their product root as the project directory.
 - `.github/actions/setup-android` reads the same version file and sets up CI. Product workflows use the local action under `shared/`, so their submodule pin selects the setup without fetching a floating branch. The action uses the basic Gradle cache, including in release and catalog workflows.
+- The frontend builds the pinned librashader OpenGL runtime with the Rust version in `android-versions.properties` and target `aarch64-linux-android`. Local builders need that Rust toolchain and target installed; CI installs both in the shared setup action. Cargo uses `third_party/librashader/Cargo.lock`. The corresponding locked crate source archives are under `third_party/cargo-crates/`. Both products package the generated `liblibrashader_capi.so` through the frontend AAR and provide the NDK `libc++_shared.so` through their native C++ builds.
 
 Product settings apply `shared/gradle/android-settings.gradle`; Android modules apply `shared/gradle/android-module.gradle` after their plugin declarations. The frontend resolves its convention relative to its own directory so it also builds standalone.
 
