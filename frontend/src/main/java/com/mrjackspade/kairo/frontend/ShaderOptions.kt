@@ -18,20 +18,43 @@ class ShaderOptions(
     private val onSelected: (String?) -> Unit,
     private val reportError: (String) -> Unit
 ) {
+    private data class Builtin(val id: String, val title: String, val preset: String,
+        val shader: String)
+
     companion object {
         const val IMPORT_REQUEST = 48129
         private const val SETTING = "slang_preset_path"
         private const val MAX_FILES = 10000
         private const val MAX_BYTES = 256L * 1024 * 1024
         private const val MAX_FILE_BYTES = 64L * 1024 * 1024
+        private const val BUILTIN_VERSION = "e1d7563-v2"
+        private val BUILTINS = listOf(
+            Builtin("sharp-bilinear", "Sharp bilinear", "pixel-art-scaling/sharp-bilinear.slangp",
+                "pixel-art-scaling/shaders/sharp-bilinear.slang"),
+            Builtin("sharp-bilinear-scanlines", "Sharp bilinear + scanlines",
+                "pixel-art-scaling/sharp-bilinear-scanlines.slangp",
+                "pixel-art-scaling/shaders/sharp-bilinear-scanlines.slang"),
+            Builtin("crt-easymode", "CRT EasyMode", "crt/crt-easymode.slangp",
+                "crt/shaders/crt-easymode.slang")
+        )
     }
 
     private val root get() = File(activity.filesDir, "slang-shaders")
+    private val builtinRoot get() = File(activity.filesDir, "slang-builtins/$BUILTIN_VERSION")
 
-    fun selectedPath(): String? = preferences.getString(SETTING, null)
-        ?.takeIf { File(it).isFile }
+    fun selectedPath(): String? {
+        val value = preferences.getString(SETTING, null) ?: return null
+        val builtin = BUILTINS.firstOrNull { value == "builtin:${it.id}" }
+        if (builtin != null) return try { materialize(builtin).absolutePath }
+            catch (_: IOException) { null }
+        return value.takeIf { File(it).isFile }
+    }
 
-    fun label(): String = selectedPath()?.let { File(it).nameWithoutExtension } ?: "Off"
+    fun label(): String {
+        val value = preferences.getString(SETTING, null)
+        return BUILTINS.firstOrNull { value == "builtin:${it.id}" }?.title
+            ?: selectedPath()?.let { File(it).nameWithoutExtension } ?: "Off"
+    }
 
     fun entry() = SettingsEntry("RetroArch shader", ::label, ::show)
 
@@ -40,21 +63,58 @@ class ShaderOptions(
             it.extension.equals("slangp", ignoreCase = true) }.sortedBy {
             it.relativeTo(root).path.lowercase()
         }.toList()
-        val labels = listOf("Off") + presets.map {
+        val labels = listOf("Off") + BUILTINS.map { it.title } + presets.map {
             it.relativeTo(root).path.substringAfter(File.separatorChar)
         } +
             "Import shader ZIP…"
-        val selected = selectedPath()
-        val selectedIndex = presets.indexOfFirst { it.absolutePath == selected }
+        val selected = preferences.getString(SETTING, null)
+        val builtinIndex = BUILTINS.indexOfFirst { selected == "builtin:${it.id}" }
+        val importedIndex = presets.indexOfFirst { it.absolutePath == selected }
+        val selectedIndex = when {
+            builtinIndex >= 0 -> builtinIndex + 1
+            importedIndex >= 0 -> importedIndex + BUILTINS.size + 1
+            else -> 0
+        }
         showDialog(AlertDialog.Builder(activity).setTitle("RetroArch Slang shader")
-            .setSingleChoiceItems(labels.toTypedArray(), selectedIndex + 1) { dialog, choice ->
+            .setSingleChoiceItems(labels.toTypedArray(), selectedIndex) { dialog, choice ->
                 dialog.dismiss()
                 when {
                     choice == 0 -> select(null)
-                    choice <= presets.size -> select(presets[choice - 1].absolutePath)
+                    choice <= BUILTINS.size -> selectBuiltin(BUILTINS[choice - 1])
+                    choice <= BUILTINS.size + presets.size ->
+                        select(presets[choice - BUILTINS.size - 1].absolutePath)
                     else -> importZip()
                 }
             }.setNegativeButton("Cancel", null))
+    }
+
+    private fun selectBuiltin(builtin: Builtin) {
+        try {
+            val path = materialize(builtin).absolutePath
+            preferences.edit().putString(SETTING, "builtin:${builtin.id}").apply()
+            onSelected(path)
+        } catch (error: IOException) {
+            reportError(error.message ?: "Could not prepare built-in shader")
+        }
+    }
+
+    private fun materialize(builtin: Builtin): File {
+        for (relative in listOf(builtin.preset, builtin.shader)) {
+            val target = File(builtinRoot, relative)
+            if (target.isFile) continue
+            if (!target.parentFile!!.isDirectory && !target.parentFile!!.mkdirs())
+                throw IOException("Could not create built-in shader directory")
+            val temporary = File(target.path + ".tmp")
+            try {
+                activity.assets.open("retroarch/$relative").use { input ->
+                    temporary.outputStream().use { output -> input.copyTo(output) }
+                }
+                if (!temporary.renameTo(target)) throw IOException("Could not prepare built-in shader")
+            } finally {
+                temporary.delete()
+            }
+        }
+        return File(builtinRoot, builtin.preset)
     }
 
     private fun select(path: String?) {

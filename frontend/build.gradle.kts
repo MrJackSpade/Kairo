@@ -45,4 +45,6 @@ val packageSlangRuntime = tasks.register<Copy>("packageSlangRuntime") {
     into(slangJni.map { it.dir("arm64-v8a") })
 }
 android.sourceSets.getByName("main").jniLibs.srcDir(slangJni)
+android.sourceSets.getByName("main").assets.srcDir(
+    projectDir.resolve("../third_party/slang-shaders/assets"))
 tasks.named("preBuild") { dependsOn(packageSlangRuntime) }

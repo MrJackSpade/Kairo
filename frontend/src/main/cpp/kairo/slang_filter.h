@@ -46,10 +46,11 @@ public:
               uint32_t outputWidth, uint32_t outputHeight) {
         if (!chain_) return false;
         if (!prepareOutput(outputWidth, outputHeight)) return false;
-        // librashader's OpenGL samplers use mipmap minification. An external
-        // source with only level zero samples as black on GLES.
+        // librashader's GL samplers always request mipmap minification. The
+        // external guest frame has one level; cap it at level zero so the
+        // texture is complete and coordinate-dependent LOD stays at zero.
         glBindTexture(GL_TEXTURE_2D, texture);
-        glGenerateMipmap(GL_TEXTURE_2D);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
         if (glGetError() != GL_NO_ERROR) return false;
         Api& api = functions();
         const libra_image_gl_t source{texture, GL_RGBA8, sourceWidth, sourceHeight};
