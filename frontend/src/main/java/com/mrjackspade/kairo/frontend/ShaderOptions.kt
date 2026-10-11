@@ -40,7 +40,9 @@ class ShaderOptions(
             it.extension.equals("slangp", ignoreCase = true) }.sortedBy {
             it.relativeTo(root).path.lowercase()
         }.toList()
-        val labels = listOf("Off") + presets.map { it.relativeTo(root).path } +
+        val labels = listOf("Off") + presets.map {
+            it.relativeTo(root).path.substringAfter(File.separatorChar)
+        } +
             "Import shader ZIP…"
         val selected = selectedPath()
         val selectedIndex = presets.indexOfFirst { it.absolutePath == selected }
