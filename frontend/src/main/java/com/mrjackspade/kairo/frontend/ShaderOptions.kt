@@ -27,13 +27,15 @@ class ShaderOptions(
         private const val MAX_FILES = 10000
         private const val MAX_BYTES = 256L * 1024 * 1024
         private const val MAX_FILE_BYTES = 64L * 1024 * 1024
-        private const val BUILTIN_VERSION = "e1d7563-v3"
+        private const val BUILTIN_VERSION = "e1d7563-v4"
         private val BUILTINS = listOf(
             Builtin("sharp-bilinear", "Sharp bilinear", "pixel-art-scaling/sharp-bilinear.slangp",
                 "pixel-art-scaling/shaders/sharp-bilinear.slang"),
             Builtin("sharp-bilinear-scanlines", "Sharp bilinear + scanlines",
                 "pixel-art-scaling/sharp-bilinear-scanlines.slangp",
-                "pixel-art-scaling/shaders/sharp-bilinear-scanlines.slang")
+                "pixel-art-scaling/shaders/sharp-bilinear-scanlines.slang"),
+            Builtin("crt-easymode", "CRT EasyMode", "crt/crt-easymode.slangp",
+                "crt/shaders/crt-easymode.slang")
         )
     }
 

@@ -1,6 +1,6 @@
 # Licensing
 
-Two bundled RetroArch presets are individually reviewed in [the pinned shader snapshot](../third_party/slang-shaders/README.md). Sharp Bilinear and Sharp Bilinear + Scanlines state public-domain terms. Their source files retain the notices, and About -> Licenses identifies each preset and its terms. The upstream shader collection has no collection-wide license that applies to every file; do not infer redistribution permission for other presets from this selection.
+Three bundled RetroArch presets are individually reviewed in [the pinned shader snapshot](../third_party/slang-shaders/README.md). Sharp Bilinear and Sharp Bilinear + Scanlines state public-domain terms. CRT EasyMode states GPL without a version; this build chooses GPLv3 under the GPL's no-version clause. Their source files retain the notices, and About -> Licenses identifies each preset and its terms. The upstream shader collection has no collection-wide license that applies to every file; do not infer redistribution permission for other presets from this selection.
 
 The first-party Kairo frontend is GPL-2.0-or-later; see [COPYING](../COPYING). Kairo98 and KairoDos pin this source and provide corresponding source for their combined builds.
 

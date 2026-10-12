@@ -1,6 +1,6 @@
 RetroArch Slang runtime
 
-Built-in shader source files are byte-for-byte copies from libretro/slang-shaders commit e1d75632a205c70f14a4cc947c46d5abb7b3f7f1. Their source and embedded notices are in shared/third_party/slang-shaders/. Sharp Bilinear by Themaister and Sharp Bilinear + Scanlines by rsn8887 (based on Themaister) state public-domain terms. Other shaders in that upstream collection may have different or unspecified licenses.
+Built-in shader source files are byte-for-byte copies from libretro/slang-shaders commit e1d75632a205c70f14a4cc947c46d5abb7b3f7f1. Their source and embedded notices are in shared/third_party/slang-shaders/. CRT EasyMode by EasyMode states GPL without a version; this build selects GPLv3 under the GPL's no-version clause. Sharp Bilinear by Themaister and Sharp Bilinear + Scanlines by rsn8887 (based on Themaister) state public-domain terms. Other shaders in that upstream collection may have different or unspecified licenses.
 
 The shader runtime is librashader 0.11.0 by Ronny Chan and contributors, used under the GPL-3.0-only option. Its corresponding source and Cargo.lock are in shared/third_party/librashader/.
 
