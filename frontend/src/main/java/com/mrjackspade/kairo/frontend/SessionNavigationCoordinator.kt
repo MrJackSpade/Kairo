@@ -44,16 +44,23 @@ class SessionNavigationCoordinator(
         if (returnPending) return
         if (!hasGame()) { showLibrary(); return }
         returnPending = true
+        // Read before endSession, which may reset what externalSession reports.
+        val external = externalSession()
         fun cancel() {
             returnPending = false
             session()?.close()
         }
         AlertDialog.Builder(library.context)
             .setTitle("End game session?")
-            .setMessage("Return to Library and stop the current game. Unsaved progress will be lost.")
+            .setMessage(if (external) "Stop the current game and return to the frontend. Unsaved progress will be lost."
+                else "Return to Library and stop the current game. Unsaved progress will be lost.")
             .setNegativeButton("Cancel") { _, _ -> cancel() }
             .setPositiveButton("End session") { _, _ ->
-                endSession {
+                // Exiting replaces teardown and closes the app, so returnPending stays set.
+                if (external) {
+                    resetGestures()
+                    exitExternalSession()
+                } else endSession {
                     returnPending = false
                     showLibrary()
                 }

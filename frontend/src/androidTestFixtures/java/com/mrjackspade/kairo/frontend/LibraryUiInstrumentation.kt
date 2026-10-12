@@ -144,7 +144,7 @@ class LibraryUiInstrumentation : Instrumentation() {
         endSessionUri?.let { uri ->
             try {
                 com.mrjackspade.kairo.frontend.EndSessionFixture.verify(this, uri, nextSessionUri)
-                result.putString("stream", "Library cancellation, teardown and relaunch: OK\n")
+                result.putString("stream", "Library cancellation, teardown, relaunch and frontend exit: OK\n")
                 finish(Activity.RESULT_OK, result)
             } catch (failure: Throwable) {
                 result.putString("stream", failure.stackTraceToString())

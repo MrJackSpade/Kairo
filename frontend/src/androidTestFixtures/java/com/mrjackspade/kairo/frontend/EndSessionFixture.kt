@@ -9,7 +9,7 @@ import android.view.ViewGroup
 import android.view.inspector.WindowInspector
 import android.widget.TextView
 
-/** Real game cancellation, complete teardown, and relaunch in both emulator hosts. */
+/** Real game cancellation, complete teardown, relaunch, and frontend exit in both emulator hosts. */
 object EndSessionFixture {
     fun verify(test: Instrumentation, uri: String, nextUri: String? = null) {
         val dos = test.targetContext.packageName.endsWith("kairodos")
@@ -44,15 +44,27 @@ object EndSessionFixture {
         }
         fun running() = (if (dos) field("currentGame") else field("currentDisk")) != null &&
             (if (dos) status() == "2" else status().startsWith("Running"))
+        fun stopped() = if (dos) status() == "0" else status().startsWith("Stopped")
         fun library(): LibraryScreen<*> {
             val flow = field("libraryFlow")!!
             return flow.javaClass.getMethod("getScreen").invoke(flow) as LibraryScreen<*>
         }
-        fun request() = ui {
+        // Games start through the external launch interface; clearing the host's frontend
+        // flag gives the same session the library-launched return path.
+        fun treatAsLibraryLaunch() = ui {
+            activity.javaClass.getDeclaredField("sessionFromFrontend").apply { isAccessible = true }
+                .setBoolean(activity, false)
+        }
+        fun request(external: Boolean) = ui {
             call("openMenu")
             val flow = field("sessionFlow") as SessionFlow
             descendants(flow.drawer.drawer).single { it.contentDescription == "Library" }.performClick()
-            check(prompt() != null) { "Library action did not prompt" }
+            val shown = prompt()
+            check(shown != null) { "Library action did not prompt" }
+            val expected = if (external) "return to the frontend" else "Return to Library"
+            check(descendants(shown).filterIsInstance<TextView>().any { it.text.contains(expected) }) {
+                "Prompt does not say \"$expected\""
+            }
         }
         fun choose(confirm: Boolean) = ui {
             val decor = prompt()!!
@@ -88,11 +100,15 @@ object EndSessionFixture {
             }
             await("Game did not resume after control settings", ::running)
         }
+        fun relaunch(target: String) = ui {
+            activity.javaClass.getDeclaredMethod("onNewIntent", Intent::class.java)
+                .apply { isAccessible = true }.invoke(activity, Intent(launch).setData(Uri.parse(target)))
+        }
         try {
             await("Game did not start", ::running)
             verifyTouchControls()
             val identity = field(if (dos) "currentGame" else "currentDisk")
-            request(); choose(false)
+            request(external = true); choose(false)
             await("Cancel did not resume game", ::running)
             ui {
                 check(field(if (dos) "currentGame" else "currentDisk") === identity)
@@ -100,11 +116,9 @@ object EndSessionFixture {
                 check(!(field("sessionFlow") as SessionFlow).isOpen)
             }
             repeat(if (dos) 3 else 2) { cycle ->
-                request(); choose(true)
-                await("Session did not end") {
-                    library().visibility == View.VISIBLE &&
-                        (if (dos) status() == "0" else status().startsWith("Stopped"))
-                }
+                treatAsLibraryLaunch()
+                request(external = false); choose(true)
+                await("Session did not end") { library().visibility == View.VISIBLE && stopped() }
                 ui {
                     check(!activity.isFinishing)
                     check(field(if (dos) "currentGame" else "currentDisk") == null)
@@ -123,8 +137,7 @@ object EndSessionFixture {
                     check(prompt() == null) { "Idle library incorrectly prompted" }
                 }
                 if (cycle < (if (dos) 2 else 1)) {
-                    ui { activity.javaClass.getDeclaredMethod("onNewIntent", Intent::class.java)
-                        .apply { isAccessible = true }.invoke(activity, Intent(launch).setData(Uri.parse(nextUri ?: uri))) }
+                    relaunch(nextUri ?: uri)
                     if (dos && cycle == 1) {
                         await("Early launch did not create session") { field("currentGame") != null }
                         test.sendStatus(0, android.os.Bundle().apply {
@@ -136,6 +149,12 @@ object EndSessionFixture {
                     }
                 }
             }
+            relaunch(uri)
+            await("Frontend game did not start after teardown", ::running)
+            request(external = true); choose(true)
+            await("Frontend session did not close the app") { activity.isFinishing }
+            await("Frontend exit did not stop the machine", ::stopped)
+            ui { check(library().visibility != View.VISIBLE) { "Frontend session returned to Library" } }
         } finally {
             ui { enabled.setBoolean(controls, wasEnabled); activity.finish() }
         }
