@@ -45,8 +45,8 @@ object GameSettingsCoordinator {
         val fileDescription = if (settings.zipEntry == null) "Path and content ID"
             else "Path, ZIP entry, and content ID"
         val controls = listOf(
-            GameSettingsRow("Touch input", settings.touch.label(), true, action = actions.editTouch),
-            GameSettingsRow("Controller mapping", settings.controller.label(), true,
+            GameSettingsRow("Touch input", "", true, action = actions.editTouch),
+            GameSettingsRow("Controller mapping", "", true,
                 action = actions.editController))
         val library = listOf(
             GameSettingsRow("Title", settings.title.label(), true, action = actions.editTitle),
