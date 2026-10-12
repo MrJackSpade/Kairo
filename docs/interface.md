@@ -31,9 +31,14 @@ Restart game, Return to library, Exit. Return reads **Return to frontend** when 
 frontend launched the game. Kairo98's GAME group holds Save state, Load state, Disks,
 and Game settings; KairoDos holds Game settings, because its core has no save states.
 
-SETTINGS: Graphics, Controls, Machine, Sound (a switch), About. Kairo98's Machine page
-holds the base clock and firmware; KairoDos's holds the DOS CPU speed, and its Graphics
-page adds the emulated video card and 3dfx rendering.
+SETTINGS: Graphics, Controls, Machine, Configurations, Sound (a switch), About.
+Kairo98's Machine page holds the base clock and firmware; KairoDos's holds the DOS CPU
+speed, and its Graphics page adds the emulated video card and 3dfx rendering.
+
+Configurations holds where the app keeps the user's files. Kairo98: SAVE STATES (Save folder);
+KairoDos: SAVED GAMES (Save folder, for each game's overlay of written files). Save folder is
+Private app storage or Custom folder. Changing it moves every save; a save in both places opens
+Save conflicts, where the user keeps one copy of each before anything moves.
 
 Manage library: SOURCE (folder, Refresh, Recheck all files), CATALOGS (Update catalogs,
 Import catalog file…, Remove catalog), ARTWORK (Download missing images).

@@ -14,10 +14,10 @@ class StateSlotCoordinator(
     private val handler: Handler,
     private val currentId: () -> String?,
     private val title: () -> String?,
-    private val storage: (String) -> StateSlotStore,
+    private val storage: (String) -> StateSlots,
     private val surface: () -> SurfaceView?,
-    private val nativeSave: (StateSlotStore, File) -> Int,
-    private val nativeLoad: (StateSlotStore.Slot) -> Int,
+    private val nativeSave: (File) -> Int,
+    private val nativeLoad: (File) -> Int,
     private val stateError: (Int) -> String,
     private val message: (String) -> Unit,
     private val loaded: () -> Unit,
@@ -28,6 +28,9 @@ class StateSlotCoordinator(
     @Volatile var isBusy = false
         private set
 
+    /** The open page's slots. Listing can read a user-chosen folder, so it runs on a worker. */
+    @Volatile private var summaries: List<StateSlots.Summary> = emptyList()
+
     val available: Boolean get() = currentId() != null
 
     /** The GAME rows of the game flyout. */
@@ -36,49 +39,70 @@ class StateSlotCoordinator(
         SettingsRow.nav("f-load", "Load state", enabled = { available }, disabledReason = { unavailable }) { show(false) })
 
     fun show(saving: Boolean) {
+        if (isBusy) return
         val id = currentId() ?: run { message(unavailable); return }
-        try {
-            val store = storage(id)
-            pages.push(StateSlotPage(saving, title(), {
-                store.slots().map { slot ->
-                    StateSlotPage.Slot(slot.index, slot.savedAt,
-                        slot.thumbnailFile.takeIf { slot.savedAt != null && it.isFile }
-                            ?.let { BitmapFactory.decodeFile(it.path) })
-                }
-            }, { isBusy }, { save(id, store, it) }, { load(id, store, it) }))
-        } catch (error: Exception) { message("Could not open save states: ${error.message}") }
+        isBusy = true
+        Thread({
+            val result = runCatching {
+                val store = storage(id)
+                store to store.summaries()
+            }
+            activity.runOnUiThread {
+                isBusy = false
+                if (!activity.isDestroyed) result.fold({ (store, listed) ->
+                    summaries = listed
+                    pages.push(StateSlotPage(saving, title(), ::pageSlots, { isBusy },
+                        { save(id, store, it) }, { load(id, store, it) }))
+                }, { error ->
+                    message("Could not open save states: ${error.message ?: "storage error"}")
+                })
+            }
+        }, "Kairo-save-slots").start()
     }
 
-    private fun save(id: String, store: StateSlotStore, index: Int) {
+    private fun pageSlots() = summaries.map { slot ->
+        StateSlotPage.Slot(slot.index, slot.savedAt, slot.thumbnail?.let { bytes ->
+            checkNotNull(BitmapFactory.decodeByteArray(bytes, 0, bytes.size)) {
+                "Slot ${slot.index} thumbnail is unreadable"
+            }
+        })
+    }
+
+    private fun save(id: String, store: StateSlots, index: Int) {
         if (isBusy) return
         isBusy = true
         SurfaceThumbnail.capture(surface(), handler) { thumbnail ->
             Thread({
                 var scratch: File? = null
+                var saved = false
                 val result = try {
                     check(currentId() == id) { "The running game changed" }
                     val candidate = store.beginSave(index)
                     scratch = candidate
-                    val code = nativeSave(store, candidate)
+                    val code = nativeSave(candidate)
                     if (code != 0) "Save failed: ${stateError(code)}"
                     else {
-                        store.commitSave(index, candidate, thumbnail?.let { bitmap ->
-                            { file -> file.outputStream().use {
+                        thumbnail?.let { bitmap ->
+                            store.thumbnailFileIn(candidate).outputStream().use {
                                 check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) {
                                     "Could not encode thumbnail"
                                 }
-                            }; Unit }
-                        })
+                            }
+                        }
+                        store.commitSave(index, candidate)
+                        saved = true
                         "Saved to slot $index"
                     }
                 } catch (error: Exception) { "Save failed: ${error.message ?: "storage error"}" }
                 finally {
-                    scratch?.let { runCatching { store.abandonSave(index, it) } }
+                    scratch?.let { store.abandonSave(index, it) }
                     thumbnail?.recycle()
                 }
+                val listed = if (saved) store.summaries() else null
                 activity.runOnUiThread {
                     isBusy = false
                     if (!activity.isDestroyed) {
+                        listed?.let { summaries = it }
                         message(result)
                         pages.refresh()
                     }
@@ -87,15 +111,13 @@ class StateSlotCoordinator(
         }
     }
 
-    private fun load(id: String, store: StateSlotStore, index: Int) {
+    private fun load(id: String, store: StateSlots, index: Int) {
         if (isBusy) return
         isBusy = true
         Thread({
             val result = runCatching {
                 check(currentId() == id) { "The running game changed" }
-                val slot = store.slot(index)
-                check(slot.savedAt != null) { "This slot is empty" }
-                nativeLoad(slot)
+                store.withSlot(index, nativeLoad)
             }
             activity.runOnUiThread {
                 isBusy = false

@@ -2,9 +2,9 @@ package com.mrjackspade.kairo.frontend
 
 import java.io.File
 
-/** Four content-ID slots. The core's state, disk copies, and thumbnail commit together. */
+/** Four content-ID slots in app storage. The core's state, disk copies, and thumbnail commit together. */
 class StateSlotStore(root: File, contentId: String, private val stateName: String,
-                     private val legacySuffix: String? = null) {
+                     private val legacySuffix: String? = null) : StateSlots {
     data class Slot(val index: Int, val savedAt: Long?, val directory: File,
                     val stateFile: File, val thumbnailFile: File)
 
@@ -30,7 +30,19 @@ class StateSlotStore(root: File, contentId: String, private val stateName: Strin
         return Slot(index, state.takeIf(File::isFile)?.lastModified(), directory, state, thumbnail)
     }
 
-    @Synchronized fun beginSave(index: Int): File {
+    override fun summaries(): List<StateSlots.Summary> = slots().map { slot ->
+        StateSlots.Summary(slot.index, slot.savedAt,
+            slot.thumbnailFile.takeIf { slot.savedAt != null && it.isFile }?.readBytes())
+    }
+
+    override fun <T> withSlot(index: Int, load: (File) -> T): T {
+        val slot = slot(index)
+        check(slot.savedAt != null) { "This slot is empty" }
+        check(slot.stateFile == File(slot.directory, stateName)) { "This slot uses an older save format" }
+        return load(slot.directory)
+    }
+
+    @Synchronized override fun beginSave(index: Int): File {
         requireIndex(index)
         recover(index)
         val scratch = scratch(index)
@@ -40,14 +52,16 @@ class StateSlotStore(root: File, contentId: String, private val stateName: Strin
     }
 
     fun stateFileIn(scratch: File): File = File(scratch, stateName)
+    override fun thumbnailFileIn(scratch: File): File = File(scratch, THUMBNAIL_FILE)
 
-    @Synchronized fun commitSave(index: Int, scratch: File,
-                                 thumbnail: ((File) -> Unit)? = null) {
+    override fun commitSave(index: Int, scratch: File) = commitSave(index, scratch, null)
+
+    @Synchronized fun commitSave(index: Int, scratch: File, thumbnail: ((File) -> Unit)?) {
         requireScratch(index, scratch)
         check(stateFileIn(scratch).isFile && stateFileIn(scratch).length() > 0) {
             "The emulator did not write a complete state"
         }
-        thumbnail?.invoke(File(scratch, THUMBNAIL_FILE))
+        thumbnail?.invoke(thumbnailFileIn(scratch))
         recover(index)
         val target = directory(index)
         val previous = previous(index)
@@ -62,7 +76,7 @@ class StateSlotStore(root: File, contentId: String, private val stateName: Strin
         legacySuffix?.let { File(base, "slot$index$it").delete(); File(base, "slot$index.png").delete() }
     }
 
-    @Synchronized fun abandonSave(index: Int, scratch: File) {
+    @Synchronized override fun abandonSave(index: Int, scratch: File) {
         requireScratch(index, scratch)
         scratch.deleteRecursively()
     }
