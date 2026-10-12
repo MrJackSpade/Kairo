@@ -1,6 +1,7 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -17,6 +18,7 @@ class SecondaryDisplayActivity : Activity() {
     private var owner: SecondaryDisplayCoordinator? = null
     private val backCallback = OnBackInvokedCallback { owner?.forwardBack() }
     private lateinit var content: SecondaryDisplayContent
+    private lateinit var viewScale: ViewScale
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,17 +29,38 @@ class SecondaryDisplayActivity : Activity() {
         // primary frontend instead of finishing and recreating the keyboard task.
         if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(
             OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback)
+        hideSystemBars()
+        viewScale = ViewScale(this)
+        showContent(session)
+    }
+
+    private fun hideSystemBars() {
         // Focusable, so input that lands on this display always has a window to reach;
         // it is forwarded to the game screen below.
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or
             View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+    }
+
+    private fun showContent(session: SecondaryDisplayCoordinator) {
+        if (::content.isInitialized) content.close()
         content = SecondaryDisplayContent(this, session.attachCompanion(this),
             session::forwardGameSurface, session::forwardGameTouch,
             session::currentGameAspect)
         setContentView(content)
         session.updateCompanion(this)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val session = owner ?: return
+        hideSystemBars()
+        // Rebuilding the content in place keeps this companion and a swapped game display.
+        if (viewScale.changed) {
+            showContent(session)
+            viewScale.rebuilt()
+        }
     }
 
     override fun onAttachedToWindow() {

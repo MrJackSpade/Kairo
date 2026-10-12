@@ -2,8 +2,10 @@
     <!-- The companion screen returns controller focus to the game display. -->
     <uses-permission android:name="android.permission.REORDER_TASKS" />
     <application>
+        <!-- A recreated companion finds no pending session and closes, taking a swapped game
+             display with it. It handles every declarable change in place, as MainActivity does. -->
         <activity android:name=".SecondaryDisplayActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|density|screenSize|smallestScreenSize|layoutDirection|colorMode|fontWeightAdjustment|grammaticalGender"
             android:excludeFromRecents="true"
             android:exported="false" />
     </application>
