@@ -42,8 +42,7 @@ class GraphicsOptions(
         else -> "Integer full image"
     }
 
-    fun settingsLabel(): String = scalingLabel() +
-        if (isPortrait()) " · notch $portraitNotchPadding dp" else ""
+    fun settingsLabel(): String = ""
 
     fun show() = show(emptyList())
 
@@ -53,7 +52,7 @@ class GraphicsOptions(
             "Scaling  ·  ${scalingLabel()}", "Notch padding  ·  $portraitNotchPadding dp")
         else arrayOf("Scaling  ·  ${scalingLabel()}")
         val items = displayItems + extraEntries.map { "${it.title} · ${it.value()}" }
-        showDialog(AlertDialog.Builder(activity).setTitle(if (includeDisplaySettings) "Graphics · $orientation" else "Graphics")
+        showDialog(AlertDialog.Builder(activity).setTitle("Graphics")
             .setItems(items) { _, which ->
                 if (which >= displayItems.size) extraEntries[which - displayItems.size].action()
                 else if (which == 0) showScalingChoices(orientation) else showNotchPadding()
@@ -64,7 +63,7 @@ class GraphicsOptions(
         val options = arrayOf("Integer  ·  full image (default)",
             "Integer  ·  crop edges", "Fit display  ·  fractional scale")
         val selected = if (!integerScaling) 2 else if (integerCrop) 1 else 0
-        showDialog(AlertDialog.Builder(activity).setTitle("Scaling · $orientation")
+        showDialog(AlertDialog.Builder(activity).setTitle("Scaling")
             .setSingleChoiceItems(options, selected) { dialog, choice ->
                 integerScaling = choice != 2
                 integerCrop = choice == 1

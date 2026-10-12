@@ -63,7 +63,7 @@ object GameSettingsSheet {
                     textSize = Ui.BODY
                     setTextColor(if (row.destructive) Ui.DANGER else Color.WHITE)
                 })
-                item.addView(TextView(activity).apply {
+                if (row.value.isNotEmpty()) item.addView(TextView(activity).apply {
                     text = row.value
                     textSize = Ui.LABEL
                     setTextColor(Ui.TEXT_MUTED)

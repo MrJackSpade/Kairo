@@ -177,8 +177,9 @@ object Ui {
         }
         row.addView(text(context, title, BODY))
         val value = text(context, description(), SECONDARY, TEXT_MUTED)
+        value.visibility = if (value.text.isNullOrEmpty()) View.GONE else View.VISIBLE
         row.addView(value)
-        row.contentDescription = "$title. ${value.text}"
+        row.contentDescription = if (value.visibility == View.GONE) title else "$title. ${value.text}"
         return ActionRow(row, value)
     }
 

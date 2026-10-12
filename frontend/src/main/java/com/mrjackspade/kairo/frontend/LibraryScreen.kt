@@ -804,7 +804,10 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     fun refreshSettingValues() {
-        settingValues.forEach { (view, value) -> view.text = value() }
+        settingValues.forEach { (view, value) ->
+            view.text = value()
+            view.visibility = if (view.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        }
     }
 
     /** Drop library search focus before a guest session takes over the window. */

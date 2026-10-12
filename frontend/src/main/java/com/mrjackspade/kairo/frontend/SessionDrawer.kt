@@ -111,7 +111,10 @@ class SessionDrawer(
         values.add(row.detail to entry.value)
     }
 
-    fun refreshValues() { values.forEach { (label, value) -> label.text = value() } }
+    fun refreshValues() { values.forEach { (label, value) ->
+        label.text = value()
+        label.visibility = if (label.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+    } }
 
     fun focus(index: Int) {
         if (items.isEmpty()) return
