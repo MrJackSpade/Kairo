@@ -28,26 +28,42 @@ object CatalogProgressFixture {
         }
         fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(owner)
         lateinit var screen: LibraryScreen<*>
-        lateinit var banner: View
-        lateinit var spinner: View
+        lateinit var pages: PageStack
+        lateinit var menu: LibraryMenu<*>
+        lateinit var strip: TaskStrip
         lateinit var label: TextView
+        lateinit var spinner: View
         var controller: CatalogUpdateController? = null
+        /** Busy states show in the task strip; results leave it and reach the Update catalogs row. */
         fun awaitState(state: CatalogUpdateState?) {
             repeat(100) {
                 var matches = false
                 ui {
-                    matches = if (state == null) banner.visibility == View.GONE
-                        else banner.isShown && label.text.toString() == state.label &&
-                            (spinner.visibility == View.VISIBLE) == state.busy
+                    val shown = strip.isShown && label.text.toString() == state?.label && spinner.visibility == View.VISIBLE
+                    matches = if (state?.busy == true) shown
+                        else strip.visibility == View.GONE && field(menu, "catalogState") == state
                 }
                 if (matches) return
                 Thread.sleep(20)
             }
-            error("Missing catalog UI state $state: ${label.text}, banner=${banner.visibility}, spinner=${spinner.visibility}")
+            error("Missing catalog UI state $state: ${label.text}, strip=${strip.visibility}, state=${field(menu, "catalogState")}")
         }
         var changed = 0
         fun create(fetch: (CatalogUpdateTask) -> Boolean) = CatalogUpdateController(activity, fetch, {},
-            { changed++ }, {}, screen::showCatalogUpdate).also { controller = it }
+            { changed++ }, {}, menu::showCatalogProgress).also { controller = it }
+        fun nav(code: Int) {
+            for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
+                activity.dispatchKeyEvent(android.view.KeyEvent(action, code))
+        }
+        fun hat(axis: Int, value: Float) {
+            val now = android.os.SystemClock.uptimeMillis()
+            val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
+            val coords = arrayOf(android.view.MotionEvent.PointerCoords().apply { setAxisValue(axis, value) })
+            val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
+                1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
+            activity.dispatchGenericMotionEvent(event)
+            event.recycle()
+        }
         try {
             Thread.sleep(8000)
             ui {
@@ -55,157 +71,137 @@ object CatalogProgressFixture {
                     .invoke(activity) as CatalogUpdateController).cancel()
                 val flow = field(activity, "libraryFlow")!!
                 screen = flow.javaClass.getMethod("getScreen").invoke(flow) as LibraryScreen<*>
-                banner = field(screen, "catalogBanner") as View
-                spinner = field(screen, "catalogProgress") as View
-                label = field(screen, "catalogStatus") as TextView
-            }
-            lateinit var menu: android.app.AlertDialog
-            fun texts(view: View): List<String> = when (view) {
-                is TextView -> listOf(view.text.toString())
-                is android.view.ViewGroup -> (0 until view.childCount).flatMap { texts(view.getChildAt(it)) }
-                else -> emptyList()
-            }
-            fun key(code: Int) {
-                for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
-                    menu.window!!.callback.dispatchKeyEvent(android.view.KeyEvent(action, code))
+                pages = field(activity, "pages") as PageStack
+                menu = field(activity, "libraryMenu") as LibraryMenu<*>
+                strip = screen.tasks
+                label = (0 until strip.childCount).map(strip::getChildAt)
+                    .filterIsInstance<TextView>().first { it !== strip.stopButton }
+                spinner = strip.getChildAt(0)
             }
             ui {
-                screen.openActions()
-                @Suppress("UNCHECKED_CAST")
-                val rows = field(screen, "actionItems") as List<View>
-                check(rows.flatMap(::texts).none { it in setOf("Update game catalog", "Update installed catalogs", "Import catalog file", "Remove catalog", "Download missing images") })
-                rows.single { "Catalog management" in texts(it) }.performClick()
-                menu = field(screen, "catalogManagementDialog") as android.app.AlertDialog
-                check((0 until menu.listView.count).map { menu.listView.adapter.getItem(it).toString() } ==
-                    listOf("Update catalogs", "Import catalog file", "Remove catalog", "Download missing images"))
-            }
-            Thread.sleep(200) // Allow the new dialog window to acquire input focus.
-            ui { menu.listView.requestFocusFromTouch(); menu.listView.setSelection(0) }
-            repeat(3) { test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_DPAD_DOWN); test.waitForIdleSync() }
-            ui { check(menu.listView.selectedItemPosition == 3) { "D-pad selected ${menu.listView.selectedItemPosition}" } }
-            ui {
-                val now = android.os.SystemClock.uptimeMillis()
-                val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
-                val coords = arrayOf(android.view.MotionEvent.PointerCoords().apply {
-                    setAxisValue(android.view.MotionEvent.AXIS_HAT_Y, -1f)
-                })
-                val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
-                    1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
-                menu.window!!.callback.dispatchGenericMotionEvent(event)
-                event.recycle()
-            }
-            ui {
-                check(menu.listView.selectedItemPosition == 2)
-                key(android.view.KeyEvent.KEYCODE_BACK)
-            }
-            ui {
-                check(!menu.isShowing && screen.actionsOpen)
-                screen.closeActions()
-            }
-            ui {
-                fun nav(code: Int) {
-                    for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
-                        activity.dispatchKeyEvent(android.view.KeyEvent(action, code))
+                menu.open()
+                val flyout = pages.top!!
+                check(flyout.isFlyout)
+                val rows = flyout.itemIds()
+                check(rows.first() == "f-refresh" && rows[1] == "f-manage" && rows.last().startsWith("f-exit")) {
+                    "Library flyout rows: $rows"
                 }
+                check(rows.containsAll(listOf("f-graphics", "f-controls", "f-machine", "f-sound", "f-about")))
+                check(flyout.focusedItemId == "f-refresh")
+                nav(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                check(flyout.focusedItemId == "f-manage")
+                nav(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+            }
+            Thread.sleep(300)
+            lateinit var manage: Page
+            ui {
+                manage = pages.top!!
+                val rows = manage.itemIds()
+                check(rows.take(6) == listOf("folder", "refresh", "recheck", "catalogs", "catalog-import", "catalog-remove")) {
+                    "Manage library rows: $rows"
+                }
+                check(manage.focusedItemId == "folder")
+            }
+            repeat(3) { test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_DPAD_DOWN); test.waitForIdleSync() }
+            ui { check(manage.focusedItemId == "catalogs") { "D-pad selected ${manage.focusedItemId}" } }
+            ui { hat(android.view.MotionEvent.AXIS_HAT_Y, -1f); hat(android.view.MotionEvent.AXIS_HAT_Y, 0f) }
+            ui {
+                check(manage.focusedItemId == "recheck") { "Hat selected ${manage.focusedItemId}" }
+                nav(android.view.KeyEvent.KEYCODE_BACK)
+            }
+            Thread.sleep(300)
+            ui {
+                check(pages.top?.isFlyout == true && pages.top?.focusedItemId == "f-manage") {
+                    "Back did not return to the flyout row"
+                }
+                nav(android.view.KeyEvent.KEYCODE_BACK)
+            }
+            Thread.sleep(300)
+            ui {
+                check(!pages.isActive)
                 screen.leaveHeader()
                 screen.moveSelection(-100000)
                 screen.leaveHeader()
+                val menuButton = field(screen, "menuButton") as View
+                val searchButton = field(screen, "searchButton") as View
                 nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
-                check((field(screen, "menuButton") as View).hasFocus()) { "Up cannot reach Menu" }
+                if (strip.canStop) nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                check(menuButton.isSelected) { "Up cannot reach Menu" }
                 nav(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
-                check(screen.actionsOpen)
+                check(pages.flyoutOpen)
                 nav(android.view.KeyEvent.KEYCODE_BACK)
-                check(!screen.actionsOpen && (field(screen, "menuButton") as View).hasFocus())
+                check(!pages.isActive && menuButton.isSelected)
                 nav(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
-                check((field(screen, "searchButton") as View).hasFocus()) { "Right cannot reach Search" }
+                check(searchButton.isSelected) { "Right cannot reach Search" }
                 nav(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
                 check(screen.searchFocused) { "Confirm did not open Search" }
                 nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
-                check(!screen.searchFocused && (field(screen, "searchButton") as View).hasFocus())
-                val now = android.os.SystemClock.uptimeMillis()
-                val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
-                val coords = arrayOf(android.view.MotionEvent.PointerCoords().apply {
-                    setAxisValue(android.view.MotionEvent.AXIS_HAT_X, -1f)
-                })
-                val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
-                    1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
-                activity.dispatchGenericMotionEvent(event)
-                event.recycle()
-                coords[0].setAxisValue(android.view.MotionEvent.AXIS_HAT_X, 0f)
-                val neutral = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
-                    1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
-                activity.dispatchGenericMotionEvent(neutral)
-                neutral.recycle()
-                check((field(screen, "menuButton") as View).hasFocus()) { "Hat cannot move across header" }
+                check(!screen.searchFocused && searchButton.isSelected)
+                hat(android.view.MotionEvent.AXIS_HAT_X, -1f)
+                hat(android.view.MotionEvent.AXIS_HAT_X, 0f)
+                check(menuButton.isSelected) { "Hat cannot move across header" }
                 nav(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                if (field(screen, "headerSelection") == 2) nav(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
                 check(field(screen, "headerSelection") == -1 && field(screen, "selectedIndex") == 0)
                 nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
                 nav(android.view.KeyEvent.KEYCODE_BACK)
                 check(field(screen, "headerSelection") == -1) { "Back did not leave header" }
             }
-            test.sendStatus(0, android.os.Bundle().apply { putString("stream", "Header Menu/Search key/hat navigation and return: OK\n") })
+            test.sendStatus(0, android.os.Bundle().apply { putString("stream", "Library flyout, Manage library, header Menu/Search key/hat navigation and return: OK\n") })
             lateinit var detail: GameDetailPage<*>
-            fun detailKey(code: Int) {
-                for (action in listOf(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.ACTION_UP))
-                    activity.dispatchKeyEvent(android.view.KeyEvent(action, code))
-            }
             ui {
                 screen.activateSelection()
                 check(screen.detailOpen)
-                detail = field(screen, "detailPage") as GameDetailPage<*>
-                check((field(detail, "playButton") as View).hasFocus())
-                detailKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
-                val command = field(detail, "commandButton") as View
-                if (command.visibility == View.VISIBLE) {
-                    check(command.hasFocus()) { "Cannot navigate to command launch" }
-                    detailKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                detail = pages.top as GameDetailPage<*>
+                check(detail.focusedItemId == "play")
+                nav(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                val command = detail.itemIds().contains("command")
+                if (command) {
+                    check(detail.focusedItemId == "command") { "Cannot navigate to command launch" }
+                    nav(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
                 }
-                check((field(detail, "settingsButton") as View).hasFocus()) { "Cannot navigate to Game settings" }
-                detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
-                if (command.visibility == View.VISIBLE) detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
-                check((field(detail, "playButton") as View).hasFocus()) { "Cannot return to Play" }
-                val now = android.os.SystemClock.uptimeMillis()
-                val properties = arrayOf(android.view.MotionEvent.PointerProperties().apply { id = 0 })
-                val coords = arrayOf(android.view.MotionEvent.PointerCoords())
-                for (value in if (command.visibility == View.VISIBLE) listOf(1f, 0f, 1f, 0f) else listOf(1f, 0f)) {
-                    coords[0].setAxisValue(android.view.MotionEvent.AXIS_HAT_Y, value)
-                    val event = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_MOVE,
-                        1, properties, coords, 0, 0, 1f, 1f, 0, 0, android.view.InputDevice.SOURCE_JOYSTICK, 0)
-                    activity.dispatchGenericMotionEvent(event)
-                    event.recycle()
-                }
-                check((field(detail, "settingsButton") as View).hasFocus()) { "Hat cannot navigate game details" }
-                detailKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+                check(detail.focusedItemId == "settings") { "Cannot navigate to Game settings" }
+                nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                if (command) nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                check(detail.focusedItemId == "play") { "Cannot return to Play" }
+                for (value in if (command) listOf(1f, 0f, 1f, 0f) else listOf(1f, 0f))
+                    hat(android.view.MotionEvent.AXIS_HAT_Y, value)
+                check(detail.focusedItemId == "settings") { "Hat cannot navigate game details" }
+                nav(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
             }
-            // The actual product settings sheet must open and return to the same detail button.
-            Thread.sleep(200)
+            // The actual product Game settings page must open and return to the same detail button.
+            Thread.sleep(300)
+            ui { check(pages.top is GroupsPage && (pages.top as GroupsPage).title == "Game settings") }
             test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
             test.waitForIdleSync()
+            Thread.sleep(300)
             ui {
-                check(screen.detailOpen && (field(detail, "settingsButton") as View).hasFocus())
+                check(screen.detailOpen && pages.top === detail && detail.focusedItemId == "settings")
                 detail.javaClass.getDeclaredMethod("updateHeroLayout", Boolean::class.javaPrimitiveType)
                     .apply { isAccessible = true }.invoke(detail, true)
             }
             ui {
-                detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
-                detailKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+                nav(android.view.KeyEvent.KEYCODE_DPAD_UP)
+                nav(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
             }
+            Thread.sleep(400)
             ui {
-                val settings = field(detail, "settingsButton") as View
+                val settings = detail.itemView("settings")!!
                 val visible = android.graphics.Rect()
                 check(settings.getGlobalVisibleRect(visible) && visible.height() == settings.height) {
                     "Focused detail action remains off screen"
                 }
-                repeat(5) { detailKey(android.view.KeyEvent.KEYCODE_DPAD_UP) }
-                check((field(detail, "backButton") as View).hasFocus())
-                detailKey(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
+                repeat(5) { nav(android.view.KeyEvent.KEYCODE_DPAD_UP) }
+                check(detail.focusedItemId == "back")
+                nav(android.view.KeyEvent.KEYCODE_DPAD_CENTER)
                 check(!screen.detailOpen)
                 detail.javaClass.getDeclaredMethod("updateHeroLayout", Boolean::class.javaPrimitiveType)
                     .apply { isAccessible = true }.invoke(detail, activity.resources.configuration.orientation ==
                         android.content.res.Configuration.ORIENTATION_PORTRAIT)
             }
+            Thread.sleep(300)
             test.sendStatus(0, android.os.Bundle().apply {
-                putString("stream", "Game details key/hat traversal, settings return and off-screen focus: OK\n")
+                putString("stream", "Game page key/hat traversal, Game settings return and off-screen focus: OK\n")
             })
             // Reproduce the ANR: the real catalog monitor is held by indexing while
             // UI navigation, visibility refresh and detail rendering need metadata.
@@ -270,8 +266,6 @@ object CatalogProgressFixture {
             gates[1].countDown(); awaitState(CatalogUpdateState.APPLYING)
             gates[2].countDown(); awaitState(CatalogUpdateState.UPDATED)
             ui { check(changed == 1) }
-            Thread.sleep(3200)
-            awaitState(null)
             ui { create { false }.check(true) }
             awaitState(CatalogUpdateState.CURRENT)
             ui { create { error("Fixture network failure") }.check(true) }
@@ -294,21 +288,21 @@ object CatalogProgressFixture {
             var installedChecks = 0
             ui {
                 controller = CatalogUpdateController(activity, { false }, {}, { changed++ }, {},
-                    screen::showCatalogUpdate, { installedChecks++; true })
+                    menu::showCatalogProgress, { installedChecks++; true })
                 controller!!.check(false)
             }
             awaitState(CatalogUpdateState.UPDATED)
             ui { check(changed == beforeCombined + 1 && installedChecks == 1) }
             ui {
                 controller = CatalogUpdateController(activity, { error("Core unavailable") }, {},
-                    { changed++ }, {}, screen::showCatalogUpdate, { installedChecks++; true })
+                    { changed++ }, {}, menu::showCatalogProgress, { installedChecks++; true })
                 controller!!.check(false)
             }
             awaitState(CatalogUpdateState.FAILED)
             ui { check(changed == beforeCombined + 2 && installedChecks == 2) }
             ui {
                 controller = CatalogUpdateController(activity, { true }, {}, { changed++ }, {},
-                    screen::showCatalogUpdate, { error("Installed source unavailable") })
+                    menu::showCatalogProgress, { error("Installed source unavailable") })
                 controller!!.check(false)
             }
             awaitState(CatalogUpdateState.FAILED)

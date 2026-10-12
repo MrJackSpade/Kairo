@@ -92,13 +92,10 @@ class OnScreenControls(
         clipChildren = false
         clipToPadding = false
     }
-    private var page: LinearLayout? = null
-    private var settingsBody: LinearLayout? = null
-    private var settingsScroll: ScrollView? = null
-    private var settingsTitle: TextView? = null
     private var arrangement: FrameLayout? = null
-    private var returnToParent: ((Boolean) -> Unit)? = null
     private var requestedVisible = false
+    /** Pages to refresh when the orientation or controller layout changes under them. */
+    var pages: PageStack? = null
     private var guestKeyboard: GuestKeyboardPanel? = null
     private val keyboardVisibilityListener: () -> Unit = {
         refreshVisibility(requestedVisible)
@@ -120,8 +117,6 @@ class OnScreenControls(
             } == true
         })
 
-    val isOpen: Boolean get() = page != null
-
     /** Whether the round 8-way pad replaces the four arrows, in both orientations. */
     var eightWayDpad: Boolean
         get() = states.getValue(PAD8).shown
@@ -133,7 +128,6 @@ class OnScreenControls(
                 saveLayout(layout)
             }
             positionAll()
-            if (isOpen) renderSettings()
         }
 
     init {
@@ -150,7 +144,7 @@ class OnScreenControls(
 
     fun refreshVisibility(playing: Boolean) {
         requestedVisible = playing
-        val show = playing && enabled && !isOpen && guestKeyboard?.visibility != View.VISIBLE
+        val show = playing && enabled && arrangement == null && guestKeyboard?.visibility != View.VISIBLE
         if (!show) {
             mapper.releaseOnScreen()
             heldPointers.values.forEach(MutableSet<Int>::clear)
@@ -172,162 +166,95 @@ class OnScreenControls(
         }
     }
 
-    fun show(onReturn: (Boolean) -> Unit = {}) {
-        if (isOpen) return
-        returnToParent = onReturn
-        positionAll()
-        val settings = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Ui.BG)
-            isFocusableInTouchMode = true
-            elevation = dp(20).toFloat()
-        }
-        page = settings
-        root.addView(settings, FrameLayout.LayoutParams(-1, -1))
-        val bar = LinearLayout(activity).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(Ui.BG)
-            setPadding(dp(12), dp(7), dp(12), dp(7))
-        }
-        bar.addView(Ui.iconButton(activity, R.drawable.ic_back, "Back") { back() },
-            LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(8) })
-        settingsTitle = TextView(activity).apply {
-            text = "Controls · ${orientation.label}"
-            textSize = Ui.TITLE
-            setTextColor(Ui.TEXT)
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        bar.addView(settingsTitle, LinearLayout.LayoutParams(0, dp(48), 1f))
-        settings.addView(bar)
-        val body = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(8), dp(18), dp(20))
-        }
-        settingsBody = body
-        val scroll = ScrollView(activity).apply { addView(body) }
-        settingsScroll = scroll
-        settings.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        renderSettings()
-        settings.requestFocus()
-        onVisibilityChanged()
-    }
-
-    fun back() {
-        if (arrangement != null) {
-            root.removeView(arrangement)
-            arrangement = null
-            page?.visibility = View.VISIBLE
-            renderSettings()
-            return
-        }
-        close(returning = true)
-    }
-
-    fun close(returning: Boolean = false) {
-        val returnAction = returnToParent
-        returnToParent = null
-        arrangement?.let(root::removeView)
-        arrangement = null
-        page?.let(root::removeView)
-        page = null
-        settingsBody = null
-        settingsScroll = null
-        settingsTitle = null
-        refreshVisibility(requestedVisible)
-        onVisibilityChanged()
-        returnAction?.invoke(returning)
-    }
-
-    fun handleKey(event: KeyEvent): Boolean {
-        if (!isOpen) return false
-        if (event.keyCode == KeyEvent.KEYCODE_BACK || event.keyCode == KeyEvent.KEYCODE_ESCAPE ||
-            event.keyCode == KeyEvent.KEYCODE_BUTTON_B) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) back()
-            return true
-        }
-        return false
-    }
-
-    private fun renderSettings() {
-        val body = settingsBody ?: return
-        val scrollY = settingsScroll?.scrollY ?: 0
-        body.removeAllViews()
-        note(body, "Edit ${orientation.label.lowercase()} buttons here. Positions and visible buttons are saved separately for portrait and landscape. Each control follows the Global or This game controller mapping. Layouts are also saved separately for With Sticks and Without Sticks.")
-        row(body, "Show on-screen controls", if (enabled) "On" else "Off") {
-            enabled = !enabled
-            preferences.edit().putBoolean("onscreen_enabled", enabled).apply()
-            renderSettings()
-        }
-        row(body, "Arrange controls", "Drag buttons into place") { showArrangement() }
-        for (group in specs.map { it.group }.distinct()) {
-            section(body, group)
-            if (group == "D-PAD") {
-                row(body, "D-pad style", if (eightWayDpad) "8-way pad" else "4 buttons") {
-                    eightWayDpad = !eightWayDpad
+    /** Controls › ON-SCREEN CONTROLS, for the current orientation and controller layout. */
+    fun group() = RowGroup("ON-SCREEN CONTROLS", listOf(
+        SettingsRow.switch("osc", "Show on-screen controls", { enabled }) { value ->
+            enabled = value
+            preferences.edit().putBoolean("onscreen_enabled", value).apply()
+            refreshVisibility(requestedVisible)
+        },
+        SettingsRow.choice("dpad-style", "D-pad style", ChoiceSpec("D-pad style", { GameSource.ALL_GAMES }, {
+            listOf(ChoiceGroup(null, listOf(
+                ChoiceOption("arrows", "4 buttons", "Separate up, down, left, and right"),
+                ChoiceOption("pad", "8-way pad", "One round pad with diagonals"))))
+        }, { if (eightWayDpad) "pad" else "arrows" }, select = { eightWayDpad = it == "pad" })),
+        SettingsRow.nav("visible", "Visible buttons", value = { "${visibleCount()} shown" }) {
+            pages?.push(visiblePage())
+        },
+        SettingsRow.nav("arrange", "Arrange layout") { pages?.push(arrangePage()) },
+        SettingsRow.action("reset-positions", "Reset positions",
+            confirm = Confirm("Restore the standard positions for this layout?", "Reset") {
+                specs.forEach { spec ->
+                    val default = defaultPosition(spec, orientation)
+                    states.getValue(spec.id).apply { x = default.first; y = default.second }
                 }
-            }
-            specs.filter { it.group == group }.forEach { spec ->
-                val state = states.getValue(spec.id)
-                row(body, controlName(spec.id), if (state.shown) "On" else "Off") {
-                    state.shown = !state.shown
+                saveLayout()
+                positionAll()
+                Ui.message(activity, "Positions reset")
+            })),
+        "Layouts are saved separately for portrait and landscape, and for controllers with and without sticks.")
+
+    private fun relevant(spec: Spec) = when {
+        spec.id in DPAD -> !eightWayDpad
+        spec.id == PAD8 -> eightWayDpad
+        spec.group == "STICKS" -> profile == ControllerLayout.WITH_STICKS
+        else -> true
+    }
+
+    private fun visibleCount() = specs.count { relevant(it) && states.getValue(it.id).shown }
+
+    private fun visiblePage() = GroupsPage("Visible buttons",
+        { "${orientation.label} \u00b7 ${profile.label}" }, {
+            specs.filter(::relevant).groupBy { it.group }.map { (group, items) ->
+                RowGroup(group, items.map { spec ->
+                    SettingsRow.switch("v:${spec.id}", controlName(spec.id), { states.getValue(spec.id).shown }) { value ->
+                        states.getValue(spec.id).shown = value
+                        saveLayout()
+                        positionAll()
+                    }
+                })
+            } + RowGroup(null, listOf(SettingsRow.action("v:reset", "Reset visible buttons",
+                confirm = Confirm("Restore the standard selection for this layout?", "Reset") {
+                    specs.forEach { spec -> states.getValue(spec.id).shown = defaultShown(spec, profile) }
                     saveLayout()
                     positionAll()
-                    renderSettings()
-                }
-            }
-        }
-        section(body, "RESET")
-        row(body, "Reset positions", "Restore the standard layout") {
-            specs.forEach { spec ->
-                val default = defaultPosition(spec, orientation)
-                states.getValue(spec.id).apply { x = default.first; y = default.second }
-            }
-            saveLayout()
-            positionAll()
-            renderSettings()
-        }
-        row(body, "Reset visible buttons", "Restore the standard selection") {
-            specs.forEach { spec -> states.getValue(spec.id).shown = defaultShown(spec, profile) }
-            saveLayout()
-            positionAll()
-            renderSettings()
-        }
-        settingsScroll?.post { settingsScroll?.scrollTo(0, scrollY) }
-    }
+                    Ui.message(activity, "Visible buttons reset")
+                })))
+        })
 
-    private fun showArrangement() {
-        page?.visibility = View.GONE
+    /** Drag the shown controls into place over the game; Done returns to Controls. */
+    private fun arrangePage() = ViewPage({ page ->
         val layer = FrameLayout(activity).apply {
             clipChildren = false
             clipToPadding = false
             setBackgroundColor(0x33000000)
             isClickable = true
-            elevation = dp(22).toFloat()
         }
         arrangement = layer
-        root.addView(layer, FrameLayout.LayoutParams(-1, -1))
-        for (spec in specs.filter { states.getValue(it.id).shown }) {
-            layer.addView(controlView(spec, true))
-        }
+        for (spec in specs.filter { states.getValue(it.id).shown }) layer.addView(controlView(spec, true))
         val bar = LinearLayout(activity).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), 0, dp(14), 0)
+            setPadding(dp(16), 0, dp(6), 0)
             setBackgroundColor(0xee10151d.toInt())
         }
-        bar.addView(TextView(activity).apply {
-            text = "Drag controls to reposition"
-            textSize = Ui.BODY
-            setTextColor(Ui.TEXT)
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        bar.addView(TextView(activity).apply {
-            text = "Done"
-            textSize = Ui.TITLE
-            setTextColor(Ui.ACCENT)
+        bar.addView(Ui.text(activity, "Drag controls to reposition", Ui.BODY), LinearLayout.LayoutParams(0, -2, 1f))
+        bar.addView(Ui.text(activity, "Done", Ui.TITLE, Ui.ACCENT, bold = true).apply {
             gravity = Gravity.CENTER
-            setOnClickListener { back() }
-        }, LinearLayout.LayoutParams(dp(76), -1))
+            background = Ui.focusable(activity, Color.TRANSPARENT, null)
+            isClickable = true
+            setOnClickListener { page.stack.pop() }
+        }, LinearLayout.LayoutParams(dp(76), dp(44)))
         layer.addView(bar, FrameLayout.LayoutParams(-1, dp(50), Gravity.TOP))
+        refreshVisibility(requestedVisible)
         layer.post(::positionAll)
+        layer
+    }, { page ->
+        val layer = arrangement ?: return@ViewPage emptyList()
+        val done = (layer.getChildAt(layer.childCount - 1) as LinearLayout).getChildAt(1)
+        listOf(NavItem("done", done, 0, 0.5f, { done.performClick() }))
+    }) {
+        arrangement = null
+        refreshVisibility(requestedVisible)
     }
 
     private fun controlView(spec: Spec, editing: Boolean): View {
@@ -494,8 +421,7 @@ class OnScreenControls(
             (buttons[PAD8] as? DpadView)?.held = emptySet()
             buttons.values.filterIsInstance<TouchStickView>().forEach { it.reset() }
             buttons.values.forEach { it.isPressed = false; it.alpha = if (it is TouchStickView) 1f else .72f }
-            settingsTitle?.text = "Controls · ${orientation.label}"
-            if (isOpen) renderSettings()
+            pages?.refresh()
             rebuildArrangementButtons()
         }
         buttons.forEach { (id, view) ->
@@ -598,10 +524,11 @@ class OnScreenControls(
     }
 
     private fun controlName(id: String) = when (id) {
-        "up" -> "D-pad up"; "down" -> "D-pad down"
-        "left" -> "D-pad left"; "right" -> "D-pad right"
+        "up" -> "Up"; "down" -> "Down"
+        "left" -> "Left"; "right" -> "Right"
         "ls" -> "Left stick"; "rs" -> "Right stick"
-        PAD8 -> "8-way D-pad"
+        "start" -> "Start"; "select" -> "Select"; "menu" -> "Menu"
+        PAD8 -> "8-way pad"
         else -> id.uppercase()
     }
 
@@ -610,35 +537,6 @@ class OnScreenControls(
         // Round, so the face-button diamond never overlaps at its standard spacing.
         cornerRadius = dp(27).toFloat()
         setStroke(dp(1), 0xccffffff.toInt())
-    }
-
-    private fun section(parent: LinearLayout, title: String) {
-        parent.addView(Ui.sectionLabel(activity, title))
-    }
-
-    private fun note(parent: LinearLayout, message: String) {
-        parent.addView(Ui.text(activity, message, Ui.SECONDARY, Ui.TEXT_MUTED).apply {
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-        })
-    }
-
-    private fun row(parent: LinearLayout, title: String, value: String, action: () -> Unit) {
-        val line = LinearLayout(activity).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(4), dp(14), dp(4))
-            background = Ui.rowBackground(activity, Ui.SURFACE)
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { action() }
-            contentDescription = "$title. $value"
-        }
-        line.addView(Ui.text(activity, title, Ui.BODY), LinearLayout.LayoutParams(0, -2, 1f))
-        line.addView(Ui.text(activity, value, Ui.SECONDARY, Ui.ACCENT_SOFT).apply { gravity = Gravity.END },
-            LinearLayout.LayoutParams(-2, -2))
-        parent.addView(line, LinearLayout.LayoutParams(-1, dp(52)).apply {
-            bottomMargin = dp(4)
-        })
     }
 
     private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).roundToInt()

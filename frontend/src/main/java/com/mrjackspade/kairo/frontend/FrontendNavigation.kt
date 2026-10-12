@@ -1,32 +1,32 @@
 package com.mrjackspade.kairo.frontend
 
-import android.view.InputDevice
 import android.view.KeyEvent
 
-/** Controller and keyboard navigation for the common library and session screens. */
+/** Controller and keyboard navigation for the library screen and pages. */
 object FrontendNavigation {
+    /**
+     * The menu meaning of a key: the user's physical mapping for A, B, Menu, and the D-pad
+     * first, then D-pad and system keys from any device. Escape also means Back.
+     */
     fun control(event: KeyEvent, mapper: GamepadMapper): String? {
         mapper.controlForButton(event)?.let { return it }
-        // D-pad and system keys retain their menu meaning across keyboard and gamepad devices.
-        when (event.keyCode) {
-            KeyEvent.KEYCODE_DPAD_UP -> return "up"
-            KeyEvent.KEYCODE_DPAD_DOWN -> return "down"
-            KeyEvent.KEYCODE_DPAD_LEFT -> return "left"
-            KeyEvent.KEYCODE_DPAD_RIGHT -> return "right"
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_A -> return "a"
-            KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_B -> return "b"
-            KeyEvent.KEYCODE_MENU -> return "menu"
+        return when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP -> "up"
+            KeyEvent.KEYCODE_DPAD_DOWN -> "down"
+            KeyEvent.KEYCODE_DPAD_LEFT -> "left"
+            KeyEvent.KEYCODE_DPAD_RIGHT -> "right"
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER,
+            KeyEvent.KEYCODE_BUTTON_A -> "a"
+            KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_B -> "b"
+            KeyEvent.KEYCODE_MENU -> "menu"
+            else -> null
         }
-        if (KeyEvent.isGamepadButton(event.keyCode) ||
-            event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
-            event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return null
-        return null
     }
 
     fun library(screen: LibraryScreen<*>, control: String?, event: KeyEvent,
                 back: () -> Unit): Boolean {
         if (control == null) return false
-        if (screen.searchFocused && !screen.detailOpen && !screen.actionsOpen) {
+        if (screen.searchFocused) {
             if (control == "a" || control == "b") {
                 if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0)
                     screen.dismissSearchKeyboard()
@@ -39,26 +39,6 @@ object FrontendNavigation {
             // Horizontal text cursor navigation belongs to Android.
             return false
         }
-        if (screen.detailOpen) {
-            if (control !in setOf("up", "down", "left", "right", "a", "b", "menu")) return false
-            if (event.action == KeyEvent.ACTION_DOWN) when (control) {
-                "up", "left" -> screen.moveDetailSelection(-1)
-                "down", "right" -> screen.moveDetailSelection(1)
-                "a" -> if (event.repeatCount == 0) screen.activateDetail()
-                "menu" -> if (event.repeatCount == 0) screen.detailsSelection()
-                "b" -> if (event.repeatCount == 0) screen.closeDetail()
-            }
-            return true
-        }
-        if (screen.actionsOpen) {
-            if (event.action == KeyEvent.ACTION_DOWN) when (control) {
-                "down" -> screen.moveActionSelection(1)
-                "up" -> screen.moveActionSelection(-1)
-                "a" -> if (event.repeatCount == 0) screen.activateAction()
-                "b", "menu" -> screen.closeActions()
-            }
-            return true
-        }
         if (control !in setOf("up", "down", "left", "right", "a", "b", "menu")) return false
         if (event.action == KeyEvent.ACTION_DOWN) when (control) {
             "down" -> screen.moveSelection(1)
@@ -66,21 +46,8 @@ object FrontendNavigation {
             "left" -> screen.moveHeaderSelection(-1)
             "right" -> screen.moveHeaderSelection(1)
             "a" -> if (event.repeatCount == 0) screen.activateSelection()
-            "menu" -> if (event.repeatCount == 0) screen.openActions()
+            "menu" -> if (event.repeatCount == 0) screen.openMenu()
             "b" -> if (event.repeatCount == 0 && !screen.leaveHeader()) back()
-        }
-        return true
-    }
-
-    fun session(drawer: SessionDrawer, control: String?, event: KeyEvent,
-                close: () -> Unit): Boolean {
-        if (control == null) return false
-        if (control !in setOf("up", "down", "left", "right", "a", "b", "menu")) return false
-        if (event.action == KeyEvent.ACTION_DOWN) when (control) {
-            "up", "left" -> drawer.focus(drawer.selectedIndex - 1)
-            "down", "right" -> drawer.focus(drawer.selectedIndex + 1)
-            "a" -> if (event.repeatCount == 0) drawer.activateSelected()
-            "b", "menu" -> if (event.repeatCount == 0) close()
         }
         return true
     }

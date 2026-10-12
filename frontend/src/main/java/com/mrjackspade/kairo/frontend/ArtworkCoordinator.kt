@@ -1,29 +1,27 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.os.Bundle
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
 
-/** Shared viewer, local image selection, override persistence flow, and reset. */
+/** Shared viewer, local image selection, override persistence, and reset for box art and screenshots. */
 class ArtworkCoordinator<Game : Any>(
     private val activity: Activity,
+    private val pages: PageStack,
     private val store: CatalogArtworkStore,
     private val contentId: (Game) -> String?,
     private val resolve: (Game, String) -> Record,
     private val validPath: (String) -> Boolean,
     private val saveOverride: (String, String, String?) -> Unit,
     private val changed: () -> Unit,
-    private val settings: (Game) -> Unit,
+    private val title: (Game) -> String,
     private val message: (String) -> Unit,
     private val validImageUrl: (String) -> Boolean = { false }
 ) {
-    data class Record(val path: String?, val largerUrl: String? = null)
-    private data class Selection<Game>(val id: String, val kind: String, val game: Game?)
-    private var selection: Selection<Game>? = null
+    /** [source] names the catalog layer the image comes from; "User override" means Custom. */
+    data class Record(val path: String?, val largerUrl: String? = null, val source: String? = null)
+    private data class Selection(val id: String, val kind: String)
+    private var selection: Selection? = null
 
     fun saveInstanceState(state: Bundle) {
         selection?.let {
@@ -35,38 +33,50 @@ class ArtworkCoordinator<Game : Any>(
     fun restoreInstanceState(state: Bundle?) {
         val id = state?.getString("artwork_selection_id") ?: return
         val kind = state.getString("artwork_selection_kind") ?: return
-        if (kind in setOf("boxArt", "preview")) selection = Selection(id, kind, null)
+        if (kind in setOf("boxArt", "preview")) selection = Selection(id, kind)
     }
 
-    fun edit(game: Game, kind: String) {
+    /**
+     * Box art or Screenshot on Game settings. The tray offers View when there is an image,
+     * Reset when it is the user's own, and Choose image… or Replace….
+     */
+    fun row(game: Game, kind: String, enabled: () -> Boolean): SettingsRow {
         requireKind(kind)
-        if (contentId(game) == null) {
-            message("This file needs a successful hash before settings can be saved")
-            return
-        }
-        val label = label(kind)
-        ArtworkOverrideEditor.show(activity, ArtworkOverrideEditor.Options(
-            title = label,
-            resetLabel = "Reset $label",
-            onReset = { save(game, kind, null) },
-            onCancel = { settings(game) },
-            onChoose = {
-                selection = Selection(contentId(game)!!, kind, game)
-                if (!DocumentPicker.open(activity, REQUEST_IMAGE, "image/*", message)) {
-                    selection = null
-                    settings(game)
-                }
-            }))
+        fun record() = resolve(game, kind)
+        fun custom() = record().source == "User override"
+        return SettingsRow.action(kind, label(kind),
+            value = { when {
+                custom() -> GameSource.CUSTOM
+                record().path != null -> GameSource.label(record().source ?: GameSource.BUILT_IN)
+                else -> "None"
+            } },
+            tone = { when {
+                custom() -> ValueTone.CUSTOM
+                record().path != null -> ValueTone.CURRENT
+                else -> ValueTone.EMPTY
+            } },
+            enabled = enabled, disabledReason = { GameSettingsRows.NO_HASH },
+            tray = {
+                val available = record().path != null
+                TraySpec(buttons = listOfNotNull(
+                    if (available) TrayButton("View") { view(game, kind) } else null,
+                    if (custom()) TrayButton("Reset") { save(game, kind, null) } else null,
+                    TrayButton(if (available) "Replace…" else "Choose image…", ButtonTone.PRIMARY) {
+                        choose(game, kind)
+                    }))
+            })
+    }
+
+    private fun choose(game: Game, kind: String) {
+        val id = contentId(game) ?: run { message("Hash this game first"); return }
+        selection = Selection(id, kind)
+        if (!DocumentPicker.open(activity, REQUEST_IMAGE, "image/*", message)) selection = null
     }
 
     fun handleActivityResult(request: Int, result: Int, data: Intent?): Boolean {
         if (request != REQUEST_IMAGE) return false
         val pending = selection.also { selection = null } ?: return true
-        val uri = DocumentPicker.selectedUri(result, data)
-        if (uri == null) {
-            pending.game?.let(settings)
-            return true
-        }
+        val uri = DocumentPicker.selectedUri(result, data) ?: return true
         // Image validation and encoding stay off the UI thread.
         Thread({
             val imported = runCatching {
@@ -75,8 +85,8 @@ class ArtworkCoordinator<Game : Any>(
             }
             activity.runOnUiThread {
                 if (!activity.isFinishing && !activity.isDestroyed) imported.fold(
-                    { save(pending.id, pending.kind, it, pending.game) },
-                    { message(it.message ?: "Could not import image"); pending.game?.let(settings) })
+                    { save(pending.id, pending.kind, it) },
+                    { message(it.message ?: "Could not import image") })
             }
         }, "Kairo-artwork-import").start()
         return true
@@ -84,10 +94,10 @@ class ArtworkCoordinator<Game : Any>(
 
     private fun save(game: Game, kind: String, path: String?) {
         val id = contentId(game) ?: run { message("Hash this game first"); return }
-        save(id, kind, path, game)
+        save(id, kind, path)
     }
 
-    private fun save(id: String, kind: String, path: String?, game: Game?) {
+    private fun save(id: String, kind: String, path: String?) {
         try {
             require(path == null || validPath(path)) { "Invalid artwork path" }
             saveOverride(id, kind, path)
@@ -96,61 +106,42 @@ class ArtworkCoordinator<Game : Any>(
         } catch (error: Exception) {
             message(error.message ?: "Could not save artwork")
         }
-        game?.let(settings)
+        pages.refresh()
     }
 
-    fun view(game: Game, kind: String = "preview", returnToSettings: Boolean = false) {
+    /** The full-size image page. A tap loads a larger version when the catalog has one. */
+    fun view(game: Game, kind: String = "preview") {
         requireKind(kind)
         val record = resolve(game, kind)
         val path = record.path ?: run { message("No ${label(kind).lowercase()} available"); return }
         val bitmap = runCatching { store.open(path).use { ArtworkImages.decode(ArtworkImages.read(it)) } }
             .getOrNull() ?: run { message("Image unavailable"); return }
-        val view = ImageView(activity).apply {
-            setImageBitmap(bitmap)
-            adjustViewBounds = true
-            setPadding(dp(16), dp(8), dp(16), dp(8))
-        }
         val url = record.largerUrl?.takeIf(validImageUrl)
-        val hint = TextView(activity).apply {
-            text = if (url == null) "" else "Tap image to load a larger version"
-            setPadding(dp(16), 0, dp(16), dp(12))
-        }
-        val content = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(view)
-            addView(hint)
-        }
-        val dialog = AlertDialog.Builder(activity).setView(content)
-            .setPositiveButton("Done") { _, _ -> if (returnToSettings) settings(game) }
-            .create().also { it.show(); Ui.styleDialog(it) }
-        var displayed = bitmap
-        dialog.setOnDismissListener {
-            view.setImageDrawable(null)
-            displayed.recycle()
-        }
-        if (url != null) view.setOnClickListener {
-            view.isEnabled = false
-            hint.text = "Loading larger image…"
-            Thread({
-                val larger = runCatching { ArtworkImages.fetch(url, validImageUrl) }.getOrNull()
-                activity.runOnUiThread {
-                    if (dialog.isShowing && !activity.isDestroyed) {
-                        if (larger == null) {
-                            hint.text = "Could not load larger image"
-                            view.isEnabled = true
-                        } else {
-                            view.setImageBitmap(larger)
-                            displayed.recycle()
-                            displayed = larger
-                            hint.text = "Larger image loaded"
+        var loading = false
+        pages.push(ImagePage(label(kind), title(game), bitmap,
+            if (url == null) null else "Tap image to load a larger version",
+            url?.let { address -> { page: ImagePage ->
+                if (!loading) {
+                    loading = true
+                    page.setHint("Loading larger image…")
+                    Thread({
+                        val larger = runCatching { ArtworkImages.fetch(address, validImageUrl) }.getOrNull()
+                        activity.runOnUiThread {
+                            if (page.inStack && !activity.isDestroyed) {
+                                if (larger == null) {
+                                    page.setHint("Could not load larger image")
+                                    loading = false
+                                } else {
+                                    page.setImage(larger)
+                                    page.setHint("Larger image loaded")
+                                }
+                            } else larger?.recycle()
                         }
-                    } else larger?.recycle()
+                    }, "Kairo-artwork-preview").start()
                 }
-            }, "Kairo-artwork-preview").start()
-        }
+            } }))
     }
 
-    private fun dp(value: Int) = (value * activity.resources.displayMetrics.density).toInt()
     private fun label(kind: String) = if (kind == "preview") "Screenshot" else "Box art"
     private fun requireKind(kind: String) = require(kind in setOf("boxArt", "preview"))
 

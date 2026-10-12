@@ -1,21 +1,18 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.view.KeyEvent
 
-/** Activity-owned state shared by embedded setup pages and the controller dialog. */
+/** Whether a setup page is showing, so the companion screen can show its plain setup state. */
 internal class FirstRunVisibility private constructor() {
-    private val screens = mutableSetOf<FirstRunScreen>()
+    private val screens = mutableSetOf<Any>()
     private val observers = mutableSetOf<(Boolean) -> Unit>()
 
-    fun setVisible(screen: FirstRunScreen, visible: Boolean) {
+    fun setVisible(screen: Any, visible: Boolean) {
         val wasVisible = screens.isNotEmpty()
         if (visible) screens.add(screen) else screens.remove(screen)
         if (wasVisible != screens.isNotEmpty())
             observers.toList().forEach { it(screens.isNotEmpty()) }
     }
-
-    fun handleKey(event: KeyEvent): Boolean? = screens.lastOrNull()?.handleKey(event)
 
     fun observe(observer: (Boolean) -> Unit): () -> Unit {
         observers.add(observer)

@@ -1,8 +1,5 @@
 package com.mrjackspade.kairo.frontend
 
-import com.mrjackspade.kairo.frontend.Ui
-
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -14,101 +11,96 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import java.util.concurrent.Executors
 
-/** Full library detail page. Artwork loads from approved app assets. */
+/** The game page over the library. Artwork loads from approved app assets. */
 class GameDetailPage<T : LibraryItem>(
-    context: Context,
     private val catalog: LibraryCatalog,
     private val play: (T) -> Unit,
     private val viewScreenshot: (T) -> Unit,
     private val settings: (T) -> Unit,
-    private val back: () -> Unit,
     private val metadata: (T) -> LibraryGame,
-    private val commandLaunch: ((T) -> Unit)? = null
-) : FrameLayout(context) {
-    private val imagePanel = FrameLayout(context)
-    private val image = ImageView(context)
-    private val imageFallback = Ui.text(context, "No screenshot available", Ui.SECONDARY, Ui.TEXT_MUTED)
-    private val backButton = LinearLayout(context)
-    private val cover = ImageView(context)
-    private val title = Ui.text(context, "", Ui.TITLE, bold = true)
-    private val tags = LinearLayout(context)
-    private val description = Ui.text(context, "", Ui.BODY, Ui.TEXT_BODY)
-    private val playButton = Ui.primaryButton(context, "Play", R.drawable.ic_play) { playSelected() }
-    private val launchRow = LinearLayout(context)
-    private val commandButton = Ui.iconButton(context, R.drawable.ic_terminal, "DOS prompt or run program") {
-        launchCommand()
-    }.apply {
-        visibility = if (commandLaunch == null) View.GONE else View.VISIBLE
-        background = Ui.focusable(context, Color.TRANSPARENT, Ui.LINE)
-    }
-    private val settingsButton = Ui.secondaryButton(context, "Game settings", R.drawable.ic_tune) {
-        currentEntry?.let(settings)
-    }
-    private val unavailable = Ui.text(context, "", Ui.SECONDARY, Ui.DANGER)
-    private val file = Ui.text(context, "", Ui.LABEL, Ui.TEXT_FAINT)
-    private val scroll = ScrollView(context)
-    private val hero = LinearLayout(context)
-    private val right = LinearLayout(context)
-    private val heading = LinearLayout(context)
+    private val commandLaunch: ((T) -> Unit)? = null,
+    private val closed: (GameDetailPage<T>) -> Unit
+) : Page() {
+    private lateinit var imagePanel: FrameLayout
+    private lateinit var image: ImageView
+    private lateinit var imageFallback: android.widget.TextView
+    private lateinit var backButton: LinearLayout
+    private lateinit var cover: ImageView
+    private lateinit var title: android.widget.TextView
+    private lateinit var tags: WrapLayout
+    private lateinit var description: android.widget.TextView
+    private lateinit var playButton: LinearLayout
+    private lateinit var launchRow: LinearLayout
+    private lateinit var commandButton: FrameLayout
+    private lateinit var settingsButton: LinearLayout
+    private lateinit var unavailable: android.widget.TextView
+    private lateinit var file: android.widget.TextView
+    private lateinit var scrollView: ScrollView
+    private lateinit var hero: LinearLayout
+    private lateinit var right: LinearLayout
+    private lateinit var heading: LinearLayout
     private val imageExecutor = Executors.newSingleThreadExecutor()
-    private var currentEntry: T? = null
+    var current: T? = null
+        private set
     private var imageGeneration = 0
+    override val scroll: ScrollView get() = scrollView
 
-    val isOpen: Boolean get() = visibility == View.VISIBLE
+    val entryId: String? get() = current?.id
 
-    init {
-        visibility = View.GONE
-        setBackgroundColor(Ui.BG)
-        isClickable = true
-
-        scroll.isFillViewport = true
-        addView(scroll, LayoutParams(-1, -1))
-        val body = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(12), dp(20), dp(28))
+    override fun createView(): View {
+        val root = FrameLayout(context).apply { setBackgroundColor(Ui.BG) }
+        scrollView = ScrollView(context).apply {
+            isFillViewport = true
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
         }
-        scroll.addView(body)
+        root.addView(scrollView, FrameLayout.LayoutParams(-1, -1))
+        val body = MaxWidthColumn(context, dp(840)).apply { setPadding(dp(20), dp(12), dp(20), dp(28)) }
+        scrollView.addView(FrameLayout(context).apply {
+            addView(body, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_HORIZONTAL))
+        })
 
-        backButton.apply {
+        backButton = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             isClickable = true
-            isFocusable = true
             contentDescription = "Back to game library"
             setPadding(dp(4), 0, dp(14), 0)
             background = Ui.focusable(context, Color.TRANSPARENT, null)
-            setOnClickListener { back() }
+            setOnClickListener { stack.back() }
             addView(Ui.icon(context, R.drawable.ic_back, Ui.ACCENT_SOFT, 20))
             addView(Ui.text(context, "Library", Ui.BODY, Ui.ACCENT_SOFT).apply { setPadding(dp(4), 0, 0, 0) })
         }
         body.addView(backButton, LinearLayout.LayoutParams(-2, dp(44)))
 
-        hero.orientation = LinearLayout.HORIZONTAL
+        hero = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         body.addView(hero, LinearLayout.LayoutParams(-1, dp(240)).apply { topMargin = dp(12) })
 
-        imagePanel.apply {
+        imagePanel = FrameLayout(context).apply {
             background = Ui.focusable(context, Ui.SURFACE, null)
             setPadding(dp(3), dp(3), dp(3), dp(3))
             contentDescription = "View screenshot"
-            setOnClickListener { currentEntry?.let(viewScreenshot) }
+            setOnClickListener { current?.let(viewScreenshot) }
         }
         hero.addView(imagePanel, LinearLayout.LayoutParams(0, -1, 1.15f))
-        image.apply {
+        image = ImageView(context).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
             visibility = View.GONE
             contentDescription = "Game screenshot"
         }
-        imagePanel.addView(image, LayoutParams(-1, -1))
-        imageFallback.gravity = Gravity.CENTER
-        imagePanel.addView(imageFallback, LayoutParams(-1, -1))
+        imagePanel.addView(image, FrameLayout.LayoutParams(-1, -1))
+        imageFallback = Ui.text(context, "No screenshot available", Ui.SECONDARY, Ui.TEXT_MUTED).apply {
+            gravity = Gravity.CENTER
+        }
+        imagePanel.addView(imageFallback, FrameLayout.LayoutParams(-1, -1))
 
-        right.apply {
+        right = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(18), 0, 0, 0)
         }
         hero.addView(right, LinearLayout.LayoutParams(0, -1, 0.85f))
-        heading.orientation = LinearLayout.HORIZONTAL
-        cover.apply {
+        heading = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+        cover = ImageView(context).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
             visibility = View.GONE
             contentDescription = "Box art"
@@ -117,39 +109,53 @@ class GameDetailPage<T : LibraryItem>(
         }
         heading.addView(cover, LinearLayout.LayoutParams(dp(60), dp(80)).apply { marginEnd = dp(12) })
         val titles = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        title.maxLines = 3
-        title.ellipsize = android.text.TextUtils.TruncateAt.END
+        title = Ui.text(context, "", Ui.TITLE, bold = true).apply {
+            maxLines = 3
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
         titles.addView(title)
-        tags.orientation = LinearLayout.VERTICAL
-        titles.addView(tags, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(6) })
+        tags = WrapLayout(context, dp(6)).apply { alignEnd = false }
+        titles.addView(tags, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         heading.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
         right.addView(heading, LinearLayout.LayoutParams(-1, 0, 1f))
-        launchRow.orientation = LinearLayout.HORIZONTAL
+        playButton = Ui.primaryButton(context, "Play", R.drawable.ic_play) { playSelected() }
+        commandButton = Ui.iconButton(context, R.drawable.ic_terminal, "DOS prompt or run program") {
+            launchCommand()
+        }.apply {
+            visibility = if (commandLaunch == null) View.GONE else View.VISIBLE
+            background = Ui.focusable(context, Color.TRANSPARENT, Ui.LINE)
+        }
+        settingsButton = Ui.secondaryButton(context, "Game settings", R.drawable.ic_tune) {
+            current?.let(settings)
+        }
+        launchRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
         launchRow.addView(playButton, LinearLayout.LayoutParams(0, -1, 2f))
-        launchRow.addView(commandButton, LinearLayout.LayoutParams(0, -1, 1f).apply {
-            marginStart = dp(8)
-        })
+        launchRow.addView(commandButton, LinearLayout.LayoutParams(0, -1, 1f).apply { marginStart = dp(8) })
         right.addView(launchRow, LinearLayout.LayoutParams(-1, dp(52)))
         right.addView(settingsButton, LinearLayout.LayoutParams(-1, dp(44)).apply { topMargin = dp(8) })
-        unavailable.visibility = View.GONE
-        unavailable.setPadding(0, dp(8), 0, 0)
-        right.addView(unavailable)
+        unavailable = Ui.text(context, "", Ui.SECONDARY, Ui.DANGER).apply {
+            visibility = View.GONE
+            setPadding(0, dp(16), 0, 0)
+        }
+        body.addView(unavailable)
 
-        description.setLineSpacing(dp(4).toFloat(), 1f)
+        description = Ui.text(context, "", Ui.BODY, Ui.TEXT_BODY).apply { setLineSpacing(dp(8).toFloat(), 1f) }
         body.addView(description, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(24) })
+        file = Ui.text(context, "", Ui.LABEL, Ui.TEXT_FAINT)
         body.addView(file, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16) })
-        updateHeroLayout(resources.configuration.orientation ==
+        root.addOnLayoutChangeListener { _, left, top, rightEdge, bottom, _, _, _, _ ->
+            updateHeroLayout(bottom - top > rightEdge - left)
+        }
+        updateHeroLayout(context.resources.configuration.orientation ==
             android.content.res.Configuration.ORIENTATION_PORTRAIT)
+        return root
     }
 
-    private fun tag(label: String) = Ui.text(context, label, Ui.LABEL, Ui.TEXT_MUTED).apply {
-        background = Ui.rounded(context, Color.TRANSPARENT, 4, Ui.LINE)
-        setPadding(dp(6), dp(2), dp(6), dp(2))
-        maxLines = 1
-        ellipsize = android.text.TextUtils.TruncateAt.END
-    }
+    private var portrait: Boolean? = null
 
     private fun updateHeroLayout(portrait: Boolean) {
+        if (this.portrait == portrait) return
+        this.portrait = portrait
         hero.orientation = if (portrait) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
         hero.layoutParams = (hero.layoutParams as LinearLayout.LayoutParams).apply {
             height = if (portrait) -2 else dp(240)
@@ -166,28 +172,19 @@ class GameDetailPage<T : LibraryItem>(
         }
     }
 
-    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
-        super.onConfigurationChanged(newConfig)
-        updateHeroLayout(newConfig.orientation ==
-            android.content.res.Configuration.ORIENTATION_PORTRAIT)
-    }
-
     fun show(entry: T) {
         // A library rescan or artwork refresh re-shows the open game; keep the user's place.
-        val refresh = isOpen && currentEntry?.id == entry.id
-        currentEntry = entry
+        val refresh = current?.id == entry.id
+        current = entry
         val game = metadata(entry)
         title.text = game.title
         tags.removeAllViews()
-        tags.addView(tag(entry.mediaLabel),
-            LinearLayout.LayoutParams(-2, -2))
-        game.tags.forEach { label ->
-            tags.addView(tag(label),
-                LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
-        }
-        (variantLabel(entry.path) ?: entry.zipEntry?.let(::variantLabel))?.split("  ·  ")?.forEach {
-            tags.addView(tag(it), LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
-        }
+        val labels = listOf(entry.mediaLabel) + game.tags +
+            ((variantLabel(entry.path) ?: entry.zipEntry?.let(::variantLabel))?.split("  ·  ") ?: emptyList())
+        labels.forEach { tags.addView(Ui.chip(context, it, Ui.TEXT_MUTED).apply {
+            background = Ui.rounded(context, Color.TRANSPARENT, 4, Ui.LINE)
+            setPadding(dp(6), dp(2), dp(6), dp(2))
+        }) }
         description.text = game.description ?: "No description available yet."
         file.text = "File: " + fileLabel(entry)
         commandButton.isEnabled = entry.playable
@@ -195,7 +192,7 @@ class GameDetailPage<T : LibraryItem>(
         playButton.isEnabled = entry.playable
         playButton.alpha = if (entry.playable) 1f else 0.4f
         unavailable.text = if (entry.playable) "" else
-            "Can't play: ${entry.error ?: "this file has not been checked yet"}. Fix the file, then Refresh from the library menu."
+            "Can’t play: ${entry.error ?: "this file has not been checked yet"}. Fix the file, then Refresh from the library menu."
         unavailable.visibility = if (entry.playable) View.GONE else View.VISIBLE
         image.setImageDrawable(null)
         image.visibility = View.GONE
@@ -204,12 +201,8 @@ class GameDetailPage<T : LibraryItem>(
         imageFallback.visibility = View.VISIBLE
         imageFallback.text = if (game.preview == null) "No screenshot available" else "Loading screenshot…"
         imagePanel.isEnabled = game.preview != null
-        imagePanel.isFocusable = game.preview != null
-        visibility = View.VISIBLE
-        if (!refresh) {
-            scroll.scrollTo(0, 0)
-            focusAction(if (entry.playable) playButton else settingsButton)
-        } else if (!entry.playable && (playButton.hasFocus() || commandButton.hasFocus())) focusAction(settingsButton)
+        if (!refresh) scrollView.scrollTo(0, 0)
+        renav(first = !refresh)
 
         val generation = ++imageGeneration
         loadImage(game.boxArt, generation, 2) { bitmap ->
@@ -234,67 +227,48 @@ class GameDetailPage<T : LibraryItem>(
                     })
                 }
             } catch (_: Exception) { null }
-            post {
-                if (generation == imageGeneration && isOpen) {
+            view.post {
+                if (generation == imageGeneration && inStack) {
                     if (bitmap == null) failed() else loaded(bitmap)
                 }
             }
         }
     }
 
-    fun close(): Boolean {
-        if (!isOpen) return false
-        imageGeneration++
-        currentEntry = null
-        visibility = View.GONE
-        return true
-    }
+    fun refreshArtwork() { current?.let(::show) }
 
-    fun refreshArtwork() { currentEntry?.let(::show) }
-
-    fun playSelected() { currentEntry?.takeIf { it.playable }?.let(play) }
+    private fun playSelected() { current?.takeIf { it.playable }?.let(play) }
 
     private fun launchCommand() {
         val action = commandLaunch ?: return
-        currentEntry?.takeIf { it.playable }?.let(action)
+        current?.takeIf { it.playable }?.let(action)
     }
 
-    /** Explicit traversal also handles hat events, which never go through Android focus search. */
-    fun moveSelection(delta: Int) {
-        val actions = listOf(backButton, imagePanel, playButton, commandButton, settingsButton)
-            .filter { it.isEnabled && it.visibility == View.VISIBLE }
-        val current = actions.indexOfFirst { it.hasFocus() }
-        val next = if (current < 0) actions.indexOf(playButton).coerceAtLeast(0)
-            else (current + delta).coerceIn(0, actions.lastIndex)
-        if (current == next && delta > 0) scroll.smoothScrollBy(0, dp(96))
-        else focusAction(actions[next])
+    /** Back, screenshot, Play, command, Game settings. Play leaves the order when it can't run. */
+    override fun navItems(): List<NavItem> {
+        val playable = current?.playable == true
+        val items = listOfNotNull(
+            backButton to "back",
+            imagePanel.takeIf { it.isEnabled }?.let { it to "image" },
+            playButton.takeIf { playable }?.let { it to "play" },
+            commandButton.takeIf { playable && commandLaunch != null }?.let { it to "command" },
+            settingsButton to "settings")
+        return items.mapIndexed { index, (view, id) -> NavItem(id, view, index, 0.5f, { view.performClick() }) }
     }
 
-    private fun focusAction(view: View) {
-        view.isFocusableInTouchMode = true
-        view.requestFocusFromTouch()
-        fun reveal() {
-            if (isOpen && view.hasFocus())
-                view.requestRectangleOnScreen(android.graphics.Rect(0, 0, view.width, view.height), true)
-        }
-        reveal()
-        view.post { reveal() }
-    }
+    override fun initialFocus(items: List<NavItem>) =
+        if (current?.playable == true) "play" else "settings"
 
-    fun activateFocused() {
-        when {
-            backButton.hasFocus() -> back()
-            imagePanel.hasFocus() -> currentEntry?.let(viewScreenshot)
-            commandButton.hasFocus() -> launchCommand()
-            settingsButton.hasFocus() -> currentEntry?.let(settings)
-            else -> playSelected()
-        }
-    }
+    /** The page reads top to bottom, so Left and Up go back and Right and Down go forward. */
+    override fun move(direction: String) = super.move(when (direction) {
+        "left" -> "up"
+        "right" -> "down"
+        else -> direction
+    })
 
-    override fun onDetachedFromWindow() {
+    override fun onRemoved() {
+        imageGeneration++
         imageExecutor.shutdownNow()
-        super.onDetachedFromWindow()
+        closed(this)
     }
-
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 }

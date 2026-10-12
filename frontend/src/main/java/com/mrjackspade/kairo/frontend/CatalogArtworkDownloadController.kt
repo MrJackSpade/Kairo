@@ -2,7 +2,6 @@ package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
 import android.util.Log
-import android.widget.Toast
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -12,21 +11,31 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
     private val screen: LibraryScreen<Game>,
     private val entries: () -> List<Game>,
     private val missing: (List<Game>) -> List<Source>,
-    private val download: (Source, AtomicBoolean) -> Unit
+    private val download: (Source, AtomicBoolean) -> Unit,
+    private val changed: () -> Unit = {}
 ) {
-    @Volatile private var running = false
+    @Volatile var running = false
+        private set
     private var cancelled = AtomicBoolean(false)
+    /** Progress for the Download missing images row, such as "12 / 40". */
+    var progress: String = ""
+        private set
 
-    fun cancel() { cancelled.set(true) }
+    fun cancel() {
+        if (!running || cancelled.get()) return
+        cancelled.set(true)
+        screen.tasks.show(TASK, "Stopping image download…", PRIORITY)
+        changed()
+    }
 
     fun start() {
-        if (running) { toast("Images are already downloading"); return }
+        if (running) { Ui.message(activity, "Images are already downloading"); return }
         val games = entries().toList()
-        if (games.none { it.playable }) { toast("Add games to the library first"); return }
+        if (games.none { it.playable }) { Ui.message(activity, "Add games to the library first"); return }
         running = true
         val stop = AtomicBoolean(false)
         cancelled = stop
-        screen.showArtworkProgress(0, 0, 0)
+        show(0, 0, 0)
         Thread {
             var completed = 0
             var downloaded = 0
@@ -37,7 +46,7 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                 val sources = missing(games)
                 total = sources.size
                 activity.runOnUiThread {
-                    if (!activity.isDestroyed) screen.showArtworkProgress(0, total, 0)
+                    if (!activity.isDestroyed && !stop.get()) show(0, total, 0)
                 }
                 for (source in sources) {
                     if (stop.get()) break
@@ -51,10 +60,10 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                         Log.w("Kairo", "Artwork download failed: $source", error)
                     }
                     completed++
-                    val progress = completed
+                    val done = completed
                     val failed = failures
                     activity.runOnUiThread {
-                        if (!activity.isDestroyed) screen.showArtworkProgress(progress, total, failed)
+                        if (!activity.isDestroyed && !stop.get()) show(done, total, failed)
                     }
                 }
             } catch (error: Exception) {
@@ -69,14 +78,27 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
             }
             activity.runOnUiThread {
                 running = false
+                progress = ""
                 if (!activity.isDestroyed) {
+                    screen.tasks.hide(TASK)
                     screen.refreshArtwork()
-                    screen.finishArtworkDownload(result)
+                    Ui.message(activity, result, long = true)
+                    changed()
                 }
             }
         }.apply { name = "Kairo-catalog-artwork"; start() }
     }
 
-    private fun toast(message: String) =
-        Toast.makeText(activity, message, Toast.LENGTH_SHORT).show()
+    private fun show(completed: Int, total: Int, failures: Int) {
+        progress = if (total == 0) "" else "$completed / $total"
+        screen.tasks.show(TASK, if (total == 0) "Checking library artwork…"
+            else "Downloading images $completed/$total" + (if (failures == 0) "" else " · $failures failed"),
+            PRIORITY, ::cancel)
+        changed()
+    }
+
+    private companion object {
+        const val TASK = "images"
+        const val PRIORITY = 3
+    }
 }

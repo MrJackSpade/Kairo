@@ -9,15 +9,12 @@ import android.window.OnBackInvokedDispatcher
 /** Routes system and physical Back through the same ordered frontend layers. */
 class FrontendBackCoordinator(
     private val activity: Activity,
-    private val firstRun: FirstRunScreen,
-    private val onScreenControls: () -> OnScreenControls?,
-    private val controllerEditor: ControllerEditor<*>,
+    private val pages: () -> PageStack?,
     private val library: LibraryScreen<*>,
     private val onLibraryRoot: () -> Unit,
-    private val session: () -> SessionFlow?,
-    private val closeSessionMenu: () -> Unit,
     private val keyboard: () -> GuestKeyboardPanel?,
     private val onGameRoot: () -> Unit,
+    private val busy: () -> Boolean = { false },
     private val closeKeyboard: () -> Unit = { keyboard()?.close() }
 ) {
     private val callback = OnBackInvokedCallback { handle() }
@@ -36,29 +33,17 @@ class FrontendBackCoordinator(
         registered = false
     }
 
+    /** The tray, then the page, then the flyout; then the library or the game below them. */
     fun handle() {
-        if (firstRun.isOpen) {
-            firstRun.back()
-            return
-        }
-        onScreenControls()?.takeIf { it.isOpen }?.let {
+        pages()?.takeIf { it.isActive }?.let {
             it.back()
             return
         }
-        if (controllerEditor.isOpen) {
-            controllerEditor.back()
-            return
-        }
+        if (busy()) return
         if (library.visibility == View.VISIBLE) {
             if (library.dismissSearchKeyboard()) return
-            if (library.closeDetail()) return
-            if (library.closeActions()) return
             if (library.leaveHeader()) return
             onLibraryRoot()
-            return
-        }
-        if (session()?.isOpen == true) {
-            closeSessionMenu()
             return
         }
         keyboard()?.takeIf { it.visibility == View.VISIBLE }?.let {

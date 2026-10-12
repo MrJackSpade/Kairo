@@ -5,9 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import android.view.KeyEvent
 import android.view.View
-import android.view.ViewGroup
-import android.view.inspector.WindowInspector
-import android.widget.TextView
 
 /** Real game cancellation, complete teardown, relaunch, and frontend exit in both emulator hosts. */
 object EndSessionFixture {
@@ -27,12 +24,7 @@ object EndSessionFixture {
         fun field(name: String) = activity.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(activity)
         fun call(name: String) = activity.javaClass.getDeclaredMethod(name).apply { isAccessible = true }.invoke(activity)
         fun status() = call("nativeStatus").toString()
-        fun descendants(view: View): List<View> = listOf(view) +
-            ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { descendants(group.getChildAt(it)) } }
-                ?: emptyList())
-        fun prompt(): View? = WindowInspector.getGlobalWindowViews().firstOrNull { root ->
-            descendants(root).filterIsInstance<TextView>().any { it.text.toString() == "End game session?" }
-        }
+        val pages by lazy { field("pages") as PageStack }
         fun await(message: String, condition: () -> Boolean) {
             repeat(600) {
                 var ready = false
@@ -49,54 +41,78 @@ object EndSessionFixture {
             val flow = field("libraryFlow")!!
             return flow.javaClass.getMethod("getScreen").invoke(flow) as LibraryScreen<*>
         }
+        fun session() = field("sessionFlow") as SessionFlow
+        fun key(code: Int) {
+            activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, code))
+            activity.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, code))
+        }
         // Games start through the external launch interface; clearing the host's frontend
         // flag gives the same session the library-launched return path.
         fun treatAsLibraryLaunch() = ui {
             activity.javaClass.getDeclaredField("sessionFromFrontend").apply { isAccessible = true }
                 .setBoolean(activity, false)
         }
-        fun request(external: Boolean) = ui {
-            call("openMenu")
-            val flow = field("sessionFlow") as SessionFlow
-            descendants(flow.drawer.drawer).single { it.contentDescription == "Library" }.performClick()
-            val shown = prompt()
-            check(shown != null) { "Library action did not prompt" }
-            val expected = if (external) "return to the frontend" else "Return to Library"
-            check(descendants(shown).filterIsInstance<TextView>().any { it.text.contains(expected) }) {
-                "Prompt does not say \"$expected\""
+        /** Open the game flyout and the Return row's inline confirm. */
+        fun request(external: Boolean) {
+            ui { session().open() }
+            Thread.sleep(250)
+            ui {
+                val flyout = pages.top as RowsPage
+                check(flyout.isFlyout) { "The game flyout did not open" }
+                flyout.itemView("f-library")!!.performClick()
+                check(flyout.trayRowId == "f-library") { "Return did not ask first" }
+                check(flyout.trayButtons() == listOf("Cancel", "End game")) { "Return buttons: ${flyout.trayButtons()}" }
+                check(flyout.trayFocused() == "Cancel")
+                val message = flyout.trayMessage() ?: ""
+                if (external) check(message.startsWith("This game stops and ") && message.contains(" closes.")) {
+                    "Frontend confirm says \"$message\""
+                } else check(message == "This game stops. Progress since your last save is lost.") {
+                    "Library confirm says \"$message\""
+                }
             }
         }
         fun choose(confirm: Boolean) = ui {
-            val decor = prompt()!!
-            if (confirm) {
-                decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
-                decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT))
-            }
-            decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A))
-            decor.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_A))
+            if (confirm) key(KeyEvent.KEYCODE_DPAD_RIGHT)
+            key(KeyEvent.KEYCODE_BUTTON_A)
         }
         val controls = field("onScreenControls") as OnScreenControls
         val enabled = OnScreenControls::class.java.getDeclaredField("enabled").apply { isAccessible = true }
         val wasEnabled = enabled.getBoolean(controls)
+        val overlay = OnScreenControls::class.java.getDeclaredField("overlay").apply { isAccessible = true }
+            .get(controls) as View
+        fun arranging() = OnScreenControls::class.java.getDeclaredField("arrangement")
+            .apply { isAccessible = true }.get(controls) != null
         fun verifyTouchControls() {
             ui {
                 check(field("onScreenControls") === controls) { "Activity controls lost during session teardown" }
                 enabled.setBoolean(controls, true)
                 call(if (dos) "refreshControllerUi" else "applyPauseState")
-                val overlay = OnScreenControls::class.java.getDeclaredField("overlay")
-                    .apply { isAccessible = true }.get(controls) as View
                 check(overlay.isShown) { "On-screen controls are not visible after launch" }
-                val editor = field("controllerEditor") as ControllerEditor<*>
-                editor.show(null)
-                call("showOnScreenControls")
-                check(controls.isOpen) { "On-screen settings did not open" }
-                controls.back()
-                val page = ControllerEditor::class.java.getDeclaredField("page")
-                    .apply { isAccessible = true }.get(editor) as View
-                check(editor.isOpen && page.isShown) { "Returning from on-screen settings lost the parent editor" }
-                editor.close()
+                session().open()
+                (pages.top as RowsPage).itemView("f-controls")!!.performClick()
+            }
+            Thread.sleep(300)
+            ui {
+                val controlsPage = pages.top as GroupsPage
+                check(controlsPage.title == "Controls")
+                controlsPage.itemView("arrange")!!.performClick()
+            }
+            Thread.sleep(300)
+            ui {
+                check(arranging() && !overlay.isShown) { "Arrange layout did not open over the game" }
+                pages.back()
+            }
+            Thread.sleep(300)
+            ui {
+                check(!arranging() && (pages.top as? GroupsPage)?.title == "Controls") {
+                    "Returning from Arrange layout lost the Controls page"
+                }
+                session().close()
+            }
+            Thread.sleep(300)
+            ui {
                 call(if (dos) "refreshControllerUi" else "applyPauseState")
-                check(overlay.isShown) { "Controls did not return after closing settings" }
+                check(overlay.isShown) { "Controls did not return after closing the menu" }
             }
             await("Game did not resume after control settings", ::running)
         }
@@ -108,13 +124,16 @@ object EndSessionFixture {
             await("Game did not start", ::running)
             verifyTouchControls()
             val identity = field(if (dos) "currentGame" else "currentDisk")
+            // Cancel closes the confirm; the menu stays open until the player resumes.
             request(external = true); choose(false)
-            await("Cancel did not resume game", ::running)
             ui {
                 check(field(if (dos) "currentGame" else "currentDisk") === identity)
+                check(session().isOpen && (pages.top as RowsPage).trayRowId == null) { "Cancel did not keep the menu open" }
                 check(library().visibility != View.VISIBLE)
-                check(!(field("sessionFlow") as SessionFlow).isOpen)
+                session().close()
             }
+            await("Closing the menu did not resume the game", ::running)
+            ui { check(!session().isOpen) }
             repeat(if (dos) 3 else 2) { cycle ->
                 treatAsLibraryLaunch()
                 request(external = false); choose(true)
@@ -125,16 +144,16 @@ object EndSessionFixture {
                     val keys = field(if (dos) "keys" else "inputRouter") as InputRouter
                     check(keys.pressedKeys().isEmpty())
                     check(field("onScreenControls") === controls) { "Activity controls discarded on return to library" }
+                    check(!session().isOpen && !pages.isActive)
                     if (dos) {
                         check(field("gameThread") == null && field("audioThread") == null && field("audio") == null)
-                        check(field("gameRoot") == null && field("sessionFlow") == null)
+                        check(field("gameRoot") == null)
                     } else {
                         check(field("currentEntry") == null && field("currentGame") == null)
                         check(status().contains("audio off")) { status() }
-                        check(!(field("sessionFlow") as SessionFlow).isOpen)
                     }
-                    (call("getSessionNavigation") as SessionNavigationCoordinator).requestLibrary()
-                    check(prompt() == null) { "Idle library incorrectly prompted" }
+                    (call("getSessionNavigation") as SessionNavigationCoordinator).returnToLibrary()
+                    check(!pages.isActive) { "Idle library incorrectly asked to end a game" }
                 }
                 if (cycle < (if (dos) 2 else 1)) {
                     relaunch(nextUri ?: uri)

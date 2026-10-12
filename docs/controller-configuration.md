@@ -1,10 +1,12 @@
 # Controller configuration
 
-Both products use the shared `ControllerConfiguration` selector and `ControllerProfileStore`.
-On first launch (including upgrades), a detected controller offers Auto, With Sticks, and
-Without Sticks. Auto starts selected and focused. Without a detected controller there is
-no Auto option, and Continue stays disabled until a configuration is selected. Back exits
-required setup. The global Controller menu offers the same selector later.
+Both products use the shared `ControllerConfiguration` and `ControllerProfileStore`.
+On first launch (including upgrades), the **Controller layout** setup page offers Auto,
+With sticks, and Without sticks when a controller is detected, with Auto selected.
+Without a detected controller there is no Auto option, nothing is selected or focused
+until the first D-pad press, and Continue stays disabled until a layout is selected.
+Back exits required setup. Menu › Controls › Controller layout offers the same choice
+later, as an ordinary choice row.
 
 Auto requires centered X/Y axes and either centered Z/RZ or RX/RY axes on the same input
 device. Hat axes and triggers do not count. Zero or one stick selects Without Sticks.

@@ -15,7 +15,8 @@ object ImmersiveWindow {
     fun apply(window: Window) {
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
-        window.decorView.setBackgroundColor(Color.BLACK)
+        // The app background, as in the theme, so launch shows no black frame; games paint black.
+        window.decorView.setBackgroundColor(Ui.BG)
         window.statusBarColor = Color.BLACK
         window.navigationBarColor = Color.BLACK
         if (Build.VERSION.SDK_INT >= 29) {

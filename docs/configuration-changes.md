@@ -14,7 +14,9 @@ mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontS
 ```
 
 Neither product has configuration-specific resources: their themes are fixed
-`Theme.Material.NoActionBar` styles with no night, locale or size variants. A
+`Theme.Material.NoActionBar` styles with no night, locale or size variants. The
+page stack, flyout, and an open tray are ordinary views in the activity, so they
+survive a change handled in place. A
 change handled in place reapplies the window's fullscreen policy and the guest
 viewport. Physical keyboards need no reconfiguration; key events already reach
 the input dispatcher, and `ControllerDeviceMonitor` releases a removed device's

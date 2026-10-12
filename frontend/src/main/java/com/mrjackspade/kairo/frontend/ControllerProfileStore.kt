@@ -35,6 +35,11 @@ class ControllerProfileStore(
 
     fun resetGlobal() { preferences.edit().remove(globalKey).apply() }
 
+    /** Whether the global mapping for the current layout differs from the built-in one. */
+    val globalCustom: Boolean get() = preferences.contains(globalKey)
+
+    val physicalCustom: Boolean get() = preferences.contains("controller_physical_v1")
+
     fun physical() = PhysicalControllerBindings.parse(
         preferences.getString("controller_physical_v1", null))
 

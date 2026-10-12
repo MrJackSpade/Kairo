@@ -1,6 +1,5 @@
 package com.mrjackspade.kairo.frontend
 
-import android.app.AlertDialog
 import android.view.View
 
 /** Common session state: pausing a machine does not hide its display or keyboard. */
@@ -39,42 +38,40 @@ class SessionNavigationCoordinator(
 ) {
     private var returnPending = false
 
-    /** User action; internal startup/teardown calls use showLibrary directly. */
-    fun requestLibrary() {
+    /**
+     * The game flyout's return row. A game launched by a frontend returns to the frontend and
+     * the app closes; with no game loaded the row returns without asking.
+     */
+    fun returnRow(appName: String): SettingsRow {
+        val external = hasGame() && externalSession()
+        return SettingsRow.action("f-library", if (external) "Return to frontend" else "Return to library",
+            confirm = if (!hasGame()) null else Confirm(
+                if (external) "This game stops and $appName closes. Progress since your last save is lost."
+                else "This game stops. Progress since your last save is lost.", "End game",
+                run = ::returnToLibrary),
+            run = ::returnToLibrary)
+    }
+
+    /** Confirmed user action; internal startup and teardown call showLibrary directly. */
+    fun returnToLibrary() {
         if (returnPending) return
         if (!hasGame()) { showLibrary(); return }
         returnPending = true
         // Read before endSession, which may reset what externalSession reports.
-        val external = externalSession()
-        fun cancel() {
+        if (externalSession()) {
+            // Exiting replaces teardown and closes the app, so returnPending stays set.
+            resetGestures()
+            exitExternalSession()
+        } else endSession {
             returnPending = false
-            session()?.close()
+            showLibrary()
         }
-        AlertDialog.Builder(library.context)
-            .setTitle("End game session?")
-            .setMessage(if (external) "Stop the current game and return to the frontend. Unsaved progress will be lost."
-                else "Return to Library and stop the current game. Unsaved progress will be lost.")
-            .setNegativeButton("Cancel") { _, _ -> cancel() }
-            .setPositiveButton("End session") { _, _ ->
-                // Exiting replaces teardown and closes the app, so returnPending stays set.
-                if (external) {
-                    resetGestures()
-                    exitExternalSession()
-                } else endSession {
-                    returnPending = false
-                    showLibrary()
-                }
-            }
-            .setOnCancelListener { cancel() }
-            .show().also(Ui::styleDialog)
     }
 
     fun showLibrary() {
         resetGestures()
         if (externalSession()) { exitExternalSession(); return }
         prepareLibrary()
-        library.closeActions()
-        library.closeDetail()
         state.showLibrary()
         library.visibility = View.VISIBLE
         session()?.close()
@@ -93,6 +90,7 @@ class SessionNavigationCoordinator(
         library.dismissSystemKeyboard()
         state.enterGame()
         library.visibility = View.GONE
+        session()?.reset()
         focusGame()
         if (notify) applyState()
     }

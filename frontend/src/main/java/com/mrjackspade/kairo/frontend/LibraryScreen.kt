@@ -17,12 +17,8 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
-import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Toast
 import java.util.concurrent.Executors
-import com.mrjackspade.kairo.frontend.SettingsEntry
 
 /**
  * The part of a file name that tells revisions of one game apart: its bracketed and
@@ -51,52 +47,37 @@ class LibraryScreen<T : LibraryItem>(
     context: Context,
     private val catalog: LibraryCatalog,
     private val strings: LibraryStrings,
+    private val pages: PageStack,
     private val chooseFolder: () -> Unit,
-    private val refresh: () -> Unit,
-    private val rehash: () -> Unit,
-    private val updateCatalog: () -> Unit,
-    private val downloadMissingImages: (() -> Unit)?,
-    private val cancelArtworkDownload: () -> Unit,
-    private val settings: List<SettingsEntry>,
     private val lastPlayedId: () -> String?,
     private val play: (T) -> Unit,
     private val preview: (T) -> Unit,
     private val details: (T) -> Unit,
     private val selectionChanged: (T?) -> Unit,
-    commandLaunch: ((T) -> Unit)? = null
+    private val commandLaunch: ((T) -> Unit)? = null
 ) : FrameLayout(context) {
     private var reportedSelection: String? = "none"
-    private var catalogManagementDialog: android.app.AlertDialog? = null
-    private val catalogInstaller by lazy { catalog.installedCatalogs?.let {
-        CatalogInstallController(context as android.app.Activity, it, {
-            artCache.evictAll()
-            missingArt.clear()
-            showEntries(catalogEntries)
-            detailPage.refreshArtwork()
-        }, ::showCatalogUpdate)
-    } }
     private var catalogEntries = emptyList<T>()
-    fun handleCatalogResult(request: Int, result: Int, data: android.content.Intent?): Boolean =
-        catalogInstaller?.handleActivityResult(request, result, data) ?: false
-    private val status = TextView(context)
-    private val folder = TextView(context)
+    /** The latest status, shown in the empty state and the library flyout. */
+    var status: String = ""
+        private set
+    /** The selected folder's name, or null when there is none. */
+    var folderName: String? = null
+        private set
+    /** Set by the library flow: true when there is no folder or its access expired. */
+    var needsFolder: () -> Boolean = { false }
+    /** Opens the library flyout. */
+    var openMenuAction: () -> Unit = {}
     private val list = ListView(context)
-    private val emptyState = TextView(context)
-    private val scanProgress = ProgressBar(context)
-    private val catalogBanner = LinearLayout(context)
-    private val catalogProgress = ProgressBar(context)
-    private val catalogStatus = TextView(context)
-    private var catalogStatusVersion = 0
-    private val artworkBanner = LinearLayout(context)
-    private val artworkStatus = TextView(context)
-    private val scrim = View(context)
-    private val actionsScroll = ScrollView(context)
-    private val actionsDrawer = LinearLayout(context)
-    private val actionItems = ArrayList<View>()
-    private val detailPage = GameDetailPage<T>(context, catalog, play, preview, details, { closeDetail() }, ::metadata, commandLaunch)
-    private val settingValues = ArrayList<Pair<TextView, () -> String>>()
-    private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openActions() }
+    private val emptyState = LinearLayout(context)
+    private val emptyText = Ui.text(context, "", Ui.BODY, Ui.TEXT_MUTED)
+    private val emptyButton = Ui.primaryButton(context, "Choose ${strings.folder}…") { chooseFolder() }
+    private val scanProgress = Ui.spinner(context, 24, 3)
+    val tasks = TaskStrip(context)
+    private var detailPage: GameDetailPage<T>? = null
+    private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openMenu() }
     private val searchButton = Ui.iconButton(context, R.drawable.ic_search, "Search games") { toggleSearch() }
+    /** Header focus: 0 menu, 1 search, 2 the task strip's Stop. -1 is the game list. */
     private var headerSelection = -1
     private var lastHeaderSelection = 0
     private val searchRow = LinearLayout(context)
@@ -118,8 +99,8 @@ class LibraryScreen<T : LibraryItem>(
         rowMetadata.putAll(records)
         adapter.notifyDataSetChanged()
         if (entries.getOrNull(selectedIndex)?.id in records) reannounceSelection()
-        if (detailOpen && detailEntryId in records) {
-            allEntries.firstOrNull { it.id == detailEntryId }?.let(detailPage::show)
+        detailPage?.let { page ->
+            if (page.entryId in records) allEntries.firstOrNull { it.id == page.entryId }?.let(page::show)
         }
     }
     private var searchSnapshot = 0L
@@ -135,11 +116,7 @@ class LibraryScreen<T : LibraryItem>(
     private var visibilityExecutor: java.util.concurrent.ExecutorService? = null
     @Volatile private var entriesGeneration = 0L
     private var pinnedId: String? = null
-    private var detailEntryId: String? = null
-    private var selectedAction = 0
-    var actionsOpen = false
-        private set
-    val detailOpen: Boolean get() = detailPage.isOpen
+    val detailOpen: Boolean get() = detailPage?.inStack == true
     private val artCache = object : LruCache<String, Bitmap>(8 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
@@ -274,7 +251,7 @@ class LibraryScreen<T : LibraryItem>(
         setBackgroundColor(Ui.BG)
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(18), dp(18), dp(18), dp(12))
+            setPadding(dp(18), dp(18), dp(18), 0)
         }
         addView(body, FrameLayout.LayoutParams(-1, -1))
         val header = LinearLayout(context).apply {
@@ -287,22 +264,22 @@ class LibraryScreen<T : LibraryItem>(
             text = strings.productName
             scale = 2
         }, LinearLayout.LayoutParams(0, -2, 1f))
-        scanProgress.apply { visibility = View.GONE }
-        header.addView(scanProgress, LinearLayout.LayoutParams(dp(28), dp(28)).apply {
-            marginEnd = dp(12)
+        scanProgress.visibility = View.GONE
+        header.addView(scanProgress, LinearLayout.LayoutParams(dp(24), dp(24)).apply {
+            marginEnd = dp(6)
         })
         header.addView(searchButton,
             LinearLayout.LayoutParams(dp(48), dp(48)))
-        body.addView(header)
+        body.addView(header, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         search.apply {
             visibility = View.GONE
-            hint = "Search by title"
+            hint = "Search by title or file name"
             textSize = Ui.BODY
             isSingleLine = true
             setTextColor(Ui.TEXT)
             setHintTextColor(Ui.TEXT_FAINT)
             background = Ui.rounded(context, Ui.SURFACE, Ui.RADIUS_SMALL, Ui.LINE)
-            setPadding(dp(14), dp(10), dp(14), dp(10))
+            setPadding(dp(14), 0, dp(14), 0)
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
             setOnEditorActionListener { _, action, event ->
                 if (action == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH ||
@@ -319,54 +296,9 @@ class LibraryScreen<T : LibraryItem>(
             })
         }
         searchRow.visibility = View.GONE
-        searchRow.gravity = Gravity.CENTER_VERTICAL
-        searchRow.addView(search, LinearLayout.LayoutParams(0, -2, 1f))
-        searchRow.addView(Ui.text(context, "View results", Ui.SECONDARY, Ui.ACCENT).apply {
-            setPadding(dp(12), dp(12), dp(4), dp(12))
-            isClickable = true
-            isFocusable = true
-            setOnClickListener { dismissSearchKeyboard() }
-        }, LinearLayout.LayoutParams(-2, -2))
-        body.addView(searchRow, LinearLayout.LayoutParams(-1, -2).apply {
-            topMargin = dp(8)
-            bottomMargin = dp(4)
-        })
-        catalogBanner.apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            visibility = View.GONE
-            setPadding(dp(8), dp(7), dp(8), dp(7))
-            setBackgroundColor(Ui.RAISED)
-        }
-        catalogBanner.addView(catalogProgress, LinearLayout.LayoutParams(dp(20), dp(20)).apply { marginEnd = dp(10) })
-        catalogStatus.apply { textSize = Ui.SECONDARY; setTextColor(Ui.TEXT) }
-        catalogBanner.addView(catalogStatus, LinearLayout.LayoutParams(0, -2, 1f))
-        body.addView(catalogBanner, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
-        artworkBanner.apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            visibility = View.GONE
-            setBackgroundColor(Ui.RAISED)
-            setPadding(dp(12), dp(7), dp(8), dp(7))
-        }
-        artworkStatus.apply {
-            textSize = Ui.SECONDARY
-            setTextColor(Ui.TEXT)
-        }
-        artworkBanner.addView(artworkStatus, LinearLayout.LayoutParams(0, -2, 1f))
-        artworkBanner.addView(TextView(context).apply {
-            text = "Cancel"
-            textSize = Ui.SECONDARY
-            setTextColor(Ui.ACCENT)
-            setPadding(dp(12), dp(6), dp(6), dp(6))
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                artworkStatus.text = "Stopping image download…"
-                cancelArtworkDownload()
-            }
-        })
-        body.addView(artworkBanner, LinearLayout.LayoutParams(-1, -2))
+        searchRow.addView(search, LinearLayout.LayoutParams(-1, dp(44)))
+        body.addView(searchRow, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+        body.addView(tasks, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
         val gameArea = FrameLayout(context)
         list.apply {
             viewTreeObserver.addOnPreDrawListener {
@@ -389,9 +321,10 @@ class LibraryScreen<T : LibraryItem>(
             // The library moves its own selection; the list must not keep a second one.
             isFocusable = false
             itemsCanFocus = false
-            setPadding(0, dp(4), 0, dp(12))
+            setPadding(0, 0, 0, dp(12))
             clipToPadding = false
             overScrollMode = View.OVER_SCROLL_NEVER
+            isVerticalScrollBarEnabled = false
             adapter = this@LibraryScreen.adapter
             setOnItemClickListener { _, _, position, _ ->
                 val index = indexAt(position) ?: return@setOnItemClickListener
@@ -404,148 +337,83 @@ class LibraryScreen<T : LibraryItem>(
                 val index = indexAt(position) ?: return@setOnItemLongClickListener false
                 selectedIndex = index
                 focusGames()
+                notifySelection()
+                // Game settings opens over the game page, so Play is one Back away.
+                openDetail(entries[index])
                 details(entries[index])
                 true
             }
         }
         gameArea.addView(list, FrameLayout.LayoutParams(-1, -1))
         emptyState.apply {
-            textSize = Ui.BODY
-            gravity = Gravity.CENTER
-            setTextColor(Ui.TEXT_MUTED)
-            setPadding(dp(20), dp(20), dp(20), dp(20))
-        }
-        gameArea.addView(emptyState, FrameLayout.LayoutParams(-1, -1))
-        body.addView(gameArea, LinearLayout.LayoutParams(-1, 0, 1f))
-
-        scrim.apply {
-            visibility = View.GONE
-            alpha = 0f
-            setBackgroundColor(Ui.SCRIM)
-            setOnClickListener { closeActions() }
-        }
-        addView(scrim, FrameLayout.LayoutParams(-1, -1))
-        actionsDrawer.apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Ui.SURFACE)
-            setPadding(dp(12), dp(20), dp(12), dp(16))
-        }
-        actionsScroll.apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(20), dp(40), dp(20), dp(40))
             visibility = View.GONE
-            elevation = dp(16).toFloat()
-            isFillViewport = true
-            overScrollMode = View.OVER_SCROLL_NEVER
-            setBackgroundColor(Ui.SURFACE)
-            addView(actionsDrawer, FrameLayout.LayoutParams(-1, -2))
         }
-        val drawerWidth = minOf(dp(320), resources.displayMetrics.widthPixels - dp(40))
-        addView(actionsScroll, FrameLayout.LayoutParams(drawerWidth, -1, Gravity.START))
-        actionsDrawer.addView(PixelTextView(context).apply {
-            text = strings.productName
-            scale = 2
-            setPadding(dp(12), 0, dp(12), dp(4))
-        })
-        folder.apply {
-            textSize = Ui.SECONDARY
-            setTextColor(Ui.TEXT_BODY)
-            setPadding(dp(12), 0, dp(12), dp(4))
-        }
-        actionsDrawer.addView(folder)
-        status.apply {
-            textSize = Ui.LABEL
-            setTextColor(Ui.TEXT_MUTED)
-            setPadding(dp(12), 0, dp(12), dp(18))
-            maxLines = 2
-        }
-        actionsDrawer.addView(status)
-        actionsDrawer.addView(Ui.sectionLabel(context, "LIBRARY"))
-        drawerAction(strings.selectFolder, strings.folderHint, chooseFolder)
-        drawerAction("Refresh", "Scan for added, changed, or removed games", refresh)
-        drawerAction("Rehash", "Recheck every game image", rehash)
-        drawerAction("Catalog management", "Update catalogs, import files, and manage artwork", ::showCatalogManagement)
-        actionsDrawer.addView(Ui.sectionLabel(context, "SETTINGS"))
-        settings.forEach { entry ->
-            settingValues.add(drawerAction(entry.title, entry.value(), entry.action) to entry.value)
-        }
-        addView(detailPage, FrameLayout.LayoutParams(-1, -1))
+        emptyText.gravity = Gravity.CENTER
+        emptyText.setLineSpacing(dp(8).toFloat(), 1f)
+        emptyState.addView(emptyText, LinearLayout.LayoutParams(-2, -2))
+        emptyState.addView(emptyButton, LinearLayout.LayoutParams(-2, dp(48)).apply { topMargin = dp(16) })
+        emptyButton.setPadding(dp(20), 0, dp(20), 0)
+        gameArea.addView(emptyState, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        body.addView(gameArea, LinearLayout.LayoutParams(-1, 0, 1f))
+        pages.onActiveChanged { active -> if (!active && visibility == View.VISIBLE) restoreFocus() }
     }
 
-    private fun showCatalogManagement() {
-        if (catalogManagementDialog?.isShowing == true) return
-        val actions = mutableListOf<Pair<String, () -> Unit>>("Update catalogs" to updateCatalog)
-        if (catalog.installedCatalogs != null) {
-            actions += "Import catalog file" to { catalogInstaller?.chooseFile(); Unit }
-            actions += "Remove catalog" to { catalogInstaller?.remove(); Unit }
-        }
-        downloadMissingImages?.let { actions += "Download missing images" to it }
-        val dialog = android.app.AlertDialog.Builder(context).setTitle("Catalog management")
-            .setItems(actions.map { it.first }.toTypedArray(), null)
-            .setNegativeButton("Back") { _, _ -> openActions() }
-            .create()
-        dialog.setOnCancelListener { openActions() }
-        catalogManagementDialog = dialog
-        dialog.setOnDismissListener { catalogManagementDialog = null }
-        dialog.show()
-        Ui.styleDialog(dialog)
-        dialog.listView.setOnItemClickListener { _, _, index, _ ->
-            // Keep the parent menu underneath the removal picker/confirmation.
-            if (actions[index].first != "Remove catalog") dialog.dismiss()
-            actions[index].second()
-        }
+    /** The folder name for the flyout title, or null when no folder is selected. */
+    fun showFolder(name: String?) {
+        folderName = name
+        updateEmptyState()
     }
 
-    fun showFolder(label: String?) { folder.text = label ?: strings.noFolder }
     fun refreshCatalog() {
         artCache.evictAll()
         missingArt.clear()
         showEntries(catalogEntries)
-        detailPage.refreshArtwork()
+        detailPage?.refreshArtwork()
     }
-    fun showCatalogUpdate(state: CatalogUpdateState?) {
-        val version = ++catalogStatusVersion
-        catalogBanner.visibility = if (state == null) View.GONE else View.VISIBLE
-        catalogProgress.visibility = if (state?.busy == true) View.VISIBLE else View.GONE
-        catalogStatus.text = state?.label ?: ""
-        requestSelectionVisibility()
-        if (state != null && !state.busy) postDelayed({
-            if (catalogStatusVersion == version) {
-                catalogBanner.visibility = View.GONE
-                requestSelectionVisibility()
-            }
-        }, 3000)
-    }
-    fun showArtworkProgress(completed: Int, total: Int, failures: Int) {
-        artworkBanner.visibility = View.VISIBLE
-        artworkStatus.text = if (total == 0) "Checking library artwork…"
-            else "Downloading images $completed/$total" +
-                (if (failures == 0) "" else " · $failures failed")
-    }
-    fun finishArtworkDownload(message: String) {
-        artworkBanner.visibility = View.GONE
-        showStatus(message)
-        (context as? android.app.Activity)?.let { Ui.message(it, message, long = true) }
-    }
+
     fun refreshArtwork() {
         rowMetadata.clear()
         resetSearchIndex()
         missingArt.clear()
         adapter.notifyDataSetChanged()
-        detailPage.refreshArtwork()
+        detailPage?.refreshArtwork()
         if (search.text.isNotEmpty()) applyFilter()
     }
+
+    /** Whether a scan, hash, or launch is running, which the header spinner shows. */
+    val working: Boolean get() = BUSY.any { status.startsWith(it) }
+
+    /**
+     * Progress goes to the task strip and the header spinner. Other text becomes the status
+     * the empty state shows, and errors also reach the message bar.
+     */
     fun showStatus(message: String) {
-        status.text = message
-        scanProgress.visibility = if (message.startsWith("Scanning") ||
-            message.startsWith("Rehashing") || message.startsWith("Hashing") ||
-            message.startsWith("Found") || message.startsWith("Skipping") ||
-            message.startsWith("Preparing"))
-            View.VISIBLE else View.GONE
-        if (entries.isEmpty()) emptyState.text = message
-        if (entries.isNotEmpty() && (message.startsWith("Scan failed") ||
-            message.startsWith("Launch failed") || message.startsWith("Cannot keep folder access"))) {
+        status = message
+        val busy = working || message.startsWith("Deleting")
+        scanProgress.visibility = if (working) View.VISIBLE else View.GONE
+        if (busy) tasks.show("status", message, 1) else tasks.hide("status")
+        updateEmptyState()
+        if (!busy && entries.isNotEmpty() && message.isNotEmpty() && !SUMMARY.containsMatchIn(message))
             (context as? android.app.Activity)?.let { Ui.message(it, message, long = true) }
-        }
+        pages.refresh()
     }
+
+    private fun updateEmptyState() {
+        if (entries.isNotEmpty()) {
+            emptyState.visibility = View.GONE
+            return
+        }
+        val query = search.text.toString().trim()
+        emptyText.text = if (query.isNotEmpty() && allEntries.isNotEmpty()) "No games match \u201c$query\u201d"
+            else status
+        emptyButton.visibility = if (query.isEmpty() && needsFolder()) View.VISIBLE else View.GONE
+        emptyState.visibility = if (emptyText.text.isNullOrEmpty() && emptyButton.visibility != View.VISIBLE)
+            View.GONE else View.VISIBLE
+    }
+
     fun showEntries(items: List<T>) {
         catalogEntries = items
         val generation = ++entriesGeneration
@@ -573,9 +441,9 @@ class LibraryScreen<T : LibraryItem>(
         resetSearchIndex()
         applyFilter()
         if (entries.isNotEmpty()) list.setSelection(if (selectedIndex == 0) 0 else positionOf(selectedIndex))
-        if (detailOpen) {
-            val refreshed = allEntries.firstOrNull { it.id == detailEntryId }
-            if (refreshed == null) closeDetail() else detailPage.show(refreshed)
+        detailPage?.let { page ->
+            val refreshed = allEntries.firstOrNull { it.id == page.entryId }
+            if (refreshed == null) closeDetail() else page.show(refreshed)
         }
     }
     /** Used by the debug ADB selector after cached entries or a scan arrive. */
@@ -617,11 +485,13 @@ class LibraryScreen<T : LibraryItem>(
     }
     fun moveSelection(delta: Int) {
         if (headerSelection >= 0) {
-            if (delta > 0) focusGames()
+            if (delta > 0) {
+                if (headerSelection < 2 && tasks.canStop) focusHeader(2) else focusGames()
+            } else if (headerSelection == 2) focusHeader(lastHeaderSelection)
             return
         }
         if (delta < 0 && (entries.isEmpty() || selectedIndex == 0)) {
-            focusHeader(lastHeaderSelection)
+            focusHeader(if (tasks.canStop) 2 else lastHeaderSelection)
             return
         }
         if (entries.isEmpty()) return
@@ -637,24 +507,34 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     private fun focusHeader(index: Int) {
-        headerSelection = index.coerceIn(0, 1)
-        lastHeaderSelection = headerSelection
-        val button = if (headerSelection == 0) menuButton else searchButton
-        button.isFocusableInTouchMode = true
-        button.requestFocusFromTouch()
+        headerSelection = if (index == 2 && tasks.canStop) 2 else index.coerceIn(0, 1)
+        if (headerSelection < 2) lastHeaderSelection = headerSelection
+        menuButton.isSelected = headerSelection == 0
+        searchButton.isSelected = headerSelection == 1
+        tasks.stopButton.isSelected = headerSelection == 2
+        emptyButton.isSelected = false
         updateSelectionHighlight()
     }
 
     private fun focusGames() {
         headerSelection = -1
+        menuButton.isSelected = false
+        searchButton.isSelected = false
+        tasks.stopButton.isSelected = false
+        emptyButton.isSelected = entries.isEmpty() && emptyButton.visibility == View.VISIBLE
         isFocusableInTouchMode = true
         requestFocus()
         updateSelectionHighlight()
         requestSelectionVisibility()
     }
 
+    /** Back on the library after its pages close: the game list or header as it was. */
+    private fun restoreFocus() {
+        if (headerSelection >= 0) focusHeader(headerSelection) else focusGames()
+    }
+
     fun moveHeaderSelection(delta: Int) {
-        if (headerSelection >= 0) focusHeader(headerSelection + delta)
+        if (headerSelection in 0..1) focusHeader(headerSelection + delta)
     }
 
     fun leaveHeader(): Boolean {
@@ -714,100 +594,43 @@ class LibraryScreen<T : LibraryItem>(
         return false
     }
     fun activateSelection() {
-        if (headerSelection >= 0) {
-            (if (headerSelection == 0) menuButton else searchButton).performClick()
-            return
+        when (headerSelection) {
+            0 -> menuButton.performClick()
+            1 -> searchButton.performClick()
+            2 -> tasks.stopButton.performClick()
+            else -> if (entries.isEmpty()) {
+                if (emptyButton.visibility == View.VISIBLE) emptyButton.performClick()
+            } else entries.getOrNull(selectedIndex)?.let(::openDetail)
         }
-        entries.getOrNull(selectedIndex)?.let(::openDetail)
     }
-    fun detailsSelection() { entries.getOrNull(selectedIndex)?.let(details) }
+
+    fun openMenu() = openMenuAction()
+
+    /** Menu on the library pages: the game page opens Game settings; the flyout closes. */
+    fun menuKey() {
+        val top = pages.top
+        when {
+            pages.flyoutOpen -> pages.closeAll()
+            top is GameDetailPage<*> && top === detailPage -> detailPage?.current?.let(details)
+        }
+    }
 
     fun openDetail(entry: T) {
-        closeActions()
-        detailEntryId = entry.id
-        detailPage.show(entry)
+        detailPage?.let { if (it.inStack) { it.show(entry); return } }
+        val page = GameDetailPage(catalog, play, preview, details, ::metadata, commandLaunch) {
+            if (detailPage === it) detailPage = null
+        }
+        detailPage = page
+        pages.push(page)
+        page.show(entry)
     }
 
+    /** Close the game page and anything above it, as after deleting its file. */
     fun closeDetail(): Boolean {
-        if (!detailPage.close()) return false
-        detailEntryId = null
-        list.requestFocus()
+        val page = detailPage?.takeIf { it.inStack } ?: return false
+        pages.popTo(page)
+        pages.pop()
         return true
-    }
-
-    fun activateDetail() { detailPage.activateFocused() }
-    fun moveDetailSelection(delta: Int) { detailPage.moveSelection(delta) }
-
-    fun openActions() {
-        if (actionsOpen) return
-        actionsOpen = true
-        scrim.animate().cancel()
-        actionsScroll.animate().cancel()
-        scrim.visibility = View.VISIBLE
-        scrim.alpha = 0f
-        actionsScroll.visibility = View.VISIBLE
-        actionsScroll.translationX = -actionsScroll.layoutParams.width.toFloat()
-        refreshSettingValues()
-        focusAction(0)
-        scrim.animate().alpha(1f).setDuration(180).start()
-        actionsScroll.animate().translationX(0f).setDuration(180).start()
-    }
-
-    fun closeActions(): Boolean {
-        if (!actionsOpen) return false
-        actionsOpen = false
-        actionItems.forEach { it.isSelected = false; it.isPressed = false }
-        if (headerSelection >= 0) focusHeader(headerSelection) else focusGames()
-        scrim.animate().cancel()
-        actionsScroll.animate().cancel()
-        scrim.animate().alpha(0f).setDuration(160).withEndAction {
-            if (!actionsOpen) scrim.visibility = View.GONE
-        }.start()
-        actionsScroll.animate().translationX(-actionsScroll.layoutParams.width.toFloat())
-            .setDuration(160).withEndAction {
-                if (!actionsOpen) actionsScroll.visibility = View.GONE
-            }.start()
-        return true
-    }
-
-    fun moveActionSelection(delta: Int) {
-        focusAction((selectedAction + delta).coerceIn(0, actionItems.lastIndex))
-    }
-
-    fun activateAction() { actionItems.getOrNull(selectedAction)?.performClick() }
-
-    private fun focusAction(index: Int) {
-        selectedAction = index
-        actionItems.forEachIndexed { position, item -> item.isSelected = position == index }
-        actionItems.getOrNull(index)?.let { item ->
-            item.isFocusableInTouchMode = true
-            item.requestFocusFromTouch()
-        }
-        revealAction()
-        // Opening or refreshing the menu can change row bounds on the next layout.
-        actionsScroll.post { if (actionsOpen) revealAction() }
-    }
-
-    private fun revealAction() {
-        val item = actionItems.getOrNull(selectedAction) ?: return
-        item.requestRectangleOnScreen(android.graphics.Rect(0, 0, item.width, item.height), true)
-    }
-
-    private fun drawerAction(title: String, description: String, action: () -> Unit): TextView {
-        val row = Ui.actionRow(context, title, { description }, 66, 10) {
-            closeActions()
-            action()
-        }
-        actionsDrawer.addView(row.view, LinearLayout.LayoutParams(-1, -2))
-        actionItems.add(row.view)
-        return row.detail
-    }
-
-    fun refreshSettingValues() {
-        settingValues.forEach { (view, value) ->
-            view.text = value()
-            view.visibility = if (view.text.isNullOrEmpty()) View.GONE else View.VISIBLE
-        }
     }
 
     /** Drop library search focus before a guest session takes over the window. */
@@ -851,7 +674,8 @@ class LibraryScreen<T : LibraryItem>(
         }
         searchIndex.cancelQuery()
         val pinned = pinnedId?.let { id -> allEntries.firstOrNull { it.id == id } }
-        publishFilter(query, pinned?.let { listOf(it) + allEntries } ?: allEntries, pinned)
+        publishFilter(query, pinned?.let { game -> listOf(game) + allEntries.filter { it.id != game.id } }
+            ?: allEntries, pinned)
     }
 
     private fun resetSearchIndex() {
@@ -867,8 +691,7 @@ class LibraryScreen<T : LibraryItem>(
         val selectedWasPinned = selectedIndex == 0 &&
             (items.firstOrNull() as? Header)?.pinned == true
         entries = matches
-        emptyState.visibility = if (entries.isEmpty()) View.VISIBLE else View.GONE
-        if (entries.isEmpty() && allEntries.isNotEmpty()) emptyState.text = "No games match \"$query\""
+        updateEmptyState()
         val selectedMatch = when {
             selectedWasPinned && pinned?.id == selectedId -> 0
             selectedId != null -> entries.indexOfLast { it.id == selectedId }
@@ -947,4 +770,10 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    private companion object {
+        val BUSY = listOf("Scanning", "Rehashing", "Hashing", "Found", "Skipping", "Preparing", "Opening")
+        /** Scan summaries such as "7 games ready" stay in the flyout, not the message bar. */
+        val SUMMARY = Regex("^\\d+ games")
+    }
 }

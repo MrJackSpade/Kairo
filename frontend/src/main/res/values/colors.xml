@@ -1,0 +1,4 @@
+<resources>
+    <!-- Ui.BG, for themes: the window shows it before the first frame is drawn. -->
+    <color name="kairo_background">#FF0C1017</color>
+</resources>

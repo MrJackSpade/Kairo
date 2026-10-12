@@ -6,13 +6,8 @@ import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
-import android.view.View
-import android.view.ViewGroup
-import android.view.inspector.WindowInspector
-import android.widget.Button
-import android.widget.TextView
 
-/** Each host's real Exit confirmation, through its own dialog window dispatch. */
+/** Each host's real Exit confirmation: the inline tray under the game flyout's Exit row. */
 object ExitDialogFixture {
     fun verify(test: Instrumentation) {
         val launch = test.targetContext.packageManager.getLaunchIntentForPackage(test.targetContext.packageName)!!
@@ -23,28 +18,33 @@ object ExitDialogFixture {
             test.waitForIdleSync()
             error?.let { throw it }
         }
-        fun descendants(view: View): List<View> = listOf(view) +
-            ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { descendants(group.getChildAt(it)) } }
-                ?: emptyList())
-        lateinit var decor: View
+        fun field(name: String) = activity.javaClass.getDeclaredField(name).apply { isAccessible = true }.get(activity)
+        val pages by lazy { field("pages") as PageStack }
         val secondary by lazy { activity.javaClass.declaredFields.single { it.type == SecondaryDisplayCoordinator::class.java }
             .apply { isAccessible = true }.get(activity) as SecondaryDisplayCoordinator }
         var companionInput = false
-        fun focused() = (decor.findFocus() as? Button)?.text?.toString()
+        fun flyout() = pages.top as RowsPage
+        fun focused() = flyout().trayFocused()
         fun open() {
             test.setInTouchMode(true)
-            ui { activity.javaClass.getDeclaredMethod("confirmExit").apply { isAccessible = true }.invoke(activity) }
             ui {
-                decor = WindowInspector.getGlobalWindowViews().single { root ->
-                    descendants(root).filterIsInstance<TextView>().any { it.text.toString().startsWith("Exit Kairo") }
-                }
-                check(focused() == "Cancel") { "Exit initial focus: ${focused()} (${decor.findFocus()?.javaClass?.simpleName})" }
+                pages.closeAll()
+                (field("sessionFlow") as SessionFlow).open("f-exit", confirm = true)
             }
+            Thread.sleep(250)
+            ui {
+                check(flyout().isFlyout && flyout().trayRowId == "f-exit") { "Exit confirm is not open" }
+                check(flyout().trayButtons() == listOf("Cancel", "Exit")) { "Exit buttons: ${flyout().trayButtons()}" }
+                check(focused() == "Cancel") { "Exit initial focus: ${focused()}" }
+            }
+        }
+        fun closed() = check(pages.isActive && flyout().trayRowId == null && !activity.isFinishing) {
+            "The tray did not close with the app and flyout still open"
         }
         fun key(code: Int) = ui {
             for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
                 val event = KeyEvent(action, code)
-                if (companionInput) secondary.forwardKey(event) else decor.dispatchKeyEvent(event)
+                if (companionInput) secondary.forwardKey(event) else activity.dispatchKeyEvent(event)
             }
         }
         fun hat(x: Float, y: Float) {
@@ -56,7 +56,7 @@ object ExitDialogFixture {
             }
             val event = MotionEvent.obtain(now, now, MotionEvent.ACTION_MOVE, 1, arrayOf(props), arrayOf(coords),
                 0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_JOYSTICK, 0)
-            ui { if (companionInput) secondary.forwardMotion(event) else decor.dispatchGenericMotionEvent(event) }
+            ui { if (companionInput) secondary.forwardMotion(event) else activity.dispatchGenericMotionEvent(event) }
             event.recycle()
         }
         try {
@@ -67,22 +67,22 @@ object ExitDialogFixture {
             key(KeyEvent.KEYCODE_DPAD_LEFT)
             ui { check(focused() == "Cancel") }
             key(KeyEvent.KEYCODE_BUTTON_A)
-            ui { check(!decor.isAttachedToWindow && !activity.isFinishing) { "Cancel did not keep app open" } }
+            ui { closed() }
             companionInput = true
             open()
             hat(1f, 0f); hat(0f, 0f)
             ui { check(focused() == "Exit") { "Hat right did not focus Exit: ${focused()}" } }
             hat(-1f, 0f); hat(0f, 0f)
             ui { check(focused() == "Cancel") }
+            // Up and Down leave the tray for the rows, closing it.
             hat(0f, 1f); hat(0f, 0f)
-            ui { check(focused() == "Exit") }
-            hat(0f, -1f); hat(0f, 0f)
-            ui { check(focused() == "Cancel") }
+            ui { closed() }
+            open()
             key(KeyEvent.KEYCODE_BUTTON_B)
-            ui { check(!decor.isAttachedToWindow && !activity.isFinishing) }
+            ui { closed() }
             open()
             key(KeyEvent.KEYCODE_BACK)
-            ui { check(!decor.isAttachedToWindow && !activity.isFinishing) }
+            ui { closed() }
             open()
             key(KeyEvent.KEYCODE_DPAD_RIGHT)
             key(KeyEvent.KEYCODE_BUTTON_A)

@@ -8,7 +8,9 @@ data class KeyboardKey(
     val chordShift: Boolean = false
 )
 
-data class GuestKeyboardPage(val label: String, val rows: List<List<KeyboardKey>>)
+/** [pickerLabel] names the page on the button target key picker, where it may differ. */
+data class GuestKeyboardPage(val label: String, val rows: List<List<KeyboardKey>>,
+                             val pickerLabel: String = label)
 
 /** The guest owns codes and legends; the frontend owns drawing and input behavior. */
 data class GuestKeyboardLayout(

@@ -55,9 +55,11 @@ object LibraryScrollFixture {
             }
         try {
             ui {
-                screen = LibraryScreen(activity, catalog, LibraryStrings("Fixture"), {}, {}, {}, {},
-                    null, {}, emptyList(), { pinned }, {}, {}, {}, { selection = it?.id })
-                activity.setContentView(screen)
+                val host = android.widget.FrameLayout(activity)
+                activity.setContentView(host)
+                screen = LibraryScreen(activity, catalog, LibraryStrings("Fixture", "Fixture"),
+                    PageStack(activity, host), {}, { pinned }, {}, {}, {}, { selection = it?.id })
+                host.addView(screen, 0, android.widget.FrameLayout.LayoutParams(-1, -1))
                 screen.showEntries(entries)
                 list = findList(screen)!!
             }

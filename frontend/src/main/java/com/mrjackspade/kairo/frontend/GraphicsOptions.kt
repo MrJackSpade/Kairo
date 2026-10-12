@@ -1,22 +1,17 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.SharedPreferences
 import android.content.res.Configuration
-import android.text.InputType
-import android.widget.EditText
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-/** Shared scaling preferences, dialogs, and placement for emulator video surfaces. */
+/** Shared scaling preferences, rows, and placement for emulator video surfaces. */
 class GraphicsOptions(
     private val activity: Activity,
     private val preferences: SharedPreferences,
-    private val showDialog: (AlertDialog.Builder) -> AlertDialog,
-    private val onChanged: () -> Unit,
-    private val reportInvalid: (String) -> Unit
+    private val onChanged: () -> Unit
 ) {
     data class Viewport(val width: Int, val height: Int, val topMargin: Int)
 
@@ -28,72 +23,47 @@ class GraphicsOptions(
         Configuration.ORIENTATION_PORTRAIT
 
     fun load() {
-        val suffix = if (isPortrait()) "portrait" else "landscape"
-        integerScaling = preferences.getBoolean("integer_scaling_$suffix",
-            preferences.getBoolean("integer_scaling", true))
-        integerCrop = preferences.getBoolean("integer_crop_$suffix",
-            preferences.getBoolean("integer_crop", false))
+        val (integer, crop) = scaling(if (isPortrait()) "portrait" else "landscape")
+        integerScaling = integer
+        integerCrop = crop
         portraitNotchPadding = preferences.getInt("portrait_notch_padding", 0).coerceIn(0, 240)
     }
 
-    private fun scalingLabel() = when {
-        !integerScaling -> "Fit display"
-        integerCrop -> "Integer crop"
-        else -> "Integer full image"
-    }
+    /** Scaling is saved per orientation; older installs had one value for both. */
+    private fun scaling(orientation: String) = preferences.getBoolean("integer_scaling_$orientation",
+        preferences.getBoolean("integer_scaling", true)) to preferences.getBoolean("integer_crop_$orientation",
+        preferences.getBoolean("integer_crop", false))
 
-    fun settingsLabel(): String = ""
+    private fun scalingChoice(orientation: String, label: String) = ChoiceSpec(label, { "All games" },
+        { listOf(ChoiceGroup(null, listOf(
+            ChoiceOption("integer", "Integer", "Full image (default)"),
+            ChoiceOption("crop", "Integer crop", "Crops the edges"),
+            ChoiceOption("fit", "Fit display", "Fractional scale")))) },
+        {
+            val (integer, crop) = scaling(orientation)
+            if (!integer) "fit" else if (crop) "crop" else "integer"
+        },
+        { choice ->
+            preferences.edit().putBoolean("integer_scaling_$orientation", choice != "fit")
+                .putBoolean("integer_crop_$orientation", choice == "crop").apply()
+            load()
+            onChanged()
+        })
 
-    fun show() = show(emptyList())
-
-    fun show(extraEntries: List<SettingsEntry>, includeDisplaySettings: Boolean = true) {
-        val orientation = if (isPortrait()) "portrait" else "landscape"
-        val displayItems = if (!includeDisplaySettings) emptyArray() else if (isPortrait()) arrayOf(
-            "Scaling  ·  ${scalingLabel()}", "Notch padding  ·  $portraitNotchPadding dp")
-        else arrayOf("Scaling  ·  ${scalingLabel()}")
-        val items = displayItems + extraEntries.map { "${it.title} · ${it.value()}" }
-        showDialog(AlertDialog.Builder(activity).setTitle("Graphics")
-            .setItems(items) { _, which ->
-                if (which >= displayItems.size) extraEntries[which - displayItems.size].action()
-                else if (which == 0) showScalingChoices(orientation) else showNotchPadding()
-            }.setNegativeButton("Close", null))
-    }
-
-    private fun showScalingChoices(orientation: String) {
-        val options = arrayOf("Integer  ·  full image (default)",
-            "Integer  ·  crop edges", "Fit display  ·  fractional scale")
-        val selected = if (!integerScaling) 2 else if (integerCrop) 1 else 0
-        showDialog(AlertDialog.Builder(activity).setTitle("Scaling")
-            .setSingleChoiceItems(options, selected) { dialog, choice ->
-                integerScaling = choice != 2
-                integerCrop = choice == 1
-                preferences.edit()
-                    .putBoolean("integer_scaling_$orientation", integerScaling)
-                    .putBoolean("integer_crop_$orientation", integerCrop).apply()
-                onChanged()
-                dialog.dismiss()
-            }.setNegativeButton("Cancel", null))
-    }
-
-    private fun showNotchPadding() {
-        val input = EditText(activity).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER
-            setSingleLine(true)
-            setText(portraitNotchPadding.toString())
-            selectAll()
-        }
-        showDialog(AlertDialog.Builder(activity).setTitle("Portrait notch padding (dp)")
-            .setView(input).setPositiveButton("Save") { _, _ ->
-                val value = input.text.toString().toIntOrNull()?.coerceIn(0, 240)
-                if (value == null) {
-                    reportInvalid("Enter a number from 0 to 240")
-                    return@setPositiveButton
-                }
+    /** The DISPLAY group of the Graphics page. */
+    fun displayGroup() = RowGroup("DISPLAY", listOf(
+        SettingsRow.choice("scale-landscape", "Landscape scaling", scalingChoice("landscape", "Landscape scaling")),
+        SettingsRow.choice("scale-portrait", "Portrait scaling", scalingChoice("portrait", "Portrait scaling")),
+        SettingsRow.slider("notch", "Portrait notch padding", { "$portraitNotchPadding dp" },
+            SliderSpec(0, 240, 1, 4, { portraitNotchPadding }) { value ->
                 portraitNotchPadding = value
                 preferences.edit().putInt("portrait_notch_padding", value).apply()
                 onChanged()
-            }.setNegativeButton("Cancel", null))
-    }
+            })))
+
+    /** The Graphics page: display and shader settings, plus any groups the app adds. */
+    fun page(shader: ShaderOptions, extra: () -> List<RowGroup> = { emptyList() }) =
+        GroupsPage("Graphics", { "All games" }, { listOf(displayGroup(), shader.group()) + extra() })
 
     /** Kairo98's portrait policy pins the image below the notch; landscape centers it. */
     fun viewport(containerWidth: Int, containerHeight: Int, keyboardHeight: Int,

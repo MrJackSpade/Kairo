@@ -1,35 +1,33 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.app.AlertDialog
-import android.view.KeyEvent
-import android.widget.ScrollView
 
-/** Shared About navigation and offline text-document viewer. The host supplies its own content. */
+/** The shared About page and offline text documents. The host supplies its own content. */
 object AboutDocuments {
-    fun show(activity: Activity, appName: String, message: String,
-             privacyAsset: String, noticesAsset: String) {
-        val version = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName
-        val dialog = AlertDialog.Builder(activity).setTitle("$appName $version")
-            .setMessage(message)
-            .setNeutralButton("Licenses") { _, _ ->
-                showAssets(activity, "Third-party licenses",
-                    listOf(noticesAsset, "SLANG_RUNTIME_NOTICES.txt"), Ui.LABEL)
-            }
-            .setNegativeButton("Privacy policy") { _, _ ->
-                showAsset(activity, "$appName Privacy Policy", privacyAsset, Ui.SECONDARY)
-            }
-            .setPositiveButton("Done", null).create()
-        dialog.show()
-        Ui.styleDialog(dialog)
+    fun page(activity: Activity, pages: PageStack, shortcuts: List<Pair<String, String>>,
+             shortcutNote: String?, credits: String, privacyAsset: String, noticesAsset: String,
+             diagnostics: (() -> Page)? = null): GroupsPage {
+        val version = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName ?: ""
+        return GroupsPage("About", content = {
+            listOf(
+                RowGroup("APP", listOfNotNull(
+                    SettingsRow.info("version", "Version") { version },
+                    diagnostics?.let { open -> SettingsRow.nav("diagnostics", "Diagnostics") { pages.push(open()) } })),
+                RowGroup("SHORTCUTS", shortcuts.mapIndexed { index, (label, value) ->
+                    SettingsRow.info("shortcut$index", label) { value }
+                }, shortcutNote),
+                RowGroup("LEGAL", listOf(
+                    SettingsRow.nav("licenses", "Third-party licenses") {
+                        pages.push(document(activity, "Third-party licenses",
+                            listOf(noticesAsset, "SLANG_RUNTIME_NOTICES.txt"), Ui.LABEL))
+                    },
+                    SettingsRow.nav("privacy", "Privacy policy") {
+                        pages.push(document(activity, "Privacy policy", listOf(privacyAsset), Ui.SECONDARY))
+                    }), credits))
+        })
     }
 
-    fun showAsset(activity: Activity, title: String, asset: String, textSize: Float) {
-        showAssets(activity, title, listOf(asset), textSize)
-    }
-
-    private fun showAssets(activity: Activity, title: String, assets: List<String>,
-                           textSize: Float) {
+    fun document(activity: Activity, title: String, assets: List<String>, textSize: Float): DocumentPage {
         val content = try {
             assets.joinToString("\n\n") { asset ->
                 activity.assets.open(asset).bufferedReader().use { it.readText() }
@@ -37,28 +35,6 @@ object AboutDocuments {
         } catch (_: Exception) {
             "This document could not be opened."
         }
-        val padding = Ui.dp(activity, 20)
-        val scroll = ScrollView(activity).apply {
-            isFillViewport = false
-            isFocusableInTouchMode = true
-            addView(Ui.text(activity, content, textSize).apply {
-                setPadding(padding, padding, padding, padding)
-            })
-        }
-        val dialog = AlertDialog.Builder(activity).setTitle(title)
-            .setView(scroll).setPositiveButton("Done", null).create()
-        dialog.setOnKeyListener { _, keyCode, event ->
-            if (event.action != KeyEvent.ACTION_DOWN ||
-                (keyCode != KeyEvent.KEYCODE_DPAD_UP && keyCode != KeyEvent.KEYCODE_DPAD_DOWN))
-                false
-            else {
-                scroll.smoothScrollBy(0, Ui.dp(activity,
-                    if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) 96 else -96))
-                true
-            }
-        }
-        dialog.show()
-        Ui.styleDialog(dialog)
-        scroll.requestFocus()
+        return DocumentPage(title, content, textSize)
     }
 }

@@ -110,29 +110,38 @@ object TouchStickFixture {
             }
             test.setInTouchMode(true)
             var selected = false
+            lateinit var setupPages: PageStack
+            lateinit var setup: Page
             ui {
-                ControllerConfiguration(preferences) { ControllerCapabilities.Detection(null) }
-                    .show(activity, required = true, product = "TEST") { selected = true }
+                setupPages = PageStack(activity, activity.findViewById(android.R.id.content))
+                setupPages.push(ControllerConfiguration(preferences) { ControllerCapabilities.Detection(null) }
+                    .setupPage("TEST", {}) { selected = true })
+                setup = setupPages.top!!
             }
-            fun screen() = WindowInspector.getGlobalWindowViews().flatMap(::descendants)
-                .filterIsInstance<FirstRunScreen>().single { it.isOpen }
-            fun rows(screen: FirstRunScreen) = listOf("With Sticks.", "Without Sticks.", "Continue.").map { title ->
-                descendants(screen).single { it.contentDescription?.toString()?.startsWith(title) == true }
+            fun key(control: String, code: Int) {
+                for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP))
+                    check(setup.handleKey(control, KeyEvent(action, code)))
+            }
+            fun continueButton() = setup.itemView("footer:continue")!!
+            ui {
+                check(setup.itemIds() == listOf("layout:WITH_STICKS", "layout:WITHOUT_STICKS", "footer:continue")) {
+                    "Setup rows: ${setup.itemIds()}"
+                }
+                check(setup.focusedItemId == null && setup.itemIds().none { setup.itemView(it)!!.isSelected }) {
+                    "Touch setup pre-highlights a choice"
+                }
+                check(continueButton().alpha < 1f) { "Continue is enabled before a choice" }
+                continueButton().performClick()
+                check(!selected) { "Continue accepted no choice" }
+                key("down", KeyEvent.KEYCODE_DPAD_DOWN)
+                check(setup.focusedItemId == "layout:WITH_STICKS") { "D-pad cannot enter unfocused setup" }
+                key("a", KeyEvent.KEYCODE_BUTTON_A)
             }
             ui {
-                val screen = screen()
-                val rows = rows(screen).filterIsInstance<View>()
-                check(rows.none { it.hasFocus() || it.isSelected || it.isActivated }) { "Touch setup pre-highlights a choice" }
-                check(!rows.last().isEnabled)
-                screen.handleKey(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN))
-                check(rows.first().hasFocus()) { "D-pad cannot enter unfocused setup" }
-                screen.handleKey(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_A))
-            }
-            ui {
-                val rows = rows(screen()).filterIsInstance<View>()
-                check(rows.last().isEnabled)
-                rows.last().performClick()
+                check(continueButton().alpha == 1f)
+                continueButton().performClick()
                 check(selected)
+                setupPages.closeAll()
             }
         } finally {
             ui { preferences.edit().clear().commit(); activity.finish() }

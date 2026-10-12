@@ -10,18 +10,7 @@ data class ScopedTouchInput(
     val selection: TouchInputSelection,
     val gameMode: Boolean,
     val gameTouch: Boolean
-) {
-    fun label(): String {
-        val mode = when (selection.mode) {
-            InputModeDecider.Mode.AUTO -> "Auto"
-            InputModeDecider.Mode.KEYBOARD -> "Keyboard"
-            InputModeDecider.Mode.MOUSE -> "Mouse"
-        }
-        val touch = if (selection.directTouch) "direct tap" else "touchpad"
-        return "$mode (${if (gameMode) "Game" else "Global"}) · " +
-            "$touch (${if (gameTouch) "Game" else "Global"})"
-    }
-}
+)
 
 object TouchInputPolicy {
     fun resolve(global: TouchInputSelection,

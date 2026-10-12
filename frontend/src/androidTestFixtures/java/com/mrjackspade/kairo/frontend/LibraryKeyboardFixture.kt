@@ -68,7 +68,8 @@ object LibraryKeyboardFixture {
             ui {
                 check(search.text.toString() == "a")
                 check(!search.hasFocus())
-                check(screen.isShown && !screen.detailOpen && !screen.actionsOpen)
+                check(screen.isShown && !screen.detailOpen &&
+                    (field(activity, "pages") as PageStack).isActive.not())
                 check(!activity.isFinishing)
             }
         }
@@ -124,12 +125,9 @@ object LibraryKeyboardFixture {
                 search.onKeyPreIme(KeyEvent.KEYCODE_BACK, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
             }
             unchanged()
+            // Down from the field closes text entry and shows the results, as Enter does.
             reopen()
-            ui {
-                val row = field(screen, "searchRow") as ViewGroup
-                (0 until row.childCount).map(row::getChildAt)
-                    .filterIsInstance<TextView>().single { it.text.toString() == "View results" }.performClick()
-            }
+            key(KeyEvent.KEYCODE_DPAD_DOWN)
             unchanged()
             // Results remain navigable after text input is dismissed.
             key(KeyEvent.KEYCODE_DPAD_DOWN)

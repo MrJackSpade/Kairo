@@ -1,7 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
@@ -14,10 +13,11 @@ import java.util.zip.ZipInputStream
 class ShaderOptions(
     private val activity: Activity,
     private val preferences: SharedPreferences,
-    private val showDialog: (AlertDialog.Builder) -> AlertDialog,
+    private val pages: () -> PageStack?,
     private val onSelected: (String?) -> Unit,
     private val reportError: (String) -> Unit
 ) {
+    @Volatile private var importing = false
     private data class Builtin(val id: String, val title: String, val preset: String,
         val shader: String)
 
@@ -60,37 +60,46 @@ class ShaderOptions(
             ?: selectedPath()?.let { File(it).nameWithoutExtension } ?: "Off"
     }
 
-    fun entry() = SettingsEntry("RetroArch shader", ::label, ::show)
+    private fun presets() = root.walkTopDown().filter { it.isFile &&
+        it.extension.equals("slangp", ignoreCase = true) }.sortedBy {
+        it.relativeTo(root).path.lowercase()
+    }.toList()
 
-    fun show() {
-        val presets = root.walkTopDown().filter { it.isFile &&
-            it.extension.equals("slangp", ignoreCase = true) }.sortedBy {
-            it.relativeTo(root).path.lowercase()
-        }.toList()
-        val labels = listOf("Off") + BUILTINS.map { it.title } + presets.map {
-            it.relativeTo(root).path.substringAfter(File.separatorChar)
-        } +
-            "Import shader ZIP…"
+    private fun presetLabel(file: File) = file.relativeTo(root).path.substringAfter(File.separatorChar)
+
+    /** The Shader choice: BUILT-IN presets, then IMPORTED ones. */
+    fun choice() = ChoiceSpec("Shader", { "All games" }, {
+        val imported = presets()
+        listOfNotNull(
+            ChoiceGroup("BUILT-IN", listOf(ChoiceOption("off", "Off")) +
+                BUILTINS.map { ChoiceOption("builtin:${it.id}", it.title) }),
+            imported.takeIf { it.isNotEmpty() }?.let { files ->
+                ChoiceGroup("IMPORTED", files.map { ChoiceOption(it.absolutePath, presetLabel(it)) })
+            })
+    }, {
         val selected = preferences.getString(SETTING, null)
-        val builtinIndex = BUILTINS.indexOfFirst { selected == "builtin:${it.id}" }
-        val importedIndex = presets.indexOfFirst { it.absolutePath == selected }
-        val selectedIndex = when {
-            builtinIndex >= 0 -> builtinIndex + 1
-            importedIndex >= 0 -> importedIndex + BUILTINS.size + 1
-            else -> 0
+        when {
+            selected == null -> "off"
+            BUILTINS.any { selected == "builtin:${it.id}" } -> selected
+            presets().any { it.absolutePath == selected } -> selected
+            else -> "off"
         }
-        showDialog(AlertDialog.Builder(activity).setTitle("RetroArch Slang shader")
-            .setSingleChoiceItems(labels.toTypedArray(), selectedIndex) { dialog, choice ->
-                dialog.dismiss()
-                when {
-                    choice == 0 -> select(null)
-                    choice <= BUILTINS.size -> selectBuiltin(BUILTINS[choice - 1])
-                    choice <= BUILTINS.size + presets.size ->
-                        select(presets[choice - BUILTINS.size - 1].absolutePath)
-                    else -> importZip()
-                }
-            }.setNegativeButton("Cancel", null))
-    }
+    }, { id ->
+        when {
+            id == "off" -> select(null)
+            id.startsWith("builtin:") -> BUILTINS.firstOrNull { "builtin:${it.id}" == id }?.let(::selectBuiltin)
+            else -> select(id)
+        }
+    })
+
+    /** The SHADER group: the choice and the import action that adds to it. */
+    fun group() = RowGroup("SHADER", listOf(
+        SettingsRow.choice("shader", "Shader", choice(), value = { label() }),
+        SettingsRow.action("shader-import", "Import shader pack…",
+            value = { if (importing) "Importing…" else "" }, busy = { importing },
+            enabled = { !importing }, disabledReason = { "Wait for the current import to finish" },
+            run = ::importZip)),
+        "Imports RetroArch Slang presets (.slangp) from a ZIP file.")
 
     private fun selectBuiltin(builtin: Builtin) {
         try {
@@ -140,17 +149,25 @@ class ShaderOptions(
     fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
         if (requestCode != IMPORT_REQUEST) return false
         val uri = data?.data?.takeIf { resultCode == Activity.RESULT_OK } ?: return true
-        val progress = showDialog(AlertDialog.Builder(activity).setTitle("Importing shaders")
-            .setMessage("Copying the selected shader pack…"))
+        if (importing) return true
+        importing = true
+        pages()?.refresh()
         Thread {
             val result = try { importPack(uri) } catch (error: Exception) { Result.failure(error) }
             activity.runOnUiThread {
-                progress.dismiss()
+                importing = false
                 result.fold(onSuccess = { files ->
-                    if (files.size == 1) select(files.single().absolutePath) else show()
+                    // One preset is selected at once; with several, the user picks from the list.
+                    if (files.size == 1) {
+                        select(files.single().absolutePath)
+                        Ui.message(activity, "Shader set to ${presetLabel(files.single())}")
+                    } else pages()?.let { stack ->
+                        if (stack.top is GroupsPage) stack.push(ChoicePage(choice(), "shader"))
+                    }
                 }, onFailure = { error ->
                     reportError(error.message ?: "Could not import shader pack")
                 })
+                pages()?.refresh()
             }
         }.start()
         return true

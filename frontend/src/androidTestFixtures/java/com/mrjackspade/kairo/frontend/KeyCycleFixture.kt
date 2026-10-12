@@ -11,7 +11,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.TextView
 
 /** Uses each host's actual guest key set, with isolated bindings and no saved user changes. */
 object KeyCycleFixture {
@@ -26,10 +25,10 @@ object KeyCycleFixture {
         try {
             test.runOnMainSync {
                 try {
-                    val hostEditor = activity.javaClass.getDeclaredField("controllerEditor")
+                    val hostPages = activity.javaClass.getDeclaredField("controllerPages")
                         .apply { isAccessible = true }.get(activity)
-                    val guest = hostEditor.javaClass.getDeclaredField("guest").apply { isAccessible = true }
-                        .get(hostEditor) as ControllerGuestSpec
+                    val guest = hostPages.javaClass.getDeclaredField("guest").apply { isAccessible = true }
+                        .get(hostPages) as ControllerGuestSpec
                     val sequence = listOf("A", "B", "C").map { label -> guest.keyCodes.first { guest.keyLabel(it).equals(label, true) } }
                     val codec = ControllerBindingsCodec({ emptyList() }, { it in guest.keyCodes },
                         guest.joystickControls.map { it.first }, guest.actions.map { it.first })
@@ -89,29 +88,54 @@ object KeyCycleFixture {
                     val root = FrameLayout(activity)
                     val content = activity.findViewById<ViewGroup>(android.R.id.content)
                     content.addView(root, ViewGroup.LayoutParams(-1, -1))
-                    val editor = ControllerEditor<String>(activity, root, { saved }, { _, value -> saved = value }, {},
-                        { PhysicalControllerBindings.defaults() }, {}, {}, { .1f }, {}, {}, {}, { false }, {},
-                        { it }, guest, { codec.toJson(it) })
-                    try {
-                        editor.show(null)
-                        val type = editor.javaClass
-                        type.getDeclaredField("selectedInput").apply { isAccessible = true }.set(editor, "virtual:left")
-                        val stage = type.getDeclaredField("stage").apply { isAccessible = true }
-                        stage.set(editor, stage.type.enumConstants.first { it.toString() == "TARGET" })
-                        type.getDeclaredMethod("render").apply { isAccessible = true }.invoke(editor)
-                        fun descendants(view: View): List<View> = listOf(view) + if (view is ViewGroup)
-                            (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
-                        val choice = descendants(root).filterIsInstance<TextView>().first { it.text.toString() == "Key cycle" }
-                        (choice.parent as View).performClick()
-                        val save = descendants(root).filterIsInstance<TextView>().first { it.text.toString() == "Save key cycle" }
-                        save.isFocusableInTouchMode = true
-                        check(save.requestFocusFromTouch())
+                    val preferences = activity.getSharedPreferences("key_cycle_test_only", android.content.Context.MODE_PRIVATE)
+                    val pages = PageStack(activity, root)
+                    val onScreen = OnScreenControls(activity, root, mapper, preferences, {}) { ControllerLayout.WITH_STICKS }
+                    val touch = TouchSettingsCoordinator(object : TouchSettingsStore<String> {
+                        override fun global() = TouchInputSelection(InputModeDecider.Mode.AUTO, false)
+                        override fun saveGlobal(value: TouchInputSelection) = Unit
+                        override fun mode(game: String) = GameValue<InputModeDecider.Mode>({ null },
+                            { InputModeDecider.Mode.AUTO }, { GameSource.ALL_GAMES }, {})
+                        override fun directTouch(game: String) = GameValue<Boolean>({ null }, { false },
+                            { GameSource.ALL_GAMES }, {})
+                    }, listOf(InputModeDecider.Mode.AUTO to ChoiceOption("auto", "Auto"),
+                        InputModeDecider.Mode.KEYBOARD to ChoiceOption("keyboard", "Keyboard"),
+                        InputModeDecider.Mode.MOUSE to ChoiceOption("mouse", "Mouse")), "")
+                    val editor = ControllerPages<String>(activity, pages, { saved }, { _, value -> saved = value }, {},
+                        { false }, { PhysicalControllerBindings.defaults() }, {}, {}, { false }, { .1f }, {},
+                        guest, { codec.toJson(it) }, null, {}, { null }, { it }, onScreen, touch)
+                    fun key(page: Page, control: String, code: Int) {
                         for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP))
-                            check(editor.handleKey(KeyEvent(action, KeyEvent.KEYCODE_BUTTON_A)))
+                            check(page.handleKey(control, KeyEvent(action, code)))
+                    }
+                    try {
+                        pages.push(editor.mappingPage(null))
+                        pages.top!!.itemView("m:left")!!.performClick()
+                        val target = pages.top!!
+                        // The target page opens on the tab of the control's current assignment.
+                        check(target.focusedItemId == "tab:CYCLE") { "Target opened on ${target.focusedItemId}" }
+                        key(target, "left", KeyEvent.KEYCODE_DPAD_LEFT)
+                        check(target.focusedItemId == "tab:KEYS")
+                        key(target, "a", KeyEvent.KEYCODE_BUTTON_A)
+                        key(target, "right", KeyEvent.KEYCODE_DPAD_RIGHT)
+                        check(target.focusedItemId == "tab:CYCLE")
+                        key(target, "a", KeyEvent.KEYCODE_BUTTON_A)
+                        // A controller reaches Save key cycle in the footer through the key picker.
+                        repeat(40) {
+                            if (target.focusedItemId?.startsWith("footer:") != true)
+                                key(target, "down", KeyEvent.KEYCODE_DPAD_DOWN)
+                        }
+                        repeat(2) { key(target, "right", KeyEvent.KEYCODE_DPAD_RIGHT) }
+                        check(target.focusedItemId == "footer:save") { "Save not reached: ${target.focusedItemId}" }
+                        key(target, "a", KeyEvent.KEYCODE_BUTTON_A)
                         check(saved.filter { it.input in listOf("virtual:l1", "virtual:r1") } == originalShoulders)
                         check(saved.single { it.input == "virtual:left" }.cycleKeys == sequence)
                         check(saved.single { it.input == "virtual:right" }.cycleKeys == sequence)
-                    } finally { editor.close(); content.removeView(root) }
+                    } finally {
+                        pages.closeAll()
+                        content.removeView(root)
+                        preferences.edit().clear().commit()
+                    }
                 } catch (caught: Throwable) { failure = caught }
             }
             failure?.let { throw it }

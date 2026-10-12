@@ -10,7 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ScrollView
 
-/** Traverse each host's real menu, including held hat input and touch-mode entry. */
+/** Traverse each host's real library flyout, including held hat input and touch-mode entry. */
 object LibraryMenuFixture {
     fun verify(test: Instrumentation) {
         val launch = test.targetContext.packageManager.getLaunchIntentForPackage(test.targetContext.packageName)!!
@@ -24,16 +24,21 @@ object LibraryMenuFixture {
         fun field(owner: Any, name: String) = owner.javaClass.getDeclaredField(name)
             .apply { isAccessible = true }.get(owner)
         lateinit var screen: LibraryScreen<*>
-        lateinit var scroll: ScrollView
-        lateinit var items: List<View>
-        fun selected() = items.indexOfFirst { it.isSelected }
+        lateinit var pages: PageStack
+        lateinit var menu: LibraryMenu<*>
+        fun flyout() = pages.top!!.also { check(it.isFlyout) { "The flyout is not the top page" } }
+        fun scroll() = flyout().view as ScrollView
+        fun items() = flyout().itemIds()
+        fun selected() = items().indexOf(flyout().focusedItemId)
         fun visible() {
-            check(items.count { it.isSelected } == 1)
-            val item = items[selected()]
+            val page = flyout()
+            val item = page.itemView(page.focusedItemId!!)!!
+            check(items().count { page.itemView(it)!!.isSelected } == 1) { "More than one selected row" }
+            check(item.isSelected)
             val row = IntArray(2); val viewport = IntArray(2)
-            item.getLocationOnScreen(row); scroll.getLocationOnScreen(viewport)
-            check(row[1] >= viewport[1] && row[1] + item.height <= viewport[1] + scroll.height) {
-                "Menu row ${selected()} clipped: ${row[1]}..${row[1] + item.height}, viewport=${viewport[1]}..${viewport[1] + scroll.height}"
+            item.getLocationOnScreen(row); scroll().getLocationOnScreen(viewport)
+            check(row[1] >= viewport[1] && row[1] + item.height <= viewport[1] + scroll().height) {
+                "Menu row ${selected()} clipped: ${row[1]}..${row[1] + item.height}, viewport=${viewport[1]}..${viewport[1] + scroll().height}"
             }
         }
         fun key(code: Int) = ui {
@@ -53,42 +58,43 @@ object LibraryMenuFixture {
             ui {
                 val flow = field(activity, "libraryFlow")!!
                 screen = flow.javaClass.getMethod("getScreen").invoke(flow) as LibraryScreen<*>
-                scroll = field(screen, "actionsScroll") as ScrollView
-                @Suppress("UNCHECKED_CAST")
-                items = field(screen, "actionItems") as List<View>
-                check(items.size > 6)
+                pages = field(activity, "pages") as PageStack
+                menu = field(activity, "libraryMenu") as LibraryMenu<*>
                 test.setInTouchMode(true)
-                screen.openActions()
+                menu.open()
             }
             Thread.sleep(250)
-            ui { visible(); check(selected() == 0) }
-            ui { screen.closeActions() }
-            Thread.sleep(200)
+            ui {
+                check(items().size > 6)
+                check(items().last().startsWith("f-exit")) { "Exit is not the last flyout row: ${items()}" }
+                visible(); check(selected() == 0)
+            }
+            ui { pages.closeAll() }
+            Thread.sleep(300)
             fun descendants(view: View): List<View> = listOf(view) + if (view is ViewGroup)
                 (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) } else emptyList()
-            lateinit var menu: View
-            ui { menu = descendants(screen).first { it.contentDescription == "Library menu" } }
+            lateinit var button: View
+            ui { button = descendants(screen).first { it.contentDescription == "Library menu" } }
             fun cleanClose() = ui {
-                check(!screen.actionsOpen)
-                check(!menu.hasFocus() && !menu.isSelected && !menu.isPressed && !menu.isActivated) {
-                    "Stale Menu highlight: focused=${menu.hasFocus()} selected=${menu.isSelected} pressed=${menu.isPressed} activated=${menu.isActivated}"
+                check(!pages.isActive)
+                check(!button.hasFocus() && !button.isPressed && !button.isActivated) {
+                    "Stale Menu highlight: focused=${button.hasFocus()} pressed=${button.isPressed} activated=${button.isActivated}"
                 }
-                check(items.none { it.isSelected || it.isPressed || it.hasFocus() }) { "Hidden menu retains selection/focus" }
             }
             for (closeWithBack in listOf(true, false)) {
                 ui {
                     test.setInTouchMode(true)
                     val now = SystemClock.uptimeMillis()
                     for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
-                        val event = MotionEvent.obtain(now, now, action, menu.width / 2f, menu.height / 2f, 0)
-                        try { menu.dispatchTouchEvent(event) } finally { event.recycle() }
+                        val event = MotionEvent.obtain(now, now, action, button.width / 2f, button.height / 2f, 0)
+                        try { button.dispatchTouchEvent(event) } finally { event.recycle() }
                     }
                 }
                 Thread.sleep(250)
-                ui { check(screen.actionsOpen); visible() }
+                ui { check(pages.flyoutOpen); visible() }
                 if (closeWithBack) key(KeyEvent.KEYCODE_BACK)
-                else ui { (field(screen, "scrim") as View).performClick() }
-                Thread.sleep(250)
+                else ui { pages.getChildAt(0).performClick() }
+                Thread.sleep(300)
                 cleanClose()
             }
             // Controller entry and mixed touch/hat navigation retain one intentional cursor.
@@ -96,8 +102,8 @@ object LibraryMenuFixture {
             Thread.sleep(250)
             axis(1f); axis(0f)
             ui { visible(); check(selected() == 1) }
-            key(KeyEvent.KEYCODE_BACK)
-            Thread.sleep(250)
+            key(KeyEvent.KEYCODE_MENU)
+            Thread.sleep(300)
             cleanClose()
             var before = 0
             ui { before = field(screen, "selectedIndex") as Int }
@@ -105,29 +111,31 @@ object LibraryMenuFixture {
             ui {
                 val count = (field(screen, "entries") as List<*>).size
                 check(field(screen, "selectedIndex") == (before + 1).coerceAtMost(count - 1))
-                check(!menu.hasFocus())
+                check(!button.isSelected)
             }
-            ui { screen.openActions() }
+            ui { menu.open() }
             Thread.sleep(250)
-            ui { visible(); check(selected() == 0) }
-            repeat(items.lastIndex) { key(KeyEvent.KEYCODE_DPAD_DOWN); ui { visible() } }
-            ui { check(selected() == items.lastIndex) }
-            repeat(items.lastIndex) { key(KeyEvent.KEYCODE_DPAD_UP); ui { visible() } }
+            lateinit var all: List<String>
+            ui { visible(); check(selected() == 0); all = items() }
+            repeat(all.lastIndex) { key(KeyEvent.KEYCODE_DPAD_DOWN); Thread.sleep(60); ui { visible() } }
+            ui { check(selected() == all.lastIndex) }
+            repeat(all.lastIndex) { key(KeyEvent.KEYCODE_DPAD_UP); Thread.sleep(60); ui { visible() } }
             ui { check(selected() == 0) }
             for (direction in listOf(1f, -1f)) {
                 // Physical hats emit MotionEvents and do not leave Android touch mode.
                 ui { test.setInTouchMode(true) }
                 axis(direction)
-                repeat(items.size + 5) { Thread.sleep(150); ui { visible() } }
+                repeat(all.size + 5) { Thread.sleep(150); ui { visible() } }
                 axis(0f)
-                ui { check(selected() == if (direction > 0) items.lastIndex else 0) }
+                ui { check(selected() == if (direction > 0) all.lastIndex else 0) }
             }
             // Reopening from a scrolled bottom must reveal the new first selection.
-            ui { repeat(items.size) { screen.moveActionSelection(1) }; screen.closeActions() }
-            Thread.sleep(200)
-            ui { screen.openActions() }
+            repeat(all.size) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+            ui { pages.closeAll() }
+            Thread.sleep(300)
+            ui { menu.open() }
             Thread.sleep(250)
             ui { visible(); check(selected() == 0) }
-        } finally { ui { activity.finish() } }
+        } finally { ui { runCatching { pages.closeAll() }; activity.finish() } }
     }
 }

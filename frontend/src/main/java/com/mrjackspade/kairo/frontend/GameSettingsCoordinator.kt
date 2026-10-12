@@ -1,100 +1,99 @@
 package com.mrjackspade.kairo.frontend
 
-import android.app.Activity
-import android.app.AlertDialog
-import android.widget.EditText
-
-/** A displayed value and the layer that supplied it. */
-data class GameSettingsValue(val effective: String, val source: String? = null) {
-    fun label(): String = source?.let { "$effective \u00b7 $it" } ?: effective
+/**
+ * One per-game value: the user's own choice, if any, over a default that comes from a catalog,
+ * the all-games setting, or the app.
+ */
+class GameValue<V>(
+    /** The user's choice, or null when the game uses its default. */
+    val custom: () -> V?,
+    /** The value without the user's choice. */
+    val fallback: () -> V,
+    /** Where [fallback] comes from, as a source tag. */
+    val source: () -> String,
+    /** Null removes the user's choice. */
+    val set: (V?) -> Unit
+) {
+    val effective: V get() = custom() ?: fallback()
 }
 
-/** Common game settings; each emulator supplies only its own machine rows and actions. */
-data class CommonGameSettings(
-    val title: GameSettingsValue,
-    val touch: GameSettingsValue,
-    val controller: GameSettingsValue,
-    val boxArt: GameSettingsValue,
-    val screenshot: GameSettingsValue,
-    val filePath: String,
-    val zipEntry: String?,
-    val contentId: String?,
-    val error: String?,
-    val deleteKind: String? = null
-)
+/** Source tags name exactly where a value comes from. */
+object GameSource {
+    const val CUSTOM = "Custom"
+    const val ALL_GAMES = "All games"
+    const val BUILT_IN = "Built-in"
 
-data class CommonGameSettingsActions(
-    val play: () -> Unit,
-    val editTouch: () -> Unit,
-    val editController: () -> Unit,
-    val editTitle: () -> Unit,
-    val editBoxArt: () -> Unit,
-    val editScreenshot: () -> Unit,
-    val viewScreenshot: () -> Unit,
-    val delete: (() -> Unit)? = null,
-    val reset: (() -> Unit)? = null,
-    val resetFailed: (Exception) -> Unit = {},
-    val resetCancelled: (() -> Unit)? = null,
-    val noHash: () -> Unit
-)
-
-object GameSettingsCoordinator {
-    fun show(activity: Activity, settings: CommonGameSettings,
-             playable: Boolean, machineRows: List<GameSettingsRow>,
-             actions: CommonGameSettingsActions): AlertDialog {
-        val fileDescription = if (settings.zipEntry == null) "Path and content ID"
-            else "Path, ZIP entry, and content ID"
-        val controls = listOf(
-            GameSettingsRow("Touch input", "", true, action = actions.editTouch),
-            GameSettingsRow("Controller mapping", "", true,
-                action = actions.editController))
-        val library = listOf(
-            GameSettingsRow("Title", settings.title.label(), true, action = actions.editTitle),
-            GameSettingsRow("Box art", settings.boxArt.label(), true,
-                action = actions.editBoxArt),
-            GameSettingsRow("Screenshot", settings.screenshot.label(), true,
-                action = actions.editScreenshot),
-            GameSettingsRow("View screenshot",
-                if (settings.screenshot.effective == "None") "No screenshot available"
-                else "Open full size", false, action = actions.viewScreenshot),
-            GameSettingsRow("File information", fileDescription, false) {
-                val location = settings.filePath +
-                    (settings.zipEntry?.let { "\n$it" } ?: "")
-                val dialog = AlertDialog.Builder(activity).setTitle("File information")
-                    .setMessage("$location\n\n${settings.contentId ?: settings.error ?: "Not hashed"}")
-                    .setPositiveButton("Close", null).create()
-                dialog.show()
-                Ui.styleDialog(dialog)
-            }) + (if (settings.deleteKind != null && actions.delete != null)
-                listOf(GameSettingsRow("Delete ${settings.deleteKind}",
-                    "Permanently remove from device storage", false,
-                    destructive = true, action = actions.delete)) else emptyList())
-        val sections = listOf("CONTROLS" to controls,
-            "MACHINE" to machineRows, "LIBRARY" to library)
-        val reset = if (settings.contentId == null || actions.reset == null) null else {
-            { GameSettingsResetDialog.show(activity, actions.reset, actions.resetFailed,
-                actions.resetCancelled) }
-        }
-        return GameSettingsSheet.show(activity, settings.title.effective, playable,
-            settings.contentId != null, sections, actions.play, reset, actions.noHash)
+    /** Catalog layer names, mapped to the words the interface uses. */
+    fun label(layer: String): String = when (layer) {
+        "User override" -> CUSTOM
+        "App default" -> BUILT_IN
+        "Global" -> ALL_GAMES
+        else -> layer
     }
 }
 
-/** The same title editing controls and per-field reset in both libraries. */
-object GameTitleEditor {
-    fun show(activity: Activity, current: String, save: (String) -> Unit,
-             reset: () -> Unit, cancel: () -> Unit) {
-        val input = EditText(activity).apply {
-            setSingleLine(true)
-            setText(current)
-            setSelection(text.length)
-            hint = "Game title"
-        }
-        val dialog = AlertDialog.Builder(activity).setTitle("Game title").setView(input)
-            .setPositiveButton("Save") { _, _ -> save(input.text.toString().trim()) }
-            .setNeutralButton("Reset") { _, _ -> reset() }
-            .setNegativeButton("Cancel") { _, _ -> cancel() }.create()
-        dialog.show()
-        Ui.styleDialog(dialog)
+/** Per-game rows shared by both apps. Each app supplies its storage and machine rows. */
+object GameSettingsRows {
+    const val NO_HASH = "This file needs a successful hash before settings can be saved"
+
+    /**
+     * A choice whose first option, Default, names where its value comes from. The row shows the
+     * value with a source tag; values the user chose are tagged Custom and shown in Accent.
+     */
+    fun choice(id: String, label: String, scope: () -> String, options: List<ChoiceOption>,
+               value: GameValue<String>, enabled: () -> Boolean = { true },
+               disabledReason: () -> String? = { null }, foot: String? = null,
+               defaultLabel: (() -> String)? = null): SettingsRow {
+        fun optionLabel(option: String) = options.firstOrNull { it.id == option }?.label ?: option
+        fun fallbackLabel() = defaultLabel?.invoke() ?: optionLabel(value.fallback())
+        val spec = ChoiceSpec(label, { scope() }, {
+            listOf(ChoiceGroup(null, listOf(ChoiceOption(DEFAULT, "Default",
+                "${value.source()}: ${fallbackLabel()}")) + options, foot))
+        }, { value.custom() ?: DEFAULT }, { picked -> value.set(picked.takeIf { it != DEFAULT }) })
+        return SettingsRow.choice(id, label, spec,
+            value = { value.custom()?.let(::optionLabel) ?: fallbackLabel() },
+            tone = { if (value.custom() != null) ValueTone.CUSTOM else ValueTone.CURRENT },
+            tag = { if (value.custom() != null) GameSource.CUSTOM else value.source() },
+            enabled = enabled, disabledReason = disabledReason)
     }
+
+    /**
+     * A text value edited in a tray named after its row, with Reset only when the value is the
+     * user's own. [empty] is shown, in faint text, when there is no value.
+     */
+    fun text(id: String, label: String, hint: String, current: () -> String?, custom: () -> Boolean,
+             source: () -> String?, save: (String) -> Unit, reset: () -> Unit,
+             empty: String = "None", enabled: () -> Boolean = { true },
+             disabledReason: () -> String? = { null }) = SettingsRow.action(id, label,
+        value = { current() ?: empty },
+        tone = { when {
+            custom() -> ValueTone.CUSTOM
+            current() == null -> ValueTone.EMPTY
+            else -> ValueTone.CURRENT
+        } },
+        tag = { if (custom()) GameSource.CUSTOM else source() },
+        enabled = enabled, disabledReason = disabledReason,
+        tray = {
+            TraySpec(input = TrayInput(hint, current() ?: ""), buttons = listOfNotNull(
+                if (custom()) TrayButton("Reset") { reset() } else null,
+                TrayButton("Cancel"),
+                TrayButton("Save", ButtonTone.PRIMARY) { save(it) }))
+        })
+
+    /** Location, ZIP entry, and content ID, readable without opening anything. */
+    fun file(path: String, zipEntry: String?, contentId: String?, error: String?) = listOfNotNull(
+        SettingsRow.info("location", "Location") { path },
+        zipEntry?.let { SettingsRow.info("zip-entry", "ZIP entry") { it } },
+        SettingsRow.info("content-id", "Content ID") { contentId ?: error ?: "Not hashed" })
+
+    fun reset(enabled: () -> Boolean, run: () -> Unit) = SettingsRow.action("reset", "Reset all game settings",
+        enabled = enabled, disabledReason = { NO_HASH },
+        confirm = Confirm("Remove every custom setting for this game and use its catalog and global defaults.",
+            "Reset", run = run))
+
+    private const val DEFAULT = "default"
 }
+
+/** The Game settings page: the game's name in the scope chip, and rows the app assembles. */
+fun gameSettingsPage(title: () -> String, groups: () -> List<RowGroup>) =
+    GroupsPage("Game settings", title, groups)

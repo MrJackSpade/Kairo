@@ -1,23 +1,13 @@
 package com.mrjackspade.kairo.frontend
 
-import android.app.Activity
-import android.app.AlertDialog
-import android.app.Dialog
 import android.content.SharedPreferences
 import android.os.Build
 import android.view.InputDevice
 import android.view.MotionEvent
-import android.view.KeyEvent
-import android.view.Window
-import android.view.WindowManager
-import android.graphics.drawable.ColorDrawable
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
 
 enum class ControllerLayout(val label: String, val key: String) {
-    WITH_STICKS("With Sticks", "withSticks"),
-    WITHOUT_STICKS("Without Sticks", "withoutSticks")
+    WITH_STICKS("With sticks", "withSticks"),
+    WITHOUT_STICKS("Without sticks", "withoutSticks")
 }
 
 /** Capability policy is separate from Android enumeration so firmware edge cases are testable. */
@@ -55,7 +45,7 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                                   ControllerCapabilities.detect(ControllerCapabilities.connected(),
                                       preferences.getString("controller_auto_device_v1", null))
                               }) {
-    enum class Choice(val label: String) { AUTO("Auto"), WITH_STICKS("With Sticks"), WITHOUT_STICKS("Without Sticks") }
+    enum class Choice(val label: String) { AUTO("Auto"), WITH_STICKS("With sticks"), WITHOUT_STICKS("Without sticks") }
     private var automatic = detect().also(::rememberDevice).layout
     private var session = false
     val configured get() = preferences.contains("controller_configuration_v1")
@@ -68,7 +58,7 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
         Choice.WITH_STICKS -> ControllerLayout.WITH_STICKS
         Choice.WITHOUT_STICKS -> ControllerLayout.WITHOUT_STICKS
     }
-    val label: String get() = if (choice == Choice.AUTO) "Auto (${layout.label})" else choice.label
+    val label: String get() = if (choice == Choice.AUTO) "Auto (${layout.label.lowercase()})" else choice.label
 
     fun select(value: Choice) {
         preferences.edit().putString("controller_configuration_v1", value.name).apply()
@@ -83,144 +73,44 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
     fun beginSession() { devicesChanged(); session = true }
     fun endSession() { session = false; devicesChanged() }
 
-    /** No selection is made when no controller is detected, including upgraded installations. */
-    fun show(activity: Activity, required: Boolean = false, product: String = "KAIRO", onSelected: () -> Unit) {
-        if (required) {
-            showSetup(activity, product, onSelected)
-            return
-        }
+    /**
+     * The required setup page on a cold start with no saved choice, or with Auto saved and no
+     * controller detected. Nothing is preselected without a controller, and Continue waits for
+     * a choice. Back closes the app.
+     */
+    fun setupPage(product: String, exit: () -> Unit, onSelected: () -> Unit): SetupPage {
         val detection = detect()
         val choices = if (detection.device == null) listOf(Choice.WITH_STICKS, Choice.WITHOUT_STICKS)
             else Choice.entries
-        var selected: Choice? = choice.takeIf { it in choices }
-        val content = LinearLayout(activity).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(Ui.dp(activity, 20), Ui.dp(activity, 16), Ui.dp(activity, 20), Ui.dp(activity, 16))
-        }
-        content.addView(Ui.text(activity, if (detection.device == null)
-            "No controller detected. Select a configuration to continue."
-            else "Select your controller configuration.", Ui.BODY, Ui.TEXT_BODY))
-        val rows = mutableMapOf<Choice, TextView>()
-        val dialog = AlertDialog.Builder(activity).setTitle("Controller configuration")
-            .setView(ScrollView(activity).apply { addView(content) })
-            .setPositiveButton("Apply", null)
-            .setNegativeButton("Cancel", null)
-            .create()
-        choices.forEach { option ->
-            val row = Ui.text(activity, if (option == Choice.AUTO)
-                "Auto (detected: ${detection.layout.label})" else option.label, Ui.TITLE).apply {
-                isFocusable = true
-                isFocusableInTouchMode = true
-                isClickable = true
-                isActivated = option == selected
-                background = Ui.rowBackground(activity)
-                setPadding(Ui.dp(activity, 16), Ui.dp(activity, 18), Ui.dp(activity, 16), Ui.dp(activity, 18))
-                setOnClickListener {
-                    selected = option
-                    rows.forEach { (key, view) -> view.isActivated = key == option }
-                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).isEnabled = true
-                }
-            }
-            rows[option] = row
-            content.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = Ui.dp(activity, 12) })
-        }
-        dialog.setCancelable(true)
-        dialog.setCanceledOnTouchOutside(true)
-        dialog.show()
-        Ui.styleDialog(dialog)
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).apply {
-            isEnabled = selected != null
-            setOnClickListener {
-                selected?.let {
-                    if (it == Choice.AUTO && detect().device == null) {
-                        dialog.dismiss()
-                        show(activity, required, product, onSelected)
-                    } else {
-                        select(it)
-                        dialog.dismiss()
-                        onSelected()
-                    }
-                }
-            }
-        }
-        if (selected != null || detection.device != null)
-            rows[selected ?: choices.first()]?.requestFocusFromTouch()
-        else {
-            content.isFocusableInTouchMode = true
-            content.requestFocus()
-        }
-    }
-
-    /** The boot selector uses the same page component as folder and firmware setup. */
-    private fun showSetup(activity: Activity, product: String, onSelected: () -> Unit) {
-        val screen = FirstRunScreen(activity)
-        // A default Dialog is floating and can retain the status-bar inset even
-        // after hiding the bars. Setup must occupy the same bounds as activity pages.
-        val dialog = Dialog(activity, android.R.style.Theme_Material_NoActionBar_Fullscreen)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setContentView(screen)
-        dialog.setCanceledOnTouchOutside(false)
-        dialog.setOnCancelListener { activity.finish() }
-        val detection = detect()
-        val choices = if (detection.device == null) listOf(Choice.WITH_STICKS, Choice.WITHOUT_STICKS)
-            else Choice.entries
-        renderSetup(screen, dialog, activity, product, choices, detection, onSelected)
-        dialog.show()
-        dialog.window?.let { window ->
-            ImmersiveWindow.apply(window)
-            if (Build.VERSION.SDK_INT >= 30) window.setDecorFitsSystemWindows(false)
-            if (Build.VERSION.SDK_INT >= 28) window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= 30)
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-                else WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-            window.setBackgroundDrawable(ColorDrawable(Ui.BG))
-            window.decorView.setPadding(0, 0, 0, 0)
-            window.setLayout(-1, -1)
-            val delegate = window.callback
-            val hats = DpadMotionNavigation { screen.handleKey(it) }
-            window.callback = object : Window.Callback by delegate {
-                override fun dispatchKeyEvent(event: KeyEvent) = screen.handleKey(event)
-                override fun dispatchGenericMotionEvent(event: MotionEvent) = hats.motion(event) ||
-                    delegate.dispatchGenericMotionEvent(event)
-            }
-            dialog.setOnDismissListener { hats.stop() }
-        }
-    }
-
-    private fun renderSetup(screen: FirstRunScreen, dialog: Dialog, activity: Activity,
-                            product: String, choices: List<Choice>, detection: ControllerCapabilities.Detection,
-                            onSelected: () -> Unit) {
         var selected: Choice? = if (detection.device == null) null else Choice.AUTO
-        fun renderRows(focused: Int?) {
-            val actions = choices.mapIndexed { index, option ->
-                FirstRunScreen.Action(option.label,
-                    if (option == Choice.AUTO) "Detected: ${detection.layout.label}"
-                    else if (option == selected) "Selected" else "",
-                    primary = option == selected) {
-                    selected = option
-                    renderRows(if (screen.isInTouchMode) null else index)
-                }
-            } + FirstRunScreen.Action("Continue", "", primary = true, enabled = selected != null) {
-                selected?.let {
-                    if (it == Choice.AUTO && detect().device == null) {
-                        dialog.dismiss()
-                        showSetup(activity, product, onSelected)
-                    } else {
-                        select(it)
-                        dialog.dismiss()
-                        onSelected()
+        lateinit var page: SetupPage
+        page = SetupPage(product, null, "Controller layout",
+            if (detection.device == null) "No controller detected. Choose a layout to continue."
+            else "Choose the layout of your controller.",
+            content = {
+                listOf(RowGroup(null, choices.map { option ->
+                    SettingsRow.option("layout:${option.name}", option.label,
+                        if (option == Choice.AUTO) "Detected: ${detection.layout.label.lowercase()}" else null,
+                        { option == selected }) {
+                        selected = option
+                        page.refresh()
                     }
-                }
-            }
-            screen.show(FirstRunScreen.Page(product, "", "Controller Configuration",
-                "", actions, focusAction = focused, focusFirstAction = focused != null)) {
-                dialog.cancel()
-            }
-        }
-        // Focus is navigation, not a selection. A touch-only device must start
-        // with neither choice highlighted and Continue visibly disabled.
-        renderRows(if (detection.device == null) null else 0)
+                }, "You can change this later in Menu \u203a Controls \u203a Controller layout."))
+            },
+            footerButtons = {
+                listOf(FooterButton("continue", { "Continue" }, ButtonTone.PRIMARY, { selected != null },
+                    "Choose a layout to continue") {
+                    val choice = selected ?: return@FooterButton
+                    if (choice == Choice.AUTO && detect().device == null) {
+                        selected = null
+                        page.refresh()
+                        return@FooterButton
+                    }
+                    select(choice)
+                    onSelected()
+                })
+            }, onBack = exit, startUnfocused = detection.device == null)
+        return page
     }
 }
 

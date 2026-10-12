@@ -15,6 +15,7 @@ class LibraryFlow<T : LibraryItem>(
     private val requestCode: Int,
     private val cached: (Uri) -> List<T>,
     private val scan: (Uri, Boolean, AtomicBoolean, (String) -> Unit) -> List<T>,
+    /** The folder's name, shown as the library flyout title and the folder row value. */
     private val folderLabel: (Uri) -> String,
     private val emptyStatus: String,
     private val expiredStatus: String,
@@ -28,6 +29,13 @@ class LibraryFlow<T : LibraryItem>(
     var entries: List<T> = emptyList()
     private var displayedEntries: List<T>? = null
     private var scanCancelled = AtomicBoolean(false)
+    /** A scan or a full recheck is running. */
+    var scanning = false
+        private set
+    var rehashing = false
+        private set
+
+    init { screen.needsFolder = { tree?.let(::hasGrant) != true } }
 
     fun hasGrant(uri: Uri): Boolean = activity.contentResolver.persistedUriPermissions.any {
         it.uri == uri && it.isReadPermission && (!writable || it.isWritePermission)
@@ -114,13 +122,21 @@ class LibraryFlow<T : LibraryItem>(
         return true
     }
 
-    fun refresh(forceHash: Boolean) {
+    /** [announce] puts the scan summary in the message bar, for scans the user started. */
+    fun refresh(forceHash: Boolean, announce: Boolean = false) {
         val selected = tree ?: run { screen.showStatus(emptyStatus); return }
         if (!hasGrant(selected)) { screen.showStatus(expiredStatus); return }
         scanCancelled.set(true)
         val cancelled = AtomicBoolean(false)
         scanCancelled = cancelled
+        scanning = true
+        rehashing = forceHash
         screen.showStatus(if (forceHash) "Rehashing folder…" else "Scanning folder…")
+        fun finished() {
+            if (scanCancelled !== cancelled) return
+            scanning = false
+            rehashing = false
+        }
         Thread {
             try {
                 val found = scan(selected, forceHash, cancelled) { message ->
@@ -129,17 +145,22 @@ class LibraryFlow<T : LibraryItem>(
                     }
                 }
                 activity.runOnUiThread {
+                    finished()
                     if (!cancelled.get() && tree == selected && !activity.isDestroyed) {
                         entries = found
                         screen.showEntries(found)
                         displayedEntries = found
                         onScanComplete(found)
-                        screen.showStatus(scanSummary(found))
+                        val summary = scanSummary(found)
+                        screen.showStatus(summary)
+                        if (announce) Ui.message(activity, summary)
                     }
                 }
             } catch (_: CancellationException) {
+                activity.runOnUiThread { finished() }
             } catch (failure: Exception) {
                 activity.runOnUiThread {
+                    finished()
                     if (!cancelled.get() && tree == selected && !activity.isDestroyed)
                         screen.showStatus("Scan failed: ${failure.message ?: "Unknown error"}")
                 }
@@ -147,5 +168,9 @@ class LibraryFlow<T : LibraryItem>(
         }.apply { name = "Kairo-library-scan"; start() }
     }
 
-    fun cancel() { scanCancelled.set(true) }
+    fun cancel() {
+        scanCancelled.set(true)
+        scanning = false
+        rehashing = false
+    }
 }

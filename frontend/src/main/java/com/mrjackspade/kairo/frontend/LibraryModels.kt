@@ -30,9 +30,10 @@ interface LibraryCatalog {
     fun openArtwork(path: String): InputStream
 }
 
+/** [folder] names the library folder in rows and buttons, such as "Choose ROM folder…". */
 data class LibraryStrings(
     val productName: String,
-    val selectFolder: String = "Select ROM folder",
-    val folderHint: String = "Choose where disk images and ZIP games are stored",
+    val appName: String,
+    val folder: String = "ROM folder",
     val noFolder: String = "No ROM folder selected"
 )

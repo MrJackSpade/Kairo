@@ -1,56 +1,61 @@
 package com.mrjackspade.kairo.frontend
 
-import android.app.AlertDialog
-import android.content.Context
-
-/** Product storage and catalog adapters for the common global/game touch editor. */
+/** Product storage and catalog adapters for the common global and per-game touch rows. */
 interface TouchSettingsStore<Game : Any> {
     fun global(): TouchInputSelection
-    fun game(game: Game): TouchInputSelection
-    fun secondaryTouchpad(game: Game): Boolean? = null
     fun saveGlobal(value: TouchInputSelection)
-    fun saveGame(game: Game, value: TouchInputSelection, secondaryTouchpad: Boolean?)
-    fun resetGame(game: Game)
+    fun mode(game: Game): GameValue<InputModeDecider.Mode>
+    fun directTouch(game: Game): GameValue<Boolean>
+    /** Null when the app has no per-game second-screen choice. */
+    fun secondaryTouchpad(game: Game): GameValue<Boolean>? = null
 }
 
-/** Applies one mode ordering, hash gate, and Save/Reset flow to both emulators. */
+/** One mode ordering and the same rows for all games and for one game, in both emulators. */
 class TouchSettingsCoordinator<Game : Any>(
-    private val context: Context,
     private val store: TouchSettingsStore<Game>,
-    private val contentId: (Game) -> String?,
-    private val modes: List<InputModeDecider.Mode>,
-    private val modeLabels: List<String>,
-    private val globalTitle: String,
-    private val gameTitle: (Game) -> String,
+    /** Auto, Keyboard, and Mouse, each with an optional description. */
+    private val modeOptions: List<Pair<InputModeDecider.Mode, ChoiceOption>>,
     private val directTouchExplanation: String,
-    private val resetLabel: String = "Use catalog defaults",
-    private val noHash: () -> Unit = {},
     private val changed: (Game?) -> Unit = {}
 ) {
-    init { require(modes.size == modeLabels.size && modes.distinct().size == 3) }
+    init { require(modeOptions.map { it.first }.distinct().size == 3) }
 
-    fun builder(game: Game? = null): AlertDialog.Builder? {
-        if (game != null && contentId(game) == null) {
-            noHash()
-            return null
-        }
-        val value = if (game == null) store.global() else store.game(game)
-        return TouchInputSettingsDialog.builder(context, TouchInputSettingsDialog.Options(
-            title = if (game == null) globalTitle else gameTitle(game),
-            modeLabels = modeLabels,
-            modeIndex = modes.indexOf(value.mode).coerceAtLeast(0),
-            directTouch = value.directTouch,
-            secondaryTouchpad = game?.let(store::secondaryTouchpad),
-            directTouchExplanation = directTouchExplanation,
-            onSave = { index, direct, secondary ->
-                val selected = TouchInputSelection(modes[index], direct)
-                if (game == null) store.saveGlobal(selected)
-                else store.saveGame(game, selected, secondary)
-                changed(game)
-            },
-            onReset = game?.let { selected ->
-                { store.resetGame(selected); changed(selected) }
-            },
-            resetLabel = resetLabel))
+    private val modes = modeOptions.map { it.second }
+    private val touches = listOf(ChoiceOption("touchpad", "Touchpad", "Drag to move, tap to click"),
+        ChoiceOption("direct", "Direct tap", "Click where you touch"))
+    private fun modeId(mode: InputModeDecider.Mode) = modeOptions.first { it.first == mode }.second.id
+    private fun mode(id: String) = modeOptions.first { it.second.id == id }.first
+    private fun touchId(direct: Boolean) = if (direct) "direct" else "touchpad"
+
+    /** Controls › TOUCH SCREEN, for all games. */
+    fun globalGroup() = RowGroup("TOUCH SCREEN", listOf(
+        SettingsRow.choice("tap", "Screen tap", ChoiceSpec("Screen tap", { GameSource.ALL_GAMES },
+            { listOf(ChoiceGroup(null, modes)) }, { modeId(store.global().mode) }, select = { id ->
+            store.saveGlobal(store.global().copy(mode = mode(id)))
+            changed(null)
+        })),
+        SettingsRow.choice("mouse-touch", "Mouse touch", ChoiceSpec("Mouse touch", { GameSource.ALL_GAMES },
+            { listOf(ChoiceGroup(null, touches)) }, { touchId(store.global().directTouch) }, select = { id ->
+            store.saveGlobal(store.global().copy(directTouch = id == "direct"))
+            changed(null)
+        }))), directTouchExplanation)
+
+    /** Game settings › CONTROLS rows for one game. */
+    fun gameRows(game: Game, scope: () -> String, enabled: () -> Boolean): List<SettingsRow> {
+        fun <V> mapped(value: GameValue<V>, id: (V) -> String, back: (String) -> V) = GameValue(
+            { value.custom()?.let(id) }, { id(value.fallback()) }, value.source,
+            { picked -> value.set(picked?.let(back)); changed(game) })
+        val reason = { GameSettingsRows.NO_HASH }
+        return listOfNotNull(
+            GameSettingsRows.choice("game-tap", "Screen tap", scope, modes,
+                mapped(store.mode(game), ::modeId, ::mode), enabled, reason),
+            GameSettingsRows.choice("game-mouse-touch", "Mouse touch", scope, touches,
+                mapped(store.directTouch(game), ::touchId) { it == "direct" }, enabled, reason),
+            store.secondaryTouchpad(game)?.let { secondary ->
+                GameSettingsRows.choice("game-second-screen", "Second screen starts with", scope,
+                    listOf(ChoiceOption("keyboard", "Keyboard"), ChoiceOption("touchpad", "Mouse touchpad")),
+                    mapped(secondary, { if (it) "touchpad" else "keyboard" }) { it == "touchpad" },
+                    enabled, reason)
+            })
     }
 }

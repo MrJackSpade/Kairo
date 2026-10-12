@@ -1,7 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -13,10 +12,14 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.StateListDrawable
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.graphics.RectF
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CompoundButton
+import android.view.animation.LinearInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -29,7 +32,6 @@ import kotlin.math.roundToInt
  * shared pieces every screen is built from. Screens use these instead of their own values.
  */
 object Ui {
-    data class ActionRow(val view: LinearLayout, val detail: TextView)
     // Color roles. Accents come from the original digital palette, softened for a dark screen.
     val BG = 0xff0c1017.toInt()
     val SURFACE = 0xff151b25.toInt()
@@ -47,6 +49,7 @@ object Ui {
     val PIN_SURFACE = 0xff2a2618.toInt()
     val PIN_SELECTED = 0xff453a1c.toInt()
     val DANGER = 0xffff8f80.toInt()
+    val ON_DANGER = 0xff2b0b07.toInt()
     val SCRIM = 0xb8000000.toInt()
 
     // Type scale, in sp.
@@ -58,6 +61,9 @@ object Ui {
 
     const val RADIUS_SMALL = 6
     const val RADIUS_LARGE = 12
+
+    /** Entering motion. Fades are linear; nothing bounces. */
+    fun ease() = PathInterpolator(0.2f, 0f, 0f, 1f)
 
     fun dp(context: Context, value: Int) = (value * context.resources.displayMetrics.density).roundToInt()
 
@@ -73,9 +79,10 @@ object Ui {
      * with a bar in [accent] on its leading edge, so the current row reads from across the room.
      */
     fun rowBackground(context: Context, rest: Int = Color.TRANSPARENT, accent: Int = ACCENT,
-                      activeFill: Int = SELECTED, activatedOnly: Boolean = false): Drawable {
+                      activeFill: Int = SELECTED, activatedOnly: Boolean = false,
+                      radius: Int = RADIUS_SMALL): Drawable {
         fun active(): Drawable = LayerDrawable(arrayOf(
-            rounded(context, activeFill),
+            rounded(context, activeFill, radius),
             rounded(context, accent, 2))).apply {
             setLayerWidth(1, dp(context, 3))
             setLayerInset(1, 0, dp(context, 8), 0, dp(context, 8))
@@ -89,7 +96,7 @@ object Ui {
             }
             addState(intArrayOf(android.R.attr.state_activated), active())
             addState(intArrayOf(android.R.attr.state_pressed), active())
-            addState(intArrayOf(), if (rest == Color.TRANSPARENT) ColorDrawable(rest) else rounded(context, rest))
+            addState(intArrayOf(), if (rest == Color.TRANSPARENT) ColorDrawable(rest) else rounded(context, rest, radius))
         }
     }
 
@@ -108,13 +115,23 @@ object Ui {
         layoutParams = LinearLayout.LayoutParams(dp(context, size), dp(context, size))
     }
 
-    /** A 48dp touch target around a 24dp icon. */
+    /** A 48dp touch target around a 24dp icon, outlined like a button when selected. */
     fun iconButton(context: Context, drawable: Int, description: String, action: () -> Unit) =
         FrameLayout(context).apply {
             contentDescription = description
             isFocusable = true
             isClickable = true
-            background = rowBackground(context)
+            background = StateListDrawable().apply {
+                fun shape(fill: Int, ring: Boolean) = GradientDrawable().apply {
+                    setColor(fill)
+                    cornerRadius = dp(context, RADIUS_SMALL).toFloat()
+                    if (ring) setStroke(dp(context, 2), Color.WHITE)
+                }
+                addState(intArrayOf(android.R.attr.state_selected), shape(SELECTED, true))
+                addState(intArrayOf(android.R.attr.state_focused), shape(SELECTED, true))
+                addState(intArrayOf(android.R.attr.state_pressed), shape(SELECTED, false))
+                addState(intArrayOf(), shape(Color.TRANSPARENT, false))
+            }
             setOnClickListener { action() }
             addView(icon(context, drawable), FrameLayout.LayoutParams(dp(context, 24), dp(context, 24), Gravity.CENTER))
         }
@@ -149,9 +166,46 @@ object Ui {
             else stroke?.let { setStroke(dp(context, 1), it) }
         }
         addState(intArrayOf(android.R.attr.state_focused), shape(true))
+        addState(intArrayOf(android.R.attr.state_selected), shape(true))
         addState(intArrayOf(android.R.attr.state_pressed), shape(true))
         addState(intArrayOf(), shape(false))
     }
+
+    /**
+     * A text button in one of the three tones. Pages select it with isSelected, which draws
+     * the same white outline as Android focus.
+     */
+    fun toneButton(context: Context, label: String, tone: ButtonTone, drawable: Int? = null,
+                   minWidth: Int = 88, action: () -> Unit): LinearLayout {
+        val fill = when (tone) {
+            ButtonTone.PRIMARY -> ACCENT
+            ButtonTone.DANGER -> DANGER
+            ButtonTone.SECONDARY -> Color.TRANSPARENT
+        }
+        val color = when (tone) {
+            ButtonTone.PRIMARY -> ON_ACCENT
+            ButtonTone.DANGER -> ON_DANGER
+            ButtonTone.SECONDARY -> ACCENT_SOFT
+        }
+        return button(context, label, drawable, color,
+            focusable(context, fill, if (tone == ButtonTone.SECONDARY) LINE else null), action).apply {
+            minimumWidth = dp(context, minWidth)
+            setPadding(dp(context, 14), 0, dp(context, 14), 0)
+        }
+    }
+
+    /** The busy indicator: a Line ring with an Accent segment, one turn every 0.9 s. */
+    fun spinner(context: Context, size: Int = 16, stroke: Int = 2) = SpinnerView(context, dp(context, stroke))
+        .apply { layoutParams = LinearLayout.LayoutParams(dp(context, size), dp(context, size)) }
+
+    /** A small outlined label, such as a value's source or a game's media type. */
+    fun chip(context: Context, value: String, color: Int = TEXT_FAINT) =
+        text(context, value, LABEL, color).apply {
+            background = rounded(context, Color.TRANSPARENT, 4, color)
+            setPadding(dp(context, 6), dp(context, 1), dp(context, 6), dp(context, 1))
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
 
     /** Small pixel-font heading used for section labels across the app. */
     fun sectionLabel(context: Context, value: String, color: Int = ACCENT) =
@@ -160,50 +214,6 @@ object Ui {
             this.color = color
             setPadding(dp(context, 12), dp(context, 16), dp(context, 12), dp(context, 6))
         }
-
-    /** Shared menu and settings row. The caller controls navigation and refresh timing. */
-    fun actionRow(context: Context, title: String, description: () -> String,
-                  minHeight: Int = 56, verticalPadding: Int = 9,
-                  onClick: (View) -> Unit): ActionRow {
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            minimumHeight = dp(context, minHeight)
-            setPadding(dp(context, 14), dp(context, verticalPadding),
-                dp(context, 12), dp(context, verticalPadding))
-            isFocusable = true
-            isClickable = true
-            background = rowBackground(context)
-            setOnClickListener(onClick)
-        }
-        row.addView(text(context, title, BODY))
-        val value = text(context, description(), SECONDARY, TEXT_MUTED)
-        value.visibility = if (value.text.isNullOrEmpty()) View.GONE else View.VISIBLE
-        row.addView(value)
-        row.contentDescription = if (value.visibility == View.GONE) title else "$title. ${value.text}"
-        return ActionRow(row, value)
-    }
-
-    fun styleDialog(dialog: AlertDialog) {
-        DialogControllerNavigation.install(dialog)
-        val context = dialog.context
-        dialog.window?.setBackgroundDrawable(rounded(context, RAISED, RADIUS_LARGE))
-        listOf(AlertDialog.BUTTON_POSITIVE to ACCENT, AlertDialog.BUTTON_NEGATIVE to TEXT_MUTED,
-            AlertDialog.BUTTON_NEUTRAL to TEXT_MUTED).forEach { (which, color) ->
-            dialog.getButton(which)?.apply {
-                setTextColor(color)
-                isAllCaps = false
-                textSize = BODY
-                typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            }
-        }
-        dialog.window?.decorView?.let(::tintControls)
-    }
-
-    private fun tintControls(view: View) {
-        if (view is CompoundButton) view.buttonTintList = ColorStateList(
-            arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(ACCENT, TEXT_FAINT))
-        if (view is ViewGroup) for (index in 0 until view.childCount) tintControls(view.getChildAt(index))
-    }
 
     /** In-app message bar in place of the system toast, styled like the rest of the app. */
     fun message(activity: Activity, value: String, long: Boolean = false) {
@@ -216,6 +226,7 @@ object Ui {
             setTextColor(TEXT)
             gravity = Gravity.CENTER_VERTICAL
             maxLines = 3
+            ellipsize = android.text.TextUtils.TruncateAt.END
             background = rounded(activity, RAISED, RADIUS_SMALL, LINE)
             setPadding(dp(activity, 16), dp(activity, 10), dp(activity, 16), dp(activity, 10))
             elevation = dp(activity, 24).toFloat()
@@ -226,13 +237,48 @@ object Ui {
             leftMargin = dp(activity, 20)
             rightMargin = dp(activity, 20)
         })
-        bar.animate().alpha(1f).setDuration(150).start()
+        bar.translationY = dp(activity, 8).toFloat()
+        bar.animate().alpha(1f).translationY(0f).setInterpolator(ease()).setDuration(150).start()
         bar.postDelayed({
-            bar.animate().alpha(0f).setDuration(200).withEndAction { host.removeView(bar) }.start()
-        }, if (long) 3500 else 2000)
+            bar.animate().alpha(0f).setInterpolator(LinearInterpolator()).setDuration(200)
+                .withEndAction { host.removeView(bar) }.start()
+        }, if (long || value.length > 60) 3500 else 2000)
     }
 
     private const val MESSAGE_TAG = "kairo-message"
+}
+
+/** See [Ui.spinner]. It turns only while shown. */
+class SpinnerView(context: Context, private val stroke: Int) : View(context) {
+    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = stroke.toFloat()
+        color = Ui.LINE
+    }
+    private val segment = Paint(ring).apply { color = Ui.ACCENT }
+    private val bounds = RectF()
+    private val spin = ObjectAnimator.ofFloat(this, View.ROTATION, 0f, 360f).apply {
+        duration = 900
+        repeatCount = ValueAnimator.INFINITE
+        interpolator = LinearInterpolator()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val inset = stroke / 2f
+        bounds.set(inset, inset, width - inset, height - inset)
+        canvas.drawOval(bounds, ring)
+        canvas.drawArc(bounds, -135f, 90f, false, segment)
+    }
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (isVisible && isAttachedToWindow) { if (!spin.isStarted) spin.start() } else spin.cancel()
+    }
+
+    override fun onDetachedFromWindow() {
+        spin.cancel()
+        super.onDetachedFromWindow()
+    }
 }
 
 /**

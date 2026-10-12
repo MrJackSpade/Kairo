@@ -9,8 +9,6 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.inspector.WindowInspector
-import android.widget.ListView
 import android.widget.TextView
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -36,11 +34,9 @@ object DirectoryPickerFixture {
         fun descendants(view: View): List<View> = listOf(view) + ((view as? ViewGroup)?.let { group ->
             (0 until group.childCount).flatMap { descendants(group.getChildAt(it)) }
         } ?: emptyList())
-        fun views() = WindowInspector.getGlobalWindowViews().flatMap(::descendants)
-        fun text(value: String) = views().filterIsInstance<TextView>().firstOrNull { it.text.toString() == value }
-        fun list() = views().filterIsInstance<ListView>().single { view ->
-            view.adapter?.count?.let { it > 0 } == true && view.getItemAtPosition(0) in setOf("Folder/", "child.bat")
-        }
+        val pages by lazy { activity.javaClass.getDeclaredField("pages").apply { isAccessible = true }.get(activity) as PageStack }
+        fun page() = pages.top as DirectoryPicker
+        fun text(value: String) = descendants(page().view).filterIsInstance<TextView>().firstOrNull { it.text.toString() == value }
         fun await(message: String, condition: () -> Boolean) {
             repeat(200) {
                 var ready = false
@@ -59,12 +55,14 @@ object DirectoryPickerFixture {
                 secondary.forwardKey(KeyEvent(KeyEvent.ACTION_UP, code))
             } else { test.sendKeyDownUpSync(code); test.waitForIdleSync() }
         }
+        fun inParent() = page().itemIds().firstOrNull() == "entry0:child"
         var selected: DirectoryPicker.Entry? = null
         var cancelled = 0
         val loads = AtomicInteger()
         try {
+            Thread.sleep(3000)
             ui {
-                picker = DirectoryPicker.show(activity, "Fixture files", DirectoryPicker.Location("root", "Files"), {
+                picker = DirectoryPicker.show(pages, "Fixture files", DirectoryPicker.Location("root", "Files"), {
                     check(Looper.myLooper() != Looper.getMainLooper())
                     if (loads.incrementAndGet() == 1) error("Fixture read failure")
                     if (it == "child") listOf(DirectoryPicker.Entry("child-file", "child.bat", false))
@@ -74,39 +72,40 @@ object DirectoryPickerFixture {
                 }, { selected = it }, { cancelled++ })
             }
             await("Directory error was not displayed") { text("Fixture read failure") != null }
-            ui { check(text("Retry")!!.performClick()) }
-            await("Directory retry did not load") { text("Folder/") != null }
+            ui { check(page().focusedItemId == "retry"); page().itemView("retry")!!.performClick() }
+            await("Directory retry did not load") { inParent() }
             key(KeyEvent.KEYCODE_DPAD_DOWN)
-            ui { list().setSelection(0); list().requestFocus() }
+            ui { check(page().focusedItemId == "entry1:file0") { "D-pad did not move: ${page().focusedItemId}" } }
+            key(KeyEvent.KEYCODE_DPAD_UP)
             key(KeyEvent.KEYCODE_BUTTON_A)
-            await("Controller did not enter directory") { text("child.bat") != null }
+            await("Controller did not enter directory") { page().itemIds() == listOf("entry0:child-file") }
             key(KeyEvent.KEYCODE_BACK)
-            await("Back did not return to parent") { text("Folder/") != null }
+            await("Back did not return to parent") { inParent() }
             companionInput = true
             test.setInTouchMode(true)
-            await("Picker did not enter touch mode") { list().isInTouchMode }
             key(KeyEvent.KEYCODE_DPAD_DOWN)
-            await("Companion D-pad did not restore list selection") {
-                !list().isInTouchMode && list().selectedItem != null
-            }
-            ui { list().setSelection(0) }
+            await("Companion D-pad did not move the selection") { page().focusedItemId == "entry1:file0" }
+            key(KeyEvent.KEYCODE_DPAD_UP)
             key(KeyEvent.KEYCODE_BUTTON_A)
-            await("Bottom-display confirm did not enter folder") { text("child.bat") != null }
+            await("Bottom-display confirm did not enter folder") { page().itemIds() == listOf("entry0:child-file") }
             ui { secondary.forwardBack() }
-            await("Bottom-display Back did not return to parent") { text("Folder/") != null }
-            ui { list().requestFocus(); list().setSelection(0) }
+            await("Bottom-display Back did not return to parent") { inParent() }
             repeat(40) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+            Thread.sleep(600)
             ui {
-                check(list().selectedItem == "file39.exe") { "Off-screen selection: ${list().selectedItem}" }
-                check(list().selectedView?.isShown == true)
+                check(page().focusedItemId == "entry40:file39") { "Off-screen selection: ${page().focusedItemId}" }
+                val row = page().itemView("entry40:file39")!!
+                val visible = android.graphics.Rect()
+                check(row.getGlobalVisibleRect(visible) && visible.height() == row.height) { "Selected file is off screen" }
             }
             key(KeyEvent.KEYCODE_BUTTON_A)
             await("Controller did not select file") { selected?.id == "file39" }
             check(cancelled == 0)
+            companionInput = false
             val started = CountDownLatch(1)
             val release = CountDownLatch(1)
             ui {
-                picker = DirectoryPicker.show(activity, "Pending files", DirectoryPicker.Location("root", "Files"), {
+                picker = DirectoryPicker.show(pages, "Pending files", DirectoryPicker.Location("root", "Files"), {
                     started.countDown()
                     release.await(30, TimeUnit.SECONDS)
                     emptyList()
@@ -115,11 +114,11 @@ object DirectoryPickerFixture {
             check(started.await(5, TimeUnit.SECONDS))
             key(KeyEvent.KEYCODE_BACK)
             release.countDown()
-            await("Pending picker did not close") { cancelled == 1 && text("Pending files") == null }
+            await("Pending picker did not close") { cancelled == 1 && picker?.inStack != true }
             Thread.sleep(150)
-            ui { check(text("Pending files") == null && cancelled == 1) }
+            ui { check(picker?.inStack != true && cancelled == 1) }
         } finally {
-            ui { picker?.close(); activity.finish() }
+            ui { picker?.close(); pages.closeAll(); activity.finish() }
         }
     }
 }
