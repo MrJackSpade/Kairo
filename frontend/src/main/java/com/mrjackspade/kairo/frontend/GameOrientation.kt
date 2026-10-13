@@ -9,37 +9,49 @@ import android.content.res.Configuration
  * The screen orientation while a game runs, for all games. Auto leaves rotation to the device;
  * Landscape and Portrait lock it, still turning either way up unless the device's rotation is
  * locked. The library always follows the device.
+ *
+ * Android reports a rotation but never a refused request, so a launch requests the orientation
+ * when it starts ([launching]) and checks it once the game is running ([launched]): preparing
+ * and booting the game is the time the rotation has to land. A device setting such as the
+ * Retroid's Force landscape keeps the screen as it was, and the player is told.
  */
 class GameOrientation(private val activity: Activity, private val preferences: SharedPreferences) {
     private var inGame = false
+    private var launch = false
+    private var warned = false
 
     private val selected: String get() = preferences.getString(KEY, AUTO)!!
-
-    /**
-     * A game runs with Landscape or Portrait selected but the window kept the other orientation,
-     * as when a device setting such as a forced landscape mode overrides app requests. Read when
-     * shown; the hosts refresh their pages on configuration changes, so a rotation that lands
-     * late clears it.
-     */
-    private val blocked: Boolean get() {
-        if (!inGame) return false
-        val wanted = when (selected) {
-            LANDSCAPE -> Configuration.ORIENTATION_LANDSCAPE
-            PORTRAIT -> Configuration.ORIENTATION_PORTRAIT
-            else -> return false
-        }
-        return activity.resources.configuration.orientation != wanted
-    }
 
     fun row() = SettingsRow.choice(KEY, "Game orientation", ChoiceSpec("Game orientation",
         { GameSource.ALL_GAMES }, {
             listOf(ChoiceGroup(null, listOf(ChoiceOption(AUTO, "Auto"),
-                ChoiceOption(LANDSCAPE, "Landscape"), ChoiceOption(PORTRAIT, "Portrait")),
-                foot = if (blocked) BLOCKED else null))
+                ChoiceOption(LANDSCAPE, "Landscape"), ChoiceOption(PORTRAIT, "Portrait"))))
         }, { selected }, select = { value ->
             preferences.edit().putString(KEY, value).apply()
             apply()
-        }), tag = { if (blocked) "Not applied" else null })
+        }))
+
+    /** A launch started: rotate now, while the game is prepared. */
+    fun launching() {
+        launch = true
+        apply()
+    }
+
+    /** The launched game is running; say so if the screen kept the other orientation. */
+    fun launched() {
+        if (!launch) return
+        launch = false
+        if (!matches()) {
+            warned = true
+            Ui.message(activity, BLOCKED, long = true)
+        }
+    }
+
+    /** The launch ended without a game; a running game, if any, keeps its orientation. */
+    fun launchFailed() {
+        launch = false
+        apply()
+    }
 
     fun enterGame() {
         inGame = true
@@ -48,11 +60,28 @@ class GameOrientation(private val activity: Activity, private val preferences: S
 
     fun leaveGame() {
         inGame = false
+        launch = false
         apply()
     }
 
+    /** A rotation that lands after the warning withdraws it. */
+    fun configurationChanged() {
+        if (warned && matches()) Ui.dismissMessage(activity, BLOCKED)
+        if (matches()) warned = false
+    }
+
+    private fun matches(): Boolean {
+        val wanted = when (selected) {
+            LANDSCAPE -> Configuration.ORIENTATION_LANDSCAPE
+            PORTRAIT -> Configuration.ORIENTATION_PORTRAIT
+            AUTO -> return true
+            else -> error("Unknown game orientation: $selected")
+        }
+        return activity.resources.configuration.orientation == wanted
+    }
+
     private fun apply() {
-        activity.requestedOrientation = if (!inGame) ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        activity.requestedOrientation = if (!inGame && !launch) ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         else when (selected) {
             AUTO -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE

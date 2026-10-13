@@ -245,6 +245,13 @@ object Ui {
         }, if (long || value.length > 60) 3500 else 2000)
     }
 
+    /** Remove [value] if it is the message showing, as when what it reported has changed. */
+    fun dismissMessage(activity: Activity, value: String) {
+        val host = activity.findViewById<FrameLayout>(android.R.id.content) ?: return
+        val bar = host.findViewWithTag<View>(MESSAGE_TAG) as? TextView ?: return
+        if (bar.text.toString() == value) host.removeView(bar)
+    }
+
     private const val MESSAGE_TAG = "kairo-message"
 }
 
