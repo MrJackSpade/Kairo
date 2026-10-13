@@ -3,6 +3,7 @@ package com.mrjackspade.kairo.frontend
 import android.app.Activity
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 
 /**
  * The screen orientation while a game runs, for all games. Auto leaves rotation to the device;
@@ -14,14 +15,31 @@ class GameOrientation(private val activity: Activity, private val preferences: S
 
     private val selected: String get() = preferences.getString(KEY, AUTO)!!
 
+    /**
+     * A game runs with Landscape or Portrait selected but the window kept the other orientation,
+     * as when a device setting such as a forced landscape mode overrides app requests. Read when
+     * shown; the hosts refresh their pages on configuration changes, so a rotation that lands
+     * late clears it.
+     */
+    private val blocked: Boolean get() {
+        if (!inGame) return false
+        val wanted = when (selected) {
+            LANDSCAPE -> Configuration.ORIENTATION_LANDSCAPE
+            PORTRAIT -> Configuration.ORIENTATION_PORTRAIT
+            else -> return false
+        }
+        return activity.resources.configuration.orientation != wanted
+    }
+
     fun row() = SettingsRow.choice(KEY, "Game orientation", ChoiceSpec("Game orientation",
         { GameSource.ALL_GAMES }, {
             listOf(ChoiceGroup(null, listOf(ChoiceOption(AUTO, "Auto"),
-                ChoiceOption(LANDSCAPE, "Landscape"), ChoiceOption(PORTRAIT, "Portrait"))))
+                ChoiceOption(LANDSCAPE, "Landscape"), ChoiceOption(PORTRAIT, "Portrait")),
+                foot = if (blocked) BLOCKED else null))
         }, { selected }, select = { value ->
             preferences.edit().putString(KEY, value).apply()
             apply()
-        }))
+        }), tag = { if (blocked) "Not applied" else null })
 
     fun enterGame() {
         inGame = true
@@ -48,5 +66,6 @@ class GameOrientation(private val activity: Activity, private val preferences: S
         private const val AUTO = "auto"
         private const val LANDSCAPE = "landscape"
         private const val PORTRAIT = "portrait"
+        private const val BLOCKED = "Rotation was attempted but did not apply. A system setting is likely blocking it."
     }
 }
