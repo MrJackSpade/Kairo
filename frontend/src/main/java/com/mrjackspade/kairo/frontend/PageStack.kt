@@ -68,6 +68,7 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
         page.attach(this)
         pages += page
         addView(page.view, page.layoutParams())
+        layer(page)
         if (previous == null) becomeActive()
         if (page.isModal) {
             previous?.hidden()
@@ -104,6 +105,7 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
         page.attach(this)
         pages += page
         addView(page.view, page.layoutParams())
+        layer(page)
         if (old == null) becomeActive()
         page.view.alpha = 0f
         slide(page.view, 0f, 1f, 220, alphaDuration = 180)
@@ -169,6 +171,17 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
         fade(scrim, 0f, 160) { if (!flyoutOpen) scrim.visibility = View.GONE }
         uncover()
         becomeInactive()
+    }
+
+    /**
+     * Android draws a higher-elevation sibling on top whatever the child order, so a page with
+     * no elevation, such as a modal, would sit under the flyout's 16 dp shadow elevation. Lift
+     * each page just above every view already in the stack, including one still animating
+     * out; its own elevation still shapes its shadow.
+     */
+    private fun layer(page: Page) {
+        val below = (0 until childCount).map(::getChildAt).filter { it !== page.view }.maxOfOrNull { it.z } ?: 0f
+        page.view.translationZ = maxOf(0f, below + 1f - page.view.elevation)
     }
 
     private fun uncover() {

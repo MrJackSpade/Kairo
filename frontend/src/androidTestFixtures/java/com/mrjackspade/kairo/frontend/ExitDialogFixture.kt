@@ -37,6 +37,8 @@ object ExitDialogFixture {
                 val modal = modal() ?: error("Exit confirm is not open: ${pages.top}")
                 check(modal.title?.startsWith("Exit Kairo") == true) { "Exit title: ${modal.title}" }
                 check(pages.page(pages.size - 2)?.isFlyout == true) { "Exit confirm is not over the flyout" }
+                val flyoutZ = pages.page(pages.size - 2)!!.view.z
+                check(modal.view.z > flyoutZ) { "Exit confirm draws under the flyout: ${modal.view.z} <= $flyoutZ" }
                 check(modal.buttons == listOf("Cancel", "Exit")) { "Exit buttons: ${modal.buttons}" }
                 check(focused() == "Cancel") { "Exit initial focus: ${focused()}" }
             }

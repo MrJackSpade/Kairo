@@ -34,7 +34,8 @@ class SessionNavigationCoordinator(
     private val refreshLibrary: () -> Unit,
     private val applyState: () -> Unit,
     private val focusGame: () -> Unit,
-    private val endSession: (() -> Unit) -> Unit
+    private val endSession: (() -> Unit) -> Unit,
+    private val orientation: GameOrientation
 ) {
     private var returnPending = false
 
@@ -74,6 +75,7 @@ class SessionNavigationCoordinator(
         if (externalSession()) { exitExternalSession(); return }
         prepareLibrary()
         state.showLibrary()
+        orientation.leaveGame()
         library.visibility = View.VISIBLE
         session()?.close()
         refreshLibrary()
@@ -90,6 +92,7 @@ class SessionNavigationCoordinator(
         prepareGame()
         library.dismissSystemKeyboard()
         state.enterGame()
+        orientation.enterGame()
         library.visibility = View.GONE
         session()?.reset()
         focusGame()
