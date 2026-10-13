@@ -42,6 +42,7 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
             var failures = 0
             var total = 0
             var errorMessage: String? = null
+            val reasons = linkedMapOf<String, Int>()
             try {
                 val sources = missing(games)
                 total = sources.size
@@ -57,7 +58,9 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                         break
                     } catch (error: Exception) {
                         failures++
-                        Log.w("Kairo", "Artwork download failed: $source", error)
+                        val reason = reason(error)
+                        reasons[reason] = (reasons[reason] ?: 0) + 1
+                        Log.e("Kairo", "Artwork download failed: $source", error)
                     }
                     completed++
                     val done = completed
@@ -74,7 +77,7 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                 total == 0 -> "No missing catalog images for this library"
                 stop.get() -> "Image download stopped · $downloaded saved"
                 failures == 0 -> "Downloaded $downloaded images"
-                else -> "Downloaded $downloaded images · $failures failed. Tap again to retry."
+                else -> "Downloaded $downloaded images · $failures failed: " + summary(reasons)
             }
             activity.runOnUiThread {
                 running = false
@@ -87,6 +90,18 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                 }
             }
         }.apply { name = "Kairo-catalog-artwork"; start() }
+    }
+
+    /** The cause a person can act on: no connection, or the error itself. */
+    private fun reason(error: Exception): String = when (error) {
+        is java.net.UnknownHostException, is java.net.NoRouteToHostException -> "No internet connection"
+        is java.net.SocketTimeoutException -> "The image server did not respond"
+        else -> error.message ?: error.javaClass.simpleName
+    }
+
+    private fun summary(reasons: Map<String, Int>): String {
+        val (top, _) = reasons.entries.maxBy { it.value }.toPair()
+        return if (reasons.size == 1) top else "$top (and ${reasons.size - 1} other errors)"
     }
 
     private fun show(completed: Int, total: Int, failures: Int) {
