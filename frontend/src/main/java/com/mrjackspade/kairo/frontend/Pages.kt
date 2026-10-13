@@ -171,21 +171,17 @@ class ChoicePage(private val spec: ChoiceSpec, private val rowId: String? = null
     }
 }
 
-/** The header, actions, and settings shown in a flyout. */
+/** The header and settings shown in a flyout. */
 class FlyoutModel(
     val product: String,
     val title: () -> String,
     val status: () -> String,
     val busy: () -> Boolean = { false },
-    val buttons: List<FlyoutButton> = emptyList(),
     val sections: () -> List<RowGroup>
 )
 
-class FlyoutButton(val id: String, val label: String, val icon: Int, val tone: ButtonTone, val run: () -> Unit)
-
 /**
- * The library and game flyouts: product, title, status, optional Resume and Keep paused, then
- * flat rows. [start] focuses a row; [confirm] also opens its confirmation, as controller
+ * The library and game flyouts: product, title, status, then flat rows. [start] focuses a row; [confirm] also opens its confirmation, as controller
  * Restart and Exit actions do.
  */
 class FlyoutPage(private val model: FlyoutModel, private val start: String? = null,
@@ -195,7 +191,6 @@ class FlyoutPage(private val model: FlyoutModel, private val start: String? = nu
     private lateinit var title: TextView
     private lateinit var status: TextView
     private lateinit var spinner: View
-    private val buttons = ArrayList<Pair<FlyoutButton, View>>()
     override val scroll: ScrollView get() = scrollView
 
     override fun groups() = model.sections()
@@ -234,20 +229,6 @@ class FlyoutPage(private val model: FlyoutModel, private val start: String? = nu
         status = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).apply { maxLines = 4 }
         statusLine.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
         content.addView(statusLine)
-        if (model.buttons.isNotEmpty()) {
-            val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-            model.buttons.forEachIndexed { index, button ->
-                val view = Ui.toneButton(context, button.label, button.tone, button.icon, minWidth = 0) {
-                    focus(button.id, reveal = false)
-                    button.run()
-                }
-                buttons += button to view
-                row.addView(view, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
-                    if (index > 0) marginStart = dp(8)
-                })
-            }
-            content.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
-        }
         content.addView(rowsView(), LinearLayout.LayoutParams(-1, -2))
         scrollView = ScrollView(context).apply {
             isVerticalScrollBarEnabled = false
@@ -261,12 +242,7 @@ class FlyoutPage(private val model: FlyoutModel, private val start: String? = nu
         return scrollView
     }
 
-    override fun navItems(): List<NavItem> {
-        val top = buttons.mapIndexed { index, (button, view) ->
-            NavItem(button.id, view, 0, (index + 0.5f) / buttons.size, { view.performClick() })
-        }
-        return top + rowNav(1)
-    }
+    override fun navItems(): List<NavItem> = rowNav(0)
 
     override fun initialFocus(items: List<NavItem>) =
         start?.takeIf { id -> items.any { it.id == id } } ?: items.firstOrNull()?.id

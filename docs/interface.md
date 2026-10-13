@@ -29,8 +29,7 @@ Library flyout: product, folder name, status · LIBRARY (Refresh, Manage library
 SETTINGS · Exit.
 
 Game flyout: product, game title, status · GAME · SETTINGS · Restart game, Return to
-library, Exit. Kairo98 also has Resume and Keep paused under the status; KairoDos has
-neither, because the open flyout already pauses the game. Return reads **Return to frontend** when a
+library, Exit. The open flyout already pauses the game, and closing it resumes. Return reads **Return to frontend** when a
 frontend launched the game. Kairo98's GAME group holds Save state, Load state, Disks,
 and Game settings; KairoDos holds Game settings, because its core has no save states.
 
