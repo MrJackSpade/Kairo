@@ -52,7 +52,7 @@ object EndSessionFixture {
             activity.javaClass.getDeclaredField("sessionFromFrontend").apply { isAccessible = true }
                 .setBoolean(activity, false)
         }
-        /** Open the game flyout and the Return row's inline confirm. */
+        /** Open the game flyout and the Return row's confirmation modal. */
         fun request(external: Boolean) {
             ui { session().open() }
             Thread.sleep(250)
@@ -60,10 +60,13 @@ object EndSessionFixture {
                 val flyout = pages.top as RowsPage
                 check(flyout.isFlyout) { "The game flyout did not open" }
                 flyout.itemView("f-library")!!.performClick()
-                check(flyout.trayRowId == "f-library") { "Return did not ask first" }
-                check(flyout.trayButtons() == listOf("Cancel", "End game")) { "Return buttons: ${flyout.trayButtons()}" }
-                check(flyout.trayFocused() == "Cancel")
-                val message = flyout.trayMessage() ?: ""
+                val modal = pages.top as? ConfirmPage ?: error("Return did not ask first")
+                check(modal.title == if (external) "Return to frontend?" else "Return to library?") {
+                    "Return title: ${modal.title}"
+                }
+                check(modal.buttons == listOf("Cancel", "End game")) { "Return buttons: ${modal.buttons}" }
+                check(modal.focusedButton == "Cancel")
+                val message = modal.message
                 if (external) check(message.startsWith("This game stops and ") && message.contains(" closes.")) {
                     "Frontend confirm says \"$message\""
                 } else check(message == "This game stops. Progress since your last save is lost.") {
@@ -128,7 +131,7 @@ object EndSessionFixture {
             request(external = true); choose(false)
             ui {
                 check(field(if (dos) "currentGame" else "currentDisk") === identity)
-                check(session().isOpen && (pages.top as RowsPage).trayRowId == null) { "Cancel did not keep the menu open" }
+                check(session().isOpen && (pages.top as? RowsPage)?.isFlyout == true) { "Cancel did not keep the menu open" }
                 check(library().visibility != View.VISIBLE)
                 session().close()
             }

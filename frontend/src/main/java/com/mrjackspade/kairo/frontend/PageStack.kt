@@ -69,6 +69,13 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
         pages += page
         addView(page.view, page.layoutParams())
         if (previous == null) becomeActive()
+        if (page.isModal) {
+            previous?.hidden()
+            page.view.alpha = 0f
+            slide(page.view, 0f, 1f, 150)
+            page.shown(first = true)
+            return
+        }
         previous?.let { hide(it, forward = true) }
         if (page.isFlyout) {
             scrim.visibility = View.VISIBLE
@@ -106,7 +113,8 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
     fun pop() {
         val leaving = pages.removeLastOrNull() ?: return
         leaving.hidden()
-        if (leaving.isFlyout) {
+        if (leaving.isModal) slide(leaving.view, 0f, 0f, 120) { removeView(leaving.view); leaving.removed() }
+        else if (leaving.isFlyout) {
             fade(scrim, 0f, 160) { if (!flyoutOpen) scrim.visibility = View.GONE }
             slide(leaving.view, -leaving.width().toFloat(), 1f, 160) { removeView(leaving.view); leaving.removed() }
         } else slide(leaving.view, dp(48f), 0f, 220, alphaDuration = 180) {
@@ -119,7 +127,8 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
             becomeInactive()
             return
         }
-        show(next)
+        // The page below a modal never moved.
+        if (!leaving.isModal) show(next)
         next.shown(first = false)
     }
 
@@ -138,11 +147,15 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
         val all = pages.toList()
         pages.clear()
         all.forEach { it.hidden() }
-        val shown = all.last()
-        all.dropLast(1).forEach { removeView(it.view); it.removed() }
-        if (shown.isFlyout)
-            slide(shown.view, -shown.width().toFloat(), 1f, 160) { removeView(shown.view); shown.removed() }
-        else slide(shown.view, 0f, 0f, 160) { removeView(shown.view); shown.removed() }
+        // The top page and every page showing behind its modals leave with motion.
+        var visible = all.size - 1
+        while (visible > 0 && all[visible].isModal) visible--
+        all.take(visible).forEach { removeView(it.view); it.removed() }
+        all.drop(visible).forEach { shown ->
+            if (shown.isFlyout)
+                slide(shown.view, -shown.width().toFloat(), 1f, 160) { removeView(shown.view); shown.removed() }
+            else slide(shown.view, 0f, 0f, 160) { removeView(shown.view); shown.removed() }
+        }
         fade(scrim, 0f, 160) { if (!flyoutOpen) scrim.visibility = View.GONE }
         uncover()
         becomeInactive()
@@ -268,6 +281,8 @@ abstract class Page {
     /** Whether the page is still in its stack, for work that finishes after the page closed. */
     val inStack: Boolean get() = ::stack.isInitialized && (0 until stack.size).any { stack.page(it) === this }
     open val isFlyout: Boolean get() = false
+    /** A modal fades in over the page below, which stays in place behind its scrim. */
+    open val isModal: Boolean get() = false
     /** Menu and Back go to [back] and nothing else, as on setup pages. */
     open val capturing: Boolean get() = false
     protected open val scroll: ScrollView? get() = null
@@ -554,6 +569,7 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
             SettingsRow.Kind.SWITCH -> { row.setChecked?.invoke(!row.checked()); stack.refresh() }
             SettingsRow.Kind.SLIDER, SettingsRow.Kind.INFO -> Unit
             SettingsRow.Kind.ACTION -> when {
+                row.confirm?.title != null -> stack.push(ConfirmPage(row.confirm))
                 row.confirm != null -> openTray(row.id, row.confirm.tray())
                 row.tray != null -> openTray(row.id, row.tray.invoke())
                 else -> { row.run?.invoke(); stack.refresh() }

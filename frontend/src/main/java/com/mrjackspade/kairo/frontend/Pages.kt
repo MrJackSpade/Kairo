@@ -6,6 +6,7 @@ import android.text.TextUtils
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -385,6 +386,63 @@ open class SetupPage(
         if (control == "menu") return true
         return super.handleKey(control, event)
     }
+}
+
+/**
+ * A modal confirmation over the page below: a title, a message, and Cancel then the verb,
+ * opening on Cancel. Any direction moves between the two buttons; B or a tap outside cancels.
+ */
+class ConfirmPage(private val confirm: Confirm) : Page() {
+    override val isModal: Boolean get() = true
+    private lateinit var cancel: View
+    private lateinit var accept: View
+    val title: String? get() = confirm.title
+    val message: String get() = confirm.message
+    val buttons: List<String> get() = listOf("Cancel", confirm.verb)
+    val focusedButton: String? get() = when (focusedItemId) {
+        "cancel" -> "Cancel"
+        "confirm" -> confirm.verb
+        else -> null
+    }
+
+    override fun createView(): View {
+        val card = MaxWidthColumn(context, dp(440)).apply {
+            background = Ui.rounded(context, Ui.RAISED, Ui.RADIUS_LARGE, Ui.LINE)
+            elevation = dp(24).toFloat()
+            setPadding(dp(24), dp(20), dp(20), dp(16))
+            isClickable = true
+        }
+        card.addView(Ui.text(context, confirm.title ?: "", Ui.TITLE, bold = true))
+        card.addView(Ui.text(context, confirm.message, Ui.SECONDARY, Ui.TEXT_BODY).apply {
+            setLineSpacing(dp(4).toFloat(), 1f)
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        val buttons = WrapLayout(context, dp(8))
+        cancel = Ui.toneButton(context, "Cancel", ButtonTone.SECONDARY) { stack.pop() }
+        accept = Ui.toneButton(context, confirm.verb,
+            if (confirm.danger) ButtonTone.DANGER else ButtonTone.PRIMARY) {
+            stack.pop()
+            confirm.run()
+        }
+        buttons.addView(cancel, ViewGroup.LayoutParams(-2, dp(44)))
+        buttons.addView(accept, ViewGroup.LayoutParams(-2, dp(44)))
+        card.addView(buttons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
+        return FrameLayout(context).apply {
+            setBackgroundColor(Ui.SCRIM)
+            setOnClickListener { stack.pop() }
+            addView(card, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply {
+                setMargins(dp(24), dp(24), dp(24), dp(24))
+            })
+        }
+    }
+
+    override fun navItems(): List<NavItem> = listOf(
+        NavItem("cancel", cancel, 0, 0.25f, { cancel.performClick() }),
+        NavItem("confirm", accept, 0, 0.75f, { accept.performClick() }))
+
+    override fun initialFocus(items: List<NavItem>) = "cancel"
+
+    /** Two buttons in a row: Up and Left go to Cancel, Down and Right to the verb. */
+    override fun move(direction: String) = focus(if (direction == "up" || direction == "left") "cancel" else "confirm")
 }
 
 /** A text document in a card. Up and Down scroll 96 dp. */

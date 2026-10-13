@@ -3,17 +3,18 @@
 Kairo #13, tested in both applications on RGDS, October 2 2026.
 
 The game flyout's **Return to library** row comes from shared
-`SessionNavigationCoordinator.returnRow`. With an active game it asks first in an
-inline tray: "This game stops. Progress since your last save is lost." with Cancel and
-End game, focused on Cancel. Cancel closes the tray and leaves the flyout open, like
-every other confirmation; Resume or Menu then returns to the same game. No running game
+`SessionNavigationCoordinator.returnRow`. With an active game it asks first in a
+confirmation modal titled "Return to library?": "This game stops. Progress since your
+last save is lost." with Cancel and End game, focused on Cancel. Cancel closes the modal
+and leaves the flyout open; Menu then returns to the same game. No running game
 means no confirmation. Internal startup and teardown paths still use `showLibrary`
 directly.
 
 For a game started from the app's own library, End game waits for the host's teardown
 callback before showing Library. A game launched by an external frontend closes the
 app and returns to the frontend instead: the row reads **Return to frontend** and its
-confirmation says "This game stops and Kairo98 closes" (or KairoDos). The coordinator
+confirmation, titled "Return to frontend?", says "This game stops and Kairo98 closes"
+(or KairoDos). The coordinator
 reads the host's frontend flag when it builds the row, because each host clears that
 flag during teardown. Confirming then calls the host's existing exit path, which stops
 the machine itself.
@@ -36,8 +37,8 @@ existing external launch interface and the actual game flyout's Return row. It d
 edit game configuration. To exercise the library return, it clears the host's frontend
 flag on the running session before confirming. It checks:
 
-- The confirm opens on Cancel with Cancel and End game, and says whether it returns to
-  the frontend.
+- The confirmation modal opens on Cancel with Cancel and End game, and its title and
+  message say whether it returns to the frontend.
 - Cancel keeps the same session object and the flyout open with Library hidden; closing
   the menu resumes the game.
 - End game reaches Library without finishing the app; native status is stopped and

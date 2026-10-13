@@ -7,7 +7,7 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 
-/** Each host's real Exit confirmation: the inline tray under the game flyout's Exit row. */
+/** Each host's real Exit confirmation: the modal the game flyout's Exit row opens. */
 object ExitDialogFixture {
     fun verify(test: Instrumentation) {
         val launch = test.targetContext.packageManager.getLaunchIntentForPackage(test.targetContext.packageName)!!
@@ -24,7 +24,8 @@ object ExitDialogFixture {
             .apply { isAccessible = true }.get(activity) as SecondaryDisplayCoordinator }
         var companionInput = false
         fun flyout() = pages.top as RowsPage
-        fun focused() = flyout().trayFocused()
+        fun modal() = pages.top as? ConfirmPage
+        fun focused() = modal()?.focusedButton
         fun open() {
             test.setInTouchMode(true)
             ui {
@@ -33,13 +34,15 @@ object ExitDialogFixture {
             }
             Thread.sleep(250)
             ui {
-                check(flyout().isFlyout && flyout().trayRowId == "f-exit") { "Exit confirm is not open" }
-                check(flyout().trayButtons() == listOf("Cancel", "Exit")) { "Exit buttons: ${flyout().trayButtons()}" }
+                val modal = modal() ?: error("Exit confirm is not open: ${pages.top}")
+                check(modal.title?.startsWith("Exit Kairo") == true) { "Exit title: ${modal.title}" }
+                check(pages.page(pages.size - 2)?.isFlyout == true) { "Exit confirm is not over the flyout" }
+                check(modal.buttons == listOf("Cancel", "Exit")) { "Exit buttons: ${modal.buttons}" }
                 check(focused() == "Cancel") { "Exit initial focus: ${focused()}" }
             }
         }
-        fun closed() = check(pages.isActive && flyout().trayRowId == null && !activity.isFinishing) {
-            "The tray did not close with the app and flyout still open"
+        fun closed() = check(pages.isActive && modal() == null && flyout().isFlyout && !activity.isFinishing) {
+            "The confirm did not close with the app and flyout still open"
         }
         fun key(code: Int) = ui {
             for (action in listOf(KeyEvent.ACTION_DOWN, KeyEvent.ACTION_UP)) {
@@ -74,10 +77,10 @@ object ExitDialogFixture {
             ui { check(focused() == "Exit") { "Hat right did not focus Exit: ${focused()}" } }
             hat(-1f, 0f); hat(0f, 0f)
             ui { check(focused() == "Cancel") }
-            // Up and Down leave the tray for the rows, closing it.
             hat(0f, 1f); hat(0f, 0f)
-            ui { closed() }
-            open()
+            ui { check(focused() == "Exit") { "Hat down did not focus Exit: ${focused()}" } }
+            hat(0f, -1f); hat(0f, 0f)
+            ui { check(focused() == "Cancel") }
             key(KeyEvent.KEYCODE_BUTTON_B)
             ui { closed() }
             open()

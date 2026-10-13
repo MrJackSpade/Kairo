@@ -48,6 +48,7 @@ class SessionNavigationCoordinator(
             confirm = if (!hasGame()) null else Confirm(
                 if (external) "This game stops and $appName closes. Progress since your last save is lost."
                 else "This game stops. Progress since your last save is lost.", "End game",
+                title = if (external) "Return to frontend?" else "Return to library?",
                 run = ::returnToLibrary),
             run = ::returnToLibrary)
     }

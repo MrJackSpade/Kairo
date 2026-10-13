@@ -15,8 +15,10 @@ From bottom to top:
    the whole stack and resumes.
 4. **Tray**: opens under the row it belongs to, to confirm, choose a file, edit text,
    or listen for controller input.
-5. **Message bar** (`Ui.message`): the only feedback channel. There are no dialogs,
-   system toasts, banners, or status-line messages.
+5. **Confirmation modal** (`ConfirmPage`): leaving a game (Return to library or
+   frontend, Exit) asks in a centred card over its own scrim, above the flyout.
+6. **Message bar** (`Ui.message`): the only feedback channel. There are no system
+   dialogs, system toasts, banners, or status-line messages.
 
 While a game runs, any open page counts as the menu: the game pauses, and closing the
 last page resumes it (`SessionFlow`).
@@ -26,8 +28,9 @@ last page resumes it (`SessionFlow`).
 Library flyout: product, folder name, status · LIBRARY (Refresh, Manage library) ·
 SETTINGS · Exit.
 
-Game flyout: product, game title, status · Resume and Keep paused · GAME · SETTINGS ·
-Restart game, Return to library, Exit. Return reads **Return to frontend** when a
+Game flyout: product, game title, status · GAME · SETTINGS · Restart game, Return to
+library, Exit. Kairo98 also has Resume and Keep paused under the status; KairoDos has
+neither, because the open flyout already pauses the game. Return reads **Return to frontend** when a
 frontend launched the game. Kairo98's GAME group holds Save state, Load state, Disks,
 and Game settings; KairoDos holds Game settings, because its core has no save states.
 
@@ -99,6 +102,16 @@ verb (Restart, End game, Exit, Overwrite, Load, Delete, Reset, Remove), never OK
 Confirm. Confirmations open on Cancel; Cancel closes the tray and leaves the page open.
 Left and Right move between buttons; A presses one; B, Up, or Down close the tray.
 
+## Confirmation modal
+
+Return to library (or frontend) and Exit confirm in a modal instead of a tray: a
+`Confirm` with a `title` opens `ConfirmPage`. It fades in over the flyout in 150 ms,
+which stays in place behind it. The card holds the title as a question ("Return to
+library?", "Exit Kairo98?"), the message, then Cancel and the verb, right-aligned, focused
+on Cancel. Left and Up focus Cancel; Right and Down focus the verb. A presses; B, Back,
+or a tap outside the card cancels and returns to the flyout. Menu in a game closes the
+modal with the rest of the stack.
+
 In a Controller inputs tray, listening starts when the tray opens and captures every
 controller button, B included. Only Android Back cancels. Keyboard keys still reach the
 tray's buttons.
@@ -139,11 +152,12 @@ Entering motion uses `cubic-bezier(0.2, 0, 0, 1)` (`Ui.ease()`). Fades are linea
 - Menu closes everything and resumes in a game, and opens or closes the library flyout.
   On a game page in the library it opens Game settings.
 - Focus starts on the first item, the current option on choice pages, Cancel in confirm
-  trays, and the current tab on the button target page. Pages keep their focused row and
+  trays and modals, and the current tab on the button target page. Pages keep their focused row and
   scroll position, so Back returns to the same place.
 - Hats repeat after 400 ms, then every 120 ms. Menu navigation follows the user's
   Controller inputs mapping for A, B, and Menu; Escape is Back.
-- Controller Restart and Exit actions open the game flyout with that row's confirm open.
+- Controller Restart and Exit actions open the game flyout with that row's confirm open:
+  Restart's tray, or Exit's modal.
 
 ## Copy
 
@@ -161,7 +175,7 @@ on actions that open the system picker. Every action that loses progress says
 | Row model and specs | `SettingsRow.kt` |
 | Row and tray views | `RowViews.kt` |
 | Stack, page base, row pages | `PageStack.kt` |
-| Groups, choice, flyout, setup, document, image pages | `Pages.kt` |
+| Groups, choice, flyout, confirmation, setup, document, image pages | `Pages.kt` |
 | Task strip, progress strip, notices, Paused badge | `StatusViews.kt` |
 | Library flyout and Manage library | `LibraryMenu.kt` |
 | Controls, Button mapping, target page, Controller inputs | `ControllerPages.kt` |
@@ -169,3 +183,5 @@ on actions that open the system picker. Every action that loses progress says
 
 Fixtures read pages through `Page.focusedItemId`, `itemIds()`, and `itemView()`, and
 trays through `RowsPage.trayRowId`, `trayButtons()`, `trayFocused()`, and `trayMessage()`.
+Modals are the top page as `ConfirmPage`, read through `title`, `message`, `buttons`,
+and `focusedButton`.

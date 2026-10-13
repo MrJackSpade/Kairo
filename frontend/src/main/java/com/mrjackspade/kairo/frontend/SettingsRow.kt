@@ -43,9 +43,13 @@ class TraySpec(
     val capture: InputCapture? = null
 )
 
-/** Confirmation verbs are the action itself, never OK or Confirm. The tray opens on Cancel. */
+/**
+ * Confirmation verbs are the action itself, never OK or Confirm. A confirmation with a
+ * [title] is a modal, used for leaving a game; one without is a tray under its row. Both
+ * open on Cancel.
+ */
 class Confirm(val message: String, val verb: String, val danger: Boolean = false,
-              val run: () -> Unit) {
+              val title: String? = null, val run: () -> Unit) {
     fun tray() = TraySpec(message, listOf(
         TrayButton("Cancel"),
         TrayButton(verb, if (danger) ButtonTone.DANGER else ButtonTone.PRIMARY) { run() }),
