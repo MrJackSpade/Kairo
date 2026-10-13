@@ -60,28 +60,34 @@ class ShaderOptions(
             ?: selectedPath()?.let { File(it).nameWithoutExtension } ?: "Off"
     }
 
-    private fun presets() = root.walkTopDown().filter { it.isFile &&
-        it.extension.equals("slangp", ignoreCase = true) }.sortedBy {
-        it.relativeTo(root).path.lowercase()
-    }.toList()
+    /** Read on first use and dropped when an import ends; only the main thread touches it. */
+    private var tree: ShaderPresetTree? = null
+
+    private fun presets() = tree ?: ShaderPresetTree.read(root).also { tree = it }
 
     private fun presetLabel(file: File) = file.relativeTo(root).path.substringAfter(File.separatorChar)
 
-    /** The Shader choice: BUILT-IN presets, then IMPORTED ones. */
+    private fun options(files: List<File>) = files.map { ChoiceOption(it.absolutePath, it.nameWithoutExtension) }
+
+    private fun folder(folder: ShaderPresetTree.Folder): ChoiceFolder = ChoiceFolder(folder.path, folder.label) {
+        listOf(ChoiceGroup(null, options(folder.presets), folders = folder.folders.map(::folder)))
+    }
+
+    /** The Shader choice: BUILT-IN presets, then IMPORTED ones by folder. */
     fun choice() = ChoiceSpec("Shader", { "All games" }, {
         val imported = presets()
         listOfNotNull(
             ChoiceGroup("BUILT-IN", listOf(ChoiceOption("off", "Off")) +
                 BUILTINS.map { ChoiceOption("builtin:${it.id}", it.title) }),
-            imported.takeIf { it.isNotEmpty() }?.let { files ->
-                ChoiceGroup("IMPORTED", files.map { ChoiceOption(it.absolutePath, presetLabel(it)) })
+            imported.takeIf { !it.isEmpty }?.let {
+                ChoiceGroup("IMPORTED", options(it.presets), folders = it.folders.map(::folder))
             })
     }, {
         val selected = preferences.getString(SETTING, null)
         when {
             selected == null -> "off"
             BUILTINS.any { selected == "builtin:${it.id}" } -> selected
-            presets().any { it.absolutePath == selected } -> selected
+            selected in presets().paths -> selected
             else -> "off"
         }
     }, { id ->
@@ -156,6 +162,7 @@ class ShaderOptions(
             val result = try { importPack(uri) } catch (error: Exception) { Result.failure(error) }
             activity.runOnUiThread {
                 importing = false
+                tree = null
                 result.fold(onSuccess = { files ->
                     // One preset is selected at once; with several, the user picks from the list.
                     if (files.size == 1) {

@@ -58,9 +58,20 @@ class Confirm(val message: String, val verb: String, val danger: Boolean = false
 
 class ChoiceOption(val id: String, val label: String, val description: String? = null)
 
-class ChoiceGroup(val label: String? = null, val options: List<ChoiceOption>, val foot: String? = null)
+/** Folders list before options; each opens its own choice page within the same choice. */
+class ChoiceGroup(val label: String? = null, val options: List<ChoiceOption>, val foot: String? = null,
+                  val folders: List<ChoiceFolder> = emptyList())
 
-/** A choice page. Picking an option applies it and returns to the previous page. */
+/** Part of a large choice, such as a directory of presets, opened as a nested choice page. */
+class ChoiceFolder(val id: String, val label: String, val groups: () -> List<ChoiceGroup>) {
+    /** The option with [id] in this folder or any folder inside it. */
+    fun find(id: String?): ChoiceOption? = if (id == null) null else ChoiceSpec.find(groups(), id)
+}
+
+/**
+ * A choice page. Picking an option applies it and returns to the page the choice opened
+ * from, including from inside folders.
+ */
 class ChoiceSpec(
     val title: String,
     val scope: () -> String? = { null },
@@ -74,7 +85,18 @@ class ChoiceSpec(
     /** Whether Left and Right on the row step through the options in place. */
     val cycles: Boolean = true
 ) {
-    val options: List<ChoiceOption> get() = groups().flatMap { it.options }
+    /** Every option, folders included, in page order. */
+    val options: List<ChoiceOption> get() = flatten(groups())
+
+    companion object {
+        fun flatten(groups: List<ChoiceGroup>): List<ChoiceOption> = groups.flatMap { group ->
+            group.folders.flatMap { flatten(it.groups()) } + group.options
+        }
+
+        fun find(groups: List<ChoiceGroup>, id: String): ChoiceOption? = groups.firstNotNullOfOrNull { group ->
+            group.options.firstOrNull { it.id == id } ?: group.folders.firstNotNullOfOrNull { it.find(id) }
+        }
+    }
 }
 
 /** Left and Right move by [keyStep]; dragging moves by [step]. */
@@ -128,7 +150,7 @@ class SettingsRow private constructor(
                    tone: () -> ValueTone = { ValueTone.CURRENT }, tag: () -> String? = none,
                    enabled: () -> Boolean = always, disabledReason: () -> String? = none) =
             SettingsRow(id, Kind.CHOICE, label,
-                { value() ?: spec.options.firstOrNull { it.id == spec.selected() }?.label ?: "" },
+                { value() ?: spec.selected()?.let { ChoiceSpec.find(spec.groups(), it) }?.label ?: "" },
                 tone, tag, null, enabled, disabledReason, false, never, null, spec, never, null,
                 null, null, null)
 

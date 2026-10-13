@@ -141,6 +141,16 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
         if (top !== page) pop()
     }
 
+    /** Pop [page] and every page above it in one motion, as a pick in a nested choice page does. */
+    fun popThrough(page: Page) {
+        val index = pages.indexOf(page)
+        if (index < 0) return
+        while (pages.size > index + 1) pages.removeAt(index).let {
+            it.hidden(); removeView(it.view); it.removed()
+        }
+        pop()
+    }
+
     /** Close the flyout and every page, as Menu does in a game or a tap outside the flyout. */
     fun closeAll() {
         if (pages.isEmpty()) return

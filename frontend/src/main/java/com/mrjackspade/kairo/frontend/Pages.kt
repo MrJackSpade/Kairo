@@ -141,22 +141,47 @@ open class GroupsPage(
     }
 }
 
-/** Picking an option applies it, fills the radio, and returns after 150 ms. */
-class ChoicePage(private val spec: ChoiceSpec, private val rowId: String? = null) : GroupsPage(
-    spec.title, spec.scope, { emptyList() }) {
+/**
+ * Picking an option applies it, fills the radio, and returns after 150 ms. A folder opens a
+ * nested page of the same choice; a pick there returns past every page of the choice.
+ */
+class ChoicePage private constructor(
+    private val spec: ChoiceSpec,
+    private val rowId: String?,
+    title: String,
+    private val content: () -> List<ChoiceGroup>,
+    /** The choice's first page, when this page is a folder inside it. */
+    private val first: ChoicePage?
+) : GroupsPage(title, spec.scope, { emptyList() }) {
+    constructor(spec: ChoiceSpec, rowId: String? = null) : this(spec, rowId, spec.title, spec.groups, null)
+
     override fun groups(): List<RowGroup> {
-        val options = spec.groups().map { group ->
-            RowGroup(group.label, group.options.map { option ->
+        val options = content().map { group ->
+            RowGroup(group.label, group.folders.map { folder ->
+                SettingsRow.nav("f:${folder.id}", folder.label, { folder.find(spec.selected())?.label ?: "" },
+                    { ValueTone.CURRENT }) { open(folder) }
+            } + group.options.map { option ->
                 SettingsRow.option("o:${option.id}", option.label, option.description,
                     { spec.selected() == option.id }) { pick(option.id) }
             }, group.foot)
         }
-        val actions = spec.actions()
+        val actions = if (first == null) spec.actions() else emptyList()
         return if (actions.isEmpty()) options else options + RowGroup(null, actions)
     }
 
-    override fun initialFocus(items: List<NavItem>) =
-        spec.selected()?.let { "o:$it" }?.takeIf { id -> items.any { it.id == id } } ?: items.firstOrNull()?.id
+    /** The current option, or the folder that holds it. */
+    override fun initialFocus(items: List<NavItem>): String? {
+        val target = spec.selected()?.let { id ->
+            content().firstNotNullOfOrNull { group ->
+                group.options.firstOrNull { it.id == id }?.let { "o:$id" }
+                    ?: group.folders.firstOrNull { it.find(id) != null }?.let { "f:${it.id}" }
+            }
+        }
+        return target?.takeIf { id -> items.any { it.id == id } } ?: items.firstOrNull()?.id
+    }
+
+    private fun open(folder: ChoiceFolder) =
+        stack.push(ChoicePage(spec, rowId, folder.label, folder.groups, first ?: this))
 
     private fun pick(id: String) {
         spec.select(id)
@@ -164,7 +189,7 @@ class ChoicePage(private val spec: ChoiceSpec, private val rowId: String? = null
         if (spec.stay) return
         view.postDelayed({
             if (stack.top === this) {
-                stack.pop()
+                stack.popThrough(first ?: this)
                 rowId?.let(stack::flash)
             }
         }, 150)

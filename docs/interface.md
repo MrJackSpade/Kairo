@@ -70,6 +70,12 @@ subtext; explanations go in the group footnote. `SettingsRow` has one factory pe
 | `info` | Read-only, skipped by D-pad focus. Long values wrap. |
 | `option` | Choice pages only, and the only row with a second line. Picking fills the radio, waits 150 ms, and returns. |
 
+A large choice, such as imported shader presets, splits into folders (`ChoiceFolder`). A
+folder is a `nav` row above the group's options whose value is the current option when
+the folder holds it. It opens a page of the same choice, and a pick there returns past
+every page of the choice. Left and Right on the choice row cycle through every option,
+folders included.
+
 Value colors: Accent soft for a current value, muted for a summary, faint for nothing
 set (Unassigned, None, Empty, Not installed), and Accent for a game's own value.
 
@@ -150,7 +156,7 @@ Entering motion uses `cubic-bezier(0.2, 0, 0, 1)` (`Ui.ease()`). Fades are linea
 - A activates. B closes the tray, then the page, then the flyout.
 - Menu closes everything and resumes in a game, and opens or closes the library flyout.
   On a game page in the library it opens Game settings.
-- Focus starts on the first item, the current option on choice pages, Cancel in confirm
+- Focus starts on the first item, the current option (or its folder) on choice pages, Cancel in confirm
   trays and modals, and the current tab on the button target page. Pages keep their focused row and
   scroll position, so Back returns to the same place.
 - Hats repeat after 400 ms, then every 120 ms. Menu navigation follows the user's
