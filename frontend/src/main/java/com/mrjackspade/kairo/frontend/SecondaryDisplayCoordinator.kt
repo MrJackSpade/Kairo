@@ -126,7 +126,9 @@ class SecondaryDisplayCoordinator(
             return
         }
         val variants = variantTags(entry.path).ifEmpty { entry.zipEntry?.let(::variantTags).orEmpty() }
-        setLibraryInfo(LibraryInfo(game.title, listOf(fileLabel(entry), entry.mediaLabel) + variants + game.tags,
+        // A file name's (year) repeats the catalog's year tag; show each tag once.
+        val tags = (listOf(fileLabel(entry), entry.mediaLabel) + variants + game.tags).distinct()
+        setLibraryInfo(LibraryInfo(game.title, tags,
             game.description ?: "No description available yet.", null, hasArtwork = game.preview != null),
             game.preview, catalog::openArtwork)
     }
