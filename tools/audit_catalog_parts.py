@@ -10,6 +10,7 @@ from pathlib import Path
 from catalog_parts import merge, split, indexed_document
 from catalog_package import compact
 from catalog_package import image_paths
+from catalog_binary import verify_part
 
 def audit(root, product, artifacts=()):
     app = 'kairodos' if product == 'dos' else 'kairo98'
@@ -114,9 +115,11 @@ def audit(root, product, artifacts=()):
             prefix = 'base/assets/' if play else 'assets/'
             files = {n[len(prefix):]:z.read(n) for n in z.namelist() if n.startswith(prefix) and not n.endswith('/')}
             selected = {n.removeprefix('catalog/'):v for n,v in files.items() if n.startswith('catalog/')}
-            expected = {p.name:p.read_bytes() for p in (root/'catalog/parts').iterdir()
-                if p.is_file() and not(play and p.name.startswith('art.nsfw.'))}
-            assert selected == expected, (artifact,'Wrong catalog partition payload')
+            # Builds ship each part compiled to <part>.bin with a schema-2 <part>.idx (catalog-binary.gradle).
+            shipped = [n.removesuffix('.json') for n in documents if not(play and n.startswith('art.nsfw.'))]
+            assert set(selected) == {p+suffix for p in shipped for suffix in ('.idx','.bin')}, (artifact,'Wrong catalog partition payload')
+            for part in shipped:
+                verify_part(selected[part+'.idx'], selected[part+'.bin'], documents[part+'.json'])
             art_files = {n for n in files if n.startswith('art/')}
             if art_files:
                 assert art_files == {p.relative_to(root/'catalog/artwork').as_posix()

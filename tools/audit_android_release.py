@@ -5,12 +5,18 @@ import hashlib
 import struct
 import zipfile
 
+# A bundle keeps the baseline profile as metadata; bundletool installs it as the APK's assets/dexopt/.
+BUNDLE_PROFILES = 'BUNDLE-METADATA/com.android.tools.build.profiles/'
+
 
 def inspect(path, prefix, allow_art=False):
     with zipfile.ZipFile(path) as archive:
         payload = {}
         native = 0
         for name in archive.namelist():
+            if prefix == 'base/' and name.startswith(BUNDLE_PROFILES) and not name.endswith('/'):
+                payload['assets/dexopt/' + name.removeprefix(BUNDLE_PROFILES)] = hashlib.sha256(archive.read(name)).hexdigest()
+                continue
             relative = name.removeprefix(prefix)
             if not name.startswith(prefix) or name.endswith('/'):
                 continue
@@ -57,5 +63,8 @@ if __name__ == '__main__':
     assert {n:v for n,v in common.items() if not n.startswith('assets/catalog/art.nsfw.')} == inspect(args.aab, 'base/'), 'APK/AAB payload mismatch'
     if args.with_images_apk:
         with_images = inspect(args.with_images_apk, '', allow_art=True)
-        assert {n: v for n, v in with_images.items() if not n.startswith('assets/art/')} == common, 'Image variant changes non-artwork payload'
+        # The compiled baseline profile records its own variant's dex checksums, so it differs with the dex.
+        derived = ('assets/art/', 'assets/dexopt/')
+        assert {n: v for n, v in with_images.items() if not n.startswith(derived)} == {
+            n: v for n, v in common.items() if not n.startswith(derived)}, 'Image variant changes non-artwork payload'
     print('APK and Play bundle share code and core assets; only the optional artwork catalog differs')
