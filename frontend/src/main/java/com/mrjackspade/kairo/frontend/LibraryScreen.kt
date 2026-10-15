@@ -27,9 +27,11 @@ import java.util.concurrent.Executors
 fun variantLabel(name: String): String? =
     variantTags(name).takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
 
+private val VARIANT_TAG = Regex("""[\[(]([^\])]+)[\])]""")
+
 /** The tags [variantLabel] joins, one per bracketed or parenthesized part of the name. */
 fun variantTags(name: String): List<String> =
-    Regex("""[\[(]([^\])]+)[\])]""").findAll(name.substringAfterLast('/'))
+    VARIANT_TAG.findAll(name.substringAfterLast('/'))
         .map { it.groupValues[1].trim() }.filter { it.isNotEmpty() }.distinct().toList()
 
 /**
@@ -798,7 +800,7 @@ class LibraryScreen<T : LibraryItem>(
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     private companion object {
-        val BUSY = listOf("Scanning", "Rehashing", "Hashing", "Found", "Skipping", "Preparing", "Opening")
+        val BUSY = listOf("Loading", "Scanning", "Rehashing", "Hashing", "Found", "Skipping", "Preparing", "Opening")
         /** Scan summaries such as "7 games ready" stay in the flyout, not the message bar. */
         val SUMMARY = Regex("^\\d+ games")
     }

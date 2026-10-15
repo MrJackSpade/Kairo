@@ -29,9 +29,10 @@ interface SaveLocation {
 
     companion object {
         private val SAFE = Regex("[A-Za-z0-9._-]+")
+        private val UNSAFE_CHAR = Regex("[^A-Za-z0-9._-]")
 
         /** The directory name used for a game ID in every location. */
-        fun gameName(id: String): String = id.replace(Regex("[^A-Za-z0-9._-]"), "_").also {
+        fun gameName(id: String): String = id.replace(UNSAFE_CHAR, "_").also {
             require(id.isNotBlank() && it != "." && it != "..") { "Invalid game ID" }
         }
 

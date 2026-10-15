@@ -35,6 +35,12 @@ class LibraryFlow<T : LibraryItem>(
     private val scanEdits = ArrayList<(List<T>) -> List<T>>()
     /** Edited lists are saved in order, after any scan's own save that preceded them. */
     private val storeWorker by lazy { Executors.newSingleThreadExecutor { Thread(it, "Kairo-library-store") } }
+    /** The cached library is being read off the main thread; see [whenLoaded]. */
+    private var loading = false
+    private var loadGeneration = 0
+    /** Edits made before the cached list arrived; they apply to it when it does. */
+    private val loadEdits = ArrayList<(List<T>) -> List<T>>()
+    private val afterLoad = ArrayList<() -> Unit>()
     /** A scan or a full recheck is running. */
     var scanning = false
         private set
@@ -68,13 +74,54 @@ class LibraryFlow<T : LibraryItem>(
             saved == null -> screen.showStatus(emptyStatus)
             !hasGrant(saved) -> screen.showStatus(expiredStatus)
             else -> {
-                entries = cached(saved)
-                screen.showEntries(entries)
-                displayedEntries = entries
-                screen.showStatus(scanSummary(entries))
+                // A large cache takes too long to read on the main thread at every launch.
+                loading = true
+                val generation = ++loadGeneration
+                screen.showStatus("Loading library\u2026")
+                Thread {
+                    val result = runCatching { cached(saved) }
+                    activity.runOnUiThread { finishLoad(generation, saved, result) }
+                }.apply { name = "Kairo-library-load"; start() }
             }
         }
         return saved
+    }
+
+    /** Runs [action] once the cached library is available, as for a frontend launch at startup. */
+    fun whenLoaded(action: () -> Unit) {
+        if (loading) afterLoad += action else action()
+    }
+
+    private fun finishLoad(generation: Int, folder: Uri, result: Result<List<T>>) {
+        if (generation != loadGeneration || activity.isDestroyed) return
+        loading = false
+        result.onSuccess { list ->
+            val edited = loadEdits.fold(list) { current, change -> change(current) }
+            if (loadEdits.isNotEmpty()) save(folder, edited)
+            entries = edited
+            screen.showEntries(edited)
+            displayedEntries = edited
+            if (!scanning) screen.showStatus(scanSummary(edited))
+        }.onFailure { failure ->
+            // The cache only saves rescanning; the startup scan rebuilds one that cannot be read.
+            screen.showStatus("Library cache unreadable: ${failure.message ?: failure.javaClass.simpleName}")
+        }
+        loadEdits.clear()
+        runAfterLoad()
+    }
+
+    /** A newer list replaced the cached one before it arrived. */
+    private fun supersedeLoad() {
+        if (!loading) return
+        loadGeneration++
+        loading = false
+        loadEdits.clear()
+    }
+
+    private fun runAfterLoad() {
+        val actions = afterLoad.toList()
+        afterLoad.clear()
+        actions.forEach { it() }
     }
 
     fun show() {
@@ -125,12 +172,14 @@ class LibraryFlow<T : LibraryItem>(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION or
                     (if (keepWrite) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0))
             scanCancelled.set(true)
+            supersedeLoad()
             tree = selected
             entries = emptyList()
             preferences.edit().putString("rom_tree", selected.toString()).apply()
             screen.showFolder(folderLabel(selected))
             screen.showEntries(entries)
             displayedEntries = entries
+            runAfterLoad()
             onFolderSelected?.invoke(selected) ?: refresh(false)
         } catch (failure: Exception) {
             val message = "Cannot keep folder access: ${failure.message}"
@@ -167,12 +216,15 @@ class LibraryFlow<T : LibraryItem>(
                 activity.runOnUiThread {
                     finished()
                     if (!cancelled.get() && tree == selected && !activity.isDestroyed) {
+                        // Scan results are newer than the cache, even one still loading.
+                        supersedeLoad()
                         val found = if (scanEdits.isEmpty()) scanned else
                             scanEdits.fold(scanned) { list, change -> change(list) }.also { save(selected, it) }
                         scanEdits.clear()
                         entries = found
                         screen.showEntries(found)
                         displayedEntries = found
+                        runAfterLoad()
                         onScanComplete(found)
                         val summary = scanSummary(found)
                         screen.showStatus(summary)
@@ -199,6 +251,11 @@ class LibraryFlow<T : LibraryItem>(
         val selected = tree ?: error("No library folder")
         checkNotNull(store) { "This library cannot be edited in place" }
         if (scanning) scanEdits += change
+        if (loading) {
+            // The cached list has not arrived; the change applies to it when it does.
+            loadEdits += change
+            return
+        }
         val edited = change(entries)
         save(selected, edited)
         entries = edited

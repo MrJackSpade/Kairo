@@ -60,7 +60,14 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
     @Synchronized fun scan(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean,
                            progress: (String) -> Unit): List<Entry> {
         if (cancelled.get()) throw CancellationException("Cancelled")
-        val previous = cache.readForTree(tree.toString())
+        val previous = try {
+            cache.readForTree(tree.toString())
+        } catch (failure: Exception) {
+            // The cache only saves rehashing: an unreadable one is reported, then replaced by this scan.
+            android.util.Log.e("KairoLibrary", "Library cache unreadable; rescanning without it", failure)
+            progress("Library cache unreadable; rescanning every file")
+            null
+        }
         val prior = if (forceHash) emptyMap() else
             previous?.entries?.associateBy(entryId).orEmpty()
         hashes.set(0)
