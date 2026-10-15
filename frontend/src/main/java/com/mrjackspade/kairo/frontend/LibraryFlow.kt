@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.provider.DocumentsContract
 import java.util.concurrent.CancellationException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -16,8 +17,6 @@ class LibraryFlow<T : LibraryItem>(
     private val requestCode: Int,
     private val cached: (Uri) -> List<T>,
     private val scan: (Uri, Boolean, AtomicBoolean, (String) -> Unit) -> List<T>,
-    /** The folder's name, shown as the library flyout title and the folder row value. */
-    private val folderLabel: (Uri) -> String,
     private val emptyStatus: String,
     private val expiredStatus: String,
     private val scanSummary: (List<T>) -> String,
@@ -44,6 +43,15 @@ class LibraryFlow<T : LibraryItem>(
 
     init { screen.needsFolder = { tree?.let(::hasGrant) != true } }
 
+    /** The folder's name, shown as the library flyout title and the folder row value. */
+    private fun folderLabel(uri: Uri): String = try {
+        DocumentsContract.getTreeDocumentId(uri).substringAfterLast('/').substringAfterLast(':')
+            .ifEmpty { screen.strings.folder }
+    } catch (_: IllegalArgumentException) {
+        // Only a folder chosen through the document tree picker has a tree document ID.
+        screen.strings.folder
+    }
+
     fun hasGrant(uri: Uri): Boolean = activity.contentResolver.persistedUriPermissions.any {
         it.uri == uri && it.isReadPermission && (!writable || it.isWritePermission)
     }
@@ -55,7 +63,7 @@ class LibraryFlow<T : LibraryItem>(
     fun restore(): Uri? {
         val saved = preferences.getString("rom_tree", null)?.let(Uri::parse)
         tree = saved
-        screen.showFolder(saved?.let(folderLabel))
+        screen.showFolder(saved?.let(::folderLabel))
         when {
             saved == null -> screen.showStatus(emptyStatus)
             !hasGrant(saved) -> screen.showStatus(expiredStatus)
@@ -70,7 +78,7 @@ class LibraryFlow<T : LibraryItem>(
     }
 
     fun show() {
-        screen.showFolder(tree?.let(folderLabel))
+        screen.showFolder(tree?.let(::folderLabel))
         // restore() and scan completion have already presented this list.
         // Repeating showEntries reparses catalog records for every game.
         if (displayedEntries !== entries) {
@@ -198,6 +206,9 @@ class LibraryFlow<T : LibraryItem>(
         displayedEntries = edited
         if (!scanning) screen.showStatus(scanSummary(edited))
     }
+
+    /** The document [entry] came from was removed: drop every entry read from it. */
+    fun removeSource(entry: T) = edit { list -> list.filter { it.uri != entry.uri } }
 
     private fun save(folder: Uri, list: List<T>) {
         val write = store!!

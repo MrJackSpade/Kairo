@@ -12,6 +12,7 @@ object SearchIndexFixture {
     fun verify(test: Instrumentation) {
         fun item(name: String) = object : LibraryItem {
             override val id = name
+            override val uri = "fixture://game/$name"
             override val contentId = name
             override val path = name
             override val displayName = name

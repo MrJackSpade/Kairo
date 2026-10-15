@@ -109,4 +109,31 @@ class EdgeSwipeNavigation(private val density: Float) {
         consumed = false
         replayStart = null
     }
+
+    /**
+     * An Activity's dispatchTouchEvent. Edge gestures work over a running game and its flyout,
+     * not over the library or pages above the flyout; everything else goes to [pass].
+     */
+    fun dispatch(event: MotionEvent, width: Int, pages: PageStack, inGame: Boolean,
+                 menuOpen: Boolean, canOpenKeyboard: () -> Boolean, controlsHit: () -> Boolean,
+                 pass: (MotionEvent) -> Boolean, guest: (MotionEvent) -> Boolean,
+                 openMenu: () -> Unit, openKeyboard: () -> Unit, closeMenu: () -> Unit): Boolean {
+        if (!inGame || (pages.isActive && pages.top?.isFlyout != true)) return pass(event)
+        return when (handle(event, width, menuOpen, canOpenMenu = true,
+            canOpenKeyboard = canOpenKeyboard(), controlsHit = controlsHit())) {
+            Result.PASS -> pass(event)
+            Result.CONSUME -> true
+            Result.REPLAY_GUEST -> replay(event, guest)
+            Result.OPEN_MENU -> { openMenu(); true }
+            Result.OPEN_KEYBOARD -> { openKeyboard(); true }
+            Result.CLOSE_MENU -> {
+                val cancel = MotionEvent.obtain(event)
+                cancel.action = MotionEvent.ACTION_CANCEL
+                pass(cancel)
+                cancel.recycle()
+                closeMenu()
+                true
+            }
+        }
+    }
 }

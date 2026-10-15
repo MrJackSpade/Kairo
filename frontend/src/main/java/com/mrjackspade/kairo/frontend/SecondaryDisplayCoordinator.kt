@@ -119,6 +119,18 @@ class SecondaryDisplayCoordinator(
         libraryArtwork.show(info, artworkPath, openArtwork)
     }
 
+    /** The library's selected game: title, file, media, revision tags, catalog tags and preview. */
+    fun showLibrarySelection(entry: LibraryItem?, game: LibraryGame?, catalog: LibraryCatalog) {
+        if (entry == null || game == null) {
+            setLibraryInfo(null)
+            return
+        }
+        val variants = variantTags(entry.path).ifEmpty { entry.zipEntry?.let(::variantTags).orEmpty() }
+        setLibraryInfo(LibraryInfo(game.title, listOf(fileLabel(entry), entry.mediaLabel) + variants + game.tags,
+            game.description ?: "No description available yet.", null, hasArtwork = game.preview != null),
+            game.preview, catalog::openArtwork)
+    }
+
     fun setAppearance(showKeyboard: Boolean, color: Int) {
         keyboardVisible = showKeyboard
         backgroundColor = color

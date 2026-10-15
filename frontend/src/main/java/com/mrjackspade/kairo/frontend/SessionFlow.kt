@@ -32,10 +32,29 @@ class SessionFlow(
 
     val isOpen: Boolean get() = gameMenu && pages.isActive
 
-    /** [start] focuses a row; [confirm] also opens its confirmation. */
+    /** [start] focuses a row; [confirm] also opens its confirmation. Only a game has this menu. */
     fun open(start: String? = null, confirm: Boolean = false) {
-        if (pages.isActive) return
+        if (pages.isActive || !inGame()) return
         pages.push(FlyoutPage(model(), start, confirm))
+    }
+
+    /**
+     * The controller's menu, pause, restart and exit actions. Returns false for an action the
+     * app handles itself, such as fast forward.
+     */
+    fun controllerAction(action: String, state: SessionNavigationState, applyPauseState: () -> Unit): Boolean {
+        when (action) {
+            "menu" -> if (isOpen) close() else open()
+            "pause" -> {
+                state.userPaused = !state.userPaused
+                applyPauseState()
+                Ui.message(pages.activity, if (state.userPaused) "Paused" else "Resumed")
+            }
+            "restart" -> if (!isOpen) open("f-restart", confirm = true)
+            "exit" -> if (!isOpen) open("f-exit", confirm = true)
+            else -> return false
+        }
+        return true
     }
 
     fun close() = pages.closeAll()

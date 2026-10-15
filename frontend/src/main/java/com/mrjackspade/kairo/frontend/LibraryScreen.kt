@@ -24,11 +24,13 @@ import java.util.concurrent.Executors
  * The part of a file name that tells revisions of one game apart: its bracketed and
  * parenthesized tags, such as a translation or bug-fix credit.
  */
-fun variantLabel(name: String): String? {
-    val tags = Regex("""[\[(]([^\])]+)[\])]""").findAll(name.substringAfterLast('/'))
+fun variantLabel(name: String): String? =
+    variantTags(name).takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
+
+/** The tags [variantLabel] joins, one per bracketed or parenthesized part of the name. */
+fun variantTags(name: String): List<String> =
+    Regex("""[\[(]([^\])]+)[\])]""").findAll(name.substringAfterLast('/'))
         .map { it.groupValues[1].trim() }.filter { it.isNotEmpty() }.distinct().toList()
-    return tags.takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
-}
 
 /**
  * Where a library entry lives: its folder and file name without the extension, plus the image
@@ -46,7 +48,7 @@ fun fileLabel(entry: LibraryItem): String {
 class LibraryScreen<T : LibraryItem>(
     context: Context,
     private val catalog: LibraryCatalog,
-    private val strings: LibraryStrings,
+    val strings: LibraryStrings,
     private val pages: PageStack,
     private val chooseFolder: () -> Unit,
     private val lastPlayedId: () -> String?,

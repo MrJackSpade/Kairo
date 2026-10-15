@@ -34,6 +34,7 @@ object LibraryScrollFixture {
         }
         val entries = (0..29).map { index -> object : LibraryItem {
             override val id = index.toString()
+            override val uri = "fixture://game/$index"
             override val contentId = id
             override val path = "Game $index.zip"
             override val displayName = "Game $index"

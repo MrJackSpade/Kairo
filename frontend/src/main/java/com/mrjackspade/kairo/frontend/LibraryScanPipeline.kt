@@ -42,6 +42,20 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
 
     private val hashes = AtomicInteger()
     val hashCount: Int get() = hashes.get()
+    /** Scans and in-place edits write the same cache file. */
+    private val writeLock = Any()
+
+    /** The folder's cached library, in the order a scan returns it. */
+    fun cached(tree: Uri): List<Entry> =
+        cache.readForTree(tree.toString())?.entries?.let(displayOrder).orEmpty()
+
+    /** [entries] in the order a scan returns them, as after adding an entry. */
+    fun inScanOrder(entries: List<Entry>): List<Entry> = displayOrder(cacheOrder(entries))
+
+    /** Saves a library the app changed without scanning, exactly as a scan saves it. */
+    fun store(tree: Uri, entries: List<Entry>) {
+        synchronized(writeLock) { cache.write(tree.toString(), cacheOrder(entries), metadata()) }
+    }
 
     @Synchronized fun scan(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean,
                            progress: (String) -> Unit): List<Entry> {
@@ -75,7 +89,7 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         entries.addAll(plan.finalEntries)
         context.checkCancelled()
         val saved = cacheOrder(entries)
-        cache.write(tree.toString(), saved, metadata())
+        synchronized(writeLock) { cache.write(tree.toString(), saved, metadata()) }
         afterCommit(plan)
         return displayOrder(saved)
     }

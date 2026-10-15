@@ -5,6 +5,8 @@ import java.io.InputStream
 /** The library screen knows only the source and identity of an imported game. */
 interface LibraryItem {
     val id: String
+    /** The document the entry was read from. One archive can hold several entries. */
+    val uri: String
     val contentId: String?
     val path: String
     val zipEntry: String?
