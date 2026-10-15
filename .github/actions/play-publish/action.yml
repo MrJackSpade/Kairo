@@ -1,0 +1,29 @@
+name: Kairo Google Play release
+description: Publish a signed Play bundle to a Google Play track
+inputs:
+  package:
+    description: Application ID on Google Play
+    required: true
+  bundle:
+    description: Path to the signed Play AAB
+    required: true
+  track:
+    description: Play track to release on
+    required: true
+runs:
+  using: composite
+  steps:
+    # GitHub's OIDC token is exchanged for a short-lived token of the Play publishing service
+    # account in the loxifi.com kairo-release project. The pool accepts only the two app repositories.
+    - id: google
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: projects/286183327209/locations/global/workloadIdentityPools/github/providers/github
+        service_account: play-publisher@kairo-release.iam.gserviceaccount.com
+        token_format: access_token
+        access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+    - shell: bash
+      env:
+        GOOGLE_PLAY_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+        KAIRO_ACTION_PATH: ${{ github.action_path }}
+      run: python3 "$KAIRO_ACTION_PATH/../../../tools/play_publish.py" "${{ inputs.package }}" "${{ inputs.bundle }}" "${{ inputs.track }}"
