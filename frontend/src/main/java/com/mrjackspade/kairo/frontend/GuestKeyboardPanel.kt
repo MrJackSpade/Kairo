@@ -41,7 +41,11 @@ class GuestKeyboardPanel(
     private val pageViews = mutableMapOf<Int, View>()
     private val touchpad = mouse?.let { SecondaryTouchpadView(context, it, mouseReferenceSize) }
     private val content = LinearLayout(context).apply { orientation = VERTICAL }
-    private val highlightUntil = mutableMapOf<Int, Long>()
+    /** A scan code lit after its press, and whether Shift was down for it. */
+    private class Lit(val until: Long, val shifted: Boolean)
+    private val highlightUntil = mutableMapOf<Int, Lit>()
+    /** Scan codes this page also offers as a Shift chord, such as 5 for %. */
+    private var chordCodes = emptySet<Int>()
     private var lastPressed = emptySet<Int>()
     private val inputListener: () -> Unit = {
         if (Looper.myLooper() == Looper.getMainLooper()) updateHighlights()
@@ -216,6 +220,7 @@ class GuestKeyboardPanel(
             return
         }
         layout.pages[page].rows.forEach(::row)
+        chordCodes = keyViews.filter { it.first.chordShift }.map { it.first.code }.toSet()
         pageViews.forEach { (name, view) -> view.isActivated = name == page }
         updateLegends()
     }
@@ -228,7 +233,9 @@ class GuestKeyboardPanel(
         val line = LinearLayout(context).apply { orientation = HORIZONTAL }
         for (key in keys) {
             val modifier = key.code in layout.modifiers
-            val holdToLatch = modifier && key.code != layout.capsCode
+            val holdToLatch = modifier && !layout.isLock(key.code)
+            // The press that unlocks a held modifier must not lock it again by being long.
+            var unlockedOnPress = false
             // Letters, digits, and symbols sit on the lighter key; named keys are darker.
             val action = modifier || key.label.length > 1
             val view = TextView(context).apply {
@@ -240,7 +247,8 @@ class GuestKeyboardPanel(
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             if (holdToLatch) {
-                                if (key.code in latched) toggleModifier(key.code)
+                                unlockedOnPress = key.code in latched
+                                if (unlockedOnPress) toggleModifier(key.code)
                                 press(key)
                             } else if (modifier) toggleModifier(key.code)
                             else press(key)
@@ -248,7 +256,7 @@ class GuestKeyboardPanel(
                         }
                         MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                             if (holdToLatch) {
-                                if (event.actionMasked == MotionEvent.ACTION_UP &&
+                                if (event.actionMasked == MotionEvent.ACTION_UP && !unlockedOnPress &&
                                     event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout())
                                     toggleModifier(key.code)
                                 release(key)
@@ -281,16 +289,18 @@ class GuestKeyboardPanel(
     }
 
     private fun press(key: KeyboardKey) {
-        highlightUntil[key.code] = SystemClock.uptimeMillis() + 90
+        highlightUntil[key.code] = Lit(SystemClock.uptimeMillis() + 90, key.chordShift || shiftHeld())
         input.hold("touch-key:${key.code}", if (key.chordShift) listOf(layout.chordShiftCode, key.code)
             else listOf(key.code))
     }
 
     private fun release(key: KeyboardKey) {
         input.release("touch-key:${key.code}")
-        val delay = (highlightUntil[key.code] ?: 0L) - SystemClock.uptimeMillis()
+        val delay = (highlightUntil[key.code]?.until ?: 0L) - SystemClock.uptimeMillis()
         if (delay > 0) handler.postDelayed({ updateHighlights() }, delay)
     }
+
+    private fun shiftHeld() = layout.shiftCodes.any { it in input.pressedKeys() }
 
     private fun toggleModifier(scan: Int) {
         if (latched.remove(scan)) input.release("touch-mod:$scan")
@@ -304,9 +314,11 @@ class GuestKeyboardPanel(
     private fun updateLegends() {
         val shifted = layout.shiftCodes.any { it in latched }
         val caps = layout.capsCode?.let { it in latched } == true
+        val kana = layout.kanaCode?.let { it in latched } == true
         for ((key, view) in keyViews) {
             val letter = key.label.length == 1 && key.label[0] in 'a'..'z'
             view.text = when {
+                kana && key.kana != null -> if (shifted) key.kanaShifted ?: key.kana else key.kana
                 letter && (shifted xor caps) -> key.label.uppercase()
                 key.shifted != null && shifted -> key.shifted
                 else -> key.label
@@ -319,19 +331,28 @@ class GuestKeyboardPanel(
     private fun updateHighlights() {
         val pressed = input.pressedKeys()
         val now = SystemClock.uptimeMillis()
+        val shifted = layout.shiftCodes.any { it in pressed }
         for (scan in pressed - lastPressed)
-            highlightUntil[scan] = now + 90
+            highlightUntil[scan] = Lit(now + 90, shifted)
         for (scan in lastPressed - pressed) {
-            val delay = (highlightUntil[scan] ?: 0L) - now
+            val delay = (highlightUntil[scan]?.until ?: 0L) - now
             if (delay > 0) handler.postDelayed({ updateHighlights() }, delay)
         }
         lastPressed = pressed
-        val shifted = layout.shiftCodes.any { it in pressed }
-        highlightUntil.entries.removeAll { it.value <= now }
+        highlightUntil.entries.removeAll { it.value.until <= now }
         for ((key, view) in keyViews) {
-            val matchingShift = !key.chordShift || shifted
-            view.isPressed = matchingShift &&
-                (key.code in pressed || (highlightUntil[key.code] ?: 0L) > now)
+            val lit = highlightUntil[key.code]
+            val shiftedPress = when {
+                key.code in pressed -> shifted
+                lit != null -> lit.shifted
+                else -> { view.isPressed = false; continue }
+            }
+            // Where one scan code is two keys here, as 5 and %, light only the one Shift chose.
+            view.isPressed = when {
+                key.chordShift -> shiftedPress
+                key.code in chordCodes -> !shiftedPress
+                else -> true
+            }
         }
     }
 

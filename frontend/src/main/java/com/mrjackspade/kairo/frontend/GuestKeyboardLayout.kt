@@ -5,7 +5,10 @@ data class KeyboardKey(
     val code: Int,
     val width: Float = 1f,
     val shifted: String? = null,
-    val chordShift: Boolean = false
+    val chordShift: Boolean = false,
+    /** The legend while the layout's kana lock is on, and with Shift as well. */
+    val kana: String? = null,
+    val kanaShifted: String? = null
 )
 
 /** [pickerLabel] names the page on the button target key picker, where it may differ. */
@@ -19,11 +22,17 @@ data class GuestKeyboardLayout(
     val modifiers: Set<Int>,
     val shiftCodes: Set<Int>,
     val capsCode: Int?,
-    val chordShiftCode: Int
+    val chordShiftCode: Int,
+    /** A lock key that switches the legends to [KeyboardKey.kana]. */
+    val kanaCode: Int? = null
 ) {
     init {
         require(pages.isNotEmpty() && pages.all { it.rows.isNotEmpty() })
         require(shiftCodes.all { it in modifiers })
         require(capsCode == null || capsCode in modifiers)
+        require(kanaCode == null || kanaCode in modifiers)
     }
+
+    /** Lock keys stay down until tapped again, like their mechanical originals. */
+    fun isLock(code: Int) = code == capsCode || code == kanaCode
 }
