@@ -19,7 +19,7 @@ object AboutDocuments {
                 RowGroup("LEGAL", listOf(
                     SettingsRow.nav("licenses", "Third-party licenses") {
                         pages.push(document(activity, "Third-party licenses",
-                            listOf(noticesAsset, "SLANG_RUNTIME_NOTICES.txt"), Ui.LABEL))
+                            listOf(noticesAsset, "SLANG_RUNTIME_NOTICES.txt", "ANDROIDX_NOTICES.txt"), Ui.LABEL))
                     },
                     SettingsRow.nav("privacy", "Privacy policy") {
                         pages.push(document(activity, "Privacy policy", listOf(privacyAsset), Ui.SECONDARY))

@@ -1,0 +1,88 @@
+// Compiles the generated catalog parts (catalog/parts/<part>.json + .idx) into the binary form
+// CatalogParts reads, so the app decodes documents instead of tokenizing JSON text.
+//
+// Each document is self-contained: a key table, then one value tree whose object entries name
+// keys by table index. Values: 0 null, 1 false, 2 true, 3 int, 4 long, 5 double, 6 string,
+// 7 object (count, then key index + value per entry), 8 array (count, then values).
+// Strings are an int byte length followed by UTF-8. The written <part>.idx keeps the JSON index
+// format with schemaVersion 2; its [offset, size] ranges address <part>.bin.
+
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+import java.nio.charset.StandardCharsets
+
+def writeText = { DataOutputStream out, String text ->
+    byte[] bytes = text.getBytes(StandardCharsets.UTF_8)
+    out.writeInt(bytes.length)
+    out.write(bytes)
+}
+
+def collectKeys
+collectKeys = { Object value, Map<String, Integer> keys ->
+    if (value instanceof Map) {
+        value.each { key, child ->
+            keys.putIfAbsent((String) key, keys.size())
+            collectKeys(child, keys)
+        }
+    } else if (value instanceof List) {
+        value.each { collectKeys(it, keys) }
+    }
+}
+
+def writeValue
+writeValue = { DataOutputStream out, Object value, Map<String, Integer> keys ->
+    if (value == null) out.writeByte(0)
+    else if (value instanceof Boolean) out.writeByte(value ? 2 : 1)
+    else if (value instanceof Integer) { out.writeByte(3); out.writeInt(value) }
+    else if (value instanceof Long) { out.writeByte(4); out.writeLong(value) }
+    else if (value instanceof BigInteger) { out.writeByte(4); out.writeLong(value.longValueExact()) }
+    else if (value instanceof BigDecimal || value instanceof Double || value instanceof Float) {
+        out.writeByte(5); out.writeDouble(((Number) value).doubleValue())
+    }
+    else if (value instanceof CharSequence) { out.writeByte(6); writeText(out, value.toString()) }
+    else if (value instanceof Map) {
+        out.writeByte(7)
+        out.writeInt(value.size())
+        value.each { key, child ->
+            out.writeInt(keys[(String) key])
+            writeValue(out, child, keys)
+        }
+    } else if (value instanceof List) {
+        out.writeByte(8)
+        out.writeInt(value.size())
+        value.each { writeValue(out, it, keys) }
+    } else throw new GradleException("Unsupported catalog value ${value.getClass()}")
+}
+
+def compileDocument = { Object document ->
+    def keys = new LinkedHashMap<String, Integer>()
+    collectKeys(document, keys)
+    def bytes = new ByteArrayOutputStream()
+    new DataOutputStream(bytes).withCloseable { out ->
+        out.writeInt(keys.size())
+        keys.keySet().each { writeText(out, it) }
+        writeValue(out, document, keys)
+    }
+    bytes.toByteArray()
+}
+
+/** Replaces each copied <part>.idx in [directory] with the compiled <part>.bin and its index. */
+ext.compileCatalogParts = { File sources, File directory ->
+    directory.listFiles().findAll { it.name.endsWith('.idx') }.each { indexFile ->
+        def part = indexFile.name - '.idx'
+        def root = new JsonSlurper().parse(new File(sources, "${part}.json"), 'UTF-8')
+        def documents = root.documents as Map
+        def index = new LinkedHashMap<String, List<Long>>()
+        new File(directory, "${part}.bin").withOutputStream { stream ->
+            long offset = 0
+            documents.keySet().sort().each { name ->
+                byte[] compiled = compileDocument(documents[name])
+                stream.write(compiled)
+                index[name] = [offset, (long) compiled.length]
+                offset += compiled.length
+            }
+        }
+        indexFile.text = JsonOutput.toJson([schemaVersion: 2, documents: index])
+    }
+}

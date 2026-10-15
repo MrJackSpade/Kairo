@@ -11,6 +11,8 @@ android {
 }
 
 dependencies {
+    // Installs baseline-prof.txt on sideloaded APKs, which receive no cloud profile.
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     testImplementation("junit:junit:4.13.2")
 }
 

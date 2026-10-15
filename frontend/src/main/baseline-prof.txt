@@ -1,0 +1,5 @@
+# Sideloaded installs get no cloud profile: compile the shared frontend ahead of time.
+HSPLcom/mrjackspade/kairo/frontend/**->**(**)**
+Lcom/mrjackspade/kairo/frontend/**;
+HSPLkotlin/**->**(**)**
+Lkotlin/**;

@@ -13,7 +13,8 @@ class ArtworkCoordinator<Game : Any>(
     private val resolve: (Game, String) -> Record,
     private val validPath: (String) -> Boolean,
     private val saveOverride: (String, String, String?) -> Unit,
-    private val changed: () -> Unit,
+    /** A game's artwork override changed; receives its content ID. */
+    private val changed: (String) -> Unit,
     private val title: (Game) -> String,
     private val message: (String) -> Unit,
     private val validImageUrl: (String) -> Boolean = { false }
@@ -101,7 +102,7 @@ class ArtworkCoordinator<Game : Any>(
         try {
             require(path == null || validPath(path)) { "Invalid artwork path" }
             saveOverride(id, kind, path)
-            changed()
+            changed(id)
             message(if (path == null) "Artwork reset" else "Artwork saved")
         } catch (error: Exception) {
             message(error.message ?: "Could not save artwork")

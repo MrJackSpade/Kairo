@@ -27,8 +27,10 @@ class CatalogArtworkStore(
         bundled(it) || fileFor(it).isFile
     }
 
-    fun open(path: String): InputStream = if (bundled(path)) context.assets.open(path)
-        else fileFor(path).inputStream()
+    /** A downloaded or imported copy, else the image bundled in the APK. */
+    fun open(path: String): InputStream =
+        (if (path.startsWith(pathPrefix)) fileFor(path).takeIf { it.isFile } else null)
+            ?.inputStream() ?: context.assets.open(path)
 
     /** Copies a selected image into app storage; its URI permission need not persist. */
     fun importLocal(input: InputStream): String {

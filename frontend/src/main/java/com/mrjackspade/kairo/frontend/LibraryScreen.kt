@@ -233,7 +233,8 @@ class LibraryScreen<T : LibraryItem>(
         holder.detail.text = entry.error?.let { "$file  ·  $it. Fix the source, then Refresh." }
             ?: file
         holder.detail.setTextColor(if (entry.error != null) Ui.DANGER else Ui.TEXT_MUTED)
-        val artwork = game.boxArt ?: game.preview
+        val artwork = listOfNotNull(game.boxArt, game.preview).takeIf { it.isNotEmpty() }
+            ?.joinToString("\n")
         val bitmap = artwork?.let(::loadArt)
         holder.art.visibility = if (bitmap == null) View.GONE else View.VISIBLE
         holder.mark.visibility = if (bitmap == null) View.VISIBLE else View.GONE
@@ -379,14 +380,19 @@ class LibraryScreen<T : LibraryItem>(
         detailPage?.refreshArtwork()
     }
 
+    /** One game's catalog record changed, as after editing its title, artwork or settings. */
+    fun metadataChanged(contentId: String) {
+        val ids = allEntries.filter { it.contentId == contentId }.map { it.id }
+        rowMetadata.keys.removeAll(ids.toSet())
+        searchIndex.forget(ids)
+        showEntries(catalogEntries)
+    }
+
+    /** Newly downloaded images: retry rows that had none. Records name paths, not files. */
     fun refreshArtwork() {
-        rowMetadata.clear()
-        searchIndex.forgetMetadata()
-        resetSearchIndex()
         missingArt.clear()
         adapter.notifyDataSetChanged()
         detailPage?.refreshArtwork()
-        if (search.text.isNotEmpty()) applyFilter()
     }
 
     /** Whether a scan, hash, or launch is running, which the header spinner shows. */
@@ -448,7 +454,8 @@ class LibraryScreen<T : LibraryItem>(
             val before = previous[id]
             val after = current[id]
             before != null && after != null &&
-                before.contentId == after.contentId && before.displayName == after.displayName
+                before.contentId == after.contentId && before.path == after.path &&
+                    before.zipEntry == after.zipEntry
         }
         pinnedId = currentPinnedId()
         reportedSelection = "none"
@@ -753,17 +760,20 @@ class LibraryScreen<T : LibraryItem>(
         selectionChanged(entry)
     }
 
+    /** [path] lists a row's images in preference order, one per line. */
     private fun loadArt(path: String): Bitmap? {
         artCache.get(path)?.let { return it }
         if (path in missingArt || !pendingArt.add(path)) return null
         artExecutor.execute {
-            val bitmap = try {
-                catalog.openArtwork(path).use { stream ->
-                    BitmapFactory.decodeStream(stream, null, BitmapFactory.Options().apply {
-                        inSampleSize = 4
-                    })
-                }
-            } catch (_: Exception) { null }
+            val bitmap = path.lineSequence().firstNotNullOfOrNull { candidate ->
+                try {
+                    catalog.openArtwork(candidate).use { stream ->
+                        BitmapFactory.decodeStream(stream, null, BitmapFactory.Options().apply {
+                            inSampleSize = 4
+                        })
+                    }
+                } catch (_: Exception) { null }
+            }
             post {
                 pendingArt.remove(path)
                 if (bitmap == null) missingArt.add(path) else artCache.put(path, bitmap)

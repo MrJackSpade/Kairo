@@ -1,7 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import org.json.JSONObject
-import org.json.JSONArray
 
 /**
  * Field and subfield precedence for shipped, updated, and local catalog records. Values are not
@@ -46,11 +45,7 @@ object CatalogFieldLayers {
                         }
                     }
                 } else {
-                    target.put(key, when (value) {
-                        is JSONObject -> JSONObject(value.toString())
-                        is JSONArray -> JSONArray(value.toString())
-                        else -> value
-                    })
+                    target.put(key, JsonCopy.deep(value))
                     origins[nextPath] = name
                     priorities[nextPath] = index
                 }

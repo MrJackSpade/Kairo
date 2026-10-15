@@ -32,6 +32,9 @@ internal class LibrarySearchIndex<T : LibraryItem>(
         request++
     }
 
+    /** These entries' catalog records changed, as after editing a game's title. */
+    fun forget(ids: Collection<String>) { ids.forEach(resolved::remove) }
+
     /** The catalog or its artwork changed: resolve every record again. */
     fun forgetMetadata() {
         catalogGeneration++
