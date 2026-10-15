@@ -47,9 +47,10 @@ class GuestKeyboardPanel(
     /** Scan codes this page also offers as a Shift chord, such as 5 for %. */
     private var chordCodes = emptySet<Int>()
     private var lastPressed = emptySet<Int>()
+    // Lock state can change from any source, such as a physical Caps Lock or the other screen's keyboard.
     private val inputListener: () -> Unit = {
-        if (Looper.myLooper() == Looper.getMainLooper()) updateHighlights()
-        else handler.post { updateHighlights() }
+        if (Looper.myLooper() == Looper.getMainLooper()) updateLegends()
+        else handler.post { updateLegends() }
     }
     private var page = 0
     private val visibilityListeners = LinkedHashSet<() -> Unit>()
@@ -250,7 +251,7 @@ class GuestKeyboardPanel(
                                 unlockedOnPress = key.code in latched
                                 if (unlockedOnPress) toggleModifier(key.code)
                                 press(key)
-                            } else if (modifier) toggleModifier(key.code)
+                            } else if (modifier) input.tap(key.code)
                             else press(key)
                             true
                         }
@@ -267,7 +268,7 @@ class GuestKeyboardPanel(
                     }
                 }
                 setOnClickListener {
-                    if (modifier && !holdToLatch) toggleModifier(key.code)
+                    if (modifier && !holdToLatch) input.tap(key.code)
                     else {
                         if (key.code in latched) toggleModifier(key.code)
                         press(key)
@@ -313,8 +314,9 @@ class GuestKeyboardPanel(
 
     private fun updateLegends() {
         val shifted = layout.shiftCodes.any { it in latched }
-        val caps = layout.capsCode?.let { it in latched } == true
-        val kana = layout.kanaCode?.let { it in latched } == true
+        val locks = input.lockedKeys()
+        val caps = layout.capsCode?.let { it in locks } == true
+        val kana = layout.kanaCode?.let { it in locks } == true
         for ((key, view) in keyViews) {
             val letter = key.label.length == 1 && key.label[0] in 'a'..'z'
             view.text = when {
@@ -323,7 +325,7 @@ class GuestKeyboardPanel(
                 key.shifted != null && shifted -> key.shifted
                 else -> key.label
             }
-            view.isActivated = key.code in latched
+            view.isActivated = key.code in latched || key.code in locks
         }
         updateHighlights()
     }

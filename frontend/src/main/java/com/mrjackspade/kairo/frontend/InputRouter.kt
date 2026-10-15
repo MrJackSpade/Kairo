@@ -1,11 +1,16 @@
 package com.mrjackspade.kairo.frontend
 
-/** One guest key can be held by several independent input sources. */
-class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 127) {
+/**
+ * One guest key can be held by several independent input sources. [lockCodes] are keys the
+ * guest toggles on each press, such as Caps Lock; the router tracks their state for every source.
+ */
+class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 127,
+                  private val lockCodes: Set<Int> = emptySet()) {
     init { require(maxKeyCode in 0..65535) }
     private val owners = LinkedHashMap<String, List<Int>>()
     private val counts = IntArray(maxKeyCode + 1)
     private val listeners = LinkedHashSet<() -> Unit>()
+    private val locks = HashSet<Int>()
 
     @Synchronized fun addListener(listener: () -> Unit) { listeners.add(listener) }
     @Synchronized fun removeListener(listener: () -> Unit) { listeners.remove(listener) }
@@ -20,8 +25,32 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
         release(owner)
         owners[owner] = scans.toList()
         for (scan in scans) {
-            if (counts[scan]++ == 0) send(scan, true)
+            if (counts[scan]++ == 0) {
+                send(scan, true)
+                if (scan in lockCodes && !locks.remove(scan)) locks.add(scan)
+            }
         }
+        listeners.toList().forEach { it() }
+    }
+
+    /** Lock keys the guest currently has on, as its presses toggled them. */
+    @Synchronized fun lockedKeys(): Set<Int> = locks.toSet()
+
+    /** One momentary press, which is how a lock key toggles. */
+    @Synchronized fun tap(scan: Int) {
+        hold("tap:$scan", listOf(scan))
+        release("tap:$scan")
+    }
+
+    /** A new or reset guest machine starts with every lock off. */
+    @Synchronized fun resetLocks() = syncLocks(emptySet())
+
+    /** The guest's own lock state, as after loading a saved machine. */
+    @Synchronized fun syncLocks(locked: Set<Int>) {
+        require(locked.all { it in lockCodes })
+        if (locks == locked) return
+        locks.clear()
+        locks.addAll(locked)
         listeners.toList().forEach { it() }
     }
 

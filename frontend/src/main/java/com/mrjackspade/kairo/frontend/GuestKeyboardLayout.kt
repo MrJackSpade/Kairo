@@ -33,6 +33,8 @@ data class GuestKeyboardLayout(
         require(kanaCode == null || kanaCode in modifiers)
     }
 
-    /** Lock keys stay down until tapped again, like their mechanical originals. */
+    /** Keys the guest toggles on each press. Give these to the app's [InputRouter]. */
+    val lockCodes: Set<Int> get() = setOfNotNull(capsCode, kanaCode)
+
     fun isLock(code: Int) = code == capsCode || code == kanaCode
 }
