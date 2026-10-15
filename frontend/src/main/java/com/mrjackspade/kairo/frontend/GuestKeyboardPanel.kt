@@ -156,6 +156,12 @@ class GuestKeyboardPanel(
         notifyVisibilityChanged()
     }
 
+    /** Opens or closes to match [shown]; repeated calls with the same value change nothing. */
+    fun setShown(shown: Boolean) {
+        val visible = visibility == View.VISIBLE
+        if (shown && !visible) open() else if (!shown && visible) close()
+    }
+
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
         super.onSizeChanged(width, height, oldWidth, oldHeight)
         updateContentSize()
