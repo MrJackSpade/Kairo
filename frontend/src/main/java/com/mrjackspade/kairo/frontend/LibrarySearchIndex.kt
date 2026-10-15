@@ -45,7 +45,7 @@ internal class LibrarySearchIndex<T : LibraryItem>(
 
     private fun build(source: Snapshot<T>): List<Row<T>>? {
         source.rows?.let { return it }
-        val rows = ArrayList<Row<T>>(source.entries.size)
+        val titles = arrayOfNulls<String>(source.entries.size)
         val pending = HashMap<String, LibraryGame>()
         var publishedAt = android.os.SystemClock.uptimeMillis()
         fun publishPending() {
@@ -55,7 +55,11 @@ internal class LibrarySearchIndex<T : LibraryItem>(
             post { if (snapshot === source && !source.cancelled) indexed(records) }
             publishedAt = android.os.SystemClock.uptimeMillis()
         }
-        for (entry in source.entries) {
+        // Catalogs shard records by content ID. Resolving in that order reads each shard once,
+        // instead of once per game when the library's name order jumps between shards.
+        val order = source.entries.indices.sortedBy { source.entries[it].contentId ?: "" }
+        for (index in order) {
+            val entry = source.entries[index]
             if (source.cancelled || Thread.currentThread().isInterrupted) return null
             val name = entry.displayName
             val known = resolved[entry.id]?.takeIf {
@@ -65,11 +69,12 @@ internal class LibrarySearchIndex<T : LibraryItem>(
                 if (source.catalogGeneration == catalogGeneration)
                     resolved[entry.id] = Resolved(entry.contentId, name, source.catalogGeneration, game)
             }
-            rows.add(Row(entry, game.title, name))
+            titles[index] = game.title
             pending[entry.id] = game
             if (android.os.SystemClock.uptimeMillis() - publishedAt >= 100) publishPending()
         }
         if (source.cancelled) return null
+        val rows = source.entries.mapIndexed { index, entry -> Row(entry, titles[index]!!, entry.displayName) }
         source.rows = rows
         publishPending()
         return rows

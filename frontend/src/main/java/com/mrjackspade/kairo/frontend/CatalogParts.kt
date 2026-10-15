@@ -13,14 +13,20 @@ class CatalogParts(context: Context) {
             name.removeSuffix(".idx") to root.getJSONObject("documents")
         }
     }
-    private val cache = android.util.LruCache<String, JSONObject>(16)
+    private class Document(val json: JSONObject, val bytes: Int)
+    // Weighted by document size: a count limit let a game's small shard evict the large name
+    // index it falls back to, so a library walk re-parsed that index for nearly every game.
+    private val cache = object : android.util.LruCache<String, Document>(CACHE_BYTES) {
+        override fun sizeOf(key: String, value: Document) = value.bytes
+    }
     @Synchronized fun read(path: String): JSONObject = read(path, false)
     @Synchronized fun additional(path: String): JSONObject = read(path, true)
 
     private fun read(path: String, additional: Boolean): JSONObject {
         val key = "$additional:$path"
-        cache.get(key)?.let { return it }
+        cache.get(key)?.let { return it.json }
         val result = JSONObject()
+        var bytesRead = 0
         for ((part, index) in indexes) {
             if (additional && part in setOf("data", "controls", "art")) continue
             val range = index.optJSONArray(path) ?: continue
@@ -43,9 +49,10 @@ class CatalogParts(context: Context) {
                 }
                 bytes
             }
+            bytesRead += size
             merge(result, JSONObject(bytes.toString(Charsets.UTF_8)))
         }
-        cache.put(key, result)
+        cache.put(key, Document(result, bytesRead.coerceAtLeast(1)))
         return result
     }
 
@@ -57,5 +64,10 @@ class CatalogParts(context: Context) {
                 merge(child, value)
             } else target.put(key, if (key == "kinds" && value is Int) target.optInt(key) or value else value)
         }
+    }
+
+    private companion object {
+        /** Source JSON bytes kept parsed; Kairo98's name indexes and shards fit together. */
+        const val CACHE_BYTES = 3 * 1024 * 1024
     }
 }
