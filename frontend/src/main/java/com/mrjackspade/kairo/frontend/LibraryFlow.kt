@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
 import java.util.concurrent.CancellationException
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** The library workflow shared by every Kairo emulator. Media discovery stays in the backend. */
@@ -23,12 +24,18 @@ class LibraryFlow<T : LibraryItem>(
     private val onScanComplete: (List<T>) -> Unit = {},
     private val onFolderSelected: ((Uri) -> Unit)? = null,
     private val onFolderError: (String) -> Unit = {},
-    private val writable: Boolean = false
+    private val writable: Boolean = false,
+    /** Saves an edited list as the folder's cached library; required by [edit]. */
+    private val store: ((Uri, List<T>) -> Unit)? = null
 ) {
     var tree: Uri? = null
     var entries: List<T> = emptyList()
     private var displayedEntries: List<T>? = null
     private var scanCancelled = AtomicBoolean(false)
+    /** Edits made while a scan runs. That scan may have listed the folder before them. */
+    private val scanEdits = ArrayList<(List<T>) -> List<T>>()
+    /** Edited lists are saved in order, after any scan's own save that preceded them. */
+    private val storeWorker by lazy { Executors.newSingleThreadExecutor { Thread(it, "Kairo-library-store") } }
     /** A scan or a full recheck is running. */
     var scanning = false
         private set
@@ -69,7 +76,10 @@ class LibraryFlow<T : LibraryItem>(
         if (displayedEntries !== entries) {
             screen.showEntries(entries)
             displayedEntries = entries
-        } else screen.reannounceSelection()
+        } else {
+            screen.refreshPin()
+            screen.reannounceSelection()
+        }
         screen.showStatus(when {
             tree == null -> emptyStatus
             !hasGrant(tree!!) -> expiredStatus
@@ -129,6 +139,8 @@ class LibraryFlow<T : LibraryItem>(
         scanCancelled.set(true)
         val cancelled = AtomicBoolean(false)
         scanCancelled = cancelled
+        // This scan lists the folder after every earlier edit was made.
+        scanEdits.clear()
         scanning = true
         rehashing = forceHash
         screen.showStatus(if (forceHash) "Rehashing folder…" else "Scanning folder…")
@@ -139,7 +151,7 @@ class LibraryFlow<T : LibraryItem>(
         }
         Thread {
             try {
-                val found = scan(selected, forceHash, cancelled) { message ->
+                val scanned = scan(selected, forceHash, cancelled) { message ->
                     activity.runOnUiThread {
                         if (!cancelled.get() && tree == selected) screen.showStatus(message)
                     }
@@ -147,6 +159,9 @@ class LibraryFlow<T : LibraryItem>(
                 activity.runOnUiThread {
                     finished()
                     if (!cancelled.get() && tree == selected && !activity.isDestroyed) {
+                        val found = if (scanEdits.isEmpty()) scanned else
+                            scanEdits.fold(scanned) { list, change -> change(list) }.also { save(selected, it) }
+                        scanEdits.clear()
                         entries = found
                         screen.showEntries(found)
                         displayedEntries = found
@@ -166,6 +181,37 @@ class LibraryFlow<T : LibraryItem>(
                 }
             }
         }.apply { name = "Kairo-library-scan"; start() }
+    }
+
+    /**
+     * Applies a change this app made to the folder, such as an added or removed archive, without
+     * rescanning it. [change] must be idempotent: it is applied again to a scan already running.
+     */
+    fun edit(change: (List<T>) -> List<T>) {
+        val selected = tree ?: error("No library folder")
+        checkNotNull(store) { "This library cannot be edited in place" }
+        if (scanning) scanEdits += change
+        val edited = change(entries)
+        save(selected, edited)
+        entries = edited
+        screen.showEntries(edited)
+        displayedEntries = edited
+        if (!scanning) screen.showStatus(scanSummary(edited))
+    }
+
+    private fun save(folder: Uri, list: List<T>) {
+        val write = store!!
+        storeWorker.execute {
+            try {
+                write(folder, list)
+            } catch (failure: Exception) {
+                activity.runOnUiThread {
+                    val message = "Could not save library: ${failure.message ?: failure.javaClass.simpleName}"
+                    screen.showStatus(message)
+                    Ui.message(activity, message, long = true)
+                }
+            }
+        }
     }
 
     fun cancel() {

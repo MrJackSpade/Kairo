@@ -368,6 +368,7 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     fun refreshCatalog() {
+        searchIndex.forgetMetadata()
         artCache.evictAll()
         missingArt.clear()
         showEntries(catalogEntries)
@@ -376,6 +377,7 @@ class LibraryScreen<T : LibraryItem>(
 
     fun refreshArtwork() {
         rowMetadata.clear()
+        searchIndex.forgetMetadata()
         resetSearchIndex()
         missingArt.clear()
         adapter.notifyDataSetChanged()
@@ -420,7 +422,7 @@ class LibraryScreen<T : LibraryItem>(
         // Invalidate pending metadata results, retaining the displayed snapshot while
         // the replacement's visibility flags are read on a worker.
         searchSnapshot++
-        searchIndex.replace(emptyList(), emptyMap())
+        searchIndex.replace(emptyList())
         val worker = visibilityExecutor ?: Executors.newSingleThreadExecutor().also { visibilityExecutor = it }
         worker.execute {
             val visible = items.filterNot { entry ->
@@ -434,11 +436,22 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     private fun publishEntries(visible: List<T>) {
+        val previous = allEntries.associateBy { it.id }
+        val current = visible.associateBy { it.id }
         allEntries = visible
-        rowMetadata.keys.retainAll(visible.map { it.id }.toSet())
-        pinnedId = lastPlayedId()?.takeIf { id -> allEntries.any { it.id == id } }
+        // A record belongs to an entry only while its content and name are unchanged.
+        rowMetadata.keys.retainAll { id ->
+            val before = previous[id]
+            val after = current[id]
+            before != null && after != null &&
+                before.contentId == after.contentId && before.displayName == after.displayName
+        }
+        pinnedId = currentPinnedId()
         reportedSelection = "none"
         resetSearchIndex()
+        val query = search.text.toString().trim()
+        // Until the search reruns, results must not offer games that left the library.
+        if (query.isNotEmpty()) publishFilter(query, entries.mapNotNull { current[it.id] }, null)
         applyFilter()
         if (entries.isNotEmpty()) list.setSelection(if (selectedIndex == 0) 0 else positionOf(selectedIndex))
         detailPage?.let { page ->
@@ -673,13 +686,24 @@ class LibraryScreen<T : LibraryItem>(
             return
         }
         searchIndex.cancelQuery()
+        // CONTINUE repeats the last-played game; it keeps its place in ALL GAMES.
         val pinned = pinnedId?.let { id -> allEntries.firstOrNull { it.id == id } }
-        publishFilter(query, pinned?.let { game -> listOf(game) + allEntries.filter { it.id != game.id } }
-            ?: allEntries, pinned)
+        publishFilter(query, pinned?.let { game -> listOf(game) + allEntries } ?: allEntries, pinned)
+    }
+
+    private fun currentPinnedId(): String? =
+        lastPlayedId()?.takeIf { id -> allEntries.any { it.id == id } }
+
+    /** Re-reads the last-played game, as when the library returns after a session. */
+    fun refreshPin() {
+        val id = currentPinnedId()
+        if (id == pinnedId) return
+        pinnedId = id
+        applyFilter()
     }
 
     private fun resetSearchIndex() {
-        searchIndex.replace(allEntries, emptyMap())
+        searchIndex.replace(allEntries)
         val generation = ++searchSnapshot
         postOnAnimation { post {
             if (generation == searchSnapshot && isAttachedToWindow) searchIndex.warm()

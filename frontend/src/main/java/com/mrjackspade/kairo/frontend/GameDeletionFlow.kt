@@ -21,7 +21,8 @@ object GameDeletionFlow {
         running: () -> Boolean,
         threadName: String,
         deleteSource: () -> Unit,
-        refreshLibrary: () -> Unit
+        /** Updates the library once the source is gone. */
+        deleted: () -> Unit
     ): SettingsRow {
         val otherEntries = if (prompt.affectedEntries > 1)
             " This ZIP contains ${prompt.affectedEntries} library entries. All of them will be removed."
@@ -39,7 +40,7 @@ object GameDeletionFlow {
                         activity.runOnUiThread {
                             result.onSuccess {
                                 libraryScreen.closeDetail()
-                                refreshLibrary()
+                                deleted()
                             }.onFailure { failure ->
                                 // The failure replaces the Deleting status and reaches the message bar.
                                 libraryScreen.showStatus(failure.message ?: "Could not delete game file")

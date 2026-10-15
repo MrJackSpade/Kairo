@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -11,19 +12,30 @@ internal class LibrarySearchIndex<T : LibraryItem>(
     private val indexed: (Map<String, LibraryGame>) -> Unit
 ) {
     private data class Row<T>(val entry: T, val title: String, val fileName: String)
-    private class Snapshot<T>(val entries: List<T>, val metadata: MutableMap<String, LibraryGame>) {
+    private class Snapshot<T>(val entries: List<T>, val catalogGeneration: Int) {
         @Volatile var cancelled = false
         var rows: List<Row<T>>? = null // Worker-owned, never mutated after publication.
     }
+    /** A catalog record stays valid for its entry while the entry's content and name are unchanged. */
+    private class Resolved(val contentId: String?, val name: String, val generation: Int, val game: LibraryGame)
     private var snapshot: Snapshot<T>? = null
     private var request = 0L
     private var executor: ThreadPoolExecutor? = null
+    // Resolving every catalog record takes far longer than a library edit; snapshots share them.
+    private val resolved = ConcurrentHashMap<String, Resolved>()
+    @Volatile private var catalogGeneration = 0
 
-    fun replace(entries: List<T>, seed: Map<String, LibraryGame>) {
+    fun replace(entries: List<T>) {
         snapshot?.cancelled = true
         executor?.queue?.clear()
-        snapshot = Snapshot(entries.toList(), HashMap(seed))
+        snapshot = Snapshot(entries.toList(), catalogGeneration)
         request++
+    }
+
+    /** The catalog or its artwork changed: resolve every record again. */
+    fun forgetMetadata() {
+        catalogGeneration++
+        resolved.clear()
     }
 
     fun cancelQuery() { request++ }
@@ -46,7 +58,13 @@ internal class LibrarySearchIndex<T : LibraryItem>(
         for (entry in source.entries) {
             if (source.cancelled || Thread.currentThread().isInterrupted) return null
             val name = entry.displayName
-            val game = source.metadata.getOrPut(entry.id) { catalog.resolve(entry.contentId ?: "", name) }
+            val known = resolved[entry.id]?.takeIf {
+                it.contentId == entry.contentId && it.name == name && it.generation == source.catalogGeneration
+            }
+            val game = known?.game ?: catalog.resolve(entry.contentId ?: "", name).also { game ->
+                if (source.catalogGeneration == catalogGeneration)
+                    resolved[entry.id] = Resolved(entry.contentId, name, source.catalogGeneration, game)
+            }
             rows.add(Row(entry, game.title, name))
             pending[entry.id] = game
             if (android.os.SystemClock.uptimeMillis() - publishedAt >= 100) publishPending()

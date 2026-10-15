@@ -54,8 +54,8 @@ object SearchIndexFixture {
             test.waitForIdleSync()
             failure?.let { throw it }
         }
-        fun replace(names: List<String>) = type.getMethod("replace", List::class.java, Map::class.java)
-            .invoke(index, names.map(::item), emptyMap<String, LibraryGame>())
+        fun replace(names: List<String>) = type.getMethod("replace", List::class.java)
+            .invoke(index, names.map(::item))
         fun search(query: String, done: CountDownLatch? = null) {
             val callback: (List<LibraryItem>) -> Unit = { rows ->
                 posted.add("$query:${rows.joinToString { it.id }}")
@@ -81,12 +81,23 @@ object SearchIndexFixture {
             ui { search("alpha"); replace(listOf("new")); search("new", fresh) }
             check(fresh.await(5, TimeUnit.SECONDS))
             ui { check(posted.last() == "new:new"); check(posted.none { it.startsWith("alpha:") }) }
+            // A library edit keeps records for unchanged entries; only the added entry resolves.
+            val beforeEdit = resolved.get()
+            val edited = CountDownLatch(1)
+            ui { replace(listOf("new", "added")); search("added", edited) }
+            edited.await()
+            ui { check(posted.last() == "added:added"); check(resolved.get() == beforeEdit + 1) }
+            // A catalog change resolves every record again.
+            val refreshed = CountDownLatch(1)
+            ui { type.getMethod("forgetMetadata").invoke(index); replace(listOf("new", "added")); search("new", refreshed) }
+            refreshed.await()
+            ui { check(resolved.get() == beforeEdit + 3) }
             ui { search("new"); type.getMethod("cancelQuery").invoke(index) }
             Thread.sleep(100)
-            ui { check(posted.size == 3) }
+            ui { check(posted.size == 5) }
             ui { search("new"); type.getMethod("close").invoke(index) }
             Thread.sleep(100)
-            ui { check(posted.size == 3) }
+            ui { check(posted.size == 5) }
         } finally {
             release.countDown()
             ui { type.getMethod("close").invoke(index) }

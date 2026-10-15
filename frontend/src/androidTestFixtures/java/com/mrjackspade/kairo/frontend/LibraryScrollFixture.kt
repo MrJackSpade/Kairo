@@ -100,10 +100,25 @@ object LibraryScrollFixture {
                 }
             }
             ui { pinned = "8"; screen.showEntries(entries) }
+            verifyPinnedCopy(instrumentation, list, "8", entries.size)
+            // Returning to the library re-reads the last-played game without a new snapshot.
+            ui { pinned = "3"; screen.refreshPin() }
+            verifyPinnedCopy(instrumentation, list, "3", entries.size)
             verifyHeldNavigation(instrumentation, screen, list)
             verifyArtworkSpace(instrumentation, activity)
             verifyDescription(instrumentation, activity)
         } finally { ui { activity.finish() } }
+    }
+
+    /** CONTINUE repeats the pinned game; ALL GAMES still lists every game once. */
+    private fun verifyPinnedCopy(test: Instrumentation, list: ListView, id: String, games: Int) {
+        onUi(test) {
+            val adapter = list.adapter
+            val ids = (0 until adapter.count).map(adapter::getItemId)
+            check(adapter.count == games + 3) { "Expected CONTINUE, its game, ALL GAMES and $games games; got ${adapter.count} rows" }
+            check(ids[1] == id.hashCode().toLong()) { "CONTINUE does not show game $id" }
+            check(ids.count { it == id.hashCode().toLong() } == 2) { "Pinned game $id is not also in ALL GAMES" }
+        }
     }
 
     private fun verifyHeldNavigation(test: Instrumentation, screen: LibraryScreen<*>, list: ListView) {
