@@ -7,16 +7,11 @@ import java.io.File
 
 /** Reads a bounded local catalog without exposing a partially written snapshot. */
 object LocalCatalogFile {
-    fun read(file: File, maxBytes: Int,
-             validRecord: ((String, JSONObject) -> Boolean)? = null): JSONObject? =
+    fun read(file: File, maxBytes: Int): JSONObject? =
         runCatching {
             val root = readObject(file, maxBytes) ?: error("Unreadable local catalog")
             require(root.optInt("schemaVersion") == 1)
-            val games = root.optJSONObject("games") ?: error("Missing games")
-            if (validRecord != null) for (id in games.keys()) {
-                val record = games.optJSONObject(id) ?: error("Invalid game record")
-                require(validRecord(id, record)) { "Invalid game record" }
-            }
+            root.optJSONObject("games") ?: error("Missing games")
             root
         }.getOrNull()
 

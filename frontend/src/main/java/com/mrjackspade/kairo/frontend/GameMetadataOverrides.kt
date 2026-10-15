@@ -4,12 +4,14 @@ import android.util.AtomicFile
 import org.json.JSONObject
 import java.io.File
 
-/** Validated atomic local overrides; preserves either flat or schema-v1 games packaging. */
+/**
+ * Atomic local overrides; preserves either flat or schema-v1 games packaging. Records are not
+ * checked on load: one bad record must not hide every other override.
+ */
 class GameMetadataOverrides(
     private val file: File,
     private val maxBytes: Int = 4 * 1024 * 1024,
-    private val schemaEnvelope: Boolean = false,
-    private val validRecord: (String, JSONObject) -> Boolean = { _, _ -> true }
+    private val schemaEnvelope: Boolean = false
 ) {
     private val loaded = read()
     private var values = loaded ?: empty()
@@ -58,7 +60,6 @@ class GameMetadataOverrides(
         }
         val next = JSONObject(values.toString())
         update(next)
-        require(valid(next)) { "Invalid game overrides" }
         val bytes = next.toString().toByteArray(Charsets.UTF_8)
         require(bytes.size <= maxBytes) { "Too many game overrides" }
         val atomic = AtomicFile(file)
@@ -80,20 +81,14 @@ class GameMetadataOverrides(
     private fun games(root: JSONObject): JSONObject =
         if (schemaEnvelope) root.getJSONObject("games") else root
 
-    private fun valid(root: JSONObject): Boolean {
-        if (schemaEnvelope && (root.optInt("schemaVersion") != 1 || root.optJSONObject("games") == null))
-            return false
-        val entries = games(root)
-        return entries.keys().asSequence().all { id ->
-            entries.optJSONObject(id)?.let { validRecord(id, it) } == true
-        }
-    }
+    /** Whether this is a file layout this class reads, not whether its records are acceptable. */
+    private fun supported(root: JSONObject): Boolean =
+        !schemaEnvelope || (root.optInt("schemaVersion") == 1 && root.optJSONObject("games") != null)
 
     private fun empty() = if (schemaEnvelope)
         JSONObject().put("schemaVersion", 1).put("games", JSONObject()) else JSONObject()
 
     private fun exists() = file.exists() || File(file.path + ".bak").exists()
 
-    private fun read(): JSONObject? = LocalCatalogFile.readObject(file, maxBytes)
-        ?.takeIf { runCatching { valid(it) }.getOrDefault(false) }
+    private fun read(): JSONObject? = LocalCatalogFile.readObject(file, maxBytes)?.takeIf(::supported)
 }

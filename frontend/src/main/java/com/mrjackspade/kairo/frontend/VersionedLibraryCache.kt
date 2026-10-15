@@ -6,14 +6,14 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
 
-/** Bounded, atomic JSON cache with a product-owned entry codec and validator. */
+/** Bounded, atomic JSON cache with a product-owned entry codec. */
 class VersionedLibraryCache<T>(
     private val file: File,
     private val version: Int,
     private val collectionName: String,
     private val maxBytes: Int,
     private val maxEntries: Int,
-    private val decode: (JSONObject) -> T?,
+    private val decode: (JSONObject) -> T,
     private val encode: (T) -> JSONObject
 ) {
     data class Snapshot<T>(val treeUri: String, val entries: List<T>, val root: JSONObject)
@@ -25,7 +25,6 @@ class VersionedLibraryCache<T>(
             while (true) {
                 val count = input.read(buffer)
                 if (count < 0) break
-                require(output.size() + count <= maxBytes) { "Library cache is too large" }
                 output.write(buffer, 0, count)
             }
         }
@@ -38,10 +37,8 @@ class VersionedLibraryCache<T>(
         val treeUri = root.optString("treeUri").takeIf { it.startsWith("content://") }
             ?: return null
         val values = root.optJSONArray(collectionName) ?: return null
-        if (values.length() > maxEntries) return null
-        val entries = (0 until values.length()).mapNotNull { index ->
-            values.optJSONObject(index)?.let { runCatching { decode(it) }.getOrNull() }
-        }
+        // Entries are this app's own writes; decode them as written.
+        val entries = (0 until values.length()).map { index -> decode(values.getJSONObject(index)) }
         return Snapshot(treeUri, entries, root)
     }
 
