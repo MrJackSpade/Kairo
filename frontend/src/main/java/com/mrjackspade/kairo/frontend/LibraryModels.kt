@@ -29,6 +29,11 @@ interface LibraryCatalog {
     val installedCatalogs: InstalledCatalogs? get() = null
     fun resolve(contentId: String, fileName: String): LibraryGame
     fun hiddenFromLibrary(contentId: String): Boolean
+    /**
+     * The other disks of a set whose entry point is [contentId]. The library shows the
+     * entry point alone while it is present; the disks stay available to disk swaps.
+     */
+    fun setDisks(contentId: String): Collection<String> = emptyList()
     fun openArtwork(path: String): InputStream
 }
 

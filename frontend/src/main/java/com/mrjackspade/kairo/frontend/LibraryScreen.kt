@@ -36,14 +36,15 @@ fun variantTags(name: String): List<String> =
 
 /**
  * Where a library entry lives: its folder and file name without the extension, plus the image
- * inside a ZIP when that name differs. Keep this filename below the catalog title: different
- * revisions can share a catalog title. Do not replace it with the title or a media label.
+ * inside a ZIP when that name differs and [inner] asks for it. Keep this filename below the
+ * catalog title: different revisions can share a catalog title. Do not replace it with the
+ * title or a media label.
  */
-fun fileLabel(entry: LibraryItem): String {
+fun fileLabel(entry: LibraryItem, inner: Boolean = true): String {
     fun stem(name: String) = name.substringBeforeLast('.').takeIf { name.contains('.') } ?: name
     val file = stem(entry.path)
-    val inner = entry.zipEntry?.substringAfterLast('/')?.let(::stem)
-    return if (inner == null || inner == file.substringAfterLast('/')) file else "$file  ›  $inner"
+    val image = entry.zipEntry?.takeIf { inner }?.substringAfterLast('/')?.let(::stem)
+    return if (image == null || image == file.substringAfterLast('/')) file else "$file  ›  $image"
 }
 
 /** Library landing page. A short tap or A opens the selected game's page. */
@@ -96,6 +97,8 @@ class LibraryScreen<T : LibraryItem>(
     }
     val searchFocused: Boolean get() = search.hasFocus()
     private var allEntries = emptyList<T>()
+    /** Sources with more than one visible entry; only their rows name the image inside. */
+    private var sharedSources = emptySet<String>()
     // A library snapshot can span far more catalog shards than either backend's
     // small shard cache. Retain the resolved row records, not entire shard JSON.
     private val rowMetadata = HashMap<String, LibraryGame>()
@@ -229,7 +232,7 @@ class LibraryScreen<T : LibraryItem>(
         val game = metadata(entry)
         holder.title.text = game.title
         // Keep the source filename intact; the marker is only a prefix on its display row.
-        val file = (if ("♥" in game.tags) "♥ " else "") + fileLabel(entry)
+        val file = (if ("♥" in game.tags) "♥ " else "") + fileLabel(entry, entry.uri in sharedSources)
         holder.detail.text = entry.error?.let { "$file  ·  $it. Fix the source, then Refresh." }
             ?: file
         holder.detail.setTextColor(if (entry.error != null) Ui.DANGER else Ui.TEXT_MUTED)
@@ -435,9 +438,15 @@ class LibraryScreen<T : LibraryItem>(
         searchIndex.replace(emptyList())
         val worker = visibilityExecutor ?: Executors.newSingleThreadExecutor().also { visibilityExecutor = it }
         worker.execute {
+            // A set's entry point stands for its other disks only while it is in the library.
+            val setDisks = HashSet<String>()
+            for (entry in items) {
+                if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
+                if (entry.playable) entry.contentId?.let { setDisks.addAll(catalog.setDisks(it)) }
+            }
             val visible = items.filterNot { entry ->
                 if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
-                entry.contentId?.let(catalog::hiddenFromLibrary) == true
+                entry.contentId?.let { it in setDisks || catalog.hiddenFromLibrary(it) } == true
             }
             post {
                 if (generation == entriesGeneration) publishEntries(visible)
@@ -449,6 +458,7 @@ class LibraryScreen<T : LibraryItem>(
         val previous = allEntries.associateBy { it.id }
         val current = visible.associateBy { it.id }
         allEntries = visible
+        sharedSources = visible.groupingBy { it.uri }.eachCount().filterValues { it > 1 }.keys
         // A record belongs to an entry only while its content and name are unchanged.
         rowMetadata.keys.retainAll { id ->
             val before = previous[id]
