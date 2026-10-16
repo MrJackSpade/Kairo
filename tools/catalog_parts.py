@@ -3,6 +3,10 @@ import json
 from pathlib import Path
 from catalog_package import compact, filter_artwork, image_paths, build_package
 
+# The importable artwork package of each app. Kairo98's v2 records name their games' shared
+# records; its v1 package stays frozen for app versions that read the repeated records.
+ART_PACKAGES = {'kairodos': ('kairodos-art.nsfw', 'kairodos-art'), 'kairo98': ('kairo98-art-v2.nsfw', 'kairo98-art-v2')}
+
 CONTROL_FIELDS = {'controller', 'input', 'machine', 'launch', 'startupChoices', 'diskSwaps', 'media'}
 
 def split(value):
@@ -57,11 +61,12 @@ def generate_parts(root, app, full_documents, optional_data, expand, compact_art
     if not check:
         release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
         assert release['schemaVersion'] == 1 and release['revision'] > 0
+        package, identity = ART_PACKAGES[app]
+        base = f'https://raw.githubusercontent.com/MrJackSpade/{"KairoDos" if app=="kairodos" else "Kairo98"}/main/catalog/optional/'
         build_package(payload, set(), root/'catalog/artwork',
-            root/f'catalog/optional/{app}-art.nsfw.zip', product='dos' if app=='kairodos' else 'pc98',
-            identity=app+'-art',name=app.replace('kairo','Kairo')+' artwork',revision=release['revision'],
-            source=f'https://raw.githubusercontent.com/MrJackSpade/{"KairoDos" if app=="kairodos" else "Kairo98"}/main/catalog/optional/{app}-art.nsfw.meta.json',
-            archive_url=f'https://raw.githubusercontent.com/MrJackSpade/{"KairoDos" if app=="kairodos" else "Kairo98"}/main/catalog/optional/{app}-art.nsfw.zip', stored=True)
+            root/f'catalog/optional/{package}.zip', product='dos' if app=='kairodos' else 'pc98',
+            identity=identity,name=app.replace('kairo','Kairo')+' artwork',revision=release['revision'],
+            source=base+f'{package}.meta.json', archive_url=base+f'{package}.zip', stored=True)
         (root/'catalog/artwork-exclusions-v1.json').write_bytes(compact({'schemaVersion':1,'artwork':sorted(withheld)}))
     print(f'{app}: {len(all_images)} artwork paths; {len(withheld)} restricted; {len(approved)} reviewed')
 

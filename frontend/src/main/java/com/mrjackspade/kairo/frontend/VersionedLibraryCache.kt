@@ -11,7 +11,9 @@ import java.io.File
 /**
  * Bounded, atomic binary library cache with a product-owned record codec. Records are written
  * field by field in a fixed order, so reading needs no parsing. [version] names that record
- * layout: a cache written with another layout is not read, and the next scan replaces it.
+ * layout. A cache written with an earlier layout is read with its entry in [earlierRecords],
+ * so a new field does not cost a rescan; any other layout is not read, and the next scan
+ * replaces it.
  */
 class VersionedLibraryCache<T>(
     private val file: File,
@@ -21,7 +23,8 @@ class VersionedLibraryCache<T>(
     private val writeRecord: (DataOutputStream, T) -> Unit,
     private val readRecord: (DataInputStream) -> T,
     /** The JSON cache that earlier versions wrote; read once and replaced by a binary cache. */
-    private val legacy: Legacy<T>? = null
+    private val legacy: Legacy<T>? = null,
+    private val earlierRecords: Map<Int, (DataInputStream) -> T> = emptyMap()
 ) {
     data class Snapshot<T>(val treeUri: String, val entries: List<T>, val root: JSONObject)
 
@@ -33,7 +36,10 @@ class VersionedLibraryCache<T>(
     @Synchronized fun read(): Snapshot<T>? {
         if (!exists()) return legacy?.let(::migrate)
         DataInputStream(ByteArrayInputStream(AtomicFile(file).readFully())).use { input ->
-            if (input.readInt() != MAGIC || input.readInt() != version) return null
+            if (input.readInt() != MAGIC) return null
+            val readRecord = input.readInt().let { written ->
+                if (written == version) readRecord else earlierRecords[written] ?: return null
+            }
             val treeUri = input.readText()
             val extras = JSONObject(input.readText())
             val count = input.readInt()

@@ -189,7 +189,7 @@ object CatalogInstallFixture {
                 val core = File("$filename.core")
                 if (core.isFile) {
                     val url = if (product == "dos") "https://raw.githubusercontent.com/MrJackSpade/Kairo/main/catalog/dos/core-v2.zip"
-                        else "https://raw.githubusercontent.com/MrJackSpade/Kairo98/main/catalog/core-v2.json"
+                        else "https://raw.githubusercontent.com/MrJackSpade/Kairo98/main/catalog/core-v3.json"
                     val metadata = if (product == "dos") url.removeSuffix("zip") + "json"
                         else url.removeSuffix("json") + "meta.json"
                     val bytes = core.readBytes()

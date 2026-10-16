@@ -7,7 +7,7 @@ import sys
 import subprocess
 import zipfile
 from pathlib import Path
-from catalog_parts import merge, split, indexed_document
+from catalog_parts import merge, split, indexed_document, ART_PACKAGES
 from catalog_package import compact
 from catalog_package import image_paths
 from catalog_binary import verify_part
@@ -21,7 +21,7 @@ def audit(root, product, artifacts=()):
     # Check every public snapshot and optional update manifest against committed bytes.
     manifests = list((root/'catalog/optional').glob('*.meta.json'))
     manifests += ([root/'catalog/core-v2.json', root/'catalog/online-v1.json'] if product == 'dos'
-        else [root/'catalog/core-v2.meta.json', root/'catalog/online-v1.meta.json'])
+        else [root/'catalog/core-v3.meta.json'])
     repo = 'KairoDos' if product == 'dos' else 'Kairo98'
     prefix = f'https://raw.githubusercontent.com/MrJackSpade/{repo}/main/'
     for path in manifests:
@@ -71,17 +71,18 @@ def audit(root, product, artifacts=()):
                 assert {'dos/'+n:json.loads(z.read(n)) for n in z.namelist()} == legacy
     else:
         assert policy['excluded'].keys() <= legacy['name-index-v1.json']['games'].keys()
-        for name in ('source-v1.json','online-v1.json','core-v2.json'):
+        for name in ('source-v1.json','core-v3.json'):
             assert image_paths(json.loads((root/'catalog'/name).read_text('utf8')),expand) <= approved.keys()
     for path, sha in approved.items():
         assert hashlib.sha256((root/'catalog/artwork'/path).read_bytes()).hexdigest() == sha
-    package = root/f'catalog/optional/{app}-art.nsfw.zip'
+    package_name = ART_PACKAGES[app][0]
+    package = root/f'catalog/optional/{package_name}.zip'
     manifest = json.loads(package.with_suffix('.meta.json').read_text('utf8'))
     release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
     assert manifest['revision'] == release['revision']
     repo = 'KairoDos' if product == 'dos' else 'Kairo98'
     base = f'https://raw.githubusercontent.com/MrJackSpade/{repo}/main/catalog/'
-    assert manifest['archive'] == base + f'optional/{app}-art.nsfw.zip'
+    assert manifest['archive'] == base + f'optional/{package_name}.zip'
     assert package.is_file(), 'Importable catalog must be committed in the repository'
     for path in image_paths(merge(safe, extra), expand):
         repository_file(root/'catalog/artwork'/path)
@@ -99,7 +100,7 @@ def audit(root, product, artifacts=()):
             assert runtime == {k:v for k,v in header.items() if k != 'files'}
             indexed = [line for line in z.read('artwork.idx').decode('utf8').splitlines() if line]
             assert indexed == [], 'Artwork payloads stay in catalog/artwork, not the import file'
-            assert header['updateManifest'] == base + f'optional/{app}-art.nsfw.meta.json'
+            assert header['updateManifest'] == base + f'optional/{package_name}.meta.json'
             assert set(header['files']) == {'data.json', 'runtime.json', 'artwork.idx'}
             optional = json.loads(z.read('data.json'))
             assert image_paths(optional,expand) == withheld
