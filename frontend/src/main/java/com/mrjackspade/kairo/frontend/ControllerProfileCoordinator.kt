@@ -47,6 +47,11 @@ class ControllerProfileCoordinator<Game : Any>(
         refresh(game)
     }
 
+    /** The running game's mapping, or the global one in the library. */
+    fun activeBindings(): List<ControllerBinding> = load(activeGame())
+
+    fun saveActive(bindings: List<ControllerBinding>) = save(activeGame(), bindings)
+
     fun reset(game: Game?) {
         val id = game?.let(contentId)
         if (id == null) store.resetGlobal() else resetGame(id)

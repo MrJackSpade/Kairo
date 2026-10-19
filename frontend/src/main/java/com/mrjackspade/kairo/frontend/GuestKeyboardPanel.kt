@@ -17,6 +17,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -31,7 +32,8 @@ class GuestKeyboardPanel(
     private val onSwap: (() -> Unit)? = null,
     mouse: MouseInputRouter? = null,
     mouseReferenceSize: () -> Pair<Int, Int> = { 640 to 400 },
-    private val onVisibilityChanged: (() -> Unit)? = null
+    private val onVisibilityChanged: (() -> Unit)? = null,
+    private val mapping: KeyMappingMode? = null
 ) : LinearLayout(context) {
     private companion object { const val TOUCHPAD_PAGE = -1 }
 
@@ -41,6 +43,13 @@ class GuestKeyboardPanel(
     private val pageViews = mutableMapOf<Int, View>()
     private val touchpad = mouse?.let { SecondaryTouchpadView(context, it, mouseReferenceSize) }
     private val content = LinearLayout(context).apply { orientation = VERTICAL }
+    /** The key rows or touchpad, with the mapping prompt over them. */
+    private val stage = FrameLayout(context)
+    private val keyActions = mutableMapOf<TextView, Boolean>()
+    private var mappingTab: View? = null
+    private var mappingPrompt: View? = null
+    private var mappingShown = false
+    private val mappingListener: () -> Unit = { mappingChanged() }
     /** A scan code lit after its press, and whether Shift was down for it. */
     private class Lit(val until: Long, val shifted: Boolean)
     private val highlightUntil = mutableMapOf<Int, Lit>()
@@ -120,6 +129,20 @@ class GuestKeyboardPanel(
                 setMargins(dp(2), 0, dp(2), 0)
             })
         }
+        if (mapping != null) {
+            val tab = ImageView(context).apply {
+                setImageResource(R.drawable.ic_gamepad)
+                imageTintList = keyText()
+                setPadding(dp(10), dp(7), dp(10), dp(7))
+                contentDescription = "Controller mapping"
+                background = keyBackground(action = true)
+                onPress(this) { mapping.toggle() }
+            }
+            mappingTab = tab
+            header.addView(tab, LayoutParams(0, dp(34), 1f).apply {
+                setMargins(dp(2), 0, dp(2), 0)
+            })
+        }
         if (showClose) {
             header.addView(TextView(context).apply {
                 text = "Close ×"
@@ -130,19 +153,84 @@ class GuestKeyboardPanel(
             }, LayoutParams(dp(76), dp(34)))
         }
         addView(header, LayoutParams(-1, dp(42)))
-        addView(content, if (onSwap == null) LayoutParams(-1, 0, 1f)
+        stage.addView(content, FrameLayout.LayoutParams(-1, -1))
+        if (mapping != null) mappingPrompt = mappingPrompt().also {
+            stage.addView(it, FrameLayout.LayoutParams(-1, -1))
+        }
+        addView(stage, if (onSwap == null) LayoutParams(-1, 0, 1f)
             else LayoutParams(-1, dp(320)))
         showPage(0)
+    }
+
+    private fun mappingPrompt(): View = LinearLayout(context).apply {
+        orientation = VERTICAL
+        gravity = Gravity.CENTER
+        visibility = View.GONE
+        isClickable = true
+        setBackgroundColor(Ui.SCRIM)
+        setPadding(dp(24), dp(12), dp(24), dp(12))
+        addView(Ui.text(context, "Controller mapping", Ui.TITLE, bold = true).apply { gravity = Gravity.CENTER })
+        addView(Ui.text(context, "Tap a key, then press the controller button that should send it. " +
+            "Tap a selected key again to clear it. Tap the controller tab to finish.", Ui.BODY, Ui.TEXT_BODY).apply {
+            gravity = Gravity.CENTER
+        }, LayoutParams(-2, -2).apply { setMargins(0, dp(8), 0, dp(14)) })
+        val ok = Ui.primaryButton(context, "OK") { visibility = View.GONE }
+        onPress(ok) { visibility = View.GONE }
+        addView(ok, LayoutParams(dp(120), dp(44)))
+    }
+
+    /** Acts on press: a focus change can cancel ACTION_UP on a second display. Clicks still serve accessibility. */
+    private fun onPress(view: View, action: () -> Unit) {
+        view.setOnClickListener { action() }
+        view.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) action()
+            true
+        }
+    }
+
+    private fun mappingChanged() {
+        val mode = mapping ?: return
+        mappingTab?.isActivated = mode.active
+        if (mode.active && !mappingShown) {
+            mappingShown = true
+            if (page == TOUCHPAD_PAGE) showPage(0)
+            if (visibility == View.VISIBLE) mappingPrompt?.visibility = View.VISIBLE
+        } else if (!mode.active) {
+            mappingShown = false
+            mappingPrompt?.visibility = View.GONE
+        }
+        updateMappingKeys()
+    }
+
+    private fun keyList(key: KeyboardKey) =
+        if (key.chordShift) listOf(layout.chordShiftCode, key.code) else listOf(key.code)
+
+    /** Mapping mode colors the waiting key and every mapped key; leaving it restores the normal keys. */
+    private fun updateMappingKeys() {
+        val mode = mapping ?: return
+        for ((key, view) in keyViews) {
+            val keys = keyList(key)
+            val waiting = mode.active && mode.waiting == keys
+            view.background = when {
+                waiting -> mappingBackground(Ui.PIN, null)
+                mode.active && mode.mapped(keys) -> mappingBackground(Ui.PIN_SURFACE, Ui.PIN)
+                else -> keyBackground(keyActions[view] == true)
+            }
+            if (waiting) view.setTextColor(Ui.ON_ACCENT) else view.setTextColor(keyText())
+        }
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         input.addListener(inputListener)
+        mapping?.addListener(mappingListener)
+        mappingChanged()
         updateHighlights()
     }
 
     override fun onDetachedFromWindow() {
         input.removeListener(inputListener)
+        mapping?.removeListener(mappingListener)
         handler.removeCallbacksAndMessages(null)
         super.onDetachedFromWindow()
     }
@@ -177,11 +265,13 @@ class GuestKeyboardPanel(
         val availableHeight = (height - dp(90)).coerceAtLeast(0)
         val rowsHeight = if (page == TOUCHPAD_PAGE) availableHeight else minOf(dp(320), availableHeight)
         val rowsWidth = if (page == TOUCHPAD_PAGE) width else minOf(width, dp(900))
-        if (content.layoutParams.height != rowsHeight || content.layoutParams.width != rowsWidth)
-            content.layoutParams = LayoutParams(rowsWidth, rowsHeight)
+        if (stage.layoutParams.height != rowsHeight || stage.layoutParams.width != rowsWidth)
+            stage.layoutParams = LayoutParams(rowsWidth, rowsHeight)
     }
 
     fun close() {
+        // Mapping belongs to the keyboard on screen; a hidden panel closing again must not end it.
+        if (visibility == View.VISIBLE) mapping?.exit()
         visibility = View.GONE
         touchpad?.close()
         input.releasePrefix("touch-key:")
@@ -215,6 +305,7 @@ class GuestKeyboardPanel(
         updateContentSize()
         content.removeAllViews()
         keyViews.clear()
+        keyActions.clear()
         if (target == TOUCHPAD_PAGE) {
             touchpad?.let { content.addView(it, LayoutParams(-1, -1)) }
             pageViews.forEach { (name, view) -> view.isActivated = name == page }
@@ -224,6 +315,7 @@ class GuestKeyboardPanel(
         chordCodes = keyViews.filter { it.first.chordShift }.map { it.first.code }.toSet()
         pageViews.forEach { (name, view) -> view.isActivated = name == page }
         updateLegends()
+        if (mapping?.active == true) updateMappingKeys()
     }
 
     fun setInitialMode(touchpadMode: Boolean) {
@@ -245,6 +337,10 @@ class GuestKeyboardPanel(
                 setAutoSizeTextTypeUniformWithConfiguration(9, 16, 1, TypedValue.COMPLEX_UNIT_SP)
                 isClickable = true
                 setOnTouchListener { _, event ->
+                    if (mapping?.active == true) {
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN) mapping.tap(keyList(key))
+                        return@setOnTouchListener true
+                    }
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             if (holdToLatch) {
@@ -268,7 +364,8 @@ class GuestKeyboardPanel(
                     }
                 }
                 setOnClickListener {
-                    if (modifier && !holdToLatch) input.tap(key.code)
+                    if (mapping?.active == true) mapping.tap(keyList(key))
+                    else if (modifier && !holdToLatch) input.tap(key.code)
                     else {
                         if (key.code in latched) toggleModifier(key.code)
                         press(key)
@@ -281,6 +378,7 @@ class GuestKeyboardPanel(
                 }
             }
             view.background = keyBackground(action)
+            keyActions[view] = action
             keyViews.add(key to view)
             line.addView(view, LayoutParams(0, -1, key.width).apply {
                 setMargins(dp(2), dp(2), dp(2), dp(2))
@@ -364,6 +462,14 @@ class GuestKeyboardPanel(
             addState(intArrayOf(android.R.attr.state_activated), keyShape(Ui.ACCENT))
             addState(intArrayOf(android.R.attr.state_pressed), keyShape(Ui.SELECTED))
             addState(intArrayOf(), if (action) keyShape(Ui.SURFACE, Ui.LINE) else keyShape(Ui.RAISED))
+        }
+        return RippleDrawable(ColorStateList.valueOf(0x80a8eef1.toInt()), states, null)
+    }
+
+    private fun mappingBackground(fill: Int, stroke: Int?): RippleDrawable {
+        val states = StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_pressed), keyShape(Ui.SELECTED, stroke))
+            addState(intArrayOf(), keyShape(fill, stroke))
         }
         return RippleDrawable(ColorStateList.valueOf(0x80a8eef1.toInt()), states, null)
     }

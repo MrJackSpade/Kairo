@@ -11,7 +11,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** What a guest machine accepts from a controller: its keys, joystick, and app actions. */
@@ -270,7 +269,10 @@ class ControllerPages<Game : Any>(
             } else null,
             TrayButton("Choose input") { pages.push(chooseInputPage(control)) },
             TrayButton("Enter code", keepOpen = true) { pages.replaceTray(codeTray(control)) }),
-        listening = true, focus = 0, capture = Listener(control))
+        listening = true, focus = 0, capture = PhysicalInputCapture { input ->
+            pages.closeTray()
+            assign(control, input)
+        })
 
     private fun codeTray(control: String?) = TraySpec(
         "Android key and axis codes, such as button:96, axis:0:+, or hat:15:-.",
@@ -298,52 +300,6 @@ class ControllerPages<Game : Any>(
             savePhysical(updated)
         }
         pages.flash("p:$control")
-    }
-
-    /** Captures every controller button, B included, and stick, trigger, or hat movement. */
-    private inner class Listener(private val control: String?) : InputCapture {
-        private val baseline = HashMap<Pair<Int, Int>, Float>()
-
-        override fun key(event: KeyEvent): Boolean {
-            if (!KeyEvent.isGamepadButton(event.keyCode) && !event.isFromSource(InputDevice.SOURCE_GAMEPAD) &&
-                !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return false
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) captured("button:" + event.keyCode)
-            return true
-        }
-
-        override fun motion(event: MotionEvent): Boolean {
-            if (!event.isFromSource(InputDevice.SOURCE_JOYSTICK) &&
-                !event.isFromSource(InputDevice.SOURCE_GAMEPAD)) return true
-            val axes = event.device?.motionRanges?.filter {
-                it.source and InputDevice.SOURCE_JOYSTICK == InputDevice.SOURCE_JOYSTICK
-            }?.map { it.axis }?.distinct() ?: emptyList()
-            for (axis in axes) {
-                val value = event.getAxisValue(axis)
-                val id = event.deviceId to axis
-                val start = baseline[id]
-                val trigger = axis == MotionEvent.AXIS_LTRIGGER || axis == MotionEvent.AXIS_RTRIGGER ||
-                    axis == MotionEvent.AXIS_BRAKE || axis == MotionEvent.AXIS_GAS
-                if (start == null) {
-                    baseline[id] = value
-                    if (abs(value) >= 0.75f && (!trigger || value > 0.75f)) {
-                        captured(InputSources.axisInput(axis, value))
-                        return true
-                    }
-                } else {
-                    if (abs(value) < 0.25f) baseline[id] = value
-                    if (abs(value) >= 0.75f && abs(value - start) >= 0.75f && (!trigger || value > 0.75f)) {
-                        captured(InputSources.axisInput(axis, value))
-                        return true
-                    }
-                }
-            }
-            return true
-        }
-
-        private fun captured(input: String) {
-            pages.closeTray()
-            assign(control, input)
-        }
     }
 
     private fun chooseInputPage(control: String?): GroupsPage {

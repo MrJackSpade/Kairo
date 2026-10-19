@@ -38,7 +38,8 @@ class SecondaryDisplayCoordinator(
     private val onGameSurface: (Surface?, Int, Int) -> Unit,
     private val onGameTouch: (MotionEvent, Int, Int) -> Boolean,
     private val onSwapChanged: (Boolean) -> Unit,
-    private val gameAspect: () -> Double = { 1.6 }
+    private val gameAspect: () -> Double = { 1.6 },
+    private val mapping: KeyMappingMode? = null
 ) : DisplayManager.DisplayListener {
     private val displayManager = activity.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     private var started = false
@@ -267,7 +268,7 @@ class SecondaryDisplayCoordinator(
         onAvailabilityChanged(true)
         return GuestKeyboardPanel(value, input, keyboardLayout, {},
             showClose = false, onSwap = ::toggleSwap,
-            mouse = mouse).also { it.setInitialMode(touchpadMode) }
+            mouse = mouse, mapping = mapping).also { it.setInitialMode(touchpadMode) }
     }
 
     fun updateCompanion(value: SecondaryDisplayActivity) {
@@ -389,7 +390,7 @@ class SecondaryDisplayCoordinator(
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             content = SecondaryDisplayContent(context,
                 GuestKeyboardPanel(context, input, keyboardLayout, {}, showClose = false,
-                    onSwap = ::toggleSwap, mouse = mouse), ::forwardGameSurface, onGameTouch,
+                    onSwap = ::toggleSwap, mouse = mouse, mapping = mapping), ::forwardGameSurface, onGameTouch,
                 gameAspect)
             setContentView(content)
         }

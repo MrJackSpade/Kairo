@@ -18,6 +18,14 @@ class InputDispatchCoordinator(
     private val automationOwners: Set<String> = emptySet()
 ) {
     private var motionScreen: Screen? = null
+
+    /** Takes controller input ahead of a running game, as keyboard mapping does while a key waits. */
+    var guestCapture: InputCapture? = null
+        set(value) {
+            // Releases the capture would otherwise hide from the game, such as a held stick.
+            if (value != null) mapper.releaseAll()
+            field = value
+        }
     private val menuMotion = DpadMotionNavigation { event ->
         val screen = frontend.screen()
         if (screen == motionScreen && screen != Screen.GUEST && screen != Screen.INACTIVE)
@@ -47,6 +55,7 @@ class InputDispatchCoordinator(
         // still reach the tray's buttons below.
         if (screen == Screen.MENU && frontend.capturing() && frontend.captureKey(event)) return true
         if (screen == Screen.BUSY) return true
+        if ((screen == Screen.GUEST || screen == Screen.NOTICE) && guestCapture?.key(event) == true) return true
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) back()
             return true
@@ -74,6 +83,7 @@ class InputDispatchCoordinator(
             menuMotion.stop()
             return frontend.captureMotion(event)
         }
+        if ((screen == Screen.GUEST || screen == Screen.NOTICE) && guestCapture?.motion(event) == true) return true
         return when (screen) {
             Screen.GUEST -> mapper.motion(event) || android(event)
             Screen.INACTIVE -> android(event)
