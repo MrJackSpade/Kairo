@@ -313,7 +313,9 @@ class GuestKeyboardPanel(
             pageViews.forEach { (name, view) -> view.isActivated = name == page }
             return
         }
-        layout.pages[page].rows.forEach(::row)
+        val grid = KeyGrid(context, dp(2))
+        for (cell in KeyGrid.place(layout.pages[page].rows)) grid.add(keyView(cell.key), cell)
+        content.addView(grid, LayoutParams(-1, -1))
         chordCodes = keyViews.filter { it.first.chordShift }.map { it.first.code }.toSet()
         pageViews.forEach { (name, view) -> view.isActivated = name == page }
         updateLegends()
@@ -324,69 +326,63 @@ class GuestKeyboardPanel(
         if (touchpad != null) showPage(if (touchpadMode) TOUCHPAD_PAGE else 0)
     }
 
-    private fun row(keys: List<KeyboardKey>) {
-        val line = LinearLayout(context).apply { orientation = HORIZONTAL }
-        for (key in keys) {
-            val modifier = key.code in layout.modifiers
-            val holdToLatch = modifier && !layout.isLock(key.code)
-            // The press that unlocks a held modifier must not lock it again by being long.
-            var unlockedOnPress = false
-            // Letters, digits, and symbols sit on the lighter key; named keys are darker.
-            val action = modifier || key.label.length > 1
-            val view = TextView(context).apply {
-                gravity = Gravity.CENTER
-                setTextColor(keyText())
-                setAutoSizeTextTypeUniformWithConfiguration(9, 16, 1, TypedValue.COMPLEX_UNIT_SP)
-                isClickable = true
-                setOnTouchListener { _, event ->
-                    if (mapping?.active == true) {
-                        if (event.actionMasked == MotionEvent.ACTION_DOWN) mapping.tap(keyList(key))
-                        return@setOnTouchListener true
-                    }
-                    when (event.actionMasked) {
-                        MotionEvent.ACTION_DOWN -> {
-                            if (holdToLatch) {
-                                unlockedOnPress = key.code in latched
-                                if (unlockedOnPress) toggleModifier(key.code)
-                                press(key)
-                            } else if (modifier) input.tap(key.code)
-                            else press(key)
-                            true
-                        }
-                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                            if (holdToLatch) {
-                                if (event.actionMasked == MotionEvent.ACTION_UP && !unlockedOnPress &&
-                                    event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout())
-                                    toggleModifier(key.code)
-                                release(key)
-                            } else if (!modifier) release(key)
-                            true
-                        }
-                        else -> true
-                    }
+    private fun keyView(key: KeyboardKey): TextView {
+        val modifier = key.code in layout.modifiers
+        val holdToLatch = modifier && !layout.isLock(key.code)
+        // The press that unlocks a held modifier must not lock it again by being long.
+        var unlockedOnPress = false
+        // Letters, digits, and symbols sit on the lighter key; named keys are darker.
+        val action = modifier || key.label.length > 1
+        val view = TextView(context).apply {
+            gravity = Gravity.CENTER
+            setTextColor(keyText())
+            setAutoSizeTextTypeUniformWithConfiguration(9, 16, 1, TypedValue.COMPLEX_UNIT_SP)
+            isClickable = true
+            setOnTouchListener { _, event ->
+                if (mapping?.active == true) {
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) mapping.tap(keyList(key))
+                    return@setOnTouchListener true
                 }
-                setOnClickListener {
-                    if (mapping?.active == true) mapping.tap(keyList(key))
-                    else if (modifier && !holdToLatch) input.tap(key.code)
-                    else {
-                        if (key.code in latched) toggleModifier(key.code)
-                        press(key)
-                        handler.postDelayed({ release(key) }, 90)
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        if (holdToLatch) {
+                            unlockedOnPress = key.code in latched
+                            if (unlockedOnPress) toggleModifier(key.code)
+                            press(key)
+                        } else if (modifier) input.tap(key.code)
+                        else press(key)
+                        true
                     }
-                }
-                if (holdToLatch) setOnLongClickListener {
-                    toggleModifier(key.code)
-                    true
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        if (holdToLatch) {
+                            if (event.actionMasked == MotionEvent.ACTION_UP && !unlockedOnPress &&
+                                event.eventTime - event.downTime >= ViewConfiguration.getLongPressTimeout())
+                                toggleModifier(key.code)
+                            release(key)
+                        } else if (!modifier) release(key)
+                        true
+                    }
+                    else -> true
                 }
             }
-            view.background = keyBackground(action)
-            keyActions[view] = action
-            keyViews.add(key to view)
-            line.addView(view, LayoutParams(0, -1, key.width).apply {
-                setMargins(dp(2), dp(2), dp(2), dp(2))
-            })
+            setOnClickListener {
+                if (mapping?.active == true) mapping.tap(keyList(key))
+                else if (modifier && !holdToLatch) input.tap(key.code)
+                else {
+                    if (key.code in latched) toggleModifier(key.code)
+                    press(key)
+                    handler.postDelayed({ release(key) }, 90)
+                }
+            }
+            if (holdToLatch) setOnLongClickListener {
+                toggleModifier(key.code)
+                true
+            }
         }
-        content.addView(line, LayoutParams(-1, 0, 1f))
+        view.background = keyBackground(action)
+        keyActions[view] = action
+        keyViews.add(key to view)
+        return view
     }
 
     private fun press(key: KeyboardKey) {

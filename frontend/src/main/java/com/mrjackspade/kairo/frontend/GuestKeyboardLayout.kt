@@ -10,7 +10,9 @@ data class KeyboardKey(
     val kana: String? = null,
     val kanaShifted: String? = null,
     /** The legend while the layout's Num Lock is off, as a keypad key's Home or arrow. */
-    val numLockOff: String? = null
+    val numLockOff: String? = null,
+    /** Rows the key spans downward, as a keypad's tall + and Enter; later rows leave its columns free. */
+    val rows: Int = 1
 )
 
 /** [pickerLabel] names the page on the button target key picker, where it may differ. */
