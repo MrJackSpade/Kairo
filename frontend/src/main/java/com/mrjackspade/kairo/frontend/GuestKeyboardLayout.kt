@@ -8,7 +8,9 @@ data class KeyboardKey(
     val chordShift: Boolean = false,
     /** The legend while the layout's kana lock is on, and with Shift as well. */
     val kana: String? = null,
-    val kanaShifted: String? = null
+    val kanaShifted: String? = null,
+    /** The legend while the layout's Num Lock is off, as a keypad key's Home or arrow. */
+    val numLockOff: String? = null
 )
 
 /** [pickerLabel] names the page on the button target key picker, where it may differ. */
@@ -24,17 +26,20 @@ data class GuestKeyboardLayout(
     val capsCode: Int?,
     val chordShiftCode: Int,
     /** A lock key that switches the legends to [KeyboardKey.kana]. */
-    val kanaCode: Int? = null
+    val kanaCode: Int? = null,
+    /** A lock key whose off state shows [KeyboardKey.numLockOff] legends. */
+    val numLockCode: Int? = null,
+    /** Further keys the guest toggles on each press, lit while on, such as Scroll Lock. */
+    val otherLockCodes: Set<Int> = emptySet()
 ) {
+    /** Keys the guest toggles on each press. Give these to the app's [InputRouter]. */
+    val lockCodes: Set<Int> = setOfNotNull(capsCode, kanaCode, numLockCode) + otherLockCodes
+
     init {
         require(pages.isNotEmpty() && pages.all { it.rows.isNotEmpty() })
         require(shiftCodes.all { it in modifiers })
-        require(capsCode == null || capsCode in modifiers)
-        require(kanaCode == null || kanaCode in modifiers)
+        require(lockCodes.all { it in modifiers })
     }
 
-    /** Keys the guest toggles on each press. Give these to the app's [InputRouter]. */
-    val lockCodes: Set<Int> get() = setOfNotNull(capsCode, kanaCode)
-
-    fun isLock(code: Int) = code == capsCode || code == kanaCode
+    fun isLock(code: Int) = code in lockCodes
 }

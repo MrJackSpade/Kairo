@@ -417,9 +417,11 @@ class GuestKeyboardPanel(
         val locks = input.lockedKeys()
         val caps = layout.capsCode?.let { it in locks } == true
         val kana = layout.kanaCode?.let { it in locks } == true
+        val numLockOff = layout.numLockCode?.let { it !in locks } == true
         for ((key, view) in keyViews) {
             val letter = key.label.length == 1 && key.label[0] in 'a'..'z'
             view.text = when {
+                numLockOff && key.numLockOff != null -> key.numLockOff
                 kana && key.kana != null -> if (shifted) key.kanaShifted ?: key.kana else key.kana
                 letter && (shifted xor caps) -> key.label.uppercase()
                 key.shifted != null && shifted -> key.shifted
