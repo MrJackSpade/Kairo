@@ -194,6 +194,34 @@ object Ui {
         }
     }
 
+    /**
+     * A tray or confirmation button. Only the selected one is filled, so the fill always
+     * marks what A presses; the others are outlined in their tone.
+     */
+    fun choiceButton(context: Context, label: String, tone: ButtonTone, action: () -> Unit): LinearLayout {
+        val (fill, onFill, rest) = when (tone) {
+            ButtonTone.PRIMARY -> Triple(ACCENT, ON_ACCENT, ACCENT)
+            ButtonTone.DANGER -> Triple(DANGER, ON_DANGER, DANGER)
+            ButtonTone.SECONDARY -> Triple(ACCENT_SOFT, ON_ACCENT, ACCENT_SOFT)
+        }
+        val chosen = intArrayOf(android.R.attr.state_selected)
+        val background = StateListDrawable().apply {
+            for (state in listOf(android.R.attr.state_selected, android.R.attr.state_focused, android.R.attr.state_pressed))
+                addState(intArrayOf(state), rounded(context, fill))
+            addState(intArrayOf(), rounded(context, Color.TRANSPARENT, stroke = if (tone == ButtonTone.SECONDARY) LINE else rest))
+        }
+        val text = ColorStateList(arrayOf(chosen, intArrayOf(android.R.attr.state_focused),
+            intArrayOf(android.R.attr.state_pressed), intArrayOf()), intArrayOf(onFill, onFill, onFill, rest))
+        return button(context, label, null, rest, background, action).apply {
+            minimumWidth = dp(context, 88)
+            setPadding(dp(context, 14), 0, dp(context, 14), 0)
+            (getChildAt(0) as TextView).apply {
+                isDuplicateParentStateEnabled = true
+                setTextColor(text)
+            }
+        }
+    }
+
     /** The busy indicator: a Line ring with an Accent segment, one turn every 0.9 s. */
     fun spinner(context: Context, size: Int = 16, stroke: Int = 2) = SpinnerView(context, dp(context, stroke))
         .apply { layoutParams = LinearLayout.LayoutParams(dp(context, size), dp(context, size)) }

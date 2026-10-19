@@ -105,7 +105,9 @@ A tray opens under its row in the selected fill. It holds a message, an optional
 field, and right-aligned buttons with the primary one last. Confirm buttons use the
 verb (Restart, End game, Exit, Overwrite, Load, Delete, Reset, Remove), never OK or
 Confirm. Confirmations open on Cancel; Cancel closes the tray and leaves the page open.
-Left and Right move between buttons; A presses one; B, Up, or Down close the tray.
+Only the focused button is filled, in its tone; the others are outlined, so the fill
+always marks what A presses. Left and Right move between buttons; A presses one; B, Up,
+or Down close the tray.
 
 ## Confirmation modal
 
@@ -113,7 +115,7 @@ Return to library (or frontend) and Exit confirm in a modal instead of a tray: a
 `Confirm` with a `title` opens `ConfirmPage`. It fades in over the flyout in 150 ms,
 which stays in place behind it. The card holds the title as a question ("Return to
 library?", "Exit Kairo98?"), the message, then Cancel and the verb, right-aligned, focused
-on Cancel. Left and Up focus Cancel; Right and Down focus the verb. A presses; B, Back,
+on Cancel and filled only while focused, as tray buttons are. Left and Up focus Cancel; Right and Down focus the verb. A presses; B, Back,
 or a tap outside the card cancels and returns to the flyout. Menu in a game closes the
 modal with the rest of the stack.
 

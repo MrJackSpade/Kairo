@@ -418,8 +418,8 @@ class ConfirmPage(private val confirm: Confirm) : Page() {
             setLineSpacing(dp(4).toFloat(), 1f)
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         val buttons = WrapLayout(context, dp(8))
-        cancel = Ui.toneButton(context, "Cancel", ButtonTone.SECONDARY) { stack.pop() }
-        accept = Ui.toneButton(context, confirm.verb,
+        cancel = Ui.choiceButton(context, "Cancel", ButtonTone.SECONDARY) { stack.pop() }
+        accept = Ui.choiceButton(context, confirm.verb,
             if (confirm.danger) ButtonTone.DANGER else ButtonTone.PRIMARY) {
             stack.pop()
             confirm.run()

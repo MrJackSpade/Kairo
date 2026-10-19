@@ -284,7 +284,7 @@ internal class TrayView(context: Context, val spec: TraySpec, flat: Boolean,
         entry?.let { addView(it, LayoutParams(-1, Ui.dp(context, 44)).apply { bottomMargin = Ui.dp(context, 10) }) }
         val row = WrapLayout(context, Ui.dp(context, 8))
         spec.buttons.forEach { button ->
-            val view = Ui.toneButton(context, button.label, button.tone) { press(button, text) }
+            val view = Ui.choiceButton(context, button.label, button.tone) { press(button, text) }
             buttons += view
             row.addView(view, ViewGroup.LayoutParams(-2, Ui.dp(context, 44)))
         }
