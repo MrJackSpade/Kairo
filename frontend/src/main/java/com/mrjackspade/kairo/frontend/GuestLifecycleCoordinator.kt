@@ -9,7 +9,10 @@ class GuestLifecycleCoordinator(
     private val pauseAudio: () -> Unit,
     private val resumeAudio: () -> Unit,
     initiallyVisible: Boolean = true,
+    /** A second-screen companion takes focus and pauses this activity without hiding it. */
     private val companionActive: () -> Boolean = { false },
+    /** This activity stopped under one it started, so the screen pair stays up; see [SecondaryDisplayCoordinator.holdsStoppedPrimary]. */
+    private val companionHoldsStop: () -> Boolean = { false },
     private val beforeSuspend: () -> Unit = {},
     private val resetGestures: () -> Unit = {},
     private val releaseOnFocusLoss: () -> Unit = releaseInputs
@@ -17,10 +20,10 @@ class GuestLifecycleCoordinator(
     var isVisible = initiallyVisible
         private set
 
-    fun onPause(): Boolean = suspendGuest()
+    fun onPause(): Boolean = !companionActive() && suspendGuest()
 
     fun onStop(): Boolean {
-        if (companionActive()) return false
+        if (companionHoldsStop()) return false
         resetGestures()
         return suspendGuest()
     }
@@ -37,7 +40,6 @@ class GuestLifecycleCoordinator(
     }
 
     private fun suspendGuest(): Boolean {
-        if (companionActive()) return false
         beforeSuspend()
         releaseInputs()
         isVisible = false

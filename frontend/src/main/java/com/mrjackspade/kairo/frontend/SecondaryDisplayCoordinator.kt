@@ -8,8 +8,10 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.hardware.display.DisplayManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.os.PowerManager
 import android.util.Log
 import android.view.Display
 import android.view.Gravity
@@ -56,6 +58,14 @@ class SecondaryDisplayCoordinator(
         companion?.isFinishing == false
     val isKeyboardVisible: Boolean get() = isShowing && visibleKeyboard
     val isCompanionActive: Boolean get() = companionStarting || companion != null
+
+    /**
+     * The game screen stopped under an activity it started itself (a file picker), so the
+     * screen pair stays up. Any other stop means the user left, and the keyboard leaves too.
+     * A finishing activity may already have lost its task.
+     */
+    val holdsStoppedPrimary: Boolean get() =
+        isCompanionActive && !activity.isFinishing && primaryCoveredByOwnLaunch()
     val activeGameSurface: SurfaceView?
         get() = presentation?.content?.activeGameSurface ?: companion?.activeGameSurface
 
@@ -151,11 +161,13 @@ class SecondaryDisplayCoordinator(
     override fun onDisplayChanged(displayId: Int) = refresh()
 
     private fun refresh() {
-        if (!started) {
+        if (!started || activity.isFinishing) {
             dismiss()
             return
         }
         val primaryId = activity.window.decorView.display?.displayId ?: return
+        // The keyboard and game screens trade places only through the swap button.
+        if (RgDsDisplayRouter.returnToUpper(activity)) return
         val presentationDisplays = displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
         val target = (presentationDisplays.asList() + displayManager.displays.asList())
             .firstOrNull { it.displayId != primaryId && it.isValid &&
@@ -170,18 +182,7 @@ class SecondaryDisplayCoordinator(
         }
         if (target.displayId == Display.DEFAULT_DISPLAY) {
             dismissPresentation()
-            companion?.let { current ->
-                if (companionStopped && !current.isFinishing) {
-                    try {
-                        (activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager)
-                            .moveTaskToFront(current.taskId, 0)
-                    } catch (error: SecurityException) {
-                        Log.w(logTag, "Could not restore companion on display 0", error)
-                    }
-                }
-                return
-            }
-            if (companionStarting) return
+            if (companion != null || companionStarting) return
             launchCompanion(target)
             return
         }
@@ -212,16 +213,18 @@ class SecondaryDisplayCoordinator(
 
     private fun launchCompanion(target: Display) {
         companionStarting = true
-        pendingCompanion = this
+        val launch = ++nextLaunch
+        pending = launch to this
         try {
             val intent = Intent(activity, SecondaryDisplayActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                putExtra(LAUNCH_ID, launch)
             }
             val options = ActivityOptions.makeBasic().setLaunchDisplayId(target.displayId)
             activity.startActivity(intent, options.toBundle())
         } catch (error: RuntimeException) {
             companionStarting = false
-            if (pendingCompanion === this) pendingCompanion = null
+            clearPending()
             Log.w(logTag, "Could not open keyboard activity on display ${target.displayId}", error)
         }
     }
@@ -271,11 +274,25 @@ class SecondaryDisplayCoordinator(
         if (companion === value) updateContent()
     }
 
+    /** The companion closed without being dismissed here: the user closed the app's lower half. */
     fun detachCompanion(value: SecondaryDisplayActivity) {
         if (companion !== value) return
+        forgetCompanion()
+        if (!activity.isFinishing) {
+            Log.i(logTag, "Keyboard screen closed; closing the game screen with it")
+            activity.finishAndRemoveTask()
+        }
+    }
+
+    /** The companion opened on the wrong display and closes itself; the app stays open. */
+    fun releaseCompanion(value: SecondaryDisplayActivity) {
+        if (companion === value) forgetCompanion()
+    }
+
+    private fun forgetCompanion() {
         companion = null
         companionStopped = false
-        if (pendingCompanion === this) pendingCompanion = null
+        clearPending()
         onAvailabilityChanged(false)
     }
 
@@ -283,10 +300,32 @@ class SecondaryDisplayCoordinator(
         if (companion === value) companionStopped = false
     }
 
+    /*
+     * Another app or the home screen covered the keyboard. The two screens share one
+     * lifecycle, so the game screen goes to the background with it; its own onStop then
+     * suspends the guest and dismisses the companion, and the next resume reopens both.
+     * Screen-off and a lower display switched off also stop the companion; neither is the
+     * user leaving.
+     */
     fun companionStopped(value: SecondaryDisplayActivity) {
         if (companion !== value) return
         companionStopped = true
-        activity.window.decorView.post { if (started && companion === value) refresh() }
+        activity.window.decorView.post {
+            if (!started || companion !== value || !companionStopped || activity.isFinishing) return@post
+            val power = activity.getSystemService(Context.POWER_SERVICE) as PowerManager
+            val lower = displayManager.getDisplay(Display.DEFAULT_DISPLAY)
+            if (!power.isInteractive || lower == null || lower.state == Display.STATE_OFF) return@post
+            Log.i(logTag, "Keyboard screen covered; moving the game screen to the background with it")
+            activity.moveTaskToBack(true)
+        }
+    }
+
+    private fun primaryCoveredByOwnLaunch(): Boolean {
+        // Companions exist only on the RGDS (Android 14); older releases lack TaskInfo.taskId.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val task = (activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).appTasks
+            .map { it.taskInfo }.first { it.taskId == activity.taskId }
+        return task.topActivity != activity.componentName
     }
 
     private fun dismiss() {
@@ -306,15 +345,33 @@ class SecondaryDisplayCoordinator(
         companion = null
         companionStarting = false
         companionStopped = false
-        if (pendingCompanion === this) pendingCompanion = null
+        clearPending()
         if (previous != null) {
-            previous.finish()
+            previous.finishAndRemoveTask()
             onAvailabilityChanged(false)
         }
     }
 
+    private fun clearPending() {
+        if (pending?.second === this) pending = null
+    }
+
     companion object {
-        internal var pendingCompanion: SecondaryDisplayCoordinator? = null
+        private const val LAUNCH_ID = "com.mrjackspade.kairo.frontend.companionLaunch"
+        private var nextLaunch = 0
+        private var pending: Pair<Int, SecondaryDisplayCoordinator>? = null
+
+        /*
+         * The coordinator waiting for this companion launch. A launch can still arrive after
+         * a pause dismissed it and a resume started another; that superseded companion and a
+         * recreated one find no owner and close.
+         */
+        internal fun claim(intent: Intent): SecondaryDisplayCoordinator? {
+            val (launch, owner) = pending ?: return null
+            if (intent.getIntExtra(LAUNCH_ID, 0) != launch) return null
+            pending = null
+            return owner
+        }
     }
 
     private inner class KeyboardPresentation(

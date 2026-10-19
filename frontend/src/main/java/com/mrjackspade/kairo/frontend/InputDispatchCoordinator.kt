@@ -88,6 +88,8 @@ class InputDispatchCoordinator(
 
     /** Activity fallback: focused Android views get first refusal on ordinary keys. */
     fun physicalKey(event: KeyEvent): Boolean {
+        // Volume, mute and media keys belong to Android on every screen.
+        if (event.isSystem) return false
         if (frontend.screen() != Screen.GUEST && frontend.screen() != Screen.NOTICE)
             return event.keyCode !in NAVIGATION_KEYS
         // Unmapped controller buttons must never masquerade as guest keyboard keys.

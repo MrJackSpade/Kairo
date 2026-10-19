@@ -11,16 +11,39 @@ import android.view.Display
 object RgDsDisplayRouter {
     private const val REDIRECT_ATTEMPTS = "com.mrjackspade.kairo.frontend.displayRedirectAttempts"
     private const val MAX_REDIRECT_ATTEMPTS = 3
+    private const val RETURN_TO_UPPER = "com.mrjackspade.kairo.frontend.returnToUpper"
 
-    fun routeToUpper(activity: Activity): Boolean {
-        if (!Build.MODEL.equals("RG DS", ignoreCase = true)) return false
+    private fun misplacedUpper(activity: Activity): Display? {
+        if (!Build.MODEL.equals("RG DS", ignoreCase = true)) return null
         val displays = (activity.getSystemService(Activity.DISPLAY_SERVICE) as DisplayManager).displays
         val upper = displays.firstOrNull { it.displayId != Display.DEFAULT_DISPLAY &&
-            it.isValid && it.state != Display.STATE_OFF } ?: return false
+            it.isValid && it.state != Display.STATE_OFF } ?: return null
         @Suppress("DEPRECATION")
         val currentId = activity.display?.displayId
             ?: activity.windowManager.defaultDisplay.displayId
-        if (currentId == upper.displayId) return false
+        return upper.takeIf { currentId != it.displayId }
+    }
+
+    /*
+     * Reopening the app from the lower screen's launcher or recents moves its running task
+     * onto the lower display. Relaunching into the same task with the upper display as its
+     * target moves it back without recreating it; the game keeps running.
+     */
+    fun returnToUpper(activity: Activity): Boolean {
+        val upper = misplacedUpper(activity) ?: return false
+        val intent = Intent(activity, activity.javaClass).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            putExtra(RETURN_TO_UPPER, true)
+        }
+        activity.startActivity(intent, ActivityOptions.makeBasic().setLaunchDisplayId(upper.displayId).toBundle())
+        return true
+    }
+
+    /** The intent [returnToUpper] delivers to the running activity carries no request. */
+    fun isReturnToUpper(intent: Intent): Boolean = intent.getBooleanExtra(RETURN_TO_UPPER, false)
+
+    fun routeToUpper(activity: Activity): Boolean {
+        val upper = misplacedUpper(activity) ?: return false
         // Some RGDS firmware launches a redirected activity on the wrong display.
         // Check its actual display and retry a bounded number of times.
         val attempts = activity.intent.getIntExtra(REDIRECT_ATTEMPTS, 0)
@@ -34,7 +57,8 @@ object RgDsDisplayRouter {
             }
             val options = ActivityOptions.makeBasic().setLaunchDisplayId(upper.displayId)
             activity.startActivity(redirected, options.toBundle())
-            activity.finish()
+            // The lower-display task would stay in recents and reopen a second instance.
+            activity.finishAndRemoveTask()
             true
         } catch (_: SecurityException) {
             false

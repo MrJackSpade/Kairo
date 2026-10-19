@@ -22,8 +22,8 @@ class SecondaryDisplayActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val session = SecondaryDisplayCoordinator.pendingCompanion
-        if (session == null) { finish(); return }
+        val session = SecondaryDisplayCoordinator.claim(intent)
+        if (session == null) { finishAndRemoveTask(); return }
         owner = session
         // System Back bypasses dispatchKeyEvent on Android 13+. Route it to the
         // primary frontend instead of finishing and recreating the keyboard task.
@@ -69,7 +69,8 @@ class SecondaryDisplayActivity : Activity() {
         val displayId = window.decorView.display?.displayId
         if (displayId != Display.DEFAULT_DISPLAY) {
             Log.w(packageName, "Keyboard activity opened on display $displayId instead of 0")
-            finish()
+            owner?.releaseCompanion(this)
+            finishAndRemoveTask()
         } else Log.i(packageName, "Keyboard activity ready on display 0")
     }
 
