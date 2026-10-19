@@ -79,12 +79,25 @@ class GuestKeyboardPanel(
         elevation = dp(14).toFloat()
         visibility = View.GONE
 
+        // Mapping is a keyboard control, not an input page: it sits with Swap, or with Close without a second screen.
+        val mappingButton = mapping?.let { mode ->
+            ImageView(context).apply {
+                setImageResource(R.drawable.ic_gamepad)
+                imageTintList = keyText()
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+                contentDescription = "Controller mapping"
+                background = keyBackground(action = true)
+                onPress(this) { mode.toggle() }
+            }
+        }
+        mappingTab = mappingButton
         if (onSwap != null) {
             val brand = LinearLayout(context).apply {
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(14), dp(4), dp(8), dp(4))
             }
             brand.addView(PixelTextView(context).apply { text = layout.brand }, LayoutParams(0, -2, 1f))
+            mappingButton?.let { brand.addView(it, LayoutParams(dp(54), dp(40)).apply { marginEnd = dp(8) }) }
             brand.addView(TextView(context).apply {
                 text = "\u2191\u2193"
                 contentDescription = "Swap game and keyboard screens"
@@ -129,19 +142,8 @@ class GuestKeyboardPanel(
                 setMargins(dp(2), 0, dp(2), 0)
             })
         }
-        if (mapping != null) {
-            val tab = ImageView(context).apply {
-                setImageResource(R.drawable.ic_gamepad)
-                imageTintList = keyText()
-                setPadding(dp(10), dp(7), dp(10), dp(7))
-                contentDescription = "Controller mapping"
-                background = keyBackground(action = true)
-                onPress(this) { mapping.toggle() }
-            }
-            mappingTab = tab
-            header.addView(tab, LayoutParams(0, dp(34), 1f).apply {
-                setMargins(dp(2), 0, dp(2), 0)
-            })
+        if (onSwap == null) mappingButton?.let {
+            header.addView(it, LayoutParams(dp(54), dp(34)).apply { marginStart = dp(10) })
         }
         if (showClose) {
             header.addView(TextView(context).apply {
@@ -171,7 +173,7 @@ class GuestKeyboardPanel(
         setPadding(dp(24), dp(12), dp(24), dp(12))
         addView(Ui.text(context, "Controller mapping", Ui.TITLE, bold = true).apply { gravity = Gravity.CENTER })
         addView(Ui.text(context, "Tap a key, then press the controller button that should send it. " +
-            "Tap a selected key again to clear it. Tap the controller tab to finish.", Ui.BODY, Ui.TEXT_BODY).apply {
+            "Tap a selected key again to clear it. Tap the controller button again to finish.", Ui.BODY, Ui.TEXT_BODY).apply {
             gravity = Gravity.CENTER
         }, LayoutParams(-2, -2).apply { setMargins(0, dp(8), 0, dp(14)) })
         val ok = Ui.primaryButton(context, "OK") { visibility = View.GONE }
