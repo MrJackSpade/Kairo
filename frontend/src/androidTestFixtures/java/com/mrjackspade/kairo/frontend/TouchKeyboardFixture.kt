@@ -40,8 +40,8 @@ object TouchKeyboardFixture {
         val touchKey = "game_setting_v1_${id}_touch_mode"
         val oldTouch = prefs.all[touchKey] as? Int
         val oldInput = if (!dos) value(game, "inputMode") else null
-        val enabled = field(controls, "enabled")
-        val oldEnabled = enabled.getBoolean(controls)
+        val mode = field(controls, "mode")
+        val oldMode = mode.get(controls)
         val report = StringBuilder()
         fun rect(view: View): Rect {
             val point = IntArray(2); view.getLocationInWindow(point)
@@ -74,7 +74,7 @@ object TouchKeyboardFixture {
                     else field(game,"inputMode").set(game, InputModeDecider.storageValue(mode))
                 }
                 for (shown in listOf(false,true)) {
-                    ui { enabled.setBoolean(controls,shown); panel.close(); controls.refreshVisibility(true) }
+                    ui { mode.set(controls, if (shown) OnScreenMode.SHOWN else OnScreenMode.HIDDEN); panel.close(); controls.refreshVisibility(true) }
                     for (video in listOf(true,false)) {
                         ui {
                             decider.reset()
@@ -105,7 +105,7 @@ object TouchKeyboardFixture {
                 hostRoot.layoutParams = hostRoot.layoutParams.apply { width = oldWidth }
                 if(dos) prefs.edit().apply { if(oldTouch == null) remove(touchKey) else putInt(touchKey,oldTouch) }.commit()
                 else field(game,"inputMode").set(game,oldInput)
-                enabled.setBoolean(controls,oldEnabled)
+                mode.set(controls, oldMode)
                 controls.refreshVisibility(true)
                 activity.finish()
             }

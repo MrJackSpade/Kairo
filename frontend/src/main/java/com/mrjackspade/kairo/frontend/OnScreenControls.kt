@@ -8,7 +8,6 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
-import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -109,13 +108,15 @@ class OnScreenControls(
         refreshVisibility(requestedVisible)
     }
 
-    private var enabled = preferences.getBoolean("onscreen_enabled",
-        InputDevice.getDeviceIds().none { id ->
-            InputDevice.getDevice(id)?.let { device ->
-                !device.isVirtual && (device.supportsSource(InputDevice.SOURCE_GAMEPAD) ||
-                    device.supportsSource(InputDevice.SOURCE_JOYSTICK))
-            } == true
-        })
+    private var mode = OnScreenMode.load(preferences)
+    private var controllerConnected = ControllerCapabilities.connected().isNotEmpty()
+    private val enabled get() = mode.shown(controllerConnected)
+
+    /** The host's input device listener calls this so Auto follows controllers live. */
+    fun devicesChanged() {
+        controllerConnected = ControllerCapabilities.connected().isNotEmpty()
+        refreshVisibility(requestedVisible)
+    }
 
     /** Whether the round 8-way pad replaces the four arrows, in both orientations. */
     var eightWayDpad: Boolean
@@ -168,11 +169,13 @@ class OnScreenControls(
 
     /** Controls › ON-SCREEN CONTROLS, for the current orientation and controller layout. */
     fun group() = RowGroup("ON-SCREEN CONTROLS", listOf(
-        SettingsRow.switch("osc", "Show on-screen controls", { enabled }) { value ->
-            enabled = value
-            preferences.edit().putBoolean("onscreen_enabled", value).apply()
+        SettingsRow.choice("osc", "On-screen controls", ChoiceSpec("On-screen controls", { GameSource.ALL_GAMES }, {
+            listOf(ChoiceGroup(null, OnScreenMode.entries.map { ChoiceOption(it.name, it.label, it.description) }))
+        }, { mode.name }, select = { value ->
+            mode = OnScreenMode.valueOf(value)
+            mode.save(preferences)
             refreshVisibility(requestedVisible)
-        },
+        })),
         SettingsRow.choice("dpad-style", "D-pad style", ChoiceSpec("D-pad style", { GameSource.ALL_GAMES }, {
             listOf(ChoiceGroup(null, listOf(
                 ChoiceOption("arrows", "4 buttons", "Separate up, down, left, and right"),

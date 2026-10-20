@@ -46,8 +46,8 @@ Manage library: SOURCE (folder, Refresh, Recheck all files), CATALOGS (Update ca
 Import catalog file…, Remove catalog), ARTWORK (Download missing images).
 
 Controls: CONTROLLER (Controller layout, Button mapping, Controller inputs, Stick dead
-zone), TOUCH SCREEN (Screen tap, Mouse touch), ON-SCREEN CONTROLS (Show on-screen
-controls, D-pad style, Visible buttons, Arrange layout, Reset positions). Controls always
+zone), TOUCH SCREEN (Screen tap, Mouse touch), ON-SCREEN CONTROLS (On-screen
+controls: Auto hides them while a controller is connected; D-pad style, Visible buttons, Arrange layout, Reset positions). Controls always
 changes all games; a game's own mapping and touch choices are under Game settings.
 
 Game settings, with the game's name in the scope chip: CONTROLS, MACHINE, LIBRARY
