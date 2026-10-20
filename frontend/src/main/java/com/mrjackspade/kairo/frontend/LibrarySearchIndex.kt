@@ -17,7 +17,8 @@ internal class LibrarySearchIndex<T : LibraryItem>(
         var rows: List<Row<T>>? = null // Worker-owned, never mutated after publication.
     }
     /** A catalog record stays valid for its entry while the entry's content and name are unchanged. */
-    private class Resolved(val contentId: String?, val name: String, val generation: Int, val game: LibraryGame)
+    private class Resolved(val contentId: String?, val catalogId: String?, val name: String,
+                           val generation: Int, val game: LibraryGame)
     private var snapshot: Snapshot<T>? = null
     private var request = 0L
     private var executor: ThreadPoolExecutor? = null
@@ -66,11 +67,13 @@ internal class LibrarySearchIndex<T : LibraryItem>(
             if (source.cancelled || Thread.currentThread().isInterrupted) return null
             val name = entry.displayName
             val known = resolved[entry.id]?.takeIf {
-                it.contentId == entry.contentId && it.name == name && it.generation == source.catalogGeneration
+                it.contentId == entry.contentId && it.catalogId == entry.catalogId && it.name == name &&
+                    it.generation == source.catalogGeneration
             }
-            val game = known?.game ?: catalog.resolve(entry.contentId ?: "", name).also { game ->
+            val game = known?.game ?: catalog.resolve(entry).also { game ->
                 if (source.catalogGeneration == catalogGeneration)
-                    resolved[entry.id] = Resolved(entry.contentId, name, source.catalogGeneration, game)
+                    resolved[entry.id] = Resolved(entry.contentId, entry.catalogId, name,
+                        source.catalogGeneration, game)
             }
             titles[index] = game.title
             pending[entry.id] = game

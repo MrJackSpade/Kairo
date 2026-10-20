@@ -4,28 +4,34 @@ import android.content.SharedPreferences
 
 /** Resolves game-scoped settings over global values without changing global defaults. */
 class GameSettingScope(private val preferences: SharedPreferences) {
-    private fun key(contentId: String, name: String) = "game_setting_v1_${contentId}_$name"
+    private fun key(game: GameKey, name: String) = "${PREFIX}${game.storageName}_$name"
 
-    fun has(contentId: String?, name: String): Boolean =
-        contentId != null && preferences.contains(key(contentId, name))
+    fun has(game: GameKey?, name: String): Boolean =
+        game != null && preferences.contains(key(game, name))
 
-    fun int(contentId: String?, name: String, global: Int): Int =
-        if (contentId == null) global else preferences.getInt(key(contentId, name), global)
+    fun int(game: GameKey?, name: String, global: Int): Int =
+        if (game == null) global else preferences.getInt(key(game, name), global)
 
-    fun boolean(contentId: String?, name: String, global: Boolean): Boolean =
-        if (contentId == null) global else preferences.getBoolean(key(contentId, name), global)
+    fun boolean(game: GameKey?, name: String, global: Boolean): Boolean =
+        if (game == null) global else preferences.getBoolean(key(game, name), global)
 
-    fun setInt(contentId: String, name: String, value: Int) {
-        preferences.edit().putInt(key(contentId, name), value).apply()
+    fun setInt(game: GameKey, name: String, value: Int) {
+        preferences.edit().putInt(key(game, name), value).apply()
     }
 
-    fun setBoolean(contentId: String, name: String, value: Boolean) {
-        preferences.edit().putBoolean(key(contentId, name), value).apply()
+    fun setBoolean(game: GameKey, name: String, value: Boolean) {
+        preferences.edit().putBoolean(key(game, name), value).apply()
     }
 
-    fun clear(contentId: String, vararg names: String) {
+    fun clear(game: GameKey, vararg names: String) {
         val editor = preferences.edit()
-        names.forEach { editor.remove(key(contentId, it)) }
+        names.forEach { editor.remove(key(game, it)) }
         editor.apply()
+    }
+
+    companion object {
+        const val PREFIX = "game_setting_v2_"
+        /** Settings from before games had keys, named by content ID. */
+        const val CONTENT_ID_PREFIX = "game_setting_v1_"
     }
 }

@@ -1,4 +1,4 @@
-﻿package com.mrjackspade.kairo.frontend
+package com.mrjackspade.kairo.frontend
 
 import android.util.AtomicFile
 import org.json.JSONObject
@@ -17,41 +17,64 @@ class GameMetadataOverrides(
     private var values = loaded ?: empty()
     private val unreadable = loaded == null && exists()
 
-    @Synchronized fun record(contentId: String): JSONObject? =
-        games(values).optJSONObject(contentId)?.let { JSONObject(it.toString()) }
+    @Synchronized fun record(game: GameKey): JSONObject? =
+        games(values).optJSONObject(game.storageName)?.let { JSONObject(it.toString()) }
 
-    @Synchronized fun set(contentId: String, field: String, value: Any?) = change { root ->
+    @Synchronized fun set(game: GameKey, field: String, value: Any?) = change { root ->
         val entries = games(root)
-        val game = entries.optJSONObject(contentId) ?: JSONObject()
-        if (value == null) game.remove(field) else game.put(field, value)
-        if (game.length() == 0) entries.remove(contentId) else entries.put(contentId, game)
+        val id = game.storageName
+        val record = entries.optJSONObject(id) ?: JSONObject()
+        if (value == null) record.remove(field) else record.put(field, value)
+        if (record.length() == 0) entries.remove(id) else entries.put(id, record)
     }
 
-    @Synchronized fun setSubfield(contentId: String, field: String, subfield: String,
-                                  value: Any?) = updateSubfields(contentId, field, mapOf(subfield to value))
+    @Synchronized fun setSubfield(game: GameKey, field: String, subfield: String,
+                                  value: Any?) = updateSubfields(game, field, mapOf(subfield to value))
 
-    @Synchronized fun updateSubfields(contentId: String, field: String,
+    @Synchronized fun updateSubfields(game: GameKey, field: String,
                                        changes: Map<String, Any?>) {
         if (changes.isEmpty()) return
         change { root ->
             val entries = games(root)
-            val game = entries.optJSONObject(contentId) ?: JSONObject()
-            val nested = game.optJSONObject(field) ?: JSONObject()
+            val id = game.storageName
+            val record = entries.optJSONObject(id) ?: JSONObject()
+            val nested = record.optJSONObject(field) ?: JSONObject()
             for ((subfield, value) in changes) {
                 if (value == null) nested.remove(subfield) else nested.put(subfield, value)
             }
-            if (nested.length() == 0) game.remove(field) else game.put(field, nested)
-            if (game.length() == 0) entries.remove(contentId) else entries.put(contentId, game)
+            if (nested.length() == 0) record.remove(field) else record.put(field, nested)
+            if (record.length() == 0) entries.remove(id) else entries.put(id, record)
         }
     }
 
-    @Synchronized fun clear(contentId: String, field: String? = null) = change { root ->
+    @Synchronized fun clear(game: GameKey, field: String? = null) = change { root ->
         val entries = games(root)
-        if (field == null) entries.remove(contentId)
-        else entries.optJSONObject(contentId)?.let { game ->
-            game.remove(field)
-            if (game.length() == 0) entries.remove(contentId)
+        val id = game.storageName
+        if (field == null) entries.remove(id)
+        else entries.optJSONObject(id)?.let { record ->
+            record.remove(field)
+            if (record.length() == 0) entries.remove(id)
         }
+    }
+
+    /** Records from before games had keys, named by content ID. */
+    @Synchronized fun contentIdRecords(): Set<String> =
+        games(values).keys().asSequence().filterNot { it.startsWith(GameKey.STORAGE_PREFIX) }.toSet()
+
+    /** Gives each of [games] a copy of [contentId]'s record, then removes that record, in one write. */
+    @Synchronized fun moveContentIdRecord(contentId: String, games: Collection<GameKey>) = change { root ->
+        val entries = games(root)
+        val record = entries.optJSONObject(contentId) ?: return@change
+        for (game in games) entries.put(game.storageName, JSONObject(record.toString()))
+        entries.remove(contentId)
+    }
+
+    /** Moves a game's record to another key, as when an installer becomes its installed game. */
+    @Synchronized fun move(from: GameKey, to: GameKey) = change { root ->
+        val entries = games(root)
+        val record = entries.optJSONObject(from.storageName) ?: return@change
+        entries.put(to.storageName, record)
+        entries.remove(from.storageName)
     }
 
     private fun change(update: (JSONObject) -> Unit) {

@@ -28,6 +28,8 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
     class ScanContext<Entry : Any> internal constructor(
         val previous: VersionedLibraryCache.Snapshot<Entry>?,
         val prior: Map<String, Entry>,
+        /** The previous scan's entries by ID, even when [forceHash] ignores them for hashing. */
+        val earlier: Map<String, Entry>,
         val forceHash: Boolean,
         val cancelled: AtomicBoolean,
         val progress: (String) -> Unit,
@@ -68,14 +70,14 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
             progress("Library cache unreadable; rescanning every file")
             null
         }
-        val prior = if (forceHash) emptyMap() else
-            previous?.entries?.associateBy(entryId).orEmpty()
+        val earlier = previous?.entries?.associateBy(entryId).orEmpty()
+        val prior = if (forceHash) emptyMap() else earlier
         hashes.set(0)
         val progressLock = Any()
         val report: (String) -> Unit = { message -> synchronized(progressLock) {
             if (!cancelled.get()) progress(message)
         } }
-        val context = ScanContext(previous, prior, forceHash, cancelled, report) { hashes.incrementAndGet(); Unit }
+        val context = ScanContext(previous, prior, earlier, forceHash, cancelled, report) { hashes.incrementAndGet(); Unit }
         val plan = enumerate(tree, cancelled, progress)
         context.checkCancelled()
         val entries = ArrayList<Entry>()

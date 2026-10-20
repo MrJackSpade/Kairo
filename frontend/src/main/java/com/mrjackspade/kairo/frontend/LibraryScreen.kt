@@ -383,11 +383,10 @@ class LibraryScreen<T : LibraryItem>(
         detailPage?.refreshArtwork()
     }
 
-    /** One game's catalog record changed, as after editing its title, artwork or settings. */
-    fun metadataChanged(contentId: String) {
-        val ids = allEntries.filter { it.contentId == contentId }.map { it.id }
-        rowMetadata.keys.removeAll(ids.toSet())
-        searchIndex.forget(ids)
+    /** One game's record changed, as after editing its title, artwork or settings. */
+    fun metadataChanged(game: GameKey) {
+        rowMetadata.keys.remove(game.path)
+        searchIndex.forget(listOf(game.path))
         showEntries(catalogEntries)
     }
 
@@ -442,11 +441,11 @@ class LibraryScreen<T : LibraryItem>(
             val setDisks = HashSet<String>()
             for (entry in items) {
                 if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
-                if (entry.playable) entry.contentId?.let { setDisks.addAll(catalog.setDisks(it)) }
+                if (entry.playable) setDisks.addAll(catalog.setDisks(entry))
             }
             val visible = items.filterNot { entry ->
                 if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
-                entry.contentId?.let { it in setDisks || catalog.hiddenFromLibrary(it) } == true
+                catalog.matchId(entry)?.let { it in setDisks } == true || catalog.hiddenFromLibrary(entry)
             }
             post {
                 if (generation == entriesGeneration) publishEntries(visible)
@@ -464,7 +463,8 @@ class LibraryScreen<T : LibraryItem>(
             val before = previous[id]
             val after = current[id]
             before != null && after != null &&
-                before.contentId == after.contentId && before.path == after.path &&
+                before.contentId == after.contentId && before.catalogId == after.catalogId &&
+                    before.path == after.path &&
                     before.zipEntry == after.zipEntry
         }
         pinnedId = currentPinnedId()

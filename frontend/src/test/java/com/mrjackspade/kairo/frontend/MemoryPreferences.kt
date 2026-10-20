@@ -10,14 +10,16 @@ internal fun memoryPreferences(initial: Map<String, Any> = emptyMap()): SharedPr
         arrayOf(SharedPreferences::class.java)) { _, method, args ->
         when (method.name) {
             "contains" -> values.containsKey(args!![0])
-            "getString", "getBoolean" -> values[args!![0]] ?: args[1]
+            "getString", "getBoolean", "getInt", "getLong", "getFloat", "getStringSet" -> values[args!![0]] ?: args[1]
+            "getAll" -> values.toMap()
             "edit" -> {
                 val writes = mutableMapOf<String, Any?>()
                 lateinit var editor: SharedPreferences.Editor
                 editor = Proxy.newProxyInstance(SharedPreferences.Editor::class.java.classLoader,
                     arrayOf(SharedPreferences.Editor::class.java)) { _, edit, arguments ->
                     when (edit.name) {
-                        "putString", "putBoolean" -> { writes[arguments!![0] as String] = arguments[1]; editor }
+                        "putString", "putBoolean", "putInt", "putLong", "putFloat", "putStringSet" ->
+                            { writes[arguments!![0] as String] = arguments[1]; editor }
                         "remove" -> { writes[arguments!![0] as String] = null; editor }
                         "apply", "commit" -> {
                             writes.forEach { (key, value) -> if (value == null) values.remove(key) else values[key] = value }

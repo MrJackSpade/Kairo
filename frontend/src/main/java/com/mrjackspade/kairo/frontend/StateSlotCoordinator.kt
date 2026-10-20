@@ -12,9 +12,9 @@ class StateSlotCoordinator(
     private val activity: Activity,
     private val pages: PageStack,
     private val handler: Handler,
-    private val currentId: () -> String?,
+    private val currentId: () -> GameKey?,
     private val title: () -> String?,
-    private val storage: (String) -> StateSlots,
+    private val storage: (GameKey) -> StateSlots,
     private val surface: () -> SurfaceView?,
     private val nativeSave: (File) -> Int,
     private val nativeLoad: (File) -> Int,
@@ -68,7 +68,7 @@ class StateSlotCoordinator(
         })
     }
 
-    private fun save(id: String, store: StateSlots, index: Int) {
+    private fun save(id: GameKey, store: StateSlots, index: Int) {
         if (isBusy) return
         isBusy = true
         SurfaceThumbnail.capture(surface(), handler) { thumbnail ->
@@ -111,7 +111,7 @@ class StateSlotCoordinator(
         }
     }
 
-    private fun load(id: String, store: StateSlots, index: Int) {
+    private fun load(id: GameKey, store: StateSlots, index: Int) {
         if (isBusy) return
         isBusy = true
         Thread({

@@ -127,35 +127,69 @@ class SaveFolderSettings(
     /** Lists each save in both places and lets the user keep one copy of each. */
     private fun conflictPage(migration: SaveMigration, conflicts: List<SaveMigration.Conflict>,
                              toPrivate: Boolean, remember: () -> Unit): GroupsPage {
-        val format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
-        val keep = linkedMapOf<SaveUnit, String?>().apply { conflicts.forEach { put(it.unit, null) } }
         val newName = if (toPrivate) "Private app storage" else "New folder"
         var moving = false
-        val rows = conflicts.map { conflict ->
-            val unit = conflict.unit
-            val title = "${gameTitle(unit.game)} \u00b7 ${unitLabel(unit.name)}"
-            SettingsRow.choice("conflict-${unit.game}-${unit.name}", title, ChoiceSpec(title,
+        return choicePage(conflicts.map { conflict ->
+            Choice(conflict.unit, "${gameTitle(conflict.unit.game)} · ${unitLabel(conflict.unit.name)}",
+                "Current", conflict.currentSavedAt, newName, conflict.newSavedAt)
+        }, "Move saves", { moving = true; move(migration, it, remember) }) {
+            if (!moving) finish("Save folder not changed")
+        }
+    }
+
+    /**
+     * Asks which copy to keep of each save that a game has from an earlier version and under its
+     * key, as when another device sharing the folder moved it first. Blocks the calling worker
+     * until the user chooses; returns the conflicts whose earlier copy is kept.
+     */
+    fun resolveMigrationConflicts(conflicts: List<GameKeyMigration.SaveStore.Conflict>,
+                                  title: (GameKey) -> String): Set<GameKeyMigration.SaveStore.Conflict> {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var chosen: Set<GameKeyMigration.SaveStore.Conflict>? = null
+        activity.runOnUiThread {
+            pages.push(choicePage(conflicts.map { conflict ->
+                Choice(conflict, "${title(conflict.game)} · ${unitLabel(conflict.unit)}",
+                    "Earlier version", conflict.earlierSavedAt, "This version", conflict.keyedSavedAt)
+            }, "Keep saves", { keptNewer -> chosen = conflicts.toSet() - keptNewer; latch.countDown() }) {
+                latch.countDown()
+            })
+        }
+        latch.await()
+        return checkNotNull(chosen) { "Saves were not moved; choose which to keep the next time the library opens" }
+    }
+
+    private class Choice<K>(val id: K, val title: String, val currentName: String, val currentSavedAt: Long,
+                            val otherName: String, val otherSavedAt: Long)
+
+    /** One row per save: keep the current copy or the other one. [confirm] receives the saves whose other copy wins. */
+    private fun <K> choicePage(choices: List<Choice<K>>, confirmLabel: String, confirm: (Set<K>) -> Unit,
+                               cancelled: () -> Unit): GroupsPage {
+        val format = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+        val keep = linkedMapOf<K, String?>().apply { choices.forEach { put(it.id, null) } }
+        var confirmed = false
+        val rows = choices.mapIndexed { index, choice ->
+            SettingsRow.choice("conflict-$index", choice.title, ChoiceSpec(choice.title,
                 { GameSource.ALL_GAMES }, {
                     listOf(ChoiceGroup(null, listOf(
-                        ChoiceOption(CURRENT, "Current", format.format(Date(conflict.currentSavedAt))),
-                        ChoiceOption(NEW, newName, format.format(Date(conflict.newSavedAt))))))
-                }, { keep[unit] }, select = { keep[unit] = it }, cycles = false),
-                value = { when (keep[unit]) { CURRENT -> "Current"; NEW -> newName; else -> "Choose" } },
-                tone = { if (keep[unit] == null) ValueTone.EMPTY else ValueTone.CURRENT })
+                        ChoiceOption(CURRENT, choice.currentName, format.format(Date(choice.currentSavedAt))),
+                        ChoiceOption(NEW, choice.otherName, format.format(Date(choice.otherSavedAt))))))
+                }, { keep[choice.id] }, select = { keep[choice.id] = it }, cycles = false),
+                value = { when (keep[choice.id]) { CURRENT -> choice.currentName; NEW -> choice.otherName; else -> "Choose" } },
+                tone = { if (keep[choice.id] == null) ValueTone.EMPTY else ValueTone.CURRENT })
         }
         return object : GroupsPage("Save conflicts", { GameSource.ALL_GAMES }, { listOf(RowGroup("KEEP", rows)) }, {
             listOf(
                 FooterButton("cancel", { "Cancel" }) { pages.pop() },
-                FooterButton("move", { "Move saves" }, ButtonTone.PRIMARY, { keep.values.all { it != null } },
+                FooterButton("move", { confirmLabel }, ButtonTone.PRIMARY, { keep.values.all { it != null } },
                     "Choose which save to keep for each game.") {
-                    moving = true
+                    confirmed = true
                     pages.pop()
-                    move(migration, keep.filterValues { it == NEW }.keys, remember)
+                    confirm(keep.filterValues { it == NEW }.keys)
                 })
         }) {
             override fun onRemoved() {
                 super.onRemoved()
-                if (!moving) finish("Save folder not changed")
+                if (!confirmed) cancelled()
             }
         }
     }

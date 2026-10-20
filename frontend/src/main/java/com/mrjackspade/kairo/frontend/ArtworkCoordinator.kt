@@ -9,32 +9,32 @@ class ArtworkCoordinator<Game : Any>(
     private val activity: Activity,
     private val pages: PageStack,
     private val store: CatalogArtworkStore,
-    private val contentId: (Game) -> String?,
+    private val key: (Game) -> GameKey,
     private val resolve: (Game, String) -> Record,
     private val validPath: (String) -> Boolean,
-    private val saveOverride: (String, String, String?) -> Unit,
-    /** A game's artwork override changed; receives its content ID. */
-    private val changed: (String) -> Unit,
+    private val saveOverride: (GameKey, String, String?) -> Unit,
+    /** A game's artwork override changed. */
+    private val changed: (GameKey) -> Unit,
     private val title: (Game) -> String,
     private val message: (String) -> Unit,
     private val validImageUrl: (String) -> Boolean = { false }
 ) {
     /** [source] names the catalog layer the image comes from; "User override" means Custom. */
     data class Record(val path: String?, val largerUrl: String? = null, val source: String? = null)
-    private data class Selection(val id: String, val kind: String)
+    private data class Selection(val game: GameKey, val kind: String)
     private var selection: Selection? = null
 
     fun saveInstanceState(state: Bundle) {
         selection?.let {
-            state.putString("artwork_selection_id", it.id)
+            state.putString("artwork_selection_key", it.game.path)
             state.putString("artwork_selection_kind", it.kind)
         }
     }
 
     fun restoreInstanceState(state: Bundle?) {
-        val id = state?.getString("artwork_selection_id") ?: return
+        val game = state?.getString("artwork_selection_key") ?: return
         val kind = state.getString("artwork_selection_kind") ?: return
-        if (kind in setOf("boxArt", "preview")) selection = Selection(id, kind)
+        if (kind in setOf("boxArt", "preview")) selection = Selection(GameKey(game), kind)
     }
 
     /**
@@ -69,8 +69,7 @@ class ArtworkCoordinator<Game : Any>(
     }
 
     private fun choose(game: Game, kind: String) {
-        val id = contentId(game) ?: run { message("Hash this game first"); return }
-        selection = Selection(id, kind)
+        selection = Selection(key(game), kind)
         if (!DocumentPicker.open(activity, REQUEST_IMAGE, "image/*", message)) selection = null
     }
 
@@ -86,23 +85,20 @@ class ArtworkCoordinator<Game : Any>(
             }
             activity.runOnUiThread {
                 if (!activity.isFinishing && !activity.isDestroyed) imported.fold(
-                    { save(pending.id, pending.kind, it) },
+                    { save(pending.game, pending.kind, it) },
                     { message(it.message ?: "Could not import image") })
             }
         }, "Kairo-artwork-import").start()
         return true
     }
 
-    private fun save(game: Game, kind: String, path: String?) {
-        val id = contentId(game) ?: run { message("Hash this game first"); return }
-        save(id, kind, path)
-    }
+    private fun save(game: Game, kind: String, path: String?) = save(key(game), kind, path)
 
-    private fun save(id: String, kind: String, path: String?) {
+    private fun save(game: GameKey, kind: String, path: String?) {
         try {
             require(path == null || validPath(path)) { "Invalid artwork path" }
-            saveOverride(id, kind, path)
-            changed(id)
+            saveOverride(game, kind, path)
+            changed(game)
             message(if (path == null) "Artwork reset" else "Artwork saved")
         } catch (error: Exception) {
             message(error.message ?: "Could not save artwork")

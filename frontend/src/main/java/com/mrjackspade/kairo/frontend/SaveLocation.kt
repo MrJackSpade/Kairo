@@ -16,6 +16,8 @@ data class SaveUnit(val game: String, val name: String)
 interface SaveLocation {
     /** The units present here whose name is one of [names]. */
     fun units(names: Set<String>): List<SaveUnit>
+    /** The names of the games with entries here, read in one listing; some may hold no units. */
+    fun games(): Set<String>
     fun exists(unit: SaveUnit): Boolean
     /** True when the unit holds no files, so there is nothing saved in it. */
     fun isEmpty(unit: SaveUnit): Boolean
@@ -31,9 +33,9 @@ interface SaveLocation {
         private val SAFE = Regex("[A-Za-z0-9._-]+")
         private val UNSAFE_CHAR = Regex("[^A-Za-z0-9._-]")
 
-        /** The directory name used for a game ID in every location. */
-        fun gameName(id: String): String = id.replace(UNSAFE_CHAR, "_").also {
-            require(id.isNotBlank() && it != "." && it != "..") { "Invalid game ID" }
+        /** The directory a content ID's saves used before games had keys. */
+        fun contentIdName(id: String): String = id.replace(UNSAFE_CHAR, "_").also {
+            require(id.isNotBlank() && it != "." && it != "..") { "Invalid content ID" }
         }
 
         internal fun requireSafe(name: String) =
@@ -53,6 +55,8 @@ class AppSaveLocation(val root: File) : SaveLocation {
         root.listFiles().orEmpty().filter { it.isDirectory }.flatMap { game ->
             names.map { SaveUnit(game.name, it) }.filter { unit -> recover(unit); directory(unit).isDirectory }
         }
+
+    override fun games(): Set<String> = root.listFiles().orEmpty().filter { it.isDirectory }.map { it.name }.toSet()
 
     @Synchronized override fun exists(unit: SaveUnit): Boolean { recover(unit); return directory(unit).isDirectory }
 
@@ -110,6 +114,8 @@ class FolderSaveLocation(private val resolver: ContentResolver, val tree: Uri) :
                 SaveUnit(game, name).takeIf { recover(uri, name); children(uri)[name] != null }
             }
         }
+
+    @Synchronized override fun games(): Set<String> = children(root()).keys
 
     @Synchronized override fun exists(unit: SaveUnit): Boolean = find(unit) != null
 

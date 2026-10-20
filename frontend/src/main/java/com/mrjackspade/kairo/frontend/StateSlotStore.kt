@@ -2,15 +2,14 @@ package com.mrjackspade.kairo.frontend
 
 import java.io.File
 
-/** Four content-ID slots in app storage. The core's state, disk copies, and thumbnail commit together. */
-class StateSlotStore(root: File, contentId: String, private val stateName: String,
+/** A game's four slots in app storage. The core's state, disk copies, and thumbnail commit together. */
+class StateSlotStore(root: File, game: GameKey, private val stateName: String,
                      private val legacySuffix: String? = null) : StateSlots {
     data class Slot(val index: Int, val savedAt: Long?, val directory: File,
                     val stateFile: File, val thumbnailFile: File)
 
-    private val base = File(root, contentId.replace(Regex("[^A-Za-z0-9._-]"), "_"))
+    private val base = File(root, game.storageName)
     init {
-        require(contentId.isNotBlank() && base.name !in setOf(".", ".."))
         require(stateName.matches(Regex("[A-Za-z0-9._-]+")) &&
             stateName != "." && !stateName.contains(".."))
         require(legacySuffix == null || legacySuffix.matches(Regex("\\.[A-Za-z0-9]+")))

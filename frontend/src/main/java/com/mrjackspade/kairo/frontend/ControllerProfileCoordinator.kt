@@ -4,10 +4,11 @@ package com.mrjackspade.kairo.frontend
 class ControllerProfileCoordinator<Game : Any>(
     private val store: ControllerProfileStore,
     private val mapper: GamepadMapper,
-    private val contentId: (Game) -> String?,
+    /** The game whose own mapping applies, or null when [Game] uses the global one. */
+    private val key: (Game) -> GameKey?,
     private val gameBindings: (Game) -> List<ControllerBinding>,
-    private val saveGame: (String, List<ControllerBinding>) -> Unit,
-    private val resetGame: (String) -> Unit,
+    private val saveGame: (GameKey, List<ControllerBinding>) -> Unit,
+    private val resetGame: (GameKey) -> Unit,
     private val activeGame: () -> Game?,
     private val reloadActiveGame: () -> Unit = {}
 ) {
@@ -39,10 +40,10 @@ class ControllerProfileCoordinator<Game : Any>(
         }
 
     fun load(game: Game?): List<ControllerBinding> =
-        if (game == null || contentId(game) == null) store.global() else gameBindings(game)
+        if (game == null || key(game) == null) store.global() else gameBindings(game)
 
     fun save(game: Game?, bindings: List<ControllerBinding>) {
-        val id = game?.let(contentId)
+        val id = game?.let(key)
         if (id == null) store.saveGlobal(bindings) else saveGame(id, bindings)
         refresh(game)
     }
@@ -53,7 +54,7 @@ class ControllerProfileCoordinator<Game : Any>(
     fun saveActive(bindings: List<ControllerBinding>) = save(activeGame(), bindings)
 
     fun reset(game: Game?) {
-        val id = game?.let(contentId)
+        val id = game?.let(key)
         if (id == null) store.resetGlobal() else resetGame(id)
         refresh(game)
     }
@@ -61,7 +62,7 @@ class ControllerProfileCoordinator<Game : Any>(
     fun refresh(editedGame: Game?) {
         // Editing another library entry must not replace the running game's mapping.
         val active = activeGame()
-        if (editedGame != null && contentId(editedGame) != active?.let(contentId)) return
+        if (editedGame != null && key(editedGame) != active?.let(key)) return
         reloadActiveGame()
         mapper.bindings = load(activeGame())
     }
