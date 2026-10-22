@@ -47,7 +47,9 @@ abstract class MachineActivity<E : LibraryItem> : Activity(), SurfaceHolder.Call
         /** The file a save state's directory holds; a slot without it is empty. */
         val stateFile: String,
         /** The About page's credits, such as which emulator the app runs. */
-        val credits: String
+        val credits: String,
+        /** What the library scans the ROM folder for, as first-run setup words it. */
+        val media: String = "disk images and the ZIP and 7z archives holding them"
     )
 
     protected abstract val identity: Identity
@@ -466,7 +468,7 @@ abstract class MachineActivity<E : LibraryItem> : Activity(), SurfaceHolder.Call
         root.addView(libraryScreen, root.indexOfChild(overlay), FrameLayout.LayoutParams(-1, -1))
         touchUi.bind(keyboardPanel)
         firstRunSetup = MachineFirstRun(pages, identity.brand, identity.appName, identity.guestName,
-            ::chooseRomFolder, ::advanceFirstRunFirmware, ::finishFirstRun, firmware)
+            identity.media, ::chooseRomFolder, ::advanceFirstRunFirmware, ::finishFirstRun, firmware)
         backCoordinator.register()
         handler.post(updateStatus)
         controllerSetupPending = controllerProfiles.configuration.needsSetup

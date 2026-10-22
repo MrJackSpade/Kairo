@@ -9,6 +9,8 @@ class MachineFirstRun(
     private val brand: String,
     private val appName: String,
     private val guestName: String,
+    /** What step 1 scans for, such as "disk images and ZIP files". */
+    private val media: String,
     private val selectRomFolder: () -> Unit,
     private val skipRomFolder: (Boolean) -> Unit,
     private val finish: () -> Unit,
@@ -58,7 +60,7 @@ class MachineFirstRun(
     }
 
     private fun folderPage() = SetupPage(brand, "STEP 1 OF 2", "Choose a ROM folder",
-        "Select the folder containing your $guestName games. $appName will scan its disk images and the ZIP and 7z archives holding them.",
+        "Select the folder containing your $guestName games. $appName will scan its $media.",
         "You can choose or change it later in Menu › Manage library.",
         footerButtons = {
             listOf(FooterButton("skip", { "Skip for now" }) { skipRomFolder(false) },
