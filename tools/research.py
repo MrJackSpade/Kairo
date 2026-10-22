@@ -119,13 +119,23 @@ def sequel_numbers(title):
     return {ROMAN.get(token, token.lstrip("0") or "0") for token in tokens} - {"1"}
 
 
+def name_forms(name):
+    """A name's comparison forms: as written, "&" read as "and", and without a subtitle after
+    ":" or " - ", so "Sim Earth" finds "SimEarth: The Living Planet"."""
+    forms = {name, name.replace("&", " and ")}
+    for separator in (":", " - "):
+        if separator in name:
+            forms.add(name.split(separator, 1)[0])
+    return {title_key(form) for form in forms if title_key(form)}
+
+
 def match_title(title, year, slugs, snapshots):
     """The one LaunchBox game key a title names, searching platforms in order, or None."""
-    sought = title_key(title)
+    sought = title_key(title.replace("&", " and "))
     for slug in slugs:
         games = snapshots[slug]
         exact = [game_id for game_id, game in games.items()
-                 if sought in {title_key(name) for name in (game["Name"], *game["aliases"])}
+                 if any(sought in name_forms(name) for name in (game["Name"], *game["aliases"]))
                  and years_agree(year, year_of(game))]
         if len(exact) == 1:
             return f"{slug}:{exact[0]}"
