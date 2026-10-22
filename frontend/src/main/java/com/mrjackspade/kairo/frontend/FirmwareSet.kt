@@ -10,15 +10,24 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The firmware files a machine reads from [directory], imported from a folder the player chooses:
- * every file there whose name a [Part] accepts, in any case, is copied under the part's name.
+ * every file there whose name a [Part] accepts, in any case, or whose content a part names by
+ * SHA-1, is copied under the part's name.
  */
 class FirmwareSet(val directory: File, val parts: List<Part>) {
     /**
      * One file the machine reads. [accepted] are the names it is found by (lower case), [sizes]
-     * the sizes a good dump has, or empty for any size.
+     * the sizes a good dump has, or empty for any size. [sha1] are the SHA-1 digests (lower-case
+     * hex) of good dumps, which find the file under any name; a part found this way gives its
+     * largest size, [maxBytes], so larger files are not read.
      */
     class Part(val name: String, val label: String, val accepted: Set<String>, val required: Boolean,
-               val sizes: Set<Long> = emptySet())
+               val sizes: Set<Long> = emptySet(), val sha1: Set<String> = emptySet(),
+               val maxBytes: Long = sizes.maxOrNull() ?: Long.MAX_VALUE) {
+        init { require(sha1.isEmpty() || maxBytes < Long.MAX_VALUE) { "$label is found by content but has no size limit" } }
+    }
+
+    private val hashed = parts.filter { it.sha1.isNotEmpty() }
+    private val largestHashed = hashed.maxOfOrNull { it.maxBytes } ?: 0L
 
     fun file(part: Part) = File(directory, part.name)
     fun installed(part: Part) = file(part).isFile
@@ -40,10 +49,18 @@ class FirmwareSet(val directory: File, val parts: List<Part>) {
      * is replaced.
      */
     fun importFolder(resolver: ContentResolver, tree: Uri, cancelled: AtomicBoolean): List<Part> {
-        val files = DocumentTreeWalker(resolver).scan(tree, cancelled, { name -> partFor(name) != null }, {}).files
-        val found = parts.mapNotNull { part ->
+        val files = DocumentTreeWalker(resolver).scan(tree, cancelled,
+            { name -> hashed.isNotEmpty() || partFor(name) != null }, {}).files
+        val byName = parts.mapNotNull { part ->
             files.firstOrNull { partFor(it.path.substringAfterLast('/')) === part }?.let { part to it }
         }
+        // Then by content: each file no larger than a hashed part can be, read once.
+        val byContent = files.filter { it.size in 1..largestHashed }.mapNotNull { file ->
+            if (cancelled.get()) throw java.util.concurrent.CancellationException("Cancelled")
+            val digest = sha1(resolver, file.uri)
+            hashed.firstOrNull { digest in it.sha1 }?.let { it to file }
+        }
+        val found = byName + byContent.distinctBy { it.first }.filter { (part, _) -> byName.none { it.first === part } }
         for ((part, file) in found) require(part.sizes.isEmpty() || file.size in part.sizes) {
             "${file.path.substringAfterLast('/')} is ${file.size} bytes; ${part.label} is " +
                 part.sizes.joinToString(" or ") { "$it bytes" }
@@ -89,6 +106,19 @@ class FirmwareSet(val directory: File, val parts: List<Part>) {
     private fun partFor(name: String): Part? {
         val lower = name.lowercase(Locale.ROOT)
         return parts.firstOrNull { lower in it.accepted }
+    }
+
+    private fun sha1(resolver: ContentResolver, uri: Uri): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-1")
+        (resolver.openInputStream(uri) ?: error("Unable to open $uri")).use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     companion object {
