@@ -104,6 +104,7 @@ def contexts(registry):
     raw = f"https://raw.githubusercontent.com/{owner}"
     base = {key: value for key, value in registry.items() if key != "apps"}
     base["discordBanner"] = f"{raw}/{frontend}/main/docs/assets/discord-banner.svg"
+    base["donateBanner"] = f"{raw}/{frontend}/main/docs/assets/donate-banner.svg"
     base["frontendUrl"] = f"https://github.com/{owner}/{frontend}"
     apps = []
     for app in registry["apps"]:
@@ -111,6 +112,8 @@ def contexts(registry):
         hosts = [f"`{host}`" for host in app["artworkHosts"]]
         apps.append({**app, "url": url, "releasesUrl": f"{url}/releases", "issuesUrl": f"{url}/issues",
                      "iconUrl": f"{raw}/{app['repo']}/main/{app['icon']}", "emulatorId": app["repo"].upper(),
+                     # The Donate banner links every app's store page, published or not yet.
+                     "donateUrl": f"https://play.google.com/store/apps/details?id={app['package']}",
                      "artworkHostList": hosts[0] if len(hosts) == 1 else ", ".join(hosts[:-1]) + f" or {hosts[-1]}",
                      **({"playUrl": f"https://play.google.com/store/apps/details?id={app['package']}"}
                         if app["googlePlay"] else {})})

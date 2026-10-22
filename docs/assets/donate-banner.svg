@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="260" viewBox="0 0 600 260" role="img" aria-labelledby="title desc">
+  <title id="title">Donate: buy the app on Google Play</title>
+  <desc id="desc">Banner linking to the app on Google Play. Buying it there is the donation; it adds no features.</desc>
+  <defs>
+    <linearGradient id="edge" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#00a6ff"/>
+      <stop offset="0.35" stop-color="#00d26a"/>
+      <stop offset="0.7" stop-color="#ffc400"/>
+      <stop offset="1" stop-color="#ff3d4f"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#123a2c"/>
+      <stop offset="1" stop-color="#08140f"/>
+    </linearGradient>
+    <clipPath id="play">
+      <path d="M86 78l84 48-84 48z"/>
+    </clipPath>
+  </defs>
+  <rect x="3" y="3" width="594" height="254" rx="28" fill="#0a0c1d" stroke="url(#edge)" stroke-width="6"/>
+  <path d="M30 236H570" stroke="#00d26a" stroke-opacity=".16" stroke-width="2"/>
+  <rect x="36" y="48" width="164" height="164" rx="19" fill="#d6f2e4" stroke="#7fe0ad" stroke-width="4"/>
+  <rect x="50" y="62" width="136" height="112" rx="10" fill="url(#screen)" stroke="#2c5a46" stroke-width="7"/>
+  <g clip-path="url(#play)" transform="translate(-8 -8) scale(1 0.92) translate(0 18)">
+    <path d="M86 78L134 126L86 174z" fill="#00d26a"/>
+    <path d="M86 78L170 126H134z" fill="#00a6ff"/>
+    <path d="M86 174L170 126H134z" fill="#ff3d4f"/>
+    <path d="M134 126L170 126L152 116z" fill="#ffc400"/>
+    <path d="M134 126L170 126L152 136z" fill="#ffc400"/>
+  </g>
+  <rect x="64" y="190" width="108" height="6" rx="3" fill="#2f5a47"/>
+  <text x="226" y="70" fill="#7fe0ad" font-family="monospace" font-size="20" font-weight="bold" letter-spacing="4">SUPPORT KAIRO</text>
+  <text x="222" y="130" fill="#eefff6" font-family="monospace" font-size="62" font-weight="bold" letter-spacing="-3">DON<tspan fill="#00d26a">ATE</tspan></text>
+  <text x="226" y="160" fill="#c4d8cd" font-family="sans-serif" font-size="17">Buying it on Google Play is the donation.</text>
+  <text x="226" y="183" fill="#8fa89a" font-family="sans-serif" font-size="15">Same app as the free one: no extra features.</text>
+  <rect x="226" y="196" width="262" height="36" rx="12" fill="#10291f" stroke="#00d26a" stroke-width="3"/>
+  <text x="242" y="221" fill="#ffffff" font-family="monospace" font-size="18" font-weight="bold">GET IT ON GOOGLE PLAY →</text>
+</svg>
