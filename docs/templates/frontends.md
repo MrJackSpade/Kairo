@@ -77,7 +77,7 @@ Add this object to the array in `supported_emulators.json`:
 }
 ```
 
-Put your games in the `{{frontends.iisuShortName}}` folder of your iiSU ROM folder. Select the {{frontends.iisuConsole}} console, open **Quick Settings → Console Settings → Edit Console Settings**, and choose **{{repo}} (Standalone)** as the emulator. An iiSU update can replace these files; add the entries again if {{repo}} disappears from the list.
+Put your games in the `{{frontends.iisuShortName}}` folder inside the folder iiSU reads games from (its ROM folder). Select the {{frontends.iisuConsole}} console, open **Quick Settings → Console Settings → Edit Console Settings**, and choose **{{repo}} (Standalone)** as the emulator. An iiSU update can replace these files; add the entries again if {{repo}} disappears from the list.
 
 ## Beacon
 

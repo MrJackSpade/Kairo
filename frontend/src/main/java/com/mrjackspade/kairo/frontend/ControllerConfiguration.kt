@@ -85,8 +85,7 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
         var selected: Choice? = if (detection.device == null) null else Choice.AUTO
         lateinit var page: SetupPage
         page = SetupPage(product, null, "Controller layout",
-            if (detection.device == null) "No controller detected. Choose a layout to continue."
-            else "Choose the layout of your controller.",
+            if (detection.device == null) "No controller detected. Choose a layout to continue." else null,
             content = {
                 listOf(RowGroup(null, choices.map { option ->
                     SettingsRow.option("layout:${option.name}", option.label,

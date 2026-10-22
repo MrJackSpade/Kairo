@@ -96,7 +96,7 @@ class GuestKeyboardPanel(
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(14), dp(4), dp(8), dp(4))
             }
-            brand.addView(PixelTextView(context).apply { text = layout.brand }, LayoutParams(0, -2, 1f))
+            brand.addView(PixelTextView(context).apply { text = layout.brand; this.brand = true }, LayoutParams(0, -2, 1f))
             mappingButton?.let { brand.addView(it, LayoutParams(dp(54), dp(40)).apply { marginEnd = dp(8) }) }
             brand.addView(TextView(context).apply {
                 text = "\u2191\u2193"

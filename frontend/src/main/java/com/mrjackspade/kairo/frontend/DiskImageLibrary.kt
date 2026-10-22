@@ -19,7 +19,7 @@ import java.util.zip.CRC32
 import java.util.zip.ZipFile
 
 /**
- * A disk image: loose in the ROM folder, or a member of a ZIP or 7z archive there. A descriptor
+ * A disk image: loose in the games folder, or a member of a ZIP or 7z archive there. A descriptor
  * (such as a CD's .ccd) has its track data beside it under its own name, listed in [companions].
  */
 data class DiskImageEntry(
@@ -62,7 +62,7 @@ fun mediaFor(contentId: String, source: DiskImageEntry, entries: List<DiskImageE
 }
 
 /**
- * A product's disk images in its ROM folder: loose, or inside ZIP and 7z archives. Each image is
+ * A product's disk images in its games folder: loose, or inside ZIP and 7z archives. Each image is
  * named by the SHA-256 of its bytes (`sha256-<kind>-v1:<hex>`, the catalog's content IDs; a
  * descriptor's ID hashes its track data), and a game plays from an app-private working copy that
  * keeps what it writes to its disks.
@@ -540,7 +540,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     /** [entry] with the label its formats give it, as for one an earlier cache layout read. */
     private fun labeled(entry: DiskImageEntry) = entry.copy(mediaLabel = label(entry.zipEntry ?: entry.path))
 
-    /** An image's key: its path in the ROM folder, and its path inside an archive. */
+    /** An image's key: its path in the games folder, and its path inside an archive. */
     fun keyOf(path: String, member: String?) = member?.let { GameKey.inArchive(path, it) } ?: GameKey(path)
 
     private fun trusted(source: Source) = source.size >= 0 && source.modified > 0

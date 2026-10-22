@@ -235,6 +235,7 @@ class FlyoutPage(private val model: FlyoutModel, private val start: String? = nu
         content.addView(PixelTextView(context).apply {
             text = model.product
             scale = 2
+            brand = true
             setPadding(dp(12), 0, dp(12), dp(14))
         })
         title = Ui.text(context, "", Ui.TITLE, bold = true).apply {
@@ -299,7 +300,7 @@ open class SetupPage(
     private val product: String,
     private val step: String?,
     private val title: String,
-    private val description: String,
+    private val description: String?,
     private val note: String? = null,
     private val content: () -> List<RowGroup> = { emptyList() },
     private val footerButtons: () -> List<FooterButton>,
@@ -328,6 +329,7 @@ open class SetupPage(
         brand.addView(PixelTextView(context).apply {
             text = product
             scale = 2
+            this.brand = true
             contentDescription = product
         }, LinearLayout.LayoutParams(0, -2, 1f))
         step?.let { brand.addView(PixelTextView(context).apply { text = it; color = Ui.TEXT_FAINT }) }
@@ -336,9 +338,11 @@ open class SetupPage(
             background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Ui.ACCENT, Ui.LINE))
         }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(0, dp(14), 0, dp(18)) })
         head.addView(Ui.text(context, title, Ui.DISPLAY, bold = true))
-        head.addView(Ui.text(context, description, Ui.BODY, Ui.TEXT_MUTED).apply {
-            setLineSpacing(dp(4).toFloat(), 1f)
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        description?.let {
+            head.addView(Ui.text(context, it, Ui.BODY, Ui.TEXT_MUTED).apply {
+                setLineSpacing(dp(4).toFloat(), 1f)
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        }
         page.addView(FrameLayout(context).apply {
             addView(head, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_HORIZONTAL))
         })

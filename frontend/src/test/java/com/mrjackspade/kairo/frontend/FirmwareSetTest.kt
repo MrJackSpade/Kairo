@@ -9,7 +9,7 @@ import org.junit.rules.TemporaryFolder
 class FirmwareSetTest {
     @get:Rule val folder = TemporaryFolder()
 
-    private fun part(name: String, required: Boolean = true) = FirmwareSet.Part(name, name, setOf(name), required)
+    private fun part(name: String, required: Boolean = true) = FirmwareSet.Part(name, name, "$name for tests", setOf(name), required)
 
     @Test
     fun eachRequiredPartIsItsOwnRequirementByDefault() {
@@ -48,5 +48,22 @@ class FirmwareSetTest {
         val set = FirmwareSet(folder.root, listOf(eprom, bios, music), listOf(listOf(eprom, bios), listOf(eprom, music)))
         folder.newFile("ic18.rom")
         assertTrue(set.missingRequirements.isEmpty())
+    }
+
+    @Test
+    fun aStandInIsOptionalAndCoversTheFilesItReplaces() {
+        val eprom = part("ic18.rom")
+        val bios = part("bios.rom")
+        val music = part("music.rom")
+        val font = part("font.rom")
+        val extra = part("extra.rom", required = false)
+        val set = FirmwareSet(folder.root, listOf(eprom, bios, music, font, extra),
+            listOf(listOf(eprom, bios), listOf(eprom, music), listOf(font)))
+        assertEquals(listOf(false, true, true, true, false), listOf(eprom, bios, music, font, extra).map(set::isRequired))
+        assertEquals("Missing", set.state(bios))
+        folder.newFile("ic18.rom")
+        assertEquals("Installed", set.state(eprom))
+        assertEquals("Covered by ic18.rom", set.state(bios))
+        assertEquals("Missing", set.state(font))
     }
 }

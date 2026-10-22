@@ -483,7 +483,6 @@ internal class SecondaryDisplayContent(
         text.addView(libraryTitle)
         text.addView(libraryTags, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         text.addView(libraryDescription, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(14) })
-        text.addView(Ui.text(context, "Press A or tap the game above to open it", Ui.LABEL, Ui.TEXT_FAINT))
         libraryPanel.addView(text, LinearLayout.LayoutParams(0, -1, 1f))
         addView(libraryPanel, LayoutParams(-1, -1))
     }

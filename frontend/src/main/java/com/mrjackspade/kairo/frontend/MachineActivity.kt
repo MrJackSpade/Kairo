@@ -57,11 +57,12 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** The machine's choices, each a game setting and an all-games default in Machine. */
     protected open val machineOptions: List<MachineOption> = emptyList()
 
-    /** Firmware imported from a folder the player chooses, each set a row; empty for none. */
+    /** The machine's firmware, by set label: each file its own row (firmwareGroups); empty for none. */
     protected open val firmwareSets: List<Pair<String, FirmwareSet>> = emptyList()
-    /** The first-run step's title and text, and the note under the firmware rows. */
-    protected open val firmwareText: Triple<String, String, String>
-        get() = Triple("${identity.guestName} firmware", "", "")
+    /** The first-run step's title and text, and the note under the firmware rows; the same in every app. */
+    private val firmwareText: Triple<String, String, String>
+        get() = Triple("${identity.guestName} BIOS", "Pick each file below, or import them all from a folder.",
+            "Files marked Required are needed to start games.")
 
     /** The media slots a game's own disks go in, shown on the flyout's media page. */
     protected open val mediaSlots: List<MediaSlot<E>> = emptyList()
@@ -400,24 +401,57 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                         }))
                 }, "A game's own settings come first. Changes apply on the next launch or restart.")
             },
-            firmwareSets.takeIf { it.isNotEmpty() }?.let {
-                RowGroup("FIRMWARE", firmwareRows(), if (firmwareConfigurable()) firmwareText.third else RETURN_FOR_FIRMWARE)
-            })
+        ) + firmwareGroups()
     })
 
     // Firmware ---------------------------------------------------------------------------------------
 
     @Volatile private var firmwareImporting = false
 
+    /** The firmware file picked on its own, waiting for the picker's result. */
+    private var pickingPart: Pair<FirmwareSet, FirmwareSet.Part>? = null
+
     override val firmware: MachineFirstRun.Firmware?
         get() = if (firmwareSets.isEmpty()) null else MachineFirstRun.Firmware(firmwareText.first, firmwareText.second,
-            ::firmwareRows, firmwareText.third, { firmwareImporting })
+            ::firmwareGroups, { firmwareImporting })
 
-    private fun firmwareRows() = firmwareSets.mapIndexed { index, (label, set) ->
-        set.row("firmware$index", label, { firmwareImporting }, ::firmwareConfigurable, { RETURN_FOR_FIRMWARE }) {
-            set.chooseFolder(this, FIRMWARE_REQUEST, ::toast)
+    /**
+     * Firmware, the same in every app: one row imports everything it recognizes from a folder,
+     * then each set's files, each its own row marked Required or Optional with what it is for.
+     */
+    protected fun firmwareGroups(): List<RowGroup> {
+        if (firmwareSets.isEmpty()) return emptyList()
+        val reason = { if (firmwareImporting) "Wait for the current import to finish" else RETURN_FOR_FIRMWARE }
+        val usable = { firmwareConfigurable() && !firmwareImporting }
+        val folder = SettingsRow.action("firmware-folder", "Import all from a folder…",
+            description = "Finds the files below in a folder you choose and imports every one it recognizes",
+            busy = { firmwareImporting }, enabled = usable, disabledReason = reason) {
+            firmwareSets.first().second.chooseFolder(this, FIRMWARE_REQUEST, ::toast)
         }
+        val sets = firmwareSets.mapIndexed { index, (label, set) ->
+            RowGroup(label.uppercase(), set.parts.map { part -> firmwareRow(index, set, part, usable, reason) }, set.note)
+        }
+        return listOf(RowGroup("FIRMWARE", listOf(folder),
+            if (firmwareConfigurable()) firmwareText.third else RETURN_FOR_FIRMWARE)) + sets
     }
+
+    /** One firmware file: what it is for, Required or Optional, its state, and a tray to pick or remove it. */
+    private fun firmwareRow(index: Int, set: FirmwareSet, part: FirmwareSet.Part, usable: () -> Boolean,
+                            reason: () -> String) =
+        SettingsRow.action("firmware$index-${part.name}", part.label, value = { set.state(part) },
+            tone = { if (set.installed(part) || part.status?.invoke() != null) ValueTone.CURRENT else ValueTone.SUMMARY },
+            tag = { if (set.isRequired(part)) "Required" else "Optional" },
+            description = part.description, busy = { firmwareImporting }, enabled = usable, disabledReason = reason,
+            tray = {
+                val choose = TrayButton(if (set.installed(part)) "Replace…" else "Choose file…", ButtonTone.PRIMARY) {
+                    pickingPart = set to part
+                    DocumentPicker.open(this, FIRMWARE_FILE_REQUEST, failed = ::toast)
+                }
+                TraySpec(buttons = if (set.installed(part)) listOf(TrayButton(part.removeLabel) {
+                    set.remove(part)
+                    firmwareChanged()
+                }, choose) else listOf(choose))
+            })
 
     /** The machine reads its firmware when a game boots, so it changes only in the library. */
     private fun firmwareConfigurable() = currentEntry == null && !transitioning
@@ -430,16 +464,37 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     override fun handleProductResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        if (requestCode != FIRMWARE_REQUEST) return false
-        val tree = data?.data?.takeIf { resultCode == RESULT_OK } ?: return true
+        when (requestCode) {
+            FIRMWARE_REQUEST -> {
+                val tree = data?.data?.takeIf { resultCode == RESULT_OK } ?: return true
+                importFirmware {
+                    val cancelled = AtomicBoolean(false)
+                    val imported = firmwareSets.flatMap { it.second.importFolder(contentResolver, tree, cancelled) }
+                    if (imported.isEmpty()) "No ${identity.guestName} firmware files in that folder"
+                    else "Imported ${imported.size} firmware ${if (imported.size == 1) "file" else "files"}"
+                }
+            }
+            FIRMWARE_FILE_REQUEST -> {
+                val (set, part) = pickingPart ?: return true
+                pickingPart = null
+                val uri = DocumentPicker.selectedUri(resultCode, data) ?: return true
+                importFirmware {
+                    set.importPart(contentResolver, uri, part)
+                    "${part.label} imported"
+                }
+            }
+            else -> return false
+        }
+        return true
+    }
+
+    /** Runs a firmware import off the UI thread and reports its result. */
+    private fun importFirmware(run: () -> String) {
         firmwareImporting = true
         firmwareChanged()
         Thread {
             val message = try {
-                val cancelled = AtomicBoolean(false)
-                val imported = firmwareSets.flatMap { it.second.importFolder(contentResolver, tree, cancelled) }
-                if (imported.isEmpty()) "No ${identity.guestName} firmware files in that folder"
-                else "Imported ${imported.size} firmware ${if (imported.size == 1) "file" else "files"}"
+                run()
             } catch (error: Exception) {
                 "Firmware import failed: ${error.message ?: error.javaClass.simpleName}"
             }
@@ -449,7 +504,6 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 toast(message)
             }
         }.apply { name = "${identity.appName}-firmware"; start() }
-        return true
     }
 
     // Media ------------------------------------------------------------------------------------------
@@ -534,6 +588,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     companion object {
         private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
+        private const val FIRMWARE_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 2
         private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."
     }
 }

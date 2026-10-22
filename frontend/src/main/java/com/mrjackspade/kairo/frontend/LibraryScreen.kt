@@ -273,6 +273,7 @@ class LibraryScreen<T : LibraryItem>(
         header.addView(PixelTextView(context).apply {
             text = strings.productName
             scale = 2
+            brand = true
         }, LinearLayout.LayoutParams(0, -2, 1f))
         scanProgress.visibility = View.GONE
         header.addView(scanProgress, LinearLayout.LayoutParams(dp(24), dp(24)).apply {

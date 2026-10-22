@@ -39,6 +39,11 @@ object Ui {
     val SELECTED = 0xff2a3a50.toInt()
     val LINE = 0xff2e3a4b.toInt()
     val TEXT = 0xfff1f4f8.toInt()
+    /**
+     * The app's brand color, the color of its icon's wordmark after "Kairo" (Identity.brandAccent).
+     * The activity sets it before building any view; a brand title drawn earlier fails.
+     */
+    var brandAccent: Int? = null
     val TEXT_BODY = 0xffd3dae3.toInt()
     val TEXT_MUTED = 0xffa5b1c0.toInt()
     val TEXT_FAINT = 0xff7a8799.toInt()
@@ -329,11 +334,19 @@ class PixelTextView(context: Context) : View(context) {
         }
     var color: Int = Ui.TEXT
         set(value) { field = value; paint.color = value; invalidate() }
+    /** A product name such as KAIRO88: "KAIRO" in [color], the rest in the app's [Ui.brandAccent]. */
+    var brand: Boolean = false
+        set(value) {
+            field = value
+            if (value) accentPaint.color = checkNotNull(Ui.brandAccent) { "Ui.brandAccent is not set" }
+            invalidate()
+        }
     /** Screen pixels per font pixel, before density; 1 draws 8x16 glyphs at 1dp per pixel. */
     var scale: Int = 1
         set(value) { field = value; requestLayout(); invalidate() }
 
     private val paint = Paint().apply { color = Ui.TEXT }
+    private val accentPaint = Paint()
     private val pixel: Int get() = max(1, (scale * resources.displayMetrics.density).roundToInt())
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -347,6 +360,7 @@ class PixelTextView(context: Context) : View(context) {
         val size = pixel.toFloat()
         text.forEachIndexed { index, character ->
             val code = character.code.takeIf { it in 32..126 } ?: '?'.code
+            val glyphPaint = if (brand && index >= BRAND_PREFIX.length) accentPaint else paint
             val originX = paddingLeft + index * GLYPH_WIDTH * size
             for (row in 0 until GLYPH_HEIGHT) {
                 val bits = glyphs[(code - 32) * GLYPH_HEIGHT + row].toInt() and 0xff
@@ -354,13 +368,15 @@ class PixelTextView(context: Context) : View(context) {
                 val top = paddingTop + row * size
                 for (column in 0 until GLYPH_WIDTH) {
                     if (bits and (0x80 shr column) != 0)
-                        canvas.drawRect(originX + column * size, top, originX + (column + 1) * size, top + size, paint)
+                        canvas.drawRect(originX + column * size, top, originX + (column + 1) * size, top + size, glyphPaint)
                 }
             }
         }
     }
 
     companion object {
+        /** The part of every product name drawn in [color]; the rest is the app's accent. */
+        private const val BRAND_PREFIX = "KAIRO"
         private const val GLYPH_WIDTH = 8
         private const val GLYPH_HEIGHT = 16
         @Volatile private var table: ByteArray? = null

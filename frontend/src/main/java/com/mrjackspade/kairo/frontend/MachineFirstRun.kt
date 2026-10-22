@@ -13,12 +13,12 @@ class MachineFirstRun(
     private val finish: () -> Unit,
     private val firmware: Firmware?
 ) {
-    /** Step 1's title, such as "Choose a ROM folder", its description, and its button. */
+    /** Step 1's title, such as "Choose a games folder", its description, and its button. */
     class Folder(val title: String, val description: String, val button: String)
 
-    /** The firmware step: a title, a description, its rows and their footnote, and whether an import runs. */
-    class Firmware(val title: String, val description: String, val rows: () -> List<SettingsRow>,
-                   val footnote: String, val busy: () -> Boolean)
+    /** The firmware step: a title, a description, its row groups, and whether an import runs. */
+    class Firmware(val title: String, val description: String, val groups: () -> List<RowGroup>,
+                   val busy: () -> Boolean)
 
     enum class Step { ROM_FOLDER, FIRMWARE }
 
@@ -67,7 +67,7 @@ class MachineFirstRun(
         }, onBack = { skipRomFolder(false) }, startFocus = "choose")
 
     private fun firmwarePage(firmware: Firmware) = SetupPage(brand, "STEP 2 OF 2", firmware.title, firmware.description,
-        content = { listOf(RowGroup("FIRMWARE", firmware.rows(), firmware.footnote)) },
+        content = firmware.groups,
         footerButtons = {
             listOf(FooterButton("done", { "Continue to library" }, ButtonTone.PRIMARY, { !firmware.busy() },
                 "Wait for the current import to finish") { finish() })

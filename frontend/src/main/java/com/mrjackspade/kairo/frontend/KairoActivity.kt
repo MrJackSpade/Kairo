@@ -36,6 +36,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     class Identity(
         /** The pixel-font product name, such as KAIRO88. */
         val brand: String,
+        /** The color of the icon's wordmark after "Kairo", which titles draw the rest of [brand] in. */
+        val brandAccent: Int,
         /** The app's name, such as Kairo88. */
         val appName: String,
         /** The machine's name, such as PC-88. */
@@ -429,6 +431,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Ui.brandAccent = identity.brandAccent
         if (RgDsDisplayRouter.routeToUpper(this)) {
             relocating = true
             return

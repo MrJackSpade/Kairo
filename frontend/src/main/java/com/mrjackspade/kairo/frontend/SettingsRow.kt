@@ -173,9 +173,9 @@ class SettingsRow private constructor(
                    tone: () -> ValueTone = { ValueTone.SUMMARY }, tag: () -> String? = none,
                    danger: Boolean = false, busy: () -> Boolean = never,
                    enabled: () -> Boolean = always, disabledReason: () -> String? = none,
-                   confirm: Confirm? = null, tray: (() -> TraySpec)? = null,
+                   confirm: Confirm? = null, tray: (() -> TraySpec)? = null, description: String? = null,
                    run: (() -> Unit)? = null) = SettingsRow(id, Kind.ACTION, label, value, tone, tag,
-            null, enabled, disabledReason, danger, busy, run, null, never, null, null, tray, confirm)
+            description, enabled, disabledReason, danger, busy, run, null, never, null, null, tray, confirm)
 
         /** Read-only. Skipped by D-pad focus; long values wrap at the right edge. */
         fun info(id: String, label: String, value: () -> String) = SettingsRow(id, Kind.INFO,

@@ -24,9 +24,9 @@ end; it has no time limit.
 | `MachineActivity` | `KairoActivity` for a frame-driven machine: a `MachineBridge` session, a `LayeredGameCatalog`, save states, and game settings kept as catalog overrides. Kairo98 and Kairo88 subclass it. |
 | `MachineBridge`, `MachineStatus` | What the activity needs from the native machine, and its status line. |
 | `LayeredGameCatalog` | The catalog layers (shipped, updated, installed, user catalog, user overrides) with the common fields. A product's `Schema` adds its own fields, media roles, content IDs and update URLs. |
-| `DiskImageLibrary` | Disk images in the ROM folder, loose or in ZIP and 7z archives, named by content ID, played from working copies. A product's `Format` lists its image extensions and kinds. |
+| `DiskImageLibrary` | Disk images in the games folder, loose or in ZIP and 7z archives, named by content ID, played from working copies. A product's `Format` lists its image extensions and kinds. |
 | `FirmwareSet` | Firmware files imported from a folder the player chooses, matched by name and checked by size, with a settings row. |
-| `MachineFirstRun` | The first-run ROM folder and firmware steps. |
+| `MachineFirstRun` | The first-run games folder and firmware steps. |
 | `FolderStateSlots`, `LaunchBoxArtworkReferences` | Save-state slots in a custom save folder, and catalog artwork references. |
 
 Kairo98 and KairoDos predate these classes and keep their own activities.
