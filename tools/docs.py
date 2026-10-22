@@ -10,7 +10,7 @@ origin remote. For an app it writes:
   <module>/src/main/assets/PRIVACY_POLICY.txt  from templates/PRIVACY_POLICY.md
   docs/privacy-policy.html                     the same policy, when the app has "privacyPage"
   docs/frontends.md                            from templates/frontends.md, when it has "frontends"
-In every repository, including Kairo itself, README.md and docs/*.md may hold shared blocks:
+In every repository, including Kairo itself, its tracked README.md and docs/*.md may hold shared blocks:
   <!-- kairo:NAME -->
   ...replaced by templates/blocks/NAME.md...
   <!-- /kairo:NAME -->
@@ -173,9 +173,12 @@ def documents(root):
             out["docs/privacy-policy.html"] = page
         if "frontends" in current:
             out["docs/frontends.md"] = render(template("frontends.md"), context)
-    for path in [root / "README.md", *sorted((root / "docs").glob("*.md"))]:
-        relative = path.relative_to(root).as_posix()
-        if relative in out or not path.is_file():
+    # Only the repository's own documents: local, ignored notes in docs/ are not its documents.
+    tracked = subprocess.run(["git", "-C", str(root), "ls-files", "--", "README.md", "docs/*.md"], check=True,
+                             capture_output=True, text=True).stdout.split()
+    for relative in sorted(path for path in tracked if path == "README.md" or path.count("/") == 1):
+        path = root / relative
+        if relative in out:
             continue
         original = read(path)
 

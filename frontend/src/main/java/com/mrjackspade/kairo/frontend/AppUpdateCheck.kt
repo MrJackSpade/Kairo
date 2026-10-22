@@ -42,7 +42,8 @@ class AppUpdateCheck(
                     showIfReady()
                 }
             } catch (error: Exception) {
-                Log.e(TAG, "Update check for ${identity.repository} failed", error)
+                // The error is in the message too: some devices keep only an entry's first line.
+                Log.e(TAG, "Update check for ${identity.repository} failed: $error", error)
             }
         }.apply { name = "${identity.appName}-update-check"; start() }
     }
