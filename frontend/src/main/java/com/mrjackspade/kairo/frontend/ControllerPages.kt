@@ -24,7 +24,13 @@ data class ControllerGuestSpec(
     val actions: List<Pair<String, String>>,
     /** Keys are picked on the guest keyboard layout; codes it lacks go on an Other tab. */
     val keyboard: GuestKeyboardLayout
-)
+) {
+    companion object {
+        /** The app actions every Kairo app offers a controller. */
+        val STANDARD_ACTIONS = listOf("menu" to "Open menu", "pause" to "Pause or resume",
+            "fastForward" to "Fast forward while held", "restart" to "Restart", "exit" to "Exit")
+    }
+}
 
 /** The virtual controls in the one order every controller page uses. */
 internal object VirtualControls {

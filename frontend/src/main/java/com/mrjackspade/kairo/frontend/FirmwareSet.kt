@@ -90,4 +90,43 @@ class FirmwareSet(val directory: File, val parts: List<Part>) {
         val lower = name.lowercase(Locale.ROOT)
         return parts.firstOrNull { lower in it.accepted }
     }
+
+    companion object {
+        /**
+         * Copies one picked file to [target], replacing it only once the copy is whole and good: it
+         * must be exactly [exactBytes] when given, at most [maxBytes], not empty, and pass [validate].
+         * Runs on a worker thread; [label] names the file in errors.
+         */
+        fun importFile(resolver: ContentResolver, uri: Uri, target: File, label: String, exactBytes: Long? = null,
+                       maxBytes: Long = exactBytes ?: Long.MAX_VALUE, validate: (File) -> Unit = {}) {
+            val directory = checkNotNull(target.parentFile) { "$label has no folder" }
+            check(directory.isDirectory || directory.mkdirs()) { "Cannot create ${directory.name}" }
+            val partial = File(directory, "${target.name}.part")
+            val sizeRule = exactBytes?.let { "$label must be exactly ${describe(it)}" } ?: "$label is too large"
+            try {
+                (resolver.openInputStream(uri) ?: error("Unable to open the selected file")).use { input ->
+                    partial.outputStream().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var size = 0L
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            size += count
+                            require(size <= maxBytes) { sizeRule }
+                            output.write(buffer, 0, count)
+                        }
+                        require(size > 0) { "$label is empty" }
+                        require(exactBytes == null || size == exactBytes) { sizeRule }
+                    }
+                }
+                validate(partial)
+                java.nio.file.Files.move(partial.toPath(), target.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            } finally {
+                partial.delete()
+            }
+        }
+
+        private fun describe(bytes: Long) = if (bytes % 1024 == 0L) "${bytes / 1024} KiB" else "$bytes bytes"
+    }
 }

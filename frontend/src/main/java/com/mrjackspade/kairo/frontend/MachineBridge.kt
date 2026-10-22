@@ -28,6 +28,8 @@ interface MachineBridge {
     fun setShaderPreset(path: String?)
     fun setMuted(muted: Boolean)
     fun setFastForward(enabled: Boolean)
+    /** The guest's keyboard and mouse reads for Auto touch mode ([InputModeDecider.GuestInput]), or null when it has none. */
+    fun inputTelemetry(): LongArray? = null
 
     companion object {
         /** A state call made while no machine runs, or one that stopped before answering. */
