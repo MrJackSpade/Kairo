@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """A local page for reviewing every game's bundled artwork by eye.
 
-Usage: art_review.py <app root> [<app root> ...] [--port N]
+Usage: art_review.py <app root> [<app root> ...] [--port N] [--open]
 
 Serves http://localhost:<port>/ (8765 by default). For each app it lists every catalog game that
 has artwork, with the box art and screenshot shown at their bundled size, and records verdicts
@@ -17,6 +17,7 @@ import json
 import mimetypes
 import sys
 import threading
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -29,6 +30,8 @@ PAGE = Path(__file__).resolve().parent / "art_review.html"
 LAUNCHBOX_PAGE = "https://gamesdb.launchbox-app.com/games/details/{}"
 MOBYGAMES_PAGE = "https://www.mobygames.com/game/{}/"
 KINDS = (("boxArt", "Box"), ("preview", "Screenshot"))
+# Windows' Python registry has no WebP type.
+mimetypes.add_type("image/webp", ".webp")
 
 
 class App:
@@ -159,6 +162,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("roots", nargs="+", type=Path)
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--open", action="store_true", help="open the page in the browser once serving")
     args = parser.parse_args()
     apps = {}
     for root in args.roots:
@@ -167,6 +171,8 @@ def main():
         print(f"{app.name}: {len(app.games)} games with artwork", flush=True)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), handler(apps))
     print(f"Review at http://localhost:{args.port}/", flush=True)
+    if args.open:
+        webbrowser.open(f"http://localhost:{args.port}/")
     server.serve_forever()
 
 
