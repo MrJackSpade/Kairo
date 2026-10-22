@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Intent
 import android.net.Uri
 import android.view.Surface
 import java.io.File
@@ -50,6 +51,24 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     /** The session's game started; the product may begin its own work, such as typing a command. */
     protected open fun gameStarted(entry: E, game: CatalogGame) {}
+
+    // What most machines share: firmware, media drives, and machine options -----------------------
+
+    /** The machine's choices, each a game setting and an all-games default in Machine. */
+    protected open val machineOptions: List<MachineOption> = emptyList()
+
+    /** Firmware imported from a folder the player chooses, each set a row; empty for none. */
+    protected open val firmwareSets: List<Pair<String, FirmwareSet>> = emptyList()
+    /** The first-run step's title and text, and the note under the firmware rows. */
+    protected open val firmwareText: Triple<String, String, String>
+        get() = Triple("${identity.guestName} firmware", "", "")
+
+    /** The media slots a game's own disks go in, shown on the flyout's media page. */
+    protected open val mediaSlots: List<MediaSlot<E>> = emptyList()
+    protected open val mediaPageTitle = "Disks"
+
+    /** A slot of the machine, such as a floppy drive, and the library entries it takes. */
+    class MediaSlot<E>(val label: String, val accepts: (E) -> Boolean = { true })
 
     // ---------------------------------------------------------------------------------------
 
@@ -279,13 +298,19 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             }, ::loadRejected, "Save states are available for games started from the library.")
     }
 
-    override fun gameRows() = stateFlow.rows() + machineRows()
+    override fun gameRows() = stateFlow.rows() + machineRows() + listOfNotNull(mediaSlots.takeIf { it.isNotEmpty() }?.let {
+        SettingsRow.nav("f-media", mediaPageTitle) { pages.push(mediaPage()) }
+    })
 
     /** A loaded state restores the lock keys it was saved with. */
     private fun loadMachineState(directory: File): Int = bridge.loadState(directory.absolutePath).also { result ->
         if (result == 0) {
             inputRouter.syncLocks(bridge.lockedKeys())
-            runOnUiThread { stateLoaded() }
+            runOnUiThread {
+                mediaAfterLoad()
+                stateLoaded()
+                refreshSettingValues()
+            }
         }
     }
 
@@ -330,5 +355,186 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     override fun sessionEnded() {
         currentGame = null
+        mounted.fill(null)
+    }
+
+    // Machine options ---------------------------------------------------------------------------------
+
+    /** The all-games default of [option]. */
+    protected fun optionDefault(option: MachineOption): String {
+        val stored = if (option.numeric) preferences.getInt(option.id, Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }
+            ?.toString() else preferences.getString(option.id, null)
+        return stored?.takeIf { value -> option.choices.any { it.id == value } } ?: option.default
+    }
+
+    /** What [game] boots with for [option]: its own choice, else the all-games default. */
+    protected fun optionValue(game: CatalogGame, option: MachineOption): String = option.read(game) ?: optionDefault(option)
+
+    /** Every option's value for [game], by option ID. */
+    protected fun optionValues(game: CatalogGame): Map<String, String> =
+        machineOptions.associate { it.id to optionValue(game, it) }
+
+    override fun machineGroup(entry: E, enabled: () -> Boolean): RowGroup? {
+        if (machineOptions.isEmpty()) return null
+        val scope = { titleOf(entry) }
+        val noHash = { GameSettingsRows.NO_HASH }
+        return RowGroup("MACHINE", machineOptions.map { option ->
+            GameSettingsRows.choice(option.id, option.label, scope, option.choices,
+                machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) }, { optionDefault(option) },
+                    GameSource.ALL_GAMES, option::stored), enabled, noHash)
+        }, "Machine changes apply on the next launch or restart.")
+    }
+
+    /** Machine: the all-games defaults of the options, then firmware. */
+    override fun machinePage(): Page = GroupsPage("Machine", { GameSource.ALL_GAMES }, {
+        listOfNotNull(
+            machineOptions.takeIf { it.isNotEmpty() }?.let { options ->
+                RowGroup("ALL GAMES", options.map { option ->
+                    SettingsRow.choice("default-${option.id}", option.label, ChoiceSpec(option.label,
+                        { GameSource.ALL_GAMES }, { listOf(ChoiceGroup(null, option.choices)) }, { optionDefault(option) },
+                        select = { value ->
+                            preferences.edit().apply {
+                                if (option.numeric) putInt(option.id, value.toInt()) else putString(option.id, value)
+                            }.apply()
+                            refreshSettingValues()
+                        }))
+                }, "A game's own settings come first. Changes apply on the next launch or restart.")
+            },
+            firmwareSets.takeIf { it.isNotEmpty() }?.let {
+                RowGroup("FIRMWARE", firmwareRows(), if (firmwareConfigurable()) firmwareText.third else RETURN_FOR_FIRMWARE)
+            })
+    })
+
+    // Firmware ---------------------------------------------------------------------------------------
+
+    @Volatile private var firmwareImporting = false
+
+    override val firmware: MachineFirstRun.Firmware?
+        get() = if (firmwareSets.isEmpty()) null else MachineFirstRun.Firmware(firmwareText.first, firmwareText.second,
+            ::firmwareRows, firmwareText.third, { firmwareImporting })
+
+    private fun firmwareRows() = firmwareSets.mapIndexed { index, (label, set) ->
+        set.row("firmware$index", label, { firmwareImporting }, ::firmwareConfigurable, { RETURN_FOR_FIRMWARE }) {
+            set.chooseFolder(this, FIRMWARE_REQUEST, ::toast)
+        }
+    }
+
+    /** The machine reads its firmware when a game boots, so it changes only in the library. */
+    private fun firmwareConfigurable() = currentEntry == null && !transitioning
+
+    /** Fails a launch whose required firmware is missing, naming what to import. */
+    protected fun requireFirmware() {
+        val missing = firmwareSets.flatMap { it.second.missingRequired }
+        if (missing.isNotEmpty()) error("Import the ${identity.guestName} firmware in Menu › Machine first " +
+            "(missing ${missing.joinToString(", ") { it.label }})")
+    }
+
+    override fun handleProductResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode != FIRMWARE_REQUEST) return false
+        val tree = data?.data?.takeIf { resultCode == RESULT_OK } ?: return true
+        firmwareImporting = true
+        firmwareChanged()
+        Thread {
+            val message = try {
+                val cancelled = AtomicBoolean(false)
+                val imported = firmwareSets.flatMap { it.second.importFolder(contentResolver, tree, cancelled) }
+                if (imported.isEmpty()) "No ${identity.guestName} firmware files in that folder"
+                else "Imported ${imported.size} firmware ${if (imported.size == 1) "file" else "files"}"
+            } catch (error: Exception) {
+                "Firmware import failed: ${error.message ?: error.javaClass.simpleName}"
+            }
+            runOnUiThread {
+                firmwareImporting = false
+                firmwareChanged()
+                toast(message)
+            }
+        }.apply { name = "${identity.appName}-firmware"; start() }
+        return true
+    }
+
+    // Media ------------------------------------------------------------------------------------------
+
+    /** What each media slot holds, by library entry; null for an empty slot or media the library lacks. */
+    private val mounted: MutableList<E?> by lazy { MutableList(mediaSlots.size) { null } }
+    @Volatile private var mediaBusy = false
+
+    /** Called from [startGame] once the machine runs: what each slot booted with. */
+    protected fun mediaStarted(entries: List<E?>) = runOnUiThread {
+        mounted.fill(null)
+        entries.forEachIndexed { slot, entry -> if (slot < mounted.size) mounted[slot] = entry }
+    }
+
+    /** Waits on the launch thread until the machine runs, failing the launch with its error. */
+    protected fun awaitRunning() {
+        while (true) {
+            val status = MachineStatus(bridge.status())
+            if (status.state == "Error") error(status.error)
+            if (status.running) return
+            Thread.sleep(20)
+        }
+    }
+
+    private fun mediaAfterLoad() {
+        if (mediaSlots.isEmpty()) return
+        val paths = bridge.mediaPaths() ?: return
+        for (slot in mounted.indices) mounted[slot] = paths.getOrNull(slot)?.let { library.entryForWorkingImage(it, libraryEntries) }
+    }
+
+    private fun mediaPage() = GroupsPage(mediaPageTitle, { currentGame?.title }, {
+        listOf(RowGroup("DRIVES", mediaSlots.indices.map(::mediaRow),
+            "Disks from the same archive or folder as the game. A disk keeps what the game writes to it."))
+    })
+
+    private fun mediaRow(slot: Int) = SettingsRow.choice("media$slot", mediaSlots[slot].label, mediaChoice(slot),
+        value = { mounted[slot]?.displayName ?: "Empty" },
+        tone = { if (mounted[slot] == null) ValueTone.EMPTY else ValueTone.CURRENT },
+        enabled = { machineRunning && !mediaBusy },
+        disabledReason = { if (mediaBusy) "Wait for the disk change to finish" else "Start a game before changing disks" })
+
+    /** Empty ejects; the others are the media from the game's own archive or folder that the slot takes. */
+    private fun mediaChoice(slot: Int): ChoiceSpec {
+        fun candidates(): List<E> {
+            val current = currentEntry ?: return emptyList()
+            return libraryEntries.filter { it.playable && mediaSlots[slot].accepts(it) && sameFolder(current, it) }
+        }
+        return ChoiceSpec(mediaSlots[slot].label, { currentGame?.title }, {
+            val found = candidates()
+            listOfNotNull(ChoiceGroup(null, listOf(ChoiceOption("empty", "Empty"))),
+                found.takeIf { it.isNotEmpty() }?.let { items ->
+                    ChoiceGroup("IN THIS GAME’S FOLDER", items.map { ChoiceOption(it.id, it.displayName) })
+                })
+        }, { mounted[slot]?.id ?: "empty" }, { id ->
+            if (id == "empty") changeMedia(slot, null)
+            else candidates().firstOrNull { it.id == id }?.let { changeMedia(slot, it) }
+        }, cycles = false)
+    }
+
+    /** Media from the same archive, or the same folder, as [current]. */
+    private fun sameFolder(current: E, other: E) = other.uri == current.uri ||
+        other.path.substringBeforeLast('/', "") == current.path.substringBeforeLast('/', "")
+
+    private fun changeMedia(slot: Int, entry: E?) {
+        if (mediaBusy) return
+        mediaBusy = true
+        refreshSettingValues()
+        Thread {
+            val failure = try {
+                val image = entry?.let { library.prepare(it, AtomicBoolean(false)) { } }
+                check(bridge.media(slot, image?.absolutePath)) { "The disk could not be inserted" }
+                null
+            } catch (error: Exception) { error.message ?: "Disk change failed" }
+            runOnUiThread {
+                mediaBusy = false
+                if (failure == null) mounted[slot] = entry
+                toast(failure ?: "${mediaSlots[slot].label}: ${entry?.displayName ?: "Empty"}")
+                refreshSettingValues()
+            }
+        }.apply { name = "${identity.appName}-media"; start() }
+    }
+
+    companion object {
+        private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
+        private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."
     }
 }
+

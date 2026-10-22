@@ -28,6 +28,10 @@ interface MachineBridge {
     fun setShaderPreset(path: String?)
     fun setMuted(muted: Boolean)
     fun setFastForward(enabled: Boolean)
+    /** Inserts the image at [path] in a media [slot] the product numbers, or ejects it for null; true when it is in. */
+    fun media(slot: Int, path: String?): Boolean = error("This machine cannot change media")
+    /** What each media slot holds, "" for an empty one; null when no machine runs. */
+    fun mediaPaths(): List<String>? = null
     /** The guest's keyboard and mouse reads for Auto touch mode ([InputModeDecider.GuestInput]), or null when it has none. */
     fun inputTelemetry(): LongArray? = null
 

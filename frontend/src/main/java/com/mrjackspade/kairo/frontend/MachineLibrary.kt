@@ -18,4 +18,8 @@ interface MachineLibrary<E : LibraryItem> {
     /** Whether the game has a working copy holding what it wrote to its disks. */
     fun hasWorkingImage(entry: E): Boolean
     fun resetWorkingImage(entry: E)
+    /** The file the machine opens for [entry]: its working copy, extracted from an archive when needed. */
+    fun prepare(entry: E, cancelled: AtomicBoolean, progress: (String) -> Unit): java.io.File
+    /** The entry whose working copy is [path], as a machine reports its media after a state loads. */
+    fun entryForWorkingImage(path: String, entries: List<E>): E?
 }

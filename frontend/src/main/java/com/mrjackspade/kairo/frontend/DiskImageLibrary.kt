@@ -176,9 +176,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     fun workingImage(entry: DiskImageEntry) =
         File(workingDirectory, "${entry.key.storageName}.${format.extension(entry.displayName)}")
 
-    /** The library entry whose working copy is [file], for a disk the machine holds. */
-    fun entryForWorkingImage(file: String, entries: List<DiskImageEntry>): DiskImageEntry? =
-        entries.firstOrNull { workingImage(it).absolutePath == file }
+    /** The library entry whose working copy is [path], for a disk the machine holds. */
+    override fun entryForWorkingImage(path: String, entries: List<DiskImageEntry>): DiskImageEntry? =
+        entries.firstOrNull { workingImage(it).absolutePath == path }
 
     /** Inspect one launcher-provided document without requiring a selected ROM tree. */
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean): List<DiskImageEntry> {
@@ -295,7 +295,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
      * time. The copy is verified against the entry's content ID. A descriptor's track data is copied
      * beside it, under the name the core derives from the descriptor's.
      */
-    @Synchronized fun prepare(entry: DiskImageEntry, cancelled: AtomicBoolean, progress: (String) -> Unit): File {
+    @Synchronized override fun prepare(entry: DiskImageEntry, cancelled: AtomicBoolean, progress: (String) -> Unit): File {
         require(entry.playable) { "This entry is not ready to launch" }
         // The working copy holds the game's in-disk saves, so it stays when the source is edited.
         val file = workingImage(entry)
