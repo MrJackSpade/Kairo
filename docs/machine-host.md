@@ -19,7 +19,8 @@ end; it has no time limit.
 
 | Class | What it does |
 | --- | --- |
-| `MachineActivity` | The app: library and game page, the game session, its flyout and pages, controllers, touch, keyboards, the second screen, save states, first-run setup, and the activity lifecycle. A product subclasses it and fills in the abstract members. |
+| `KairoActivity` | The app every product runs: library and game page, the session's screen, flyout and pages, controllers, touch, keyboards, the second screen, game settings, first-run setup, and the activity lifecycle. A product supplies its games, catalog and guest through the abstract members; KairoDos subclasses it directly with its DOS session. |
+| `MachineActivity` | `KairoActivity` for a frame-driven machine: a `MachineBridge` session, a `LayeredGameCatalog`, save states, and game settings kept as catalog overrides. Kairo98 and Kairo88 subclass it. |
 | `MachineBridge`, `MachineStatus` | What the activity needs from the native machine, and its status line. |
 | `LayeredGameCatalog` | The catalog layers (shipped, updated, installed, user catalog, user overrides) with the common fields. A product's `Schema` adds its own fields, media roles, content IDs and update URLs. |
 | `DiskImageLibrary` | Disk images in the ROM folder, loose or in ZIP and 7z archives, named by content ID, played from working copies. A product's `Format` lists its image extensions and kinds. |
