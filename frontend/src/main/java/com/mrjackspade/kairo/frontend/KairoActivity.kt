@@ -77,6 +77,10 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** The touch keyboard's height, and whether its touchpad tab drives the guest mouse. */
     protected open val keyboardHeightDp: Int = 260
     protected open val keyboardHasTouchpad: Boolean = false
+    /** The frame size the keyboard's touchpad scales its movement to. */
+    protected open fun touchpadReferenceSize(): Pair<Int, Int> = videoSize().let { it.first to it.second }
+    /** Whether the screen stays on in the library as well as in a game. */
+    protected open val keepScreenOnInLibrary: Boolean = true
 
     // The library and its catalog ---------------------------------------------------------------
 
@@ -313,8 +317,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 if (entry == null || currentEntry?.id == entry.id) {
                     inputModeDecider.reset()
                     touchChanged()
-                    if (entry != null) setSecondaryInitialMode(touchStore.secondaryTouchpad(entry)?.let {
-                        it.custom() ?: it.fallback() } == true)
+                    if (entry != null) touchStore.secondaryTouchpad(entry)?.let {
+                        setSecondaryInitialMode(it.custom() ?: it.fallback())
+                    }
                 }
             }, directTouchAvailable = directTouchAvailable)
     }
@@ -339,7 +344,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 cancelAutomation()
                 releaseInputs()
                 hideKeyboard()
-            }, {}, libraryFlow::show, ::applyPauseState, { screen.requestFocus() }, ::endSessionForLibrary,
+                swappedKeyboardPanel.close()
+                if (!keepScreenOnInLibrary) window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }, {
+                secondaryKeyboard.setLibraryInfo(null)
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }, libraryFlow::show, ::applyPauseState, { screen.requestFocus() }, ::endSessionForLibrary,
             gameOrientation)
     }
     private val backCoordinator: FrontendBackCoordinator by lazy {
@@ -372,6 +382,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private lateinit var sessionFlow: SessionFlow
     /** What the progress strip says while a session stops or starts. */
     private var progressText = ""
+    /** What the progress strip says while a session's guest loads, or null once it runs. */
+    private var sessionProgress: String? = null
     protected val menuOpen: Boolean get() = sessionFlow.isOpen
     protected var userPaused: Boolean
         get() = sessionState.userPaused
@@ -560,7 +572,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
         keyboardPanel = GuestKeyboardPanel(this, inputRouter, keyboard, ::hideKeyboard,
             mouse = if (keyboardHasTouchpad) mouseRouter else null,
-            mouseReferenceSize = { videoSize().let { it.first to it.second } }, mapping = keyMapping)
+            mouseReferenceSize = ::touchpadReferenceSize, mapping = keyMapping)
         root.addView(keyboardPanel, FrameLayout.LayoutParams(-1, dp(keyboardHeightDp), Gravity.BOTTOM))
         onScreenControls.bindGuestKeyboard(keyboardPanel)
         swappedKeyboardPanel = GuestKeyboardPanel(this, inputRouter, keyboard, {}, showClose = false,
@@ -700,10 +712,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         if (::secondaryKeyboard.isInitialized) secondaryKeyboard.setAppearance(showingGuest,
             if (::firstRunSetup.isInitialized && firstRunSetup.isOpen) Ui.BG else Color.BLACK)
         if (currentEntry != null || transitioning) pauseGuest(presentation.pauseGuest)
+        if (showingGuest) ImmersiveWindow.hideBars(this)
         if (::overlay.isInitialized) {
-            if (transitioning) overlay.showProgress(progressText) else overlay.hideProgress()
+            val progress = if (transitioning) progressText else sessionProgress
+            if (progress != null) overlay.showProgress(progress) else overlay.hideProgress()
             overlay.setPaused(userPaused && !libraryVisible && !menuOpen && !transitioning)
-            if (libraryVisible) overlay.hideNotice()
+            if (libraryVisible && !keepsNotice()) overlay.hideNotice()
         }
         if (::onScreenControls.isInitialized) {
             if (::libraryFlow.isInitialized) touchUi.refreshControls(onScreenControls,
@@ -780,20 +794,39 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         applyPauseState()
     }
 
-    /** The guest runs [entry]: the session begins, with the game's controls. */
-    protected fun enterSession(entry: E, fromFrontend: Boolean) {
+    /**
+     * The session of [entry] begins, with the game's controls. With [loading], the game's screen
+     * shows that progress until [sessionRunning]; otherwise the guest already runs.
+     */
+    protected fun enterSession(entry: E, fromFrontend: Boolean, loading: String? = null) {
         transitioning = false
+        sessionProgress = loading
         controllerProfiles.configuration.endSession()
         controllerProfiles.configuration.beginSession()
         currentEntry = entry
         sessionFromFrontend = fromFrontend
         preferences.edit().putString("last_played_entry", entry.id).apply()
-        setSecondaryInitialMode(touchStore.secondaryTouchpad(entry)?.let { it.custom() ?: it.fallback() } == true)
+        touchStore.secondaryTouchpad(entry)?.let { setSecondaryInitialMode(it.custom() ?: it.fallback()) }
         inputModeDecider.reset()
         gamepadMapper.bindings = gameBindings(entry)
         userPaused = false
         sessionFlow.reset()
         sessionNavigation.enterGame(notify = false)
+        if (loading == null) gameOrientation.launched()
+        applyPauseState()
+    }
+
+    /** A session that entered loading shows what it does next. */
+    protected fun showSessionProgress(text: String) {
+        if (currentEntry == null) return
+        sessionProgress = text
+        applyPauseState()
+    }
+
+    /** The loading guest runs. */
+    protected fun sessionRunning() {
+        if (sessionProgress == null) return
+        sessionProgress = null
         gameOrientation.launched()
         applyPauseState()
     }
@@ -836,6 +869,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected fun clearSession() {
         currentEntry = null
         sessionFromFrontend = false
+        sessionProgress = null
         userPaused = false
         sessionEnded()
         controllerProfiles.configuration.endSession()
@@ -846,13 +880,21 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         applyPauseState()
     }
 
-    /** The guest stopped by itself: the library returns, or the frontend that started the game. */
-    protected fun guestFinished() {
+    /**
+     * The guest stopped by itself: the frontend that started a game that [completed] gets it back,
+     * and otherwise the library returns.
+     */
+    protected fun guestFinished(completed: Boolean) {
         sessionGeneration++
-        val toFrontend = sessionFromFrontend
+        val toFrontend = completed && sessionFromFrontend
         clearSession()
-        if (toFrontend) finish() else sessionNavigation.showLibrary()
-        rebuildIfRescaled()
+        if (!toFrontend || !finishApp()) sessionNavigation.showLibrary()
+    }
+
+    /** Closes the app, or returns false when the product holds it open for now. */
+    protected open fun finishApp(): Boolean {
+        finish()
+        return true
     }
 
     /** How a touch on [entry]'s screen works: the game's own choices over the catalog's and all games'. */
@@ -1023,7 +1065,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 saveGameSetting(entry, resetMessage, "Could not reset game settings") {
                     resetGameSettings(id!!)
                     if (currentEntry?.id == entry.id) {
-                        setSecondaryInitialMode(touchStore.secondaryTouchpad(entry)?.let { it.custom() ?: it.fallback() } == true)
+                        touchStore.secondaryTouchpad(entry)?.let { setSecondaryInitialMode(it.custom() ?: it.fallback()) }
                         gamepadMapper.bindings = gameBindings(entry)
                         inputModeDecider.reset()
                         touchChanged()
@@ -1103,7 +1145,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         }
         Thread {
             stopGuest()
-            runOnUiThread { finish() }
+            runOnUiThread {
+                if (finishApp()) return@runOnUiThread
+                exiting = false
+                clearSession()
+                sessionNavigation.showLibrary()
+            }
         }.start()
     }
 
@@ -1176,6 +1223,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         recreate()
         return true
     }
+
+    /** Whether the notice on screen outlives its game into the library. */
+    protected open fun keepsNotice(): Boolean = false
 
     /** False while the product needs the views to stay, as for a prompt that outlives its game. */
     protected open fun holdsRebuild(): Boolean = true
