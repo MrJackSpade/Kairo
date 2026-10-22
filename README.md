@@ -4,16 +4,9 @@
 </p>
 <!-- /kairo:discord -->
 
-# Kairo shared frontend
-
-Kairo is the shared Android UI library for the [Kairo emulator apps](#kairo-apps). It provides the game library and game page, the library and game flyouts, the page stack with its settings pages, folder selection, controller mapping, on-screen controls, keyboard presentation, and input routing. [docs/interface.md](docs/interface.md) describes the interface; [docs/machine-host.md](docs/machine-host.md) describes the shared app and native host that frame-driven products build on. Each product pins a specific Kairo commit as its `shared/` submodule.
-
-For installation and adding games, use each app's own README.
-
-## Kairo apps
-
 <!-- kairo:family -->
-<table>
+<h3 align="center">Kairo apps</h3>
+<table align="center">
   <tr>
     <td align="center" width="33%"><a href="https://github.com/MrJackSpade/Kairo98"><img src="https://raw.githubusercontent.com/MrJackSpade/Kairo98/main/kairo98/src/main/res/drawable-nodpi/kairo98_icon_art.png" width="96" alt="Kairo98"><br><b>Kairo98</b></a><br>PC-98</td>
     <td align="center" width="33%"><a href="https://github.com/MrJackSpade/KairoDos"><img src="https://raw.githubusercontent.com/MrJackSpade/KairoDos/main/kairodos/src/main/res/drawable-nodpi/kairodos_icon_art.png" width="96" alt="KairoDos"><br><b>KairoDos</b></a><br>DOS</td>
@@ -26,6 +19,12 @@ For installation and adding games, use each app's own README.
   </tr>
 </table>
 <!-- /kairo:family -->
+
+# Kairo shared frontend
+
+Kairo is the shared Android UI library for the [Kairo emulator apps](#kairo-apps). It provides the game library and game page, the library and game flyouts, the page stack with its settings pages, folder selection, controller mapping, on-screen controls, keyboard presentation, and input routing. [docs/interface.md](docs/interface.md) describes the interface; [docs/machine-host.md](docs/machine-host.md) describes the shared app and native host that frame-driven products build on. Each product pins a specific Kairo commit as its `shared/` submodule.
+
+For installation and adding games, use each app's own README.
 
 ## Integration
 

@@ -1,4 +1,5 @@
-<table>
+<h3 align="center">{{#isFrontend}}Kairo apps{{/isFrontend}}{{^isFrontend}}Other Kairo apps{{/isFrontend}}</h3>
+<table align="center">
 {{#familyRows}}
   <tr>
 {{#apps}}
@@ -8,6 +9,5 @@
 {{/familyRows}}
 </table>
 {{^isFrontend}}
-
-Every Kairo app is built on [Kairo]({{frontendUrl}}), the shared frontend for the game library, controls, and settings.
+<p align="center">Every Kairo app is built on <a href="{{frontendUrl}}">Kairo</a>, the shared frontend for the game library, controls, and settings.</p>
 {{/isFrontend}}
