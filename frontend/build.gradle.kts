@@ -52,4 +52,24 @@ val packageSlangRuntime = tasks.register<Copy>("packageSlangRuntime") {
 android.sourceSets.getByName("main").jniLibs.srcDir(slangJni)
 android.sourceSets.getByName("main").assets.srcDir(
     projectDir.resolve("../third_party/slang-shaders/assets"))
-tasks.named("preBuild") { dependsOn(packageSlangRuntime) }
+
+// The LLVM notice of the NDK that builds every app's native code and statically links its C++
+// runtime, from that NDK itself (About -> Licenses shows it as NDK_NOTICES.txt).
+val ndkNotices = layout.buildDirectory.dir("generated/ndk-notices")
+val writeNdkNotices = tasks.register("writeNdkNotices") {
+    val prebuilt = android.sdkDirectory.resolve("ndk/${android.ndkVersion}/toolchains/llvm/prebuilt")
+    val hosts = prebuilt.listFiles { file -> file.isDirectory }.orEmpty()
+    check(hosts.size == 1) { "Expected one NDK host toolchain in $prebuilt, found ${hosts.map { it.name }}" }
+    val notice = hosts.single().resolve("NOTICE")
+    val version = android.ndkVersion
+    inputs.file(notice)
+    outputs.dir(ndkNotices)
+    doLast {
+        val rule = "=".repeat(72)
+        ndkNotices.get().file("NDK_NOTICES.txt").asFile.apply { parentFile.mkdirs() }.writeText(
+            "$rule\nAndroid NDK $version LLVM toolchain and statically linked C++ runtime\n" +
+                "Source: Android NDK $version, toolchains/llvm/prebuilt NOTICE\n$rule\n" + notice.readText())
+    }
+}
+android.sourceSets.getByName("main").assets.srcDir(ndkNotices)
+tasks.named("preBuild") { dependsOn(packageSlangRuntime, writeNdkNotices) }

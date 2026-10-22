@@ -41,7 +41,9 @@ def inspect(path, prefix, allow_art=False):
                 assert loads, name
                 native += 1
         assert native, f'No native libraries in {path}'
-        for name in ('assets/THIRD_PARTY_NOTICES.txt', 'assets/PRIVACY_POLICY.txt'):
+        # The app's own notices and policy, and the frontend's notices About -> Licenses appends.
+        for name in ('assets/THIRD_PARTY_NOTICES.txt', 'assets/PRIVACY_POLICY.txt', 'assets/FRONTEND_NOTICES.txt',
+                     'assets/NDK_NOTICES.txt', 'assets/SLANG_RUNTIME_NOTICES.txt', 'assets/ANDROIDX_NOTICES.txt'):
             assert name in payload, f'Missing {name}'
         artwork = {n for n in payload if n.startswith('assets/art/')}
         if allow_art:

@@ -51,6 +51,17 @@ fun sameSource(entry: DiskImageEntry, other: DiskImageEntry): Boolean =
         other.path.substringBeforeLast('/', "") == entry.path.substringBeforeLast('/', "")
 
 /**
+ * The library's copy of a disk a game names by content ID, preferring one from [source]'s own
+ * archive or folder; null when the library has none. A disk keeps the catalog record it was first
+ * scanned with through later edits, so its catalog ID matches too.
+ */
+fun mediaFor(contentId: String, source: DiskImageEntry, entries: List<DiskImageEntry>,
+             kind: (DiskImageEntry) -> Boolean = { true }): DiskImageEntry? {
+    val candidates = entries.filter { it.playable && kind(it) && (it.contentId == contentId || it.catalogId == contentId) }
+    return candidates.firstOrNull { sameSource(source, it) } ?: candidates.firstOrNull()
+}
+
+/**
  * A product's disk images in its ROM folder: loose, or inside ZIP and 7z archives. Each image is
  * named by the SHA-256 of its bytes (`sha256-<kind>-v1:<hex>`, the catalog's content IDs; a
  * descriptor's ID hashes its track data), and a game plays from an app-private working copy that
