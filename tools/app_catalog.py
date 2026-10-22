@@ -34,7 +34,6 @@ import catalog_documents
 from catalog_documents import compact, require
 from catalog_package import image_paths
 from catalog_parts import generate_parts
-from launchbox import page_id, page_url
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
 SHIPPED = ("title", "description", "aliases")
@@ -92,8 +91,10 @@ def validator(kinds, artwork):
 
 
 def artwork_group(entry):
-    """A game's artwork group: its LaunchBox public page ID, as Kairo98 numbers its groups."""
-    return int(page_id(page_url(entry["launchbox"])))
+    """A game's artwork group, which names its image cache folder: its LaunchBox DatabaseID.
+    (Kairo98 numbered groups by public page ID, which has no reliable mapping for older
+    DatabaseIDs; reviewed picks carried over from it keep their own group in "artwork".)"""
+    return int(entry["launchbox"])
 
 
 def metadata(key, entry, config):

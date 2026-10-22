@@ -17,7 +17,8 @@ and the decision is recorded so it can be reviewed and corrected:
   moby-matches-v1.json   {"<MobyGames ID>": "<game key>" | "own"}
   descriptions-v1.json   {"<game key>": "original description"}
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork": ...}} applied last
-Every adult game is added to catalog/core-review-v1.json's exclusions if it is not there yet.
+Every adult game is added to catalog/core-review-v1.json's exclusions if it is not there yet. A
+medium found in several games' sets identifies none of them: it is listed under sharedContentIds.
 
 An archive matches a LaunchBox game when its file name's title equals the game's name or an
 alias and the years agree, or when the closest fuzzy title scores at least 0.93 with agreeing
@@ -214,6 +215,19 @@ def assemble(root, moby_root):
             entry["contentIds"] = sorted(set(entry.get("contentIds", [])) |
                                          {disk["contentId"] for disk in archive["disks"]})
 
+    # A medium found in several games' sets (a blank user disk, a series' shared data disk)
+    # identifies none of them; it is left out and listed instead.
+    owners = {}
+    for key, entry in games.items():
+        for content_id in entry.get("contentIds", []):
+            owners.setdefault(content_id, []).append(key)
+    shared = {content_id: sorted(keys) for content_id, keys in sorted(owners.items()) if len(keys) > 1}
+    for key, entry in games.items():
+        if "contentIds" in entry:
+            entry["contentIds"] = [content_id for content_id in entry["contentIds"] if content_id not in shared]
+            if not entry["contentIds"]:
+                del entry["contentIds"]
+
     descriptions = read(research / "descriptions-v1.json", {"schemaVersion": 1, "descriptions": {}})["descriptions"]
     unknown = descriptions.keys() - games.keys()
     if unknown:
@@ -247,13 +261,13 @@ def assemble(root, moby_root):
     write(review_path, review)
     write(research / "moby-matches-v1.json", moby_decisions)
     write(research / "media-matches-v1.json", media_decisions)
-    write(research / "games-v1.json", {"schemaVersion": 1, "games": games})
+    write(research / "games-v1.json", {"schemaVersion": 1, "games": games, "sharedContentIds": shared})
     decided = media_decisions["archives"].values()
     print(f"{config.APP}: {len(games)} games; archives: {sum(v not in ('local', 'ignore') for v in decided)} matched, "
           f"{sum(':local-' in key for key in games)} local games, {sum(v == 'ignore' for v in decided)} ignored; "
           f"MobyGames: {sum(v != 'own' for v in moby_decisions['games'].values())} linked, "
           f"{sum(v == 'own' for v in moby_decisions['games'].values())} own; "
-          f"{sum('description' in g for g in games.values())} described")
+          f"{len(shared)} shared media left out; {sum('description' in g for g in games.values())} described")
 
 
 def main():
