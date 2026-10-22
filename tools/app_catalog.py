@@ -140,7 +140,7 @@ def generate(root, check=False):
     name_index = {"schemaVersion": 1, "games": games, "names": unique_names}
     source = {"schemaVersion": 1, "datasets": [{"id": f"{config.APP}-research",
         "provenance": {"source": f"{config.APP} research catalog: LaunchBox Games Database and MobyGames references, local media scans",
-                       "license": "Original descriptions; titles and image references from LaunchBox; artwork redistribution rights audit pending",
+                       "license": "Original descriptions; titles and image references from LaunchBox; artwork used under fair use",
                        "attribution": "LaunchBox Games Database contributors; MobyGames contributors; original descriptions"},
         "games": source_games}]}
     manifest, shards = catalog_documents.build(source, validate_record)
