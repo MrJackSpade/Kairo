@@ -20,8 +20,6 @@ import zlib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from PIL import Image
-
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from catalog_package import image_paths
 
@@ -89,6 +87,9 @@ def without_damaged_ancillary_chunks(raw, url):
 
 
 def bundle(raw, target, url):
+    # Only fetching needs Pillow; --check runs where it is not installed, as on CI.
+    from PIL import Image
+
     raw = without_damaged_ancillary_chunks(raw, url)
     with Image.open(io.BytesIO(raw)) as original:
         image = original.convert("RGBA" if original.mode in ("RGBA", "LA", "P") else "RGB")
