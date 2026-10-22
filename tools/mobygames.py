@@ -8,7 +8,9 @@ record on each platform; `art` saves each game's cover and screenshot lists on e
 then downloads every image they name, eight at a time from the CDN. Each response is its own
 file under the output directory, so a stopped run resumes where it left off. API calls are made
 one per second and wait for the hourly window to reset when the API reports it used up. A 404 is
-saved as that item's result; any other refusal stops the run.
+saved as that item's result; any other refusal stops the run. --games-from limits the passes to
+the games a JSON file names, {"<platform slug>": [MobyGames ID, ...]}, such as the file research.py
+writes when a game's artwork lists are not dumped yet.
 
 While the network is down, or a request goes two minutes without an answer, it waits and
 asks again every 30 seconds, so it carries on by itself when the connection returns.
@@ -109,12 +111,19 @@ def stored(api, path, endpoint):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def listings(directory, names):
+def listings(directory, names, chosen=None):
     result = []
     for name in names:
         platform = PLATFORMS[name]
         path = directory / f"{name}-listing.json"
-        result.append((name, platform, json.loads(path.read_text(encoding="utf-8"))))
+        games = json.loads(path.read_text(encoding="utf-8"))
+        if chosen is not None:
+            wanted = set(chosen.get(name, []))
+            games = [game for game in games if game["id"] in wanted]
+            unlisted = wanted - {game["id"] for game in games}
+            if unlisted:
+                raise SystemExit(f"{name}: games not in the listing: {sorted(unlisted)[:10]}")
+        result.append((name, platform, games))
     return result
 
 
@@ -172,9 +181,11 @@ def main():
     parser.add_argument("passes", nargs="+", choices=("details", "art"))
     parser.add_argument("--platforms", nargs="+", choices=PLATFORMS, required=True)
     parser.add_argument("--root", type=Path, default=Path(".downloads/mobygames"))
+    parser.add_argument("--games-from", type=Path)
     args = parser.parse_args()
     api = Api(os.environ["MOBYGAMES_API_KEY"])
-    platforms = listings(args.root, args.platforms)
+    chosen = json.loads(args.games_from.read_text(encoding="utf-8")) if args.games_from else None
+    platforms = listings(args.root, args.platforms, chosen)
     for name in args.passes:
         (details if name == "details" else art)(api, args.root, platforms)
 

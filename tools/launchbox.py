@@ -44,7 +44,10 @@ SNAPSHOT_FIELDS = ("Name", "Overview", "Developer", "Publisher", "ReleaseDate", 
 IMAGE_BASE = "https://images.launchbox-app.com/"
 SITE = "https://gamesdb.launchbox-app.com"
 
-BOX_TYPES = ("Box - Front", "Fanart - Box - Front")
+# A game's cover, earliest first: its front box, then, for a game LaunchBox has no box for, the
+# packaging or advertising nearest to it.
+BOX_TYPES = ("Box - Front", "Fanart - Box - Front", "Box - Front - Reconstructed", "Box - 3D",
+             "Cart - Front", "Disc", "Advertisement Flyer - Front")
 SCREENSHOT_TYPES = ("Screenshot - Gameplay", "Screenshot - Game Title",
                     "Screenshot - Game Select")
 

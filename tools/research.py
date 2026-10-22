@@ -17,6 +17,8 @@ and the decision is recorded so it can be reviewed and corrected:
   moby-matches-v1.json   {"<MobyGames ID>": "<game key>" | "own"}
   descriptions-v1.json   {"<game key>": "original description"}
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork": ...}} applied last
+A game LaunchBox has no cover for takes its MobyGames cover and screenshot (moby_art.py), encoded
+into catalog/artwork; moby-artwork-v1.json records their sources.
 Every adult game is added to catalog/core-review-v1.json's exclusions if it is not there yet. A
 medium found in several games' sets identifies none of them: it is listed under sharedContentIds.
 
@@ -34,6 +36,7 @@ import re
 from pathlib import Path
 
 from launchbox import BOX_TYPES, SCREENSHOT_TYPES, candidates, key as title_key
+from moby_art import MobyArt
 from launchbox_artwork import URL
 
 YEAR = re.compile(r"(?:19|20)[0-9]{2}")
@@ -268,6 +271,7 @@ def assemble(root, moby_root):
         raise SystemExit(f"descriptions for unknown games: {sorted(unknown)[:5]}")
     for key, text in descriptions.items():
         games[key]["description"] = text
+
     overrides = read(research / "overrides-v1.json", {"schemaVersion": 1, "games": {}})["games"]
     for key, fields in overrides.items():
         if key not in games or fields.keys() - {"title", "aliases", "adult", "artwork"}:
@@ -285,6 +289,18 @@ def assemble(root, moby_root):
         if "sourceGroups" in entry:
             entry["sourceGroups"] = sorted(entry["sourceGroups"])
 
+    # MobyGames artwork for a game LaunchBox has no cover for and no reviewed
+    # artwork pick names (moby_art.py).
+    moby_art = MobyArt(root, moby_root, config.MOBYGAMES, config.ARTWORK)
+    uncovered = {key: entry["mobygames"] for key, entry in sorted(games.items())
+                 if "mobygames" in entry and not entry.get("boxArtUrl") and "artwork" not in entry}
+    moby_art.require(uncovered.values())
+    for key, game_id in uncovered.items():
+        artwork = moby_art.artwork(key, game_id)
+        if artwork:
+            games[key].pop("screenshotUrl", None)
+            games[key]["artwork"] = artwork
+
     # Adult games leave the core review; existing exclusions and their reasons are kept.
     review_path = root / "catalog/core-review-v1.json"
     review = read(review_path, {"schemaVersion": 1, "excluded": {}, "approvedArtwork": {}})
@@ -298,6 +314,7 @@ def assemble(root, moby_root):
             review["excluded"][key] = {"title": entry["title"], "reason": reason}
     write(review_path, review)
     write(research / "moby-matches-v1.json", moby_decisions)
+    write(research / "moby-artwork-v1.json", moby_art.provenance())
     write(research / "media-matches-v1.json", media_decisions)
     write(research / "games-v1.json", {"schemaVersion": 1, "games": games, "sharedContentIds": shared})
     decided = media_decisions["archives"].values()
