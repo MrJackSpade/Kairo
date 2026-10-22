@@ -4,12 +4,13 @@ name: Kairo app release
 # the app's tag workflow with `uses: MrJackSpade/Kairo/.github/workflows/app-release.yml@<pinned
 # commit>` and `secrets: inherit`. For a tag v<version> it builds the release APK, the APK with
 # bundled artwork and the Play bundle (reviewed artwork only), verifies their signer, version,
-# alignment and contents, and publishes them as the tag's GitHub Release; a tag without a
-# prerelease suffix then dispatches the app's play-release.yml. A manual run builds and verifies
-# the same files and keeps them as a workflow artifact only.
+# alignment and contents, and publishes them as the tag's GitHub Release, then dispatches the
+# app's discord-release.yml and, for a tag without a prerelease suffix, its play-release.yml. A
+# manual run builds and verifies the same files and keeps them as a workflow artifact only.
 #
 # The app repository provides docs/releases/<tag>.md (the release notes) and the secrets
-# KAIRO_RELEASE_KEYSTORE_B64 and KAIRO_RELEASE_PASSWORD (the persistent Kairo signing key).
+# KAIRO_RELEASE_KEYSTORE_B64 and KAIRO_RELEASE_PASSWORD (the persistent Kairo signing key), and
+# a discord-release.yml that announces a tag through .github/actions/discord-release.
 
 on:
   workflow_call:
@@ -208,6 +209,7 @@ jobs:
             gh release create "$tag" "$apk" "$bundle" "$images" \
               --verify-tag "${release_flags[@]}" --title "$APP_NAME $VERSION_NAME" \
               --notes-file "docs/releases/$tag.md"
+            gh workflow run discord-release.yml -f tag="$tag"
             if [[ "$tag" != *-* ]]; then
               gh workflow run play-release.yml -f tag="$tag"
             fi

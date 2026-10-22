@@ -1,0 +1,47 @@
+name: Kairo Discord issue sync
+description: Mirror the calling repository's issue event into the Kairo Discord forum and commit the sync state
+inputs:
+  webhook:
+    description: The Kairo Discord forum webhook (a secret)
+    required: true
+  state:
+    description: The calling repository's folder for its Discord message IDs, such as .github/discord-sync/issues
+    required: true
+  issue:
+    description: For a manual run, the issue to mirror or rewrite; empty mirrors every issue without a thread
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    # The caller checks out its own repository's main branch first; the state is committed there.
+    - name: Mirror to Discord
+      shell: bash
+      env:
+        DISCORD_FORUM_WEBHOOK: ${{ inputs.webhook }}
+        DISCORD_SYNC_STATE: ${{ inputs.state }}
+        GITHUB_TOKEN: ${{ github.token }}
+        SYNC_ISSUE: ${{ inputs.issue }}
+        KAIRO_ACTION_PATH: ${{ github.action_path }}
+      run: python3 "$KAIRO_ACTION_PATH/sync.py"
+    # Runs even when the sync step fails so IDs of messages already posted are never lost.
+    - name: Commit sync state
+      if: ${{ !cancelled() }}
+      shell: bash
+      env:
+        STATE: ${{ inputs.state }}
+        ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
+        ACTION: ${{ github.event.action }}
+      run: |
+        git config user.name 'github-actions[bot]'
+        git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        mkdir -p "$STATE"
+        git add -A "$STATE"
+        if git diff --cached --quiet; then exit 0; fi
+        git commit -q -m "Discord sync: $GITHUB_EVENT_NAME $ACTION #$ISSUE_NUMBER"
+        # Another sync run may have pushed first. Each run only touches its own files, so rebase and resend.
+        until git push origin HEAD:main 2> push.err; do
+          cat push.err
+          grep -qE 'fetch first|non-fast-forward' push.err || exit 1
+          git pull -q --rebase origin main
+        done

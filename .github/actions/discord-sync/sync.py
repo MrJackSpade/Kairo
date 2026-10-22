@@ -1,14 +1,15 @@
 """Mirror GitHub issues and their comments into a Discord forum channel.
 
-Each issue becomes a forum post; each comment, close and reopen becomes a
+Every Kairo app mirrors into the one Kairo forum: each issue becomes a forum post named
+"<repository> #<number> <title>"; each comment, close and reopen becomes a
 message in that post, sent under the GitHub user's name and avatar. Images and
 videos uploaded to GitHub are attached to the message instead of linked.
 An issue opened before the sync existed is mirrored in full the first time
-anything happens to it. The Discord IDs are recorded next to this script so
-later events can edit or delete the right messages:
+anything happens to it. The Discord IDs are recorded in the calling repository, in the folder
+DISCORD_SYNC_STATE names, so later events can edit or delete the right messages:
 
-  issues/<number>/thread.json           {"thread_id": ..., "message_id": ...}
-  issues/<number>/comments/<id>.json    {"message_id": ...}
+  <number>/thread.json           {"thread_id": ..., "message_id": ...}
+  <number>/comments/<id>.json    {"message_id": ...}
 
 Every event writes or removes its own file, so concurrent runs never touch the
 same path and their commits always rebase cleanly.
@@ -24,9 +25,13 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-STATE = Path(__file__).resolve().parent / "issues"
+STATE = Path(os.environ["DISCORD_SYNC_STATE"]).resolve()
 WEBHOOK = os.environ["DISCORD_FORUM_WEBHOOK"]
+if not WEBHOOK:
+    raise SystemExit("The Kairo Discord forum webhook secret is not set in this repository")
 REPO = os.environ["GITHUB_REPOSITORY"]
+# The repository's own name heads its threads, since every app shares the forum.
+REPO_NAME = REPO.split("/")[1]
 NO_MENTIONS = {"parse": []}
 MESSAGE_LIMIT = 2000
 # Discord's per-message limits for a webhook in a server without boosts.
@@ -195,7 +200,7 @@ def open_issue(issue):
         raise RuntimeError(f"Issue #{issue['number']} already has a Discord thread: {path}")
     content, files = render(issue["body"], issue["html_url"])
     payload = {
-        "thread_name": clip(f"#{issue['number']} {issue['title']}", 100),
+        "thread_name": clip(f"{REPO_NAME} #{issue['number']} {issue['title']}", 100),
         **new_message(issue["user"], content),
     }
     message = discord("POST", "", "?wait=true", payload, files)
