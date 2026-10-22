@@ -68,6 +68,17 @@ class References:
             result[kind + "Url"] = url
         return result
 
+    def from_urls(self, platform, game, urls):
+        """Compact artwork for one game's LaunchBox images, {"boxArt"|"preview": url}."""
+        result = {"platform": platform, "game": game}
+        for kind, url in urls.items():
+            match = URL.fullmatch(url)
+            if kind not in KINDS or not match:
+                raise ValueError(f"not a LaunchBox image URL: {url}")
+            result[kind] = {"id": match[2], "format": int(match[3] == "png"), "revision": 2 if match[1] else 0}
+        self.expand(result)
+        return result
+
     def compact(self, art):
         original = self.expand(art)
         if not original:
