@@ -296,7 +296,7 @@ def assemble(root, moby_root):
                  if "mobygames" in entry and not entry.get("boxArtUrl") and "artwork" not in entry}
     moby_art.require(uncovered.values())
     for key, game_id in uncovered.items():
-        artwork = moby_art.artwork(key, game_id)
+        artwork = moby_art.artwork(key, game_id, cover_required=bool(games[key].get("screenshotUrl")))
         if artwork:
             games[key].pop("screenshotUrl", None)
             games[key]["artwork"] = artwork

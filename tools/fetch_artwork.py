@@ -6,9 +6,10 @@ Usage: fetch_artwork.py <app root> [--workers N] [--check]
 Every LaunchBox image in catalog/parts (art.json and the restricted art.nsfw.json) is fetched from
 its URL and written to catalog/artwork/<path> as the app's bundled image: WebP, shrunk to fit 960
 by 360 pixels (never enlarged), as Kairo98's bundled artwork is. Images already present are kept,
-so an interrupted run continues where it stopped. A failed download or an unreadable image stops
-the run with its URL; nothing is written for it. A PNG's damaged ancillary chunks (such as a
-colour profile) are left out, as the PNG specification allows, and named in the output.
+so an interrupted run continues where it stopped; an image no catalog part references is removed.
+A failed download or an unreadable image stops the run with its URL; nothing is written for it.
+A PNG's damaged ancillary chunks (such as a colour profile) are left out, as the PNG specification
+allows, and named in the output.
 """
 import argparse
 import importlib.util
@@ -116,12 +117,26 @@ def main():
     assert set(images) == image_paths(documents, config.ARTWORK.expand)
     artwork = root / "catalog/artwork"
     missing = sorted(path for path in images if not (artwork / path).is_file())
+    unreferenced = sorted(path for path in artwork.rglob("*") if path.is_file()
+                          and path.relative_to(artwork).as_posix() not in images)
     if args.check:
         if missing:
             raise SystemExit(f"{len(missing)} of {len(images)} referenced images are not bundled, such as "
-                             f"{missing[0]}: run tools/fetch_artwork.py")
-        print(f"all {len(images)} referenced images are bundled")
+                             f"{missing[0]}: run shared/tools/fetch_artwork.py")
+        if unreferenced:
+            raise SystemExit(f"{len(unreferenced)} bundled images are not referenced, such as "
+                             f"{unreferenced[0].relative_to(artwork).as_posix()}: run shared/tools/fetch_artwork.py")
+        print(f"all {len(images)} referenced images are bundled, and nothing else")
         return
+    # The artwork APK bundles the whole folder, so an image the catalog no longer names leaves it.
+    for path in unreferenced:
+        path.unlink()
+        for folder in path.parents:
+            if folder == artwork or any(folder.iterdir()):
+                break
+            folder.rmdir()
+    if unreferenced:
+        print(f"removed {len(unreferenced)} unreferenced images", flush=True)
     print(f"{len(images)} images referenced, {len(missing)} to fetch", flush=True)
 
     def one(path):
