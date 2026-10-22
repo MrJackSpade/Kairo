@@ -6,6 +6,8 @@ import android.provider.DocumentsContract
 import org.apache.commons.compress.archivers.sevenz.SevenZFile
 import org.json.JSONObject
 import java.io.Closeable
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -16,7 +18,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.CRC32
 import java.util.zip.ZipFile
 
-/** A disk image: loose in the ROM folder, or a member of a ZIP or 7z archive there. */
+/**
+ * A disk image: loose in the ROM folder, or a member of a ZIP or 7z archive there. A descriptor
+ * (such as a CD's .ccd) has its track data beside it under its own name, listed in [companions].
+ */
 data class DiskImageEntry(
     override val id: String,
     override val uri: String,
@@ -29,6 +34,8 @@ data class DiskImageEntry(
     val imageCrc: Long,
     override val contentId: String?,
     override val error: String? = null,
+    /** The other files the image reads: a CD's track data, by document URI or by archive member. */
+    val companions: List<String> = emptyList(),
     override val catalogId: String? = contentId,
     /** What the library calls the image, from its [DiskImageLibrary.Format]. */
     override val mediaLabel: String = "Disk image"
@@ -45,26 +52,50 @@ fun sameSource(entry: DiskImageEntry, other: DiskImageEntry): Boolean =
 
 /**
  * A product's disk images in its ROM folder: loose, or inside ZIP and 7z archives. Each image is
- * named by the SHA-256 of its bytes (`sha256-<kind>-v1:<hex>`, the catalog's content IDs), and a
- * game plays from an app-private working copy that keeps what it writes to its disks.
+ * named by the SHA-256 of its bytes (`sha256-<kind>-v1:<hex>`, the catalog's content IDs; a
+ * descriptor's ID hashes its track data), and a game plays from an app-private working copy that
+ * keeps what it writes to its disks.
  */
-class DiskImageLibrary(private val context: Context, private val format: Format) : MachineLibrary<DiskImageEntry> {
+class DiskImageLibrary(private val context: Context, private val format: Format,
+                       private val cache: Cache = Cache()) : MachineLibrary<DiskImageEntry> {
     /** The images a product reads, by file extension. */
     class Format(
         /** Image extensions (lower case) and the content ID kind each is hashed as, such as "fd". */
         val kinds: Map<String, String>,
         /** The library's label for each kind, such as "Floppy disk". */
         val labels: Map<String, String>,
-        /** The largest image of each kind. */
+        /** The largest image of each kind; for a descriptor, its track data. */
         val maxBytes: Map<String, Long>,
-        /** The machine's name, for messages such as "No ${format.guestName} disk image in archive". */
-        val guestName: String
+        /** The machine's name, for messages such as "No PC-88 disk image in archive". */
+        val guestName: String,
+        /**
+         * Descriptor extensions and the extensions their track data may have beside them under the
+         * descriptor's name, first match first: ccd to img, cue to bin then img.
+         */
+        val data: Map<String, List<String>> = emptyMap(),
+        /** Descriptors skipped when another descriptor of the same name describes the same disc: cue to ccd. */
+        val supersededBy: Map<String, Set<String>> = emptyMap()
     ) {
-        init { require(kinds.values.all { it in labels && it in maxBytes }) }
+        init {
+            require(kinds.values.all { it in labels && it in maxBytes })
+            require(data.keys.all { it in kinds } && supersededBy.keys.all { it in kinds })
+        }
         fun extension(name: String): String = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
         fun kind(name: String): String? = kinds[extension(name)]
         fun isImage(name: String) = kind(name) != null
         fun isArchive(name: String) = extension(name) in ARCHIVES
+        /** Whether [name] is track data, read only through its descriptor. */
+        fun isData(name: String) = !isImage(name) && data.values.any { extension(name) in it }
+        fun isDescriptor(name: String) = extension(name) in data
+        /** The names [name]'s track data may have, in order; just [name] for an image without a descriptor. */
+        fun dataNames(name: String): List<String> =
+            data[extension(name)]?.map { name.substringBeforeLast('.') + ".$it" } ?: listOf(name)
+        /** [name]'s track data among [present] (lower-case names to items), or null when none is there. */
+        fun <T> dataOf(name: String, present: Map<String, T>): T? =
+            dataNames(name).firstNotNullOfOrNull { present[it.lowercase(Locale.ROOT)] }
+        /** Whether a descriptor of [name]'s name among [present] describes its disc instead. */
+        fun superseded(name: String, present: Set<String>): Boolean =
+            supersededBy[extension(name)].orEmpty().any { "${name.substringBeforeLast('.')}.$it".lowercase(Locale.ROOT) in present }
         private val idPattern = Regex("sha256-(?:${kinds.values.distinct().joinToString("|")})-v1:[0-9a-f]{64}")
         fun validId(value: String) = idPattern.matches(value)
         fun limit(name: String): Long = maxBytes.getValue(kind(name) ?: error("$name is not a $guestName disk image"))
@@ -72,18 +103,35 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
         companion object { private val ARCHIVES = setOf("zip", "7z") }
     }
 
-    private val storeCache = VersionedLibraryCache(File(context.filesDir, "library-v1.bin"), 1,
-        MAX_STORE_BYTES, MAX_DOCUMENTS, ::writeCacheRecord, ::readCacheRecord)
+    /**
+     * Where the library keeps its scan. [version] is the record layout; [earlierRecords] read the
+     * layouts before it and [legacy] the JSON cache of the first releases, for products that had them.
+     * [mediaFormatsVersion] changes when the formats do, so archives are inspected again.
+     */
+    class Cache(
+        val file: String = "library-v2.bin",
+        val version: Int = 4,
+        val mediaFormatsVersion: Int = 1,
+        val legacy: VersionedLibraryCache.Legacy<DiskImageEntry>? = null,
+        val earlierRecords: Map<Int, (DataInputStream) -> DiskImageEntry> = emptyMap()
+    )
+
+    private val storeCache = VersionedLibraryCache(File(context.filesDir, cache.file), cache.version,
+        MAX_STORE_BYTES, MAX_DOCUMENTS, ::writeCacheRecord, ::readCacheRecord,
+        cache.legacy?.let { legacy ->
+            VersionedLibraryCache.Legacy(legacy.file, legacy.version, legacy.collectionName) { labeled(legacy.decode(it)) }
+        }, cache.earlierRecords.mapValues { (_, read) -> { input: DataInputStream -> labeled(read(input)) } })
     private val scanPipeline by lazy {
         LibraryScanPipeline(storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
             { source, index, total -> "Scanning ${index + 1}/$total: ${source.path}" },
             displayOrder = { entries -> entries.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { it.path + (it.zipEntry ?: "") }) },
-            metadata = { JSONObject().put("mediaFormatsVersion", MEDIA_FORMATS_VERSION) },
+            metadata = { JSONObject().put("mediaFormatsVersion", cache.mediaFormatsVersion) },
             afterCommit = { plan -> pruneArchives(plan.work) })
     }
     private val archiveCache = File(context.cacheDir, "rom-archives").apply { mkdirs() }
-    private val imageStore = File(context.filesDir, "media").apply {
+    /** The working copies games play from, named by game key. */
+    val workingDirectory = File(context.filesDir, "media").apply {
         mkdirs()
         listFiles()?.filter { it.name.endsWith(".part") }?.forEach { it.delete() }
     }
@@ -97,12 +145,17 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
     override fun scan(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean,
                       progress: (String) -> Unit): List<DiskImageEntry> = scanPipeline.scan(tree, forceHash, cancelled, progress)
 
-    /** Delete the source document shared by every image entry from that file. */
+    /** Delete the source document shared by every image entry from that file, and a loose descriptor's track data. */
     override fun deleteSource(entry: DiskImageEntry, entries: List<DiskImageEntry>) {
         val sourceUri = Uri.parse(entry.uri)
         require(DocumentsContract.isDocumentUri(context, sourceUri)) { "This game is not a removable library document" }
         require(DocumentsContract.deleteDocument(context.contentResolver, sourceUri)) {
             "The document provider could not delete the game file"
+        }
+        if (entry.zipEntry == null) entry.companions.forEach { companion ->
+            require(DocumentsContract.deleteDocument(context.contentResolver, Uri.parse(companion))) {
+                "The document provider could not delete the track data of ${entry.displayName}"
+            }
         }
         val archiveKey = sha256(entry.uri.toByteArray()).take(32)
         archiveCache.listFiles()?.filter { it.name.startsWith("$archiveKey-") || it.name == "$archiveKey.part" }
@@ -113,14 +166,15 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
     /** The working copy the game plays from, with the saves written into it; the next launch copies the source again. */
     override fun resetWorkingImage(entry: DiskImageEntry) {
         val file = workingImage(entry)
-        check(!file.exists() || file.delete()) { "Could not remove the working copy of ${entry.displayName}" }
+        for (copy in setOf(file) + format.dataNames(file.name).map { File(workingDirectory, it) })
+            check(!copy.exists() || copy.delete()) { "Could not remove the working copy of ${entry.displayName}" }
     }
 
     override fun hasWorkingImage(entry: DiskImageEntry) = workingImage(entry).isFile
 
     /** The working copy of [entry], whether or not it exists yet. */
     fun workingImage(entry: DiskImageEntry) =
-        File(imageStore, "${entry.key.storageName}.${format.extension(entry.displayName)}")
+        File(workingDirectory, "${entry.key.storageName}.${format.extension(entry.displayName)}")
 
     /** The library entry whose working copy is [file], for a disk the machine holds. */
     fun entryForWorkingImage(file: String, entries: List<DiskImageEntry>): DiskImageEntry? =
@@ -129,6 +183,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
     /** Inspect one launcher-provided document without requiring a selected ROM tree. */
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean): List<DiskImageEntry> {
         val source = Source(file.uri, file.name, file.size, file.modified)
+        require(!format.isDescriptor(file.name)) {
+            "${file.name} needs its track data; open its folder or an archive that holds both"
+        }
         if (format.isImage(file.name)) {
             val candidate = entry(source, null, file.size, -1, null, key = GameKey(file.uri.toString()))
             val id = context.contentResolver.openInputStream(file.uri)?.use {
@@ -138,10 +195,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
         }
         require(format.isArchive(file.name)) { "Unsupported ${format.guestName} game file: ${file.name}" }
         return openArchive(cachedArchive(source, false, cancelled)).use { archive ->
-            archive.images { checkCancelled(cancelled) }.map { member ->
-                val id = archive.open(member).use { contentId(it, member.size, member.crc, cancelled, member.name) }
-                entry(source, member.name, member.size, member.crc, id,
-                    key = GameKey.inArchive(file.uri.toString(), member.name))
+            archive.images { checkCancelled(cancelled) }.map { image ->
+                val data = image.data ?: error(image.missing())
+                val id = archive.open(data).use { contentId(it, data.size, data.crc, cancelled, image.name) }
+                entry(source, image.name, data.size, data.crc, id, companions = image.companions,
+                    key = GameKey.inArchive(file.uri.toString(), image.name))
             }
         }
     }
@@ -149,11 +207,17 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
     private fun planScan(tree: Uri, cancelled: AtomicBoolean,
                          progress: (String) -> Unit): LibraryScanPipeline.Plan<Source, DiskImageEntry> {
         val result = DocumentTreeWalker(context.contentResolver).scan(tree, cancelled,
-            { name -> format.isImage(name) || format.isArchive(name) }, progress)
-        return LibraryScanPipeline.Plan(result.files.map { Source(it.uri, it.path, it.size, it.modified) },
-            initialEntries = result.folders.map { folder ->
-                entry(Source(folder.uri, folder.path, -1, 0), null, -1, -1, null, "Unreadable folder: ${folder.message}")
-            })
+            { name -> format.isImage(name) || format.isArchive(name) || format.isData(name) }, progress)
+        val files = result.files.map { Source(it.uri, it.path, it.size, it.modified) }
+        // Track data is read through its descriptor; data without one is not an image.
+        val byPath = files.associateBy { it.path.lowercase(Locale.ROOT) }
+        return LibraryScanPipeline.Plan(files.filter { !format.isData(it.path) && !format.superseded(it.path, byPath.keys) }
+            .map { source ->
+                if (format.isDescriptor(source.path)) source.copy(data = format.dataOf(source.path, byPath))
+                else source
+            }, initialEntries = result.folders.map { folder ->
+            entry(Source(folder.uri, folder.path, -1, 0), null, -1, -1, null, "Unreadable folder: ${folder.message}")
+        })
     }
 
     /** The content each key was first scanned with stays its catalog record through later edits. */
@@ -163,21 +227,24 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
     private fun inspectContent(source: Source, scan: LibraryScanPipeline.ScanContext<DiskImageEntry>): List<DiskImageEntry> {
         if (format.isArchive(source.path)) {
             val oldEntries = scan.prior.values.filter { it.uri == source.uri.toString() }
-            val formatsCurrent = (scan.previous?.root?.optInt("mediaFormatsVersion", 0) ?: 0) >= MEDIA_FORMATS_VERSION
+            val formatsCurrent = (scan.previous?.root?.optInt("mediaFormatsVersion", 1) ?: 0) >= cache.mediaFormatsVersion
             if (!scan.forceHash && formatsCurrent && trusted(source) && oldEntries.isNotEmpty() &&
                 oldEntries.all { sameSource(it, source) && it.error == null }) return oldEntries
             return openArchive(cachedArchive(source, scan.forceHash, scan.cancelled)).use { archive ->
-                archive.images(scan::checkCancelled).map { member ->
+                archive.images(scan::checkCancelled).map { image ->
                     scan.checkCancelled()
-                    val candidate = entry(source, member.name, member.size, member.crc, null)
+                    val data = image.data
+                    val candidate = entry(source, image.name, data?.size ?: -1, data?.crc ?: -1, null,
+                        companions = image.companions)
                     val old = scan.prior[candidate.id]
                     try {
+                        requireNotNull(data) { image.missing() }
                         val id = if (!scan.forceHash && trusted(source) && old != null &&
                             sameFingerprint(old, candidate) && old.contentId?.let(format::validId) == true) old.contentId
                         else {
-                            scan.progress("Hashing ${member.name}")
+                            scan.progress("Hashing ${image.name}")
                             scan.hashStarted()
-                            archive.open(member).use { contentId(it, member.size, member.crc, scan.cancelled, member.name) }
+                            archive.open(data).use { contentId(it, data.size, data.crc, scan.cancelled, image.name) }
                         }
                         candidate.copy(contentId = id)
                     } catch (cancel: CancellationException) { throw cancel }
@@ -187,6 +254,21 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
                     }
                 }
             }
+        }
+        if (format.isDescriptor(source.path)) {
+            val data = source.data ?: error("The track data of ${source.path.substringAfterLast('/')} is missing")
+            val candidate = entry(source, null, data.size, -1, null, companions = listOf(data.uri.toString()))
+            val old = scan.prior[candidate.id]
+            val id = if (!scan.forceHash && trusted(source) && trusted(data) && old != null &&
+                sameFingerprint(old, candidate) && old.contentId?.let(format::validId) == true) old.contentId
+            else {
+                scan.progress("Hashing ${data.path}")
+                scan.hashStarted()
+                context.contentResolver.openInputStream(data.uri)?.use {
+                    contentId(it, data.size, -1, scan.cancelled, source.path)
+                } ?: error("Unable to open ${data.path}")
+            }
+            return listOf(candidate.copy(contentId = id))
         }
         val candidate = entry(source, null, source.size, -1, null)
         val old = scan.prior[candidate.id]
@@ -210,37 +292,54 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
 
     /**
      * Returns the app-private working image for this entry, copying it from its source the first
-     * time. The copy is verified against the entry's content ID.
+     * time. The copy is verified against the entry's content ID. A descriptor's track data is copied
+     * beside it, under the name the core derives from the descriptor's.
      */
     @Synchronized fun prepare(entry: DiskImageEntry, cancelled: AtomicBoolean, progress: (String) -> Unit): File {
         require(entry.playable) { "This entry is not ready to launch" }
         // The working copy holds the game's in-disk saves, so it stays when the source is edited.
         val file = workingImage(entry)
-        if (file.isFile && file.length() > 0) return file
-        if (entry.imageSize > 0) require(imageStore.usableSpace > entry.imageSize + 16L * 1024 * 1024) {
+        val descriptor = format.isDescriptor(entry.displayName)
+        // The track data keeps its extension beside the descriptor, where the core looks for it.
+        val data = if (descriptor) File(workingDirectory,
+            "${file.name.substringBeforeLast('.')}.${format.extension(entry.companions.single())}") else file
+        if (file.isFile && file.length() > 0 && data.isFile && data.length() > 0) return file
+        if (entry.imageSize > 0) require(workingDirectory.usableSpace > entry.imageSize + 16L * 1024 * 1024) {
             "Not enough free space for this disk image"
         }
-        val partial = File(imageStore, "${file.name}.part")
-        partial.delete()
+        val partialData = File(workingDirectory, "${data.name}.part")
+        val partialDescriptor = File(workingDirectory, "${file.name}.part")
+        partialData.delete()
+        partialDescriptor.delete()
         try {
             progress("Preparing ${entry.displayName}")
             if (entry.zipEntry == null) {
-                context.contentResolver.openInputStream(Uri.parse(entry.uri))?.use { input ->
-                    partial.outputStream().use { output -> copyVerified(entry, input, -1, cancelled, output) }
+                val dataUri = if (descriptor) Uri.parse(entry.companions.single()) else Uri.parse(entry.uri)
+                context.contentResolver.openInputStream(dataUri)?.use { input ->
+                    partialData.outputStream().use { output -> copyVerified(entry, input, -1, cancelled, output) }
                 } ?: error("Unable to open disk image")
+                if (descriptor) context.contentResolver.openInputStream(Uri.parse(entry.uri))?.use { input ->
+                    partialDescriptor.outputStream().use { input.copyTo(it) }
+                } ?: error("Unable to open ${entry.displayName}")
             } else {
                 openArchive(archive(entry, cancelled)).use { archive ->
-                    val member = archive.images { checkCancelled(cancelled) }.firstOrNull { it.name == entry.zipEntry }
+                    val image = archive.images { checkCancelled(cancelled) }.firstOrNull { it.name == entry.zipEntry }
                         ?: error("${entry.zipEntry} is missing from the archive")
+                    val member = image.data ?: error(image.missing())
                     archive.open(member).use { input ->
-                        partial.outputStream().use { output -> copyVerified(entry, input, member.crc, cancelled, output) }
+                        partialData.outputStream().use { output -> copyVerified(entry, input, member.crc, cancelled, output) }
+                    }
+                    if (descriptor) archive.open(image.entry).use { input ->
+                        partialDescriptor.outputStream().use { input.copyTo(it) }
                     }
                 }
             }
-            require(partial.renameTo(file)) { "Unable to save working disk image" }
+            require(partialData.renameTo(data)) { "Unable to save working disk image" }
+            if (descriptor) require(partialDescriptor.renameTo(file)) { "Unable to save ${entry.displayName}" }
             return file
         } catch (error: Exception) {
-            partial.delete()
+            partialData.delete()
+            partialDescriptor.delete()
             throw error
         }
     }
@@ -253,31 +352,54 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
     }
 
     /** The local copy of the archive that holds [entry]. */
-    private fun archive(entry: DiskImageEntry, cancelled: AtomicBoolean): File {
+    fun archive(entry: DiskImageEntry, cancelled: AtomicBoolean): File {
         require(entry.zipEntry != null) { "${entry.displayName} is not in an archive" }
         return cachedArchive(Source(Uri.parse(entry.uri), entry.path, entry.sourceSize, entry.sourceModified),
             false, cancelled)
     }
 
-    private data class Source(val uri: Uri, val path: String, val size: Long, val modified: Long)
+    /** A document to inspect; a descriptor also carries its track data. */
+    private data class Source(val uri: Uri, val path: String, val size: Long, val modified: Long,
+                              val data: Source? = null)
 
-    /** An image in an archive: its normalized path, size, and CRC-32 when the archive records one. */
+    /** An archive member: its normalized path, size, and CRC-32 when the archive records one. */
     private class Member(val name: String, val size: Long, val crc: Long)
 
-    /** A ZIP or 7z archive's floppy images. */
-    private interface Archive : Closeable {
-        fun images(checkCancelled: () -> Unit): List<Member>
-        fun open(member: Member): InputStream
+    /** An image in an archive, with the member its bytes come from: itself, or a descriptor's track data. */
+    private inner class Image(val entry: Member, val data: Member?) {
+        val name: String get() = entry.name
+        val companions: List<String> get() = if (data == null || data === entry) emptyList() else listOf(data.name)
+        fun missing() = "The track data of $name is missing from the archive"
+    }
+
+    /** A ZIP or 7z archive's members. */
+    private abstract inner class Archive : Closeable {
+        protected abstract fun members(checkCancelled: () -> Unit): List<Member>
+        abstract fun open(member: Member): InputStream
+
+        /** The archive's images; a descriptor whose track data is missing has none, and fails alone. */
+        fun images(checkCancelled: () -> Unit): List<Image> {
+            val members = members(checkCancelled)
+            val byName = members.associateBy { it.name.lowercase(Locale.ROOT) }
+            val images = members.filter { format.isImage(it.name) && !format.superseded(it.name, byName.keys) }
+            require(images.isNotEmpty()) { "No ${format.guestName} disk image in archive" }
+            require(images.size <= MAX_ARCHIVE_IMAGES) { "Archive has too many disk images" }
+            return images.map { member ->
+                val data = if (format.isDescriptor(member.name)) format.dataOf(member.name, byName) else member
+                if (data != null) require(data.size in 1..format.limit(member.name)) { "Disk image exceeds size limit" }
+                Image(member, data)
+            }
+        }
     }
 
     private fun openArchive(file: File): Archive =
         if (file.name.endsWith(".7z")) SevenZArchive(file) else ZipArchive(file)
 
-    private inner class ZipArchive(file: File) : Archive {
+    private inner class ZipArchive(file: File) : Archive() {
         private val zip = ZipFile(file)
         private val byName = HashMap<String, java.util.zip.ZipEntry>()
 
-        override fun images(checkCancelled: () -> Unit): List<Member> {
+        override fun members(checkCancelled: () -> Unit): List<Member> {
             val names = HashSet<String>()
             val members = ArrayList<Member>()
             var inspected = 0
@@ -286,14 +408,13 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
                 require(++inspected <= MAX_ARCHIVE_ENTRIES) { "Archive has too many entries" }
                 val name = safeEntryName(item.name)
                 require(names.add(name.lowercase(Locale.ROOT))) { "Duplicate archive entry" }
-                if (item.isDirectory || !format.isImage(name)) continue
-                require(members.size < MAX_ARCHIVE_IMAGES) { "Archive has too many disk images" }
-                require(item.size in 1..format.limit(name) && item.compressedSize > 0 &&
-                    item.size / item.compressedSize <= MAX_EXPANSION_RATIO) { "Disk image exceeds size or expansion limit" }
+                if (item.isDirectory || !(format.isImage(name) || format.isData(name))) continue
+                require(item.compressedSize > 0 && item.size / item.compressedSize <= MAX_EXPANSION_RATIO) {
+                    "Disk image exceeds expansion limit"
+                }
                 byName[item.name] = item
                 members.add(Member(item.name, item.size, item.crc))
             }
-            require(members.isNotEmpty()) { "No ${format.guestName} disk image in archive" }
             return members
         }
 
@@ -303,11 +424,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
         override fun close() = zip.close()
     }
 
-    private inner class SevenZArchive(file: File) : Archive {
+    private inner class SevenZArchive(file: File) : Archive() {
         private val archive = SevenZFile.builder().setFile(file).get()
         private val byName = HashMap<String, org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry>()
 
-        override fun images(checkCancelled: () -> Unit): List<Member> {
+        override fun members(checkCancelled: () -> Unit): List<Member> {
             val names = HashSet<String>()
             val members = ArrayList<Member>()
             var inspected = 0
@@ -316,13 +437,10 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
                 require(++inspected <= MAX_ARCHIVE_ENTRIES) { "Archive has too many entries" }
                 val name = safeEntryName(item.name)
                 require(names.add(name.lowercase(Locale.ROOT))) { "Duplicate archive entry" }
-                if (item.isDirectory || !item.hasStream() || !format.isImage(name)) continue
-                require(members.size < MAX_ARCHIVE_IMAGES) { "Archive has too many disk images" }
-                require(item.size in 1..format.limit(name)) { "Disk image exceeds size limit" }
+                if (item.isDirectory || !item.hasStream() || !(format.isImage(name) || format.isData(name))) continue
                 byName[item.name] = item
                 members.add(Member(item.name, item.size, if (item.hasCrc) item.crcValue else -1))
             }
-            require(members.isNotEmpty()) { "No ${format.guestName} disk image in archive" }
             return members
         }
 
@@ -373,6 +491,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
         }
     }
 
+    /** The content ID of [name]'s bytes from [input]: its track data for a descriptor. */
     private fun contentId(input: InputStream, expectedSize: Long, expectedCrc: Long, cancelled: AtomicBoolean,
                           name: String, output: OutputStream? = null): String {
         val limit = format.limit(name)
@@ -396,21 +515,26 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
         return "sha256-${format.kind(name)}-v1:${digest.digest().joinToString("") { "%02x".format(it) }}"
     }
 
+    /** A loose descriptor's modification time is its newest file's, so changed track data rehashes. */
     private fun entry(source: Source, member: String?, imageSize: Long, imageCrc: Long, contentId: String?,
-                      error: String? = null, key: GameKey = keyOf(source.path, member),
-                      catalogId: String? = contentId): DiskImageEntry =
-        DiskImageEntry(key.path, source.uri.toString(), source.path, member, source.size, source.modified,
-            imageSize, imageCrc, contentId, error, catalogId, label(member ?: source.path))
+                      error: String? = null, companions: List<String> = emptyList(),
+                      key: GameKey = keyOf(source.path, member), catalogId: String? = contentId): DiskImageEntry =
+        DiskImageEntry(key.path, source.uri.toString(), source.path, member, source.size,
+            maxOf(source.modified, source.data?.modified ?: 0), imageSize, imageCrc, contentId, error, companions,
+            catalogId, label(member ?: source.path))
 
     /** An image's label; a folder or archive that failed whole is labeled as an image of none. */
     private fun label(name: String) = format.kind(name)?.let(format.labels::getValue) ?: "Disk image"
 
+    /** [entry] with the label its formats give it, as for one an earlier cache layout read. */
+    private fun labeled(entry: DiskImageEntry) = entry.copy(mediaLabel = label(entry.zipEntry ?: entry.path))
+
     /** An image's key: its path in the ROM folder, and its path inside an archive. */
-    private fun keyOf(path: String, member: String?) = member?.let { GameKey.inArchive(path, it) } ?: GameKey(path)
+    fun keyOf(path: String, member: String?) = member?.let { GameKey.inArchive(path, it) } ?: GameKey(path)
 
     private fun trusted(source: Source) = source.size >= 0 && source.modified > 0
     private fun sameSource(old: DiskImageEntry, source: Source) =
-        old.sourceSize == source.size && old.sourceModified == source.modified
+        old.sourceSize == source.size && old.sourceModified == maxOf(source.modified, source.data?.modified ?: 0)
     private fun sameFingerprint(old: DiskImageEntry, item: DiskImageEntry) =
         sameSource(old, Source(Uri.parse(item.uri), item.path, item.sourceSize, item.sourceModified)) &&
             old.imageSize == item.imageSize && old.imageCrc == item.imageCrc
@@ -424,28 +548,26 @@ class DiskImageLibrary(private val context: Context, private val format: Format)
         return normalized
     }
 
-    private fun writeCacheRecord(output: java.io.DataOutputStream, entry: DiskImageEntry) = with(output) {
+    private fun writeCacheRecord(output: DataOutputStream, entry: DiskImageEntry) = with(output) {
         writeText(entry.id); writeText(entry.uri); writeText(entry.path); writeOptionalText(entry.zipEntry)
         writeLong(entry.sourceSize); writeLong(entry.sourceModified)
         writeLong(entry.imageSize); writeLong(entry.imageCrc)
-        writeOptionalText(entry.contentId); writeOptionalText(entry.error); writeOptionalText(entry.catalogId)
+        writeOptionalText(entry.contentId); writeOptionalText(entry.error)
+        writeInt(entry.companions.size); entry.companions.forEach { writeText(it) }
+        writeOptionalText(entry.catalogId)
     }
 
-    private fun readCacheRecord(input: java.io.DataInputStream) = with(input) {
-        val id = readText()
-        val uri = readText()
-        val path = readText()
-        val member = readOptionalText()
-        DiskImageEntry(id, uri, path, member, readLong(), readLong(), readLong(), readLong(),
-            readOptionalText(), readOptionalText(), readOptionalText(), label(member ?: path))
+    private fun readCacheRecord(input: DataInputStream) = with(input) {
+        labeled(DiskImageEntry(readText(), readText(), readText(), readOptionalText(), readLong(), readLong(),
+            readLong(), readLong(), readOptionalText(), readOptionalText(), List(readInt()) { readText() },
+            readOptionalText()))
     }
 
     companion object {
-        private const val MEDIA_FORMATS_VERSION = 1
         private const val MAX_DOCUMENTS = 50_000
         private const val MAX_ARCHIVE_ENTRIES = 50_000
         private const val MAX_ARCHIVE_IMAGES = 1_000
-        private const val MAX_ARCHIVE_BYTES = 2L * 1024 * 1024 * 1024
+        private const val MAX_ARCHIVE_BYTES = 8L * 1024 * 1024 * 1024
         private const val MAX_EXPANSION_RATIO = 1000L
         private const val MAX_STORE_BYTES = 16 * 1024 * 1024
         private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
