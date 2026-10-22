@@ -32,11 +32,15 @@ class CatalogGame(
     /** Top-level fields the user changed for this game. */
     val overriddenFields: Set<String>,
     /** The merged record; product sections are read as they are used, so bad data fails that use alone. */
-    val record: JSONObject
+    val record: JSONObject,
+    private val layers: CatalogFieldLayers.Result
 ) : LibraryGame {
     override val tags: List<String> get() = if (heart == true) listOf("♥") else emptyList()
 
     fun section(name: String): JSONObject? = record.optJSONObject(name)
+
+    /** The priority of the layer a field came from, higher above lower; null when no layer has it. */
+    fun sourceIndexOf(vararg path: String): Int? = layers.sourceIndexOf(*path)
 
     /** The content ID the game names for a media [role], such as a second floppy. */
     fun mediaId(role: String): String? = record.optJSONArray("media")?.let { items ->
@@ -237,7 +241,8 @@ class LayeredGameCatalog(private val context: Context, private val schema: Schem
     }
 
     private fun resolveUncached(contentId: String, owner: GameKey?, fileName: String): CatalogGame {
-        val merged = layered(contentId, owner, fileName).record
+        val layers = layered(contentId, owner, fileName)
+        val merged = layers.record
         val user = owner?.let(overrides::record)
         val title = merged.optString("title").takeIf { it.isNotBlank() }
             ?: fileName.substringAfterLast('/').substringAfterLast('\\').substringBeforeLast('.')
@@ -263,7 +268,7 @@ class LayeredGameCatalog(private val context: Context, private val schema: Schem
             input?.optString("touch")?.takeIf { it in INPUT_TOUCH },
             input?.optString("secondary")?.takeIf { it in INPUT_SECONDARY },
             user?.keys()?.asSequence()?.toSet() ?: emptySet(),
-            merged)
+            merged, layers)
     }
 
     override fun openArtwork(path: String): InputStream = installedCatalogs.openArtwork(path) ?: artworkStore.open(path)
