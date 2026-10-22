@@ -484,6 +484,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         libraryMenu = LibraryMenu(this, pages, libraryFlow, catalog, identity.strings,
             { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp)
         libraryPage.openMenuAction = libraryMenu::open
+        // On a dual-screen device, search is typed on the lower screen so its keyboard leaves the results visible.
+        libraryPage.searchElsewhere = { query, changed, done -> secondaryKeyboard.openSearch(query, changed, done) }
+        libraryPage.endSearchElsewhere = secondaryKeyboard::closeSearch
         // Pages and the game overlay sit above the library; pages come forward when they open.
         root.addView(libraryScreen, root.indexOfChild(overlay), FrameLayout.LayoutParams(-1, -1))
         touchUi.bind(keyboardPanel)

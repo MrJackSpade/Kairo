@@ -296,7 +296,7 @@ private:
             next_frame += std::chrono::nanoseconds(
                 static_cast<int64_t>(core->frame_seconds() * 1e9 * pace));
             const auto now = std::chrono::steady_clock::now();
-            if (fast_forward_.load(std::memory_order_relaxed)) next_frame = now;
+            if (fast_forward_.load(std::memory_order_relaxed) || core->booting()) next_frame = now;
             else if (now - next_frame > kFrameStall) next_frame = now;
             if (audio && audio->lost_error() != AAUDIO_OK) {
                 __android_log_print(ANDROID_LOG_ERROR, "KairoMachine", "audio stream stopped with %s; reopening",

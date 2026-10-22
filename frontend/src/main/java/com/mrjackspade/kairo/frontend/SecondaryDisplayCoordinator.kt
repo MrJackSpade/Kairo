@@ -251,6 +251,30 @@ class SecondaryDisplayCoordinator(
         return activity.dispatchGenericMotionEvent(event)
     }
 
+    /**
+     * Library search on the lower screen, where its keyboard does not cover the results: true
+     * when the companion screen took it. Each change goes to [changed]; [done] runs when the
+     * player finishes (the keyboard's Search key or Back), after focus returns to the game screen.
+     */
+    fun openSearch(query: String, changed: (String) -> Unit, done: () -> Unit): Boolean {
+        val screen = companion?.takeIf { !it.isFinishing } ?: return false
+        screen.openSearch(query, changed) {
+            screen.closeSearch()
+            reclaimFocus()
+            done()
+        }
+        return true
+    }
+
+    /** Ends lower-screen search, as when the library closes its search row. */
+    fun closeSearch() {
+        val screen = companion ?: return
+        if (screen.searching) {
+            screen.closeSearch()
+            reclaimFocus()
+        }
+    }
+
     fun reclaimFocus() {
         if (activity.isFinishing || activity.isDestroyed) return
         try {
@@ -485,6 +509,58 @@ internal class SecondaryDisplayContent(
         text.addView(libraryDescription, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(14) })
         libraryPanel.addView(text, LinearLayout.LayoutParams(0, -1, 1f))
         addView(libraryPanel, LayoutParams(-1, -1))
+    }
+
+    /** The library search typed on this screen, which filters the library on the other. */
+    private var onSearchChanged: ((String) -> Unit)? = null
+    private var onSearchDone: (() -> Unit)? = null
+    private val searchField = android.widget.EditText(context).apply {
+        visibility = View.GONE
+        hint = "Search by title or file name"
+        textSize = Ui.BODY
+        isSingleLine = true
+        setTextColor(Ui.TEXT)
+        setHintTextColor(Ui.TEXT_FAINT)
+        background = Ui.rounded(context, Ui.SURFACE, Ui.RADIUS_SMALL, Ui.LINE)
+        setPadding(dp(14), 0, dp(14), 0)
+        imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+        setOnEditorActionListener { _, _, _ -> onSearchDone?.invoke(); true }
+        addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(text: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(text: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(text: android.text.Editable?) { onSearchChanged?.invoke(text.toString()) }
+        })
+    }
+    val searching: Boolean get() = searchField.visibility == View.VISIBLE
+
+    init {
+        addView(searchField, LayoutParams(-1, dp(52), Gravity.TOP).apply { setMargins(dp(24), dp(16), dp(24), 0) })
+    }
+
+    /** Shows the search field with [query], focused with the keyboard open on this screen. */
+    fun openSearch(query: String, changed: (String) -> Unit, done: () -> Unit) {
+        onSearchChanged = null
+        searchField.setText(query)
+        searchField.setSelection(query.length)
+        onSearchChanged = changed
+        onSearchDone = done
+        searchField.visibility = View.VISIBLE
+        searchField.requestFocus()
+        searchField.post {
+            (context.getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+                .showSoftInput(searchField, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    /** Hides the search field and its keyboard; the query stays on the library. */
+    fun closeSearch() {
+        if (!searching) return
+        onSearchChanged = null
+        onSearchDone = null
+        (context.getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+            .hideSoftInputFromWindow(searchField.windowToken, 0)
+        searchField.clearFocus()
+        searchField.visibility = View.GONE
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()

@@ -7,8 +7,9 @@ Writes catalog/research/games-v1.json for tools/app_catalog.py. The app's tools/
 names its PLATFORMS (LaunchBox slugs), MOBYGAMES (its MobyGames listing slug) and SCANS:
 {set name: (scan index path, LaunchBox slugs to match against, in order)}. An optional
 GROUP(archive path) names the game an archive belongs to (default: its file name); archives of
-one group share a title hint and, when unmatched, one local game. An optional IGNORE(archive path)
-marks archives that are not games, such as firmware; they are decided "ignore".
+one group share a title hint and, when unmatched, one local game. An optional NOT_GAME(archive path)
+marks archives that are not games, such as utilities, system disks and firmware: a game whose
+archives are all not games is hidden from the library, so it never shows even in a games folder.
 
 Decisions live beside the output and are kept across runs; new items are decided automatically
 and the decision is recorded so it can be reviewed and corrected:
@@ -23,6 +24,10 @@ Images the manual artwork review rejected (art-review-v1.json, art_verdicts.py) 
 the game takes its next candidate image instead.
 Every adult game is added to catalog/core-review-v1.json's exclusions if it is not there yet. A
 medium found in several games' sets identifies none of them: it is listed under sharedContentIds.
+A game's disks form sets (disk_sets.py, by the app's BOOT_KINDS and COMPANION): "diskSets" maps each
+set's entry disk to the disks hidden behind it and the disk it boots with. An optional
+MACHINE(disk name, scan set name, content ID) gives the machine settings a disk needs: "diskMachine"
+maps the disk to them.
 
 An archive matches a LaunchBox game when its file name's title equals the game's name or an
 alias and the years agree within one, or when the closest fuzzy title scores at least 0.93 with
@@ -39,6 +44,7 @@ from pathlib import Path
 
 from launchbox import BOX_TYPES, SCREENSHOT_TYPES, candidates, key as title_key
 from moby_art import MobyArt
+from disk_sets import disk_sets
 import art_verdicts
 from launchbox_artwork import URL
 
@@ -221,7 +227,10 @@ def assemble(root, moby_root):
     # A MobyGames-only game whose title no other MobyGames-only game shares.
     own_moby = {title_key(entry["title"]): key for key, entry in own if titles.count(title_key(entry["title"])) == 1}
     group_of = getattr(config, "GROUP", lambda path: path.rsplit("/", 1)[-1])
-    ignored = getattr(config, "IGNORE", lambda path: False)
+    not_game = getattr(config, "NOT_GAME", lambda path: False)
+    machine_of = getattr(config, "MACHINE", lambda name, set_name, content_id: {})
+    archive_counts = {}  # each game's (archives, archives that are not games)
+    disks = {}  # each game's disks: archive, member and content ID (disk_sets.py)
     for set_name, (index_path, slugs) in config.SCANS.items():
         index = read(root / index_path, None)
         if index is None:
@@ -234,8 +243,7 @@ def assemble(root, moby_root):
             title, year, _ = parse_hint(group)
             decision = media_decisions["archives"].get(name)
             if decision is None:
-                decision = ("ignore" if ignored(archive["path"]) else
-                            match_title(title, year, slugs, snapshots) or own_moby.get(title_key(title)))
+                decision = match_title(title, year, slugs, snapshots) or own_moby.get(title_key(title))
                 if decision is not None:
                     media_decisions["archives"][name] = decision
                 else:
@@ -254,6 +262,15 @@ def assemble(root, moby_root):
                     games[key]["year"] = year
             entry = games[key]
             entry.setdefault("sourceGroups", []).append(name)
+            total, other = archive_counts.get(key, (0, 0))
+            archive_counts[key] = (total + 1, other + bool(not_game(archive["path"])))
+            disks.setdefault(key, []).extend({"archive": archive["path"], "member": disk.get("entry"),
+                                              "contentId": disk["contentId"]} for disk in archive["disks"])
+            for disk in archive["disks"]:
+                settings = machine_of(disk.get("entry") or archive["path"].rsplit("/", 1)[-1], set_name,
+                                      disk["contentId"])
+                if settings:
+                    entry.setdefault("diskMachine", {})[disk["contentId"]] = settings
             entry["contentIds"] = sorted(set(entry.get("contentIds", [])) |
                                          {disk["contentId"] for disk in archive["disks"]})
 
@@ -269,6 +286,24 @@ def assemble(root, moby_root):
             entry["contentIds"] = [content_id for content_id in entry["contentIds"] if content_id not in shared]
             if not entry["contentIds"]:
                 del entry["contentIds"]
+
+    for key, (total, other) in archive_counts.items():
+        if other == total:
+            games[key]["hidden"] = True
+    for entry in games.values():
+        if "diskMachine" in entry:
+            entry["diskMachine"] = {disk: settings for disk, settings in sorted(entry["diskMachine"].items())
+                                    if disk not in shared}
+            if not entry["diskMachine"]:
+                del entry["diskMachine"]
+
+    # One library entry per disk set: the entry disk names the others, hidden behind it, and the
+    # disk it boots with (disk_sets.py).
+    for key, game_disks in sorted(disks.items()):
+        sets = disk_sets([disk for disk in game_disks if disk["contentId"] not in shared],
+                         config.BOOT_KINDS, config.COMPANION)
+        if sets:
+            games[key]["diskSets"] = sets
 
     descriptions = read(research / "descriptions-v1.json", {"schemaVersion": 1, "descriptions": {}})["descriptions"]
     unknown = descriptions.keys() - games.keys()

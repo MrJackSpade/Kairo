@@ -11,7 +11,10 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "boxArtUrl": "...", "screenshotUrl": "...",               LaunchBox images, compacted
       "artwork": {...},                                         or a reviewed compact pick
       "contentIds": [...], "sourceGroups": [...],               media this game is known by
+      "diskSets": {"<entry>": {"setDisks": [...], "media": [...]}},   one library entry per disk set
+      "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk's name asks for
       "adult": true,                                            heart marker, core-review exclusion
+      "hidden": true,                                           not a game: never listed in the library
       "launchbox": "...", "mobygames": 0, "year": 0, ...         research only, never shipped
   }}}
 
@@ -57,13 +60,13 @@ def lookup_name(value):
     return "".join(char.lower() for char in unicodedata.normalize("NFKC", value) if char.isalnum())
 
 
-def validator(kinds, artwork):
+def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
     content_id = re.compile(r"sha256-(?:" + "|".join(sorted(kinds)) + r")-v1:[0-9a-f]{64}\Z")
 
     def validate_record(record):
         require(isinstance(record, dict), "game must be an object")
         require(set(record) <= {"game", "title", "description", "aliases", "artwork", "heart",
-                                "hidden", "setDisks", "contentIds"}, "unknown game field")
+                                "hidden", "setDisks", "media", "machine", "contentIds"}, "unknown game field")
         ids = record.get("contentIds")
         require(isinstance(ids, list) and 1 <= len(ids) <= MAX_IDS and len(ids) == len(set(ids)) and
                 all(isinstance(value, str) and content_id.fullmatch(value) for value in ids),
@@ -82,8 +85,17 @@ def validator(kinds, artwork):
         require("heart" not in record or type(record["heart"]) is bool, "invalid heart marker")
         require("hidden" not in record or type(record["hidden"]) is bool, "invalid hidden flag")
         set_disks = record.get("setDisks", [])
-        require(isinstance(set_disks, list) and len(set_disks) <= 32 and
+        require(isinstance(set_disks, list) and len(set_disks) <= 128 and
                 all(isinstance(x, str) and content_id.fullmatch(x) for x in set_disks), "invalid setDisks")
+        media = record.get("media", [])
+        require(isinstance(media, list) and len(media) <= 4 and
+                all(isinstance(m, dict) and set(m) == {"role", "contentId"} and m["role"] in media_roles and
+                    isinstance(m["contentId"], str) and content_id.fullmatch(m["contentId"]) for m in media),
+                "invalid media")
+        machine = record.get("machine", {})
+        require(isinstance(machine, dict) and ("machine" not in record or machine_options) and
+                all(value in machine_options.get(option, ()) for option, value in machine.items()),
+                "invalid machine settings")
         artwork.expand(record.get("artwork", {}))
         return {key: value for key, value in record.items() if key != "contentIds"}
 
@@ -101,6 +113,8 @@ def metadata(key, entry, config):
     record = {field: entry[field] for field in SHIPPED if entry.get(field)}
     if entry.get("adult"):
         record["heart"] = True
+    if entry.get("hidden"):
+        record["hidden"] = True
     urls = {kind: entry[field] for field, kind in (("boxArtUrl", "boxArt"), ("screenshotUrl", "preview"))
             if entry.get(field)}
     if "artwork" in entry:
@@ -116,7 +130,8 @@ def metadata(key, entry, config):
 
 def generate(root, check=False):
     config = load_config(root)
-    validate_record = validator(config.KINDS, config.ARTWORK)
+    validate_record = validator(config.KINDS, config.ARTWORK, {role for _, role, _ in config.COMPANION.values()},
+                                getattr(config, "MACHINE_OPTIONS", None))
     research = json.loads((root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))
     require(research.get("schemaVersion") == 1, "unsupported research schema")
     policy = json.loads((root / "catalog/core-review-v1.json").read_text(encoding="utf-8"))
@@ -127,7 +142,15 @@ def generate(root, check=False):
         record = metadata(key, entry, config)
         validate_record({**record, "contentIds": [f"sha256-{sorted(config.KINDS)[0]}-v1:" + "0" * 64]})
         games[key] = record
-        ids = sorted(set(entry.get("contentIds", [])))
+        # A disk with fields of its own: a disk set's entry names the disks hidden behind it and the
+        # disk it boots with, and a disk may ask for machine settings.
+        own = {disk: dict(fields) for disk, fields in entry.get("diskSets", {}).items()}
+        for disk, settings in entry.get("diskMachine", {}).items():
+            own.setdefault(disk, {})["machine"] = settings
+        for disk, fields in sorted(own.items()):
+            require(disk in entry.get("contentIds", []), f"{key}: {disk} is not one of its disks")
+            source_games.append({"contentIds": [disk], "game": key, **fields})
+        ids = sorted(set(entry.get("contentIds", [])) - own.keys())
         for start in range(0, len(ids), MAX_IDS):
             source_games.append({"contentIds": ids[start:start + MAX_IDS], "game": key})
         for candidate in (entry["title"], *entry.get("aliases", []),

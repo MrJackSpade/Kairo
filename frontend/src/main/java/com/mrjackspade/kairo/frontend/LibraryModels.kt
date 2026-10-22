@@ -18,6 +18,8 @@ interface LibraryItem {
     val displayName: String
     val playable: Boolean
     val mediaLabel: String
+    /** False for a file the scan remembers but that holds no game, such as an archive of manuals; never listed. */
+    val holdsGame: Boolean get() = true
 }
 
 /** Metadata displayed by the shared library and game page. */

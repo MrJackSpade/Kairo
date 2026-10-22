@@ -98,6 +98,13 @@ class LibraryScreen<T : LibraryItem>(
         }
     }
     val searchFocused: Boolean get() = search.hasFocus()
+    /**
+     * Search typed on another screen (a dual-screen device's lower screen), so the keyboard leaves
+     * the results visible: given the query, where its changes go and what runs when the player
+     * finishes, it is true when that screen took the search. [endSearchElsewhere] closes it.
+     */
+    var searchElsewhere: ((String, (String) -> Unit, () -> Unit) -> Boolean)? = null
+    var endSearchElsewhere: (() -> Unit)? = null
     private var allEntries = emptyList<T>()
     /** Sources with more than one visible entry; only their rows name the image inside. */
     private var sharedSources = emptySet<String>()
@@ -448,7 +455,7 @@ class LibraryScreen<T : LibraryItem>(
             }
             val visible = items.filterNot { entry ->
                 if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
-                catalog.matchId(entry)?.let { it in setDisks } == true || catalog.hiddenFromLibrary(entry)
+                !entry.holdsGame || catalog.matchId(entry)?.let { it in setDisks } == true || catalog.hiddenFromLibrary(entry)
             }
             post {
                 if (generation == entriesGeneration) publishEntries(visible)
@@ -673,6 +680,7 @@ class LibraryScreen<T : LibraryItem>(
 
     /** Drop library search focus before a guest session takes over the window. */
     fun dismissSystemKeyboard() {
+        endSearchElsewhere?.invoke()
         search.clearFocus()
         (context.getSystemService(Context.INPUT_METHOD_SERVICE)
             as android.view.inputmethod.InputMethodManager)
@@ -692,6 +700,7 @@ class LibraryScreen<T : LibraryItem>(
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
             as android.view.inputmethod.InputMethodManager
         if (search.visibility == View.VISIBLE) {
+            endSearchElsewhere?.invoke()
             search.setText("")
             search.visibility = View.GONE
             searchRow.visibility = View.GONE
@@ -699,6 +708,7 @@ class LibraryScreen<T : LibraryItem>(
         } else {
             searchRow.visibility = View.VISIBLE
             search.visibility = View.VISIBLE
+            if (searchElsewhere?.invoke(search.text.toString(), { query -> search.setText(query) }, ::focusGames) == true) return
             search.requestFocus()
             imm.showSoftInput(search, 0)
         }

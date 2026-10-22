@@ -16,7 +16,7 @@ import android.window.OnBackInvokedDispatcher
 /** Hosts the secondary panel when Android identifies it as the default display. */
 class SecondaryDisplayActivity : Activity() {
     private var owner: SecondaryDisplayCoordinator? = null
-    private val backCallback = OnBackInvokedCallback { owner?.forwardBack() }
+    private val backCallback = OnBackInvokedCallback { if (!finishSearch()) owner?.forwardBack() }
     private lateinit var content: SecondaryDisplayContent
     private lateinit var viewScale: ViewScale
 
@@ -83,11 +83,43 @@ class SecondaryDisplayActivity : Activity() {
         if (::content.isInitialized) content.setInitialMode(touchpad)
     }
 
-    @Deprecated("Legacy Android Back callback")
-    override fun onBackPressed() { owner?.forwardBack() }
+    /** True while library search is typed on this screen; its keys then stay here. */
+    internal val searching: Boolean get() = ::content.isInitialized && content.searching
+    private var searchDone: (() -> Unit)? = null
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
-        owner?.forwardKey(event) ?: super.dispatchKeyEvent(event)
+    /** Takes input focus to this screen and opens the search field with its keyboard. */
+    internal fun openSearch(query: String, changed: (String) -> Unit, done: () -> Unit) {
+        if (!::content.isInitialized) return
+        searchDone = done
+        (getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager).moveTaskToFront(taskId, 0)
+        content.openSearch(query, changed, done)
+    }
+
+    internal fun closeSearch() {
+        searchDone = null
+        if (::content.isInitialized) content.closeSearch()
+    }
+
+    @Deprecated("Legacy Android Back callback")
+    override fun onBackPressed() { if (!finishSearch()) owner?.forwardBack() }
+
+    /** Back while searching finishes the search; true when it did. */
+    private fun finishSearch(): Boolean {
+        val done = searchDone?.takeIf { searching } ?: return false
+        done()
+        return true
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (searching) {
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                if (event.action == KeyEvent.ACTION_UP) finishSearch()
+                return true
+            }
+            return super.dispatchKeyEvent(event)
+        }
+        return owner?.forwardKey(event) ?: super.dispatchKeyEvent(event)
+    }
 
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
         owner?.forwardMotion(event) ?: super.dispatchGenericMotionEvent(event)

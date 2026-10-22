@@ -57,6 +57,8 @@ public:
     virtual void mouse_button(int button, bool down) = 0;
     // The lock keys the guest has on, one bit each in the order the product's NativeMachine lists them.
     virtual int locks() { return 0; }
+    // True while the guest boots, which then runs as fast as the host can, as in fast-forward.
+    virtual bool booting() { return false; }
 
     virtual void reset() = 0;
     // 0, or a code the product's stateError explains.

@@ -38,7 +38,9 @@ data class DiskImageEntry(
     val companions: List<String> = emptyList(),
     override val catalogId: String? = contentId,
     /** What the library calls the image, from its [DiskImageLibrary.Format]. */
-    override val mediaLabel: String = "Disk image"
+    override val mediaLabel: String = "Disk image",
+    /** False for an archive with no disk image in it, such as one of manuals and scans. */
+    override val holdsGame: Boolean = true
 ) : LibraryItem {
     override val displayName: String get() = (zipEntry ?: path).substringAfterLast('/').substringAfterLast('\\')
     override val playable: Boolean get() = contentId != null && error == null
@@ -121,17 +123,17 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
      */
     class Cache(
         val file: String = "library-v2.bin",
-        val version: Int = 4,
         val mediaFormatsVersion: Int = 1,
         val legacy: VersionedLibraryCache.Legacy<DiskImageEntry>? = null,
         val earlierRecords: Map<Int, (DataInputStream) -> DiskImageEntry> = emptyMap()
     )
 
-    private val storeCache = VersionedLibraryCache(File(context.filesDir, cache.file), cache.version,
+    private val storeCache = VersionedLibraryCache(File(context.filesDir, cache.file), CACHE_LAYOUT,
         MAX_STORE_BYTES, MAX_DOCUMENTS, ::writeCacheRecord, ::readCacheRecord,
         cache.legacy?.let { legacy ->
             VersionedLibraryCache.Legacy(legacy.file, legacy.version, legacy.collectionName) { labeled(legacy.decode(it)) }
-        }, cache.earlierRecords.mapValues { (_, read) -> { input: DataInputStream -> labeled(read(input)) } })
+        }, cache.earlierRecords.mapValues { (_, read) -> { input: DataInputStream -> labeled(read(input)) } } +
+            (4 to ::readCacheRecordV4))
     private val scanPipeline by lazy {
         LibraryScanPipeline(storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
             { source, index, total -> "Scanning ${index + 1}/$total: ${source.path}" },
@@ -206,7 +208,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
         require(format.isArchive(file.name)) { "Unsupported ${format.guestName} game file: ${file.name}" }
         return openArchive(cachedArchive(source, false, cancelled)).use { archive ->
-            archive.images { checkCancelled(cancelled) }.map { image ->
+            val images = archive.images { checkCancelled(cancelled) }
+            require(images.isNotEmpty()) { "No ${format.guestName} disk image in ${file.name}" }
+            images.map { image ->
                 val data = image.data ?: error(image.missing())
                 val id = archive.open(data).use { contentId(it, data.size, data.crc, cancelled, image.name) }
                 entry(source, image.name, data.size, data.crc, id, companions = image.companions,
@@ -242,7 +246,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             if (!scan.forceHash && formatsCurrent && trusted(source) && oldEntries.isNotEmpty() &&
                 oldEntries.all { sameSource(it, source) && it.error == null }) return oldEntries
             return openArchive(cachedArchive(source, scan.forceHash, scan.cancelled)).use { archive ->
-                archive.images(scan::checkCancelled).map { image ->
+                val images = archive.images(scan::checkCancelled)
+                if (images.isEmpty()) return listOf(entry(source, null, source.size, -1, null).copy(holdsGame = false))
+                images.map { image ->
                     scan.checkCancelled()
                     val data = image.data
                     val candidate = entry(source, image.name, data?.size ?: -1, data?.crc ?: -1, null,
@@ -388,12 +394,14 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         protected abstract fun members(checkCancelled: () -> Unit): List<Member>
         abstract fun open(member: Member): InputStream
 
-        /** The archive's images; a descriptor whose track data is missing has none, and fails alone. */
+        /**
+         * The archive's images, none for an archive of other files; a descriptor whose track data
+         * is missing has none, and fails alone.
+         */
         fun images(checkCancelled: () -> Unit): List<Image> {
             val members = members(checkCancelled)
             val byName = members.associateBy { it.name.lowercase(Locale.ROOT) }
             val images = members.filter { format.isImage(it.name) && !format.superseded(it.name, byName.keys) }
-            require(images.isNotEmpty()) { "No ${format.guestName} disk image in archive" }
             require(images.size <= MAX_ARCHIVE_IMAGES) { "Archive has too many disk images" }
             return images.map { member ->
                 val data = if (format.isDescriptor(member.name)) format.dataOf(member.name, byName) else member
@@ -566,15 +574,21 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         writeOptionalText(entry.contentId); writeOptionalText(entry.error)
         writeInt(entry.companions.size); entry.companions.forEach { writeText(it) }
         writeOptionalText(entry.catalogId)
+        writeBoolean(entry.holdsGame)
     }
 
-    private fun readCacheRecord(input: DataInputStream) = with(input) {
+    private fun readCacheRecord(input: DataInputStream) = readCacheRecordV4(input).copy(holdsGame = input.readBoolean())
+
+    /** Layout 4, from before archives without a game were remembered. */
+    private fun readCacheRecordV4(input: DataInputStream) = with(input) {
         labeled(DiskImageEntry(readText(), readText(), readText(), readOptionalText(), readLong(), readLong(),
             readLong(), readLong(), readOptionalText(), readOptionalText(), List(readInt()) { readText() },
             readOptionalText()))
     }
 
     companion object {
+        /** The cache record layout: 5 records whether an archive holds a game. */
+        private const val CACHE_LAYOUT = 5
         private const val MAX_DOCUMENTS = 50_000
         private const val MAX_ARCHIVE_ENTRIES = 50_000
         private const val MAX_ARCHIVE_IMAGES = 1_000
