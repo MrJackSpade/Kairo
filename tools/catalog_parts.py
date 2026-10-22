@@ -1,11 +1,31 @@
 """Split generated catalog documents by responsibility without changing record identity."""
 import json
 from pathlib import Path
+from typing import NamedTuple
 from catalog_package import compact, filter_artwork, image_paths, build_package
 
-# The importable artwork package of each app. Kairo98's v2 records name their games' shared
-# records; its v1 package stays frozen for app versions that read the repeated records.
-ART_PACKAGES = {'kairodos': ('kairodos-art.nsfw', 'kairodos-art'), 'kairo98': ('kairo98-art-v2.nsfw', 'kairo98-art-v2')}
+class App(NamedTuple):
+    """How an app publishes its catalog. package/identity name its importable artwork package;
+    label is that package's display name as published. Apps whose records name games in a name
+    index ship that index's artwork; KairoDos keys records directly and has folders instead."""
+    repo: str
+    product: str
+    package: str
+    identity: str
+    label: str
+    name_index: bool
+
+
+# Kairo98's v2 records name their games' shared records; its v1 package stays frozen for app
+# versions that read the repeated records.
+APPS = {
+    'kairodos': App('KairoDos', 'dos', 'kairodos-art.nsfw', 'kairodos-art', 'Kairodos artwork', False),
+    'kairo98': App('Kairo98', 'pc98', 'kairo98-art-v2.nsfw', 'kairo98-art-v2', 'Kairo98 artwork', True),
+    'kairo88': App('Kairo88', 'pc88', 'kairo88-art.nsfw', 'kairo88-art', 'Kairo88 artwork', True),
+    'kairo68': App('Kairo68', 'x68000', 'kairo68-art.nsfw', 'kairo68-art', 'Kairo68 artwork', True),
+    'kairotowns': App('KairoTowns', 'fmtowns', 'kairotowns-art.nsfw', 'kairotowns-art', 'KairoTowns artwork', True),
+    'kairomsx': App('KairoMSX', 'msx', 'kairomsx-art.nsfw', 'kairomsx-art', 'KairoMSX artwork', True),
+}
 
 CONTROL_FIELDS = {'controller', 'input', 'machine', 'launch', 'startupChoices', 'diskSwaps', 'media'}
 
@@ -51,7 +71,8 @@ def generate_parts(root, app, full_documents, optional_data, expand, compact_art
     # The importable catalog contributes only artwork. Metadata and controls are always shipped.
     restricted = filter_artwork(optional_data, withheld, expand, compact_art)
     _, _, art = split(restricted)
-    if app == 'kairodos':
+    spec = APPS[app]
+    if not spec.name_index:
         payload = {'schemaVersion':1,'games':art.get('games',{}),'folders':{},
                    'controllers':{'schemaVersion':1,'profiles':{},'presets':{},'assignments':{}}}
     else:
@@ -61,12 +82,11 @@ def generate_parts(root, app, full_documents, optional_data, expand, compact_art
     if not check:
         release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
         assert release['schemaVersion'] == 1 and release['revision'] > 0
-        package, identity = ART_PACKAGES[app]
-        base = f'https://raw.githubusercontent.com/MrJackSpade/{"KairoDos" if app=="kairodos" else "Kairo98"}/main/catalog/optional/'
+        base = f'https://raw.githubusercontent.com/MrJackSpade/{spec.repo}/main/catalog/optional/'
         build_package(payload, set(), root/'catalog/artwork',
-            root/f'catalog/optional/{package}.zip', product='dos' if app=='kairodos' else 'pc98',
-            identity=identity,name=app.replace('kairo','Kairo')+' artwork',revision=release['revision'],
-            source=base+f'{package}.meta.json', archive_url=base+f'{package}.zip', stored=True)
+            root/f'catalog/optional/{spec.package}.zip', product=spec.product,
+            identity=spec.identity,name=spec.label,revision=release['revision'],
+            source=base+f'{spec.package}.meta.json', archive_url=base+f'{spec.package}.zip', stored=True)
         (root/'catalog/artwork-exclusions-v1.json').write_bytes(compact({'schemaVersion':1,'artwork':sorted(withheld)}))
     print(f'{app}: {len(all_images)} artwork paths; {len(withheld)} restricted; {len(approved)} reviewed')
 

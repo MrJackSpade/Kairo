@@ -7,23 +7,23 @@ import sys
 import subprocess
 import zipfile
 from pathlib import Path
-from catalog_parts import merge, split, indexed_document, ART_PACKAGES
+from catalog_parts import APPS, merge, split, indexed_document
 from catalog_package import compact
 from catalog_package import image_paths
 from catalog_binary import verify_part
 
 def audit(root, product, artifacts=()):
-    app = 'kairodos' if product == 'dos' else 'kairo98'
+    app = next(name for name, spec in APPS.items() if spec.product == product)
+    spec = APPS[app]
     tracked = set(subprocess.check_output(['git', 'ls-files'], cwd=root, text=True).splitlines())
     def repository_file(path):
         assert path.relative_to(root).as_posix() in tracked, f'Catalog file is not tracked: {path}'
         assert path.is_file(), f'Missing catalog file: {path}'
     # Check every public snapshot and optional update manifest against committed bytes.
     manifests = list((root/'catalog/optional').glob('*.meta.json'))
-    manifests += ([root/'catalog/core-v2.json', root/'catalog/online-v1.json'] if product == 'dos'
-        else [root/'catalog/core-v3.meta.json'])
-    repo = 'KairoDos' if product == 'dos' else 'Kairo98'
-    prefix = f'https://raw.githubusercontent.com/MrJackSpade/{repo}/main/'
+    manifests += ([root/'catalog/core-v3.meta.json'] if spec.name_index
+        else [root/'catalog/core-v2.json', root/'catalog/online-v1.json'])
+    prefix = f'https://raw.githubusercontent.com/MrJackSpade/{spec.repo}/main/'
     for path in manifests:
         repository_file(path)
         meta = json.loads(path.read_text('utf8'))
@@ -37,8 +37,8 @@ def audit(root, product, artifacts=()):
         payload = archive.read_bytes()
         assert len(payload) == meta['size'] and hashlib.sha256(payload).hexdigest() == meta['sha256'], path
     sys.path.insert(0, str(root/'tools'))
-    if product == 'dos': from dos_artwork import expand
-    else: from artwork_references import expand
+    if spec.name_index: from artwork_references import expand
+    else: from dos_artwork import expand
     policy = json.loads((root/'catalog/core-review-v1.json').read_text('utf8'))
     approved = policy['approvedArtwork']
     parts = {p.name:p.read_bytes() for p in (root/'catalog/parts').glob('*.json')}
@@ -63,7 +63,7 @@ def audit(root, product, artifacts=()):
     assets = root/app/'src/main/assets/catalog'
     legacy = {p.relative_to(assets).as_posix():json.loads(p.read_text('utf8')) for p in assets.rglob('*.json')}
     assert expected_core == legacy, 'Parts do not reconstruct generated core metadata'
-    if product == 'dos':
+    if not spec.name_index:
         ids = {k for n,v in legacy.items() if n.startswith('dos/') and 'games' in v for k in v['games']}
         assert policy['excluded'].keys() <= ids
         for path in [root/'catalog/online-v1.zip',root/'catalog/core-v2.zip',root/'shared/catalog/dos/online-v1.zip',root/'shared/catalog/dos/core-v2.zip']:
@@ -75,13 +75,12 @@ def audit(root, product, artifacts=()):
             assert image_paths(json.loads((root/'catalog'/name).read_text('utf8')),expand) <= approved.keys()
     for path, sha in approved.items():
         assert hashlib.sha256((root/'catalog/artwork'/path).read_bytes()).hexdigest() == sha
-    package_name = ART_PACKAGES[app][0]
+    package_name = spec.package
     package = root/f'catalog/optional/{package_name}.zip'
     manifest = json.loads(package.with_suffix('.meta.json').read_text('utf8'))
     release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
     assert manifest['revision'] == release['revision']
-    repo = 'KairoDos' if product == 'dos' else 'Kairo98'
-    base = f'https://raw.githubusercontent.com/MrJackSpade/{repo}/main/catalog/'
+    base = f'https://raw.githubusercontent.com/MrJackSpade/{spec.repo}/main/catalog/'
     assert manifest['archive'] == base + f'optional/{package_name}.zip'
     assert package.is_file(), 'Importable catalog must be committed in the repository'
     for path in image_paths(merge(safe, extra), expand):
@@ -93,9 +92,9 @@ def audit(root, product, artifacts=()):
             header = json.loads(z.read('catalog.json'))
             assert header['id'] == manifest['id'] and header['revision'] == manifest['revision']
             assert header['product'] == product and set(z.namelist()) == {'catalog.json', *header['files']}
-            for name,spec in header['files'].items():
+            for name,entry in header['files'].items():
                 payload = z.read(name)
-                assert len(payload) == spec['size'] and hashlib.sha256(payload).hexdigest() == spec['sha256']
+                assert len(payload) == entry['size'] and hashlib.sha256(payload).hexdigest() == entry['sha256']
             runtime = json.loads(z.read('runtime.json'))
             assert runtime == {k:v for k,v in header.items() if k != 'files'}
             indexed = [line for line in z.read('artwork.idx').decode('utf8').splitlines() if line]
@@ -109,7 +108,7 @@ def audit(root, product, artifacts=()):
                     assert record.keys() <= {'artwork','variants'}
                     artwork_only(record.get('variants',{}))
             artwork_only(optional['games'])
-            if product == 'pc98': artwork_only(optional['nameIndex']['games'])
+            if spec.name_index: artwork_only(optional['nameIndex']['games'])
     for artifact in artifacts:
         play = artifact.suffix == '.aab'
         with zipfile.ZipFile(artifact) as z:
@@ -141,5 +140,5 @@ def audit(root, product, artifacts=()):
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('product', choices=('dos','pc98')); parser.add_argument('artifacts',nargs='*',type=Path)
+    parser.add_argument('product', choices=sorted(spec.product for spec in APPS.values())); parser.add_argument('artifacts',nargs='*',type=Path)
     args=parser.parse_args(); audit(Path.cwd(),args.product,args.artifacts)

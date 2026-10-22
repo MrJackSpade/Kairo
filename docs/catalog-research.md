@@ -1,0 +1,28 @@
+# Catalog research tools
+
+The tools in `tools/` gather and assemble catalog data for every Kairo app. Each app keeps its own research records, record rules and generated catalog; these modules are the parts that do not depend on the platform.
+
+| Module | Purpose |
+| --- | --- |
+| `launchbox.py` | LaunchBox Games Database research. `snapshot` streams chosen platforms out of LaunchBox's `Metadata.zip`; `listing` caches a platform's public listing pages; `enrich` fills missing box art and screenshot URLs of match entries from their game pages. Also title matching (`key`, `candidates`), public page URLs, and the box art and screenshot choice for new match entries. |
+| `mobygames.py` | Dumps MobyGames records, cover and screenshot lists and images for chosen platforms. Game lists are MobyPlus exports saved as `<platform>-listing.json`; the API key comes from `MOBYGAMES_API_KEY`. |
+| `content_ids.py` | Hashes game media in a folder of files and ZIPs into content IDs (`sha256-<kind>-v1:<hex>`). The app describes its kinds, CD data files and size limits with a `Media`. |
+| `launchbox_artwork.py` | Compacts LaunchBox image URLs into catalog artwork references and expands them back to URLs and cache paths. Each app binds its platform codes and repository with `References`. |
+| `catalog_documents.py` | Assembles a reviewed catalog source into content-ID shards and the downloadable snapshot, using the app's record validator. |
+| `catalog_parts.py` | Splits generated documents into the data, controls and artwork parts, and builds the importable artwork package. `APPS` describes each app's repository, product and package. |
+
+## Platforms
+
+| Slug | App | LaunchBox platform | MobyGames ID | Artwork code |
+| --- | --- | --- | --- | --- |
+| `pc88` | Kairo88 | NEC PC-8801 | 94 | 88 |
+| `pc98` | Kairo98 | NEC PC-9801 | 95 | 98 |
+| `x68000` | Kairo68 | Sharp X68000 | 106 | 68 |
+| `fmtowns` | KairoTowns | Fujitsu FM Towns Marty | 102 | 86 |
+| `msx`, `msx2`, `msx2plus` | KairoMSX | Microsoft MSX, MSX2, MSX2+ | 57 (all generations) | 80 |
+
+Artwork codes are permanent once a catalog using them is published, because installed apps derive cache paths from them.
+
+## Source text
+
+LaunchBox and MobyGames records are reference material. Catalog descriptions are written for each app; neither source's description text is copied.
