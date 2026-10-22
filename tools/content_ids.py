@@ -11,7 +11,7 @@ import re
 import shutil
 import subprocess
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -24,12 +24,36 @@ class Media:
     """An app's media rules: the kind of a file name (None when it is not game media), the
     member whose bytes a kind's ID hashes (a CD descriptor names its track data), and each
     kind's size limit. version changes when the rules do, so cached scans are redone.
-    seven_zip also opens .7z archives, through 7-Zip's command line."""
+    seven_zip also opens .7z archives, through 7-Zip's command line.
+
+    candidates name, by a descriptor's suffix, the suffixes its track data may have beside it;
+    the first one present is hashed. superseded_by names, by suffix, the suffixes of files that
+    replace it when one sits beside it under the same name, so one disc is listed once. Both
+    match the shared library's DiskImageLibrary.Format data and supersededBy."""
     kind: Callable[[str], Optional[str]]
     data: Callable[[str, str], str]
     limit: Callable[[str], int]
     version: int
     seven_zip: bool = False
+    candidates: dict = field(default_factory=dict)
+    superseded_by: dict = field(default_factory=dict)
+
+    def data_for(self, name, kind, present):
+        """The member whose bytes name's ID hashes, from present (lower-case name to name)."""
+        suffix = Path(name).suffix.lower()
+        if suffix not in self.candidates:
+            return self.data(name, kind)
+        base = name[:-len(suffix)]
+        for data_suffix in self.candidates[suffix]:
+            found = present.get((base + data_suffix).lower())
+            if found:
+                return found
+        raise ValueError(f"the track data of {Path(name).name} is missing")
+
+    def superseded(self, name, present):
+        suffix = Path(name).suffix.lower()
+        base = name[:-len(suffix)] if suffix else name
+        return any((base + other).lower() in present for other in self.superseded_by.get(suffix, ()))
 
 
 def same_file(name, kind):
@@ -122,9 +146,9 @@ def scan(root, media, previous=None):
                     if name.lower().endswith((".zip", ".7z")):
                         item["nestedZip"] = True
                     kind = media.kind(name)
-                    if not kind:
+                    if not kind or media.superseded(name, {key: value for key, (value, _) in sizes.items()}):
                         continue
-                    data_name = media.data(name, kind)
+                    data_name = media.data_for(name, kind, {key: value for key, (value, _) in sizes.items()})
                     data = (name, dict(entries)[name]) if data_name == name else sizes.get(data_name.lower())
                     if data is None:
                         raise ValueError(f"{data_name} is missing")
@@ -134,7 +158,10 @@ def scan(root, media, previous=None):
                     item["disks"].append({"entry": name, "contentId": content_id})
             elif path.suffix.lower() != ".zip":
                 kind = media.kind(path.name)
-                data = path.with_name(media.data(path.name, kind))
+                present = {sibling.name.lower(): sibling.name for sibling in path.parent.iterdir()}
+                if media.superseded(path.name, present):
+                    continue
+                data = path.with_name(media.data_for(path.name, kind, present))
                 if not data.is_file():
                     raise ValueError(f"{data.name} is missing")
                 size = data.stat().st_size
@@ -147,15 +174,16 @@ def scan(root, media, previous=None):
                 with zipfile.ZipFile(path) as archive:
                     entries = archive.infolist()
                     members = {info.filename.lower(): info for info in entries}
+                    present = {info.filename.lower(): info.filename for info in entries}
                     for info in entries:
                         if not valid_entry(info):
                             raise ValueError("unsafe ZIP entry")
                         if info.filename.lower().endswith(".zip"):
                             item["nestedZip"] = True
                         kind = media.kind(info.filename)
-                        if not kind:
+                        if not kind or media.superseded(info.filename, present):
                             continue
-                        data_name = media.data(info.filename, kind)
+                        data_name = media.data_for(info.filename, kind, present)
                         data = info if data_name == info.filename else members.get(data_name.lower())
                         if data is None:
                             raise ValueError(f"{data_name} is missing")
