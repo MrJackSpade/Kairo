@@ -5,9 +5,15 @@ plugins {
 
 apply(from = projectDir.resolve("../gradle/android-module.gradle"))
 
+// An app whose emulator cannot be combined with the GPL-3.0 shader runtime sets kairoShaders=false
+// in its gradle.properties: the frontend then carries no shader runtime or presets and offers no
+// shaders (BuildConfig.SHADERS), and the app's native library is built without the presenter.
+val kairoShaders = providers.gradleProperty("kairoShaders").orNull != "false"
+
 android {
     namespace = "com.mrjackspade.kairo.frontend"
-
+    buildFeatures { buildConfig = true }
+    defaultConfig { buildConfigField("boolean", "SHADERS", kairoShaders.toString()) }
 }
 
 dependencies {
@@ -49,9 +55,14 @@ val packageSlangRuntime = tasks.register<Copy>("packageSlangRuntime") {
     from(slangTarget.map { it.file("aarch64-linux-android/release/liblibrashader_capi.so") })
     into(slangJni.map { it.dir("arm64-v8a") })
 }
-android.sourceSets.getByName("main").jniLibs.srcDir(slangJni)
-android.sourceSets.getByName("main").assets.srcDir(
-    projectDir.resolve("../third_party/slang-shaders/assets"))
+if (kairoShaders) {
+    android.sourceSets.getByName("main").jniLibs.srcDir(slangJni)
+    android.sourceSets.getByName("main").assets.srcDir(
+        projectDir.resolve("../third_party/slang-shaders/assets"))
+    // The runtime's notices, SLANG_RUNTIME_NOTICES.txt.
+    android.sourceSets.getByName("main").assets.srcDir(projectDir.resolve("src/shaders/assets"))
+    tasks.named("preBuild") { dependsOn(packageSlangRuntime) }
+}
 
 // The LLVM notice of the NDK that builds every app's native code and statically links its C++
 // runtime, from that NDK itself (About -> Licenses shows it as NDK_NOTICES.txt).
@@ -72,4 +83,4 @@ val writeNdkNotices = tasks.register("writeNdkNotices") {
     }
 }
 android.sourceSets.getByName("main").assets.srcDir(ndkNotices)
-tasks.named("preBuild") { dependsOn(packageSlangRuntime, writeNdkNotices) }
+tasks.named("preBuild") { dependsOn(writeNdkNotices) }

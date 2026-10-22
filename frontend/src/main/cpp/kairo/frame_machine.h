@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "audio_output.h"
-#include "slang_surface_presenter.h"
+#include "surface_presenter.h"
 
 namespace kairo {
 
@@ -342,7 +342,7 @@ private:
     // preset the frame goes through the GPU filter; when the preset cannot run,
     // the frame is copied to the window as it is.
     void present_loop() {
-        SlangSurfacePresenter shader;
+        SurfacePresenter shader;
         std::vector<uint8_t> frame;
         uint32_t width = 0, height = 0;
         ANativeWindow *window = nullptr;

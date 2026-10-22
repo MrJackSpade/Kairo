@@ -6,11 +6,11 @@ import android.app.Activity
 object AboutDocuments {
     /**
      * The notices every app carries through the frontend, after the app's own: its Java libraries
-     * and font, the NDK's LLVM runtime (generated from the NDK at build time), the shader runtime,
-     * and AndroidX.
+     * and font, the NDK's LLVM runtime (generated from the NDK at build time), the shader runtime
+     * when the app has it, and AndroidX.
      */
-    val FRONTEND_NOTICES = listOf("FRONTEND_NOTICES.txt", "NDK_NOTICES.txt", "SLANG_RUNTIME_NOTICES.txt",
-        "ANDROIDX_NOTICES.txt")
+    val FRONTEND_NOTICES = listOfNotNull("FRONTEND_NOTICES.txt", "NDK_NOTICES.txt",
+        "SLANG_RUNTIME_NOTICES.txt".takeIf { BuildConfig.SHADERS }, "ANDROIDX_NOTICES.txt")
 
     fun page(activity: Activity, pages: PageStack, shortcuts: List<Pair<String, String>>,
              shortcutNote: String?, credits: String, privacyAsset: String, noticesAsset: String,

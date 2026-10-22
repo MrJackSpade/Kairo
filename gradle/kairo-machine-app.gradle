@@ -33,7 +33,14 @@ android {
         versionName property('VersionName') ?: '0.1.0'
         ndk { abiFilters += 'arm64-v8a' }
         // Only the app's library (named after the product): a core's own tests and tools stay out.
-        externalNativeBuild { cmake { arguments += '-DANDROID_STL=c++_shared'; targets += product } }
+        externalNativeBuild {
+            cmake {
+                arguments += '-DANDROID_STL=c++_shared'
+                // kairoShaders=false: no shader presenter (see frontend/build.gradle.kts).
+                if (providers.gradleProperty('kairoShaders').orNull == 'false') arguments += '-DKAIRO_SHADERS=OFF'
+                targets += product
+            }
+        }
     }
 
     signingConfigs {

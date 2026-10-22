@@ -9,6 +9,7 @@ A product supplies the core and what is specific to its machine; everything else
 | File | What it does |
 | --- | --- |
 | `frame_machine.h` | `FrameMachine<Core>`: runs a session's core on its own thread, one frame per slot on a grid paced by the audio device's clock, with pause, fast-forward, mute, and commands (`post`, `call`) that run between frames. Frames go to a presenter thread that draws through the Slang shader when one is set, or copies them to the window. The `Core` interface is documented at the top of the file. |
+| `surface_presenter.h` | The presenter the host draws through: the Slang shader presenter, or, in an app built with `kairoShaders=false` (`KAIRO_SHADERS=OFF`, see `docs/licensing.md`), none, so frames are always copied. |
 | `audio_output.h`, `audio_ring.h` | The AAudio stream and the lock-free queue between the emulation thread and the device callback. |
 
 A product's JNI starts a session with a factory that builds its core on the emulation thread, and

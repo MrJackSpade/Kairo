@@ -41,10 +41,13 @@ def inspect(path, prefix, allow_art=False):
                 assert loads, name
                 native += 1
         assert native, f'No native libraries in {path}'
-        # The app's own notices and policy, and the frontend's notices About -> Licenses appends.
+        # The app's own notices and policy, and the frontend's notices About -> Licenses appends:
+        # the shader runtime's exactly when the app carries the runtime.
         for name in ('assets/THIRD_PARTY_NOTICES.txt', 'assets/PRIVACY_POLICY.txt', 'assets/FRONTEND_NOTICES.txt',
-                     'assets/NDK_NOTICES.txt', 'assets/SLANG_RUNTIME_NOTICES.txt', 'assets/ANDROIDX_NOTICES.txt'):
+                     'assets/NDK_NOTICES.txt', 'assets/ANDROIDX_NOTICES.txt'):
             assert name in payload, f'Missing {name}'
+        shaders = any(n.endswith('/liblibrashader_capi.so') for n in payload)
+        assert ('assets/SLANG_RUNTIME_NOTICES.txt' in payload) == shaders, 'Shader runtime and its notices disagree'
         artwork = {n for n in payload if n.startswith('assets/art/')}
         if allow_art:
             assert any(n.endswith(('.webp', '.png', '.jpg')) for n in artwork), 'No bundled images'

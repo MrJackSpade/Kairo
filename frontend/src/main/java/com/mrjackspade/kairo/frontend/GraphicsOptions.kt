@@ -62,8 +62,9 @@ class GraphicsOptions(
             })))
 
     /** The Graphics page: display and shader settings, plus any groups the app adds. */
-    fun page(shader: ShaderOptions, extra: () -> List<RowGroup> = { emptyList() }) =
-        GroupsPage("Graphics", { "All games" }, { listOf(displayGroup(), shader.group()) + extra() })
+    /** The page; [shader] is null in an app without shaders, which then lists none. */
+    fun page(shader: ShaderOptions?, extra: () -> List<RowGroup> = { emptyList() }) =
+        GroupsPage("Graphics", { "All games" }, { listOfNotNull(displayGroup(), shader?.group()) + extra() })
 
     /** Kairo98's portrait policy pins the image below the notch; landscape centers it. */
     fun viewport(containerWidth: Int, containerHeight: Int, keyboardHeight: Int,

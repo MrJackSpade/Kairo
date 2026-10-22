@@ -273,8 +273,10 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             ::prepareSaveMove)
     }
     private val graphics by lazy { GraphicsOptions(this, preferences) { updateViewport(); refreshSettingValues() } }
+    /** The shader settings; null in an app built without the shader runtime (BuildConfig.SHADERS). */
     private val shaderOptions by lazy {
-        ShaderOptions(this, preferences, { if (::pages.isInitialized) pages else null },
+        if (!BuildConfig.SHADERS) null
+        else ShaderOptions(this, preferences, { if (::pages.isInitialized) pages else null },
             { path ->
                 setShaderPreset(path)
                 if (shaderNeedsNewSurface) recreateScreen()
@@ -424,7 +426,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             return
         }
         graphics.load()
-        setShaderPreset(shaderOptions.selectedPath())
+        setShaderPreset(shaderOptions?.selectedPath())
         setMuted(muted)
         controllerFlow.initialize()
         controllerDevices.register(handler)
@@ -1258,7 +1260,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     @Deprecated("Android activity result callback")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (shaderOptions.handleActivityResult(requestCode, resultCode, data)) return
+        if (shaderOptions?.handleActivityResult(requestCode, resultCode, data) == true) return
         if (libraryMenu.handleActivityResult(requestCode, resultCode, data)) return
         if (artwork.handleActivityResult(requestCode, resultCode, data)) return
         if (libraryFlow.handleActivityResult(requestCode, resultCode, data)) return
