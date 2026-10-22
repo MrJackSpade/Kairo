@@ -15,6 +15,7 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk's name asks for
       "adult": true,                                            heart marker, core-review exclusion
       "hidden": true,                                           not a game: never listed in the library
+      "controller": {"defaults": {"withoutSticks": [...], "withSticks": [...]}}   the game's own controls
       "launchbox": "...", "mobygames": 0, "year": 0, ...         research only, never shipped
   }}}
 
@@ -39,7 +40,7 @@ from catalog_package import image_paths
 from catalog_parts import generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
-SHIPPED = ("title", "description", "aliases")
+SHIPPED = ("title", "description", "aliases", "controller")
 CORE_VERSION = 3
 MAX_IDS = 64
 
@@ -66,7 +67,8 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
     def validate_record(record):
         require(isinstance(record, dict), "game must be an object")
         require(set(record) <= {"game", "title", "description", "aliases", "artwork", "heart",
-                                "hidden", "setDisks", "media", "machine", "contentIds"}, "unknown game field")
+                                "hidden", "setDisks", "media", "machine", "controller", "contentIds"},
+                "unknown game field")
         ids = record.get("contentIds")
         require(isinstance(ids, list) and 1 <= len(ids) <= MAX_IDS and len(ids) == len(set(ids)) and
                 all(isinstance(value, str) and content_id.fullmatch(value) for value in ids),
@@ -92,6 +94,14 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
                 all(isinstance(m, dict) and set(m) == {"role", "contentId"} and m["role"] in media_roles and
                     isinstance(m["contentId"], str) and content_id.fullmatch(m["contentId"]) for m in media),
                 "invalid media")
+        if "controller" in record:
+            controller = record["controller"]
+            defaults = controller.get("defaults") if isinstance(controller, dict) else None
+            require(isinstance(controller, dict) and set(controller) == {"defaults"} and isinstance(defaults, dict) and
+                    "withoutSticks" in defaults and set(defaults) <= {"withoutSticks", "withSticks"} and
+                    all(isinstance(bindings, list) and all(isinstance(b, dict) and isinstance(b.get("input"), str)
+                                                           for b in bindings) for bindings in defaults.values()),
+                    "invalid controller defaults")
         machine = record.get("machine", {})
         require(isinstance(machine, dict) and ("machine" not in record or machine_options) and
                 all(value in machine_options.get(option, ()) for option, value in machine.items()),

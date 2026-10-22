@@ -17,7 +17,7 @@ and the decision is recorded so it can be reviewed and corrected:
                          nothing matches is local without a recorded decision
   moby-matches-v1.json   {"<MobyGames ID>": "<game key>" | "own"}
   descriptions-v1.json   {"<game key>": "original description"}
-  overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork": ...}} applied last
+  overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork"|"controller": ...}} applied last
 A game LaunchBox has no cover for takes its MobyGames cover and screenshot (moby_art.py), encoded
 into catalog/artwork; moby-artwork-v1.json records their sources.
 Images the manual artwork review rejected (art-review-v1.json, art_verdicts.py) are never picked;
@@ -314,7 +314,7 @@ def assemble(root, moby_root):
 
     overrides = read(research / "overrides-v1.json", {"schemaVersion": 1, "games": {}})["games"]
     for key, fields in overrides.items():
-        if key not in games or fields.keys() - {"title", "aliases", "adult", "artwork"}:
+        if key not in games or fields.keys() - {"title", "aliases", "adult", "artwork", "controller"}:
             raise SystemExit(f"invalid override for {key}")
         if "title" in fields and fields["title"] != games[key]["title"]:
             # The source name stays findable when a reviewed title replaces it.
