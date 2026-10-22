@@ -10,6 +10,7 @@ The tools in `tools/` gather and assemble catalog data for every Kairo app. Each
 | `launchbox_artwork.py` | Compacts LaunchBox image URLs into catalog artwork references and expands them back to URLs and cache paths. Each app binds its platform codes and repository with `References`. |
 | `catalog_documents.py` | Assembles a reviewed catalog source into content-ID shards and the downloadable snapshot, using the app's record validator. |
 | `fetch_artwork.py` | Fills an app's `catalog/artwork` with every image its catalog parts reference, for the withImages build: WebP, shrunk to fit 960 by 360 pixels as Kairo98's bundled artwork is. Images already there are kept, so a stopped run continues. |
+| `art_review.py` | Serves a local page (`art_review.py <app root>... `, then http://localhost:8765/) listing every game's bundled box art and screenshot at their bundled size. Clicking an image rejects it, "Page reviewed" records the rest as fine, and "Wrong game" flags a bad match. Verdicts go to `catalog/research/art-review-v1.json` by source image URL (`art_verdicts.py`); `research.py` never picks a rejected image and takes the next candidate, so rebuild with `research.py`, `app_catalog.py` and `fetch_artwork.py` afterwards. |
 | `catalog_parts.py` | Splits generated documents into the data, controls and artwork parts, and builds the importable artwork package. `APPS` describes each app's repository, product and package. |
 
 ## Platforms

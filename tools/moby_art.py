@@ -25,34 +25,37 @@ NOT_GAMEPLAY = re.compile(r"title|menu|intro|opening|logo|credits|ending|staff|c
                           r"options|select|story|sign in|profile|start|ago", re.I)
 
 
-def front_cover(covers):
+def front_cover(covers, rejected):
     groups = sorted(covers["cover_groups"], key=lambda group: "Japan" not in group["countries"])
     return next((cover["image"] for group in groups for cover in group["covers"]
-                 if cover["scan_of"] == "Front Cover"), None)
+                 if cover["scan_of"] == "Front Cover" and cover["image"] not in rejected), None)
 
 
-def gameplay_screenshot(screenshots):
+def gameplay_screenshot(screenshots, rejected):
     """The middle screenshot captioned as play, since MobyGames lists them in the order they
-    come up and play is in the middle; otherwise the middle one."""
-    shots = screenshots["screenshots"]
+    come up and play is in the middle; otherwise the middle one. Rejected ones are skipped."""
+    shots = [shot for shot in screenshots["screenshots"] if shot["image"] not in rejected]
     play = [shot for shot in shots if not NOT_GAMEPLAY.search(shot.get("caption") or "")] or shots
     return play[len(play) // 2]["image"] if play else None
 
 
 class MobyArt:
-    def __init__(self, root, dump, platform, references):
+    def __init__(self, root, dump, platform, references, rejected):
         self.root = root
         self.dump = dump
         self.slug = platform
         self.platform = PLATFORMS[platform]
         self.references = references
+        # Source image URLs the artwork review rejected (art_verdicts.py).
+        self.rejected = rejected
         self.records = {}
 
     def _read(self, kind, game_id):
         return json.loads((self.dump / kind / f"{game_id}-{self.platform}.json").read_text(encoding="utf-8"))
 
     def _picks(self, game_id):
-        return (front_cover(self._read("covers", game_id)), gameplay_screenshot(self._read("screenshots", game_id)))
+        return (front_cover(self._read("covers", game_id), self.rejected),
+                gameplay_screenshot(self._read("screenshots", game_id), self.rejected))
 
     def _source(self, url):
         return self.dump / "images" / urllib.parse.urlsplit(url).path.lstrip("/")

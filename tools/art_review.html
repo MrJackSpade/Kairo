@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Art review</title>
+<style>
+  :root { --bg: #0d1117; --panel: #161b22; --line: #30363d; --text: #e6edf3; --muted: #8b949e;
+          --accent: #2f81f7; --bad: #f85149; --ok: #3fb950; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+  header { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+           padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  button, select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+                   padding: 6px 10px; font: inherit; cursor: pointer; }
+  button.current { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .spacer { flex: 1; }
+  .muted { color: var(--muted); }
+  main { padding: 8px 16px 64px; }
+  .game { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; margin-bottom: 8px; }
+  .title { font-weight: 600; font-size: 15px; }
+  .head a { color: var(--muted); }
+  .wrong { margin-left: auto; padding: 2px 8px; font-size: 12px; }
+  .wrong.on { border-color: var(--bad); color: var(--bad); }
+  .images { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+  figure { margin: 0; position: relative; cursor: pointer; line-height: 0; }
+  /* Bundled size, never scaled down. */
+  figure img { max-width: none; border: 2px solid transparent; }
+  figure.ok img { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+  figure.rejected img { border-color: var(--bad); opacity: 0.35; }
+  figure.rejected::after { content: "✕"; position: absolute; inset: 0; display: grid; place-items: center;
+                           color: var(--bad); font-size: 64px; line-height: 1; }
+  figcaption { line-height: 1.4; font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .empty { padding: 48px 0; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <span id="apps"></span>
+  <select id="filter" title="Which games to list">
+    <option value="unreviewed">Unreviewed</option>
+    <option value="rejected">Rejected</option>
+    <option value="wrong">Wrong game</option>
+    <option value="all">All</option>
+  </select>
+  <span class="spacer"></span>
+  <button id="prev" title="Previous page (←)">◀</button>
+  <span id="page" class="muted"></span>
+  <button id="next" title="Next page (→)">▶</button>
+  <button id="done" class="primary" title="Record every image on this page that isn't rejected as fine, then go to the next page (Enter)">Page reviewed</button>
+</header>
+<main id="list"></main>
+<script>
+const PAGE_SIZE = 15;
+let apps = [], app = null, data = null, rows = [], page = 0;
+
+async function api(path, body) {
+  const response = await fetch(path, body === undefined ? {} :
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  if (!response.ok) throw new Error(`${path}: ${response.status} ${await response.text()}`);
+  return response.json();
+}
+
+function verdict(image) { return data.verdicts[image.source]; }
+function unreviewed(game) { return game.images.some(image => !verdict(image)); }
+
+function renderApps() {
+  const holder = document.getElementById("apps");
+  holder.replaceChildren(...apps.map(summary => {
+    const button = document.createElement("button");
+    button.textContent = `${summary.id} ${summary.reviewed}/${summary.games}`;
+    button.title = `${summary.rejected} images rejected, ${summary.wrongGame} games marked wrong`;
+    button.className = summary.id === app ? "current" : "";
+    button.onclick = () => openApp(summary.id);
+    return button;
+  }));
+}
+
+function filterRows() {
+  const filter = document.getElementById("filter").value;
+  rows = data.games.filter(game =>
+    filter === "all" ? true :
+    filter === "unreviewed" ? unreviewed(game) :
+    filter === "rejected" ? game.images.some(image => verdict(image) === "rejected") :
+    data.wrongGame[game.key]);
+  page = 0;
+}
+
+function pageRows() { return rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE); }
+
+function renderPage() {
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  document.getElementById("page").textContent = `${page + 1} / ${pages} · ${rows.length} games`;
+  const list = document.getElementById("list");
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "Nothing here.";
+    list.replaceChildren(empty);
+    return;
+  }
+  list.replaceChildren(...pageRows().map(renderGame));
+  window.scrollTo(0, 0);
+}
+
+function renderGame(game) {
+  const row = document.createElement("section");
+  row.className = "game";
+  const head = document.createElement("div");
+  head.className = "head";
+  const title = document.createElement("span");
+  title.className = "title";
+  title.textContent = game.title + (game.year ? ` (${game.year})` : "");
+  head.append(title);
+  for (const link of game.links) {
+    const a = document.createElement("a");
+    a.href = link.url; a.target = "_blank"; a.rel = "noreferrer"; a.textContent = link.label;
+    head.append(a);
+  }
+  if (game.files.length) {
+    const files = document.createElement("span");
+    files.className = "muted";
+    files.textContent = game.files.join(" · ");
+    head.append(files);
+  }
+  const wrong = document.createElement("button");
+  wrong.className = "wrong" + (data.wrongGame[game.key] ? " on" : "");
+  wrong.textContent = "Wrong game";
+  wrong.title = "These images show a different game: the match needs fixing";
+  wrong.onclick = async () => {
+    const on = !data.wrongGame[game.key];
+    await save({ wrongGame: { [game.key]: on } });
+    if (on) data.wrongGame[game.key] = true; else delete data.wrongGame[game.key];
+    wrong.classList.toggle("on", on);
+  };
+  head.append(wrong);
+
+  const images = document.createElement("div");
+  images.className = "images";
+  for (const image of game.images) {
+    const figure = document.createElement("figure");
+    figure.title = "Click to reject this image, or to undo";
+    const img = document.createElement("img");
+    img.src = `/art/${encodeURIComponent(app)}/${image.path}`;
+    img.alt = `${game.title} ${image.kind}`;
+    img.loading = "lazy";
+    const caption = document.createElement("figcaption");
+    caption.textContent = image.kind;
+    figure.append(img, caption);
+    const paint = () => { figure.className = verdict(image) || ""; };
+    paint();
+    figure.onclick = async () => {
+      const next = verdict(image) === "rejected" ? null : "rejected";
+      await save({ images: { [image.source]: next } });
+      if (next) data.verdicts[image.source] = next; else delete data.verdicts[image.source];
+      paint();
+    };
+    images.append(figure);
+  }
+  row.append(head, images);
+  return row;
+}
+
+async function save(change) {
+  const summary = await api(`/api/review/${encodeURIComponent(app)}`, change);
+  apps = apps.map(item => item.id === summary.id ? summary : item);
+  renderApps();
+}
+
+async function pageReviewed() {
+  const change = {};
+  for (const game of pageRows())
+    for (const image of game.images)
+      if (verdict(image) !== "rejected") change[image.source] = "ok";
+  if (Object.keys(change).length) {
+    await save({ images: change });
+    Object.assign(data.verdicts, change);
+  }
+  turn(1);
+}
+
+function turn(step) {
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const next = Math.min(Math.max(page + step, 0), pages - 1);
+  if (next !== page) { page = next; renderPage(); }
+  else if (step > 0) renderPage();
+}
+
+async function openApp(id) {
+  app = id;
+  data = await api(`/api/games/${encodeURIComponent(id)}`);
+  renderApps();
+  filterRows();
+  renderPage();
+}
+
+document.getElementById("filter").onchange = () => { filterRows(); renderPage(); };
+document.getElementById("prev").onclick = () => turn(-1);
+document.getElementById("next").onclick = () => turn(1);
+document.getElementById("done").onclick = pageReviewed;
+document.addEventListener("keydown", event => {
+  if (event.target.tagName === "SELECT") return;
+  if (event.key === "Enter") { event.preventDefault(); pageReviewed(); }
+  else if (event.key === "ArrowRight") turn(1);
+  else if (event.key === "ArrowLeft") turn(-1);
+});
+
+(async () => {
+  apps = await api("/api/apps");
+  await openApp(apps[0].id);
+})();
+</script>
+</body>
+</html>

@@ -19,6 +19,8 @@ and the decision is recorded so it can be reviewed and corrected:
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork": ...}} applied last
 A game LaunchBox has no cover for takes its MobyGames cover and screenshot (moby_art.py), encoded
 into catalog/artwork; moby-artwork-v1.json records their sources.
+Images the manual artwork review rejected (art-review-v1.json, art_verdicts.py) are never picked;
+the game takes its next candidate image instead.
 Every adult game is added to catalog/core-review-v1.json's exclusions if it is not there yet. A
 medium found in several games' sets identifies none of them: it is listed under sharedContentIds.
 
@@ -37,6 +39,7 @@ from pathlib import Path
 
 from launchbox import BOX_TYPES, SCREENSHOT_TYPES, candidates, key as title_key
 from moby_art import MobyArt
+import art_verdicts
 from launchbox_artwork import URL
 
 YEAR = re.compile(r"(?:19|20)[0-9]{2}")
@@ -87,16 +90,17 @@ def years_agree(a, b):
     return a is None or b is None or abs(a - b) <= 1
 
 
-def first_url(game, categories):
-    """The first LaunchBox image of the earliest category whose URL compacts to an artwork reference."""
+def first_url(game, categories, rejected):
+    """The first LaunchBox image of the earliest category whose URL compacts to an artwork
+    reference and that the artwork review has not rejected."""
     for category in categories:
         for image in game["images"]:
-            if image["type"] == category and URL.fullmatch(image["url"]):
+            if image["type"] == category and URL.fullmatch(image["url"]) and image["url"] not in rejected:
                 return image["url"]
     return ""
 
 
-def launchbox_entry(slug, game):
+def launchbox_entry(slug, game, rejected):
     entry = {"title": game["Name"], "launchbox": game["DatabaseID"]}
     if game["aliases"]:
         entry["aliases"] = [alias for alias in game["aliases"] if alias != game["Name"]]
@@ -106,7 +110,7 @@ def launchbox_entry(slug, game):
     if year_of(game):
         entry["year"] = year_of(game)
     for field, categories in (("boxArtUrl", BOX_TYPES), ("screenshotUrl", SCREENSHOT_TYPES)):
-        url = first_url(game, categories)
+        url = first_url(game, categories, rejected)
         if url:
             entry[field] = url
     return entry
@@ -181,7 +185,8 @@ def assemble(root, moby_root):
     missing = [slug for slug, snapshot in snapshots.items() if snapshot is None]
     if missing:
         raise SystemExit(f"missing LaunchBox snapshots: {missing}")
-    games = {f"{slug}:{game_id}": launchbox_entry(slug, game)
+    rejected = art_verdicts.rejected(root)
+    games = {f"{slug}:{game_id}": launchbox_entry(slug, game, rejected)
              for slug, snapshot in snapshots.items() for game_id, game in snapshot.items()}
 
     # MobyGames: link each listed game to its LaunchBox game, or give it its own entry.
@@ -289,9 +294,23 @@ def assemble(root, moby_root):
         if "sourceGroups" in entry:
             entry["sourceGroups"] = sorted(entry["sourceGroups"])
 
+    # A reviewed artwork pick loses an image the artwork review rejected; a pick left with no
+    # image is dropped, so the game's other sources are tried.
+    for entry in games.values():
+        if "artwork" not in entry:
+            continue
+        art = config.ARTWORK.expand(entry["artwork"])
+        dropped = [kind for kind in ("boxArt", "preview") if art.get(kind + "Url") in rejected]
+        for kind in dropped:
+            del art[kind], art[kind + "Url"]
+        if not any(kind in art for kind in ("boxArt", "preview")):
+            del entry["artwork"]
+        elif dropped:
+            entry["artwork"] = config.ARTWORK.compact(art)
+
     # MobyGames artwork for a game LaunchBox has no cover for and no reviewed
     # artwork pick names (moby_art.py).
-    moby_art = MobyArt(root, moby_root, config.MOBYGAMES, config.ARTWORK)
+    moby_art = MobyArt(root, moby_root, config.MOBYGAMES, config.ARTWORK, rejected)
     uncovered = {key: entry["mobygames"] for key, entry in sorted(games.items())
                  if "mobygames" in entry and not entry.get("boxArtUrl") and "artwork" not in entry}
     moby_art.require(uncovered.values())
