@@ -58,7 +58,7 @@ class MachineFirstRun(
     }
 
     private fun folderPage() = SetupPage(brand, "STEP 1 OF 2", "Choose a ROM folder",
-        "Select the folder containing your $guestName games. $appName will scan its disk images and ZIP files.",
+        "Select the folder containing your $guestName games. $appName will scan its disk images and the ZIP and 7z archives holding them.",
         "You can choose or change it later in Menu › Manage library.",
         footerButtons = {
             listOf(FooterButton("skip", { "Skip for now" }) { skipRomFolder(false) },

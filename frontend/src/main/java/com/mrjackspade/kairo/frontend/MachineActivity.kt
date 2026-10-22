@@ -443,7 +443,7 @@ abstract class MachineActivity<E : LibraryItem> : Activity(), SurfaceHolder.Call
         libraryFlow = LibraryFlow(this, preferences, libraryPage, ROM_FOLDER_REQUEST,
             { folder -> library.cached(folder) },
             { folder, force, cancelled, progress -> library.scan(folder, force, cancelled, progress) },
-            "Choose a ROM folder to find disk images and ZIP games",
+            "Choose a ROM folder to find disk images and the ZIP and 7z archives holding them",
             "Folder access expired. Select the ROM folder again.",
             { entries ->
                 val errors = entries.count { it.error != null }
