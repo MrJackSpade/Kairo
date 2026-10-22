@@ -56,7 +56,10 @@ if ($Clean) {
     }
 }
 
-$variant = $Flavor + (Get-Culture).TextInfo.ToTitleCase($Type)
+# The shared app module (gradle/kairo-machine-app.gradle) defines the artwork flavors; an app with
+# its own module, as KairoDos, has build types only.
+$flavored = Select-String -Path (Join-Path $root "$Module\build.gradle.kts") -Pattern 'kairo-machine-app.gradle' -SimpleMatch -Quiet
+$variant = if ($flavored) { $Flavor + (Get-Culture).TextInfo.ToTitleCase($Type) } else { $Type }
 $task = ":${Module}:assemble$($variant.Substring(0,1).ToUpper())$($variant.Substring(1))"
 $arguments = @($task, '--console=plain')
 if ($VersionCode) { $arguments += "-P${Module}VersionCode=$VersionCode" }
@@ -77,7 +80,7 @@ Select-String -Path $log -CaseSensitive -Pattern '^e: |error:|What went wrong|BU
 if ($exit -ne 0) { throw "Build failed (exit $exit); full log: $log" }
 
 $apk = Get-ChildItem (Join-Path $root "$Module\build\outputs\apk") -Recurse -Filter *.apk |
-    Where-Object { $_.FullName -match [regex]::Escape($Flavor) -and $_.FullName -match $Type } |
+    Where-Object { (-not $flavored -or $_.FullName -match [regex]::Escape($Flavor)) -and $_.FullName -match $Type } |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $apk) { throw "No $variant APK under $Module\build\outputs\apk" }
 "APK: $($apk.FullName)"

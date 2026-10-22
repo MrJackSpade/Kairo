@@ -64,8 +64,8 @@ def parse_hint(name):
     stem = re.sub(r"\.[A-Za-z0-9]{1,4}$", "", stem)
     stem = re.sub(r"\[[^]]*]", "", stem).strip()
     title = re.split(r"\s*\(", stem, maxsplit=1)[0].strip(" -_") or stem
-    # TOSEC moves a leading article to the end: "New Zealand Story, The".
-    article = re.match(r"^(.*), (The|A|An)$", title)
+    # TOSEC moves a leading article to the end: "New Zealand Story, The", or "Horde,The".
+    article = re.match(r"^(.*?),\s*(The|A|An)$", title)
     if article:
         title = f"{article[2]} {article[1]}"
     groups = [group.strip() for group in re.findall(r"\(([^)]*)\)", stem)]
