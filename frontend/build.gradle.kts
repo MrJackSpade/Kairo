@@ -13,6 +13,9 @@ android {
 dependencies {
     // Installs baseline-prof.txt on sideloaded APKs, which receive no cloud profile.
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+    // 7z archives in DiskImageLibrary; xz supplies their LZMA and LZMA2 decoders.
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("org.tukaani:xz:1.10")
     testImplementation("junit:junit:4.13.2")
 }
 

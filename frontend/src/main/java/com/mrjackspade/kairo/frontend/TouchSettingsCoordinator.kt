@@ -16,7 +16,9 @@ class TouchSettingsCoordinator<Game : Any>(
     /** Auto, Keyboard, and Mouse, each with an optional description. */
     private val modeOptions: List<Pair<InputModeDecider.Mode, ChoiceOption>>,
     private val directTouchExplanation: String,
-    private val changed: (Game?) -> Unit = {}
+    private val changed: (Game?) -> Unit = {},
+    /** False when the guest mouse only moves relatively: Mouse touch is then the touchpad, with no rows. */
+    private val directTouchAvailable: Boolean = true
 ) {
     init { require(modeOptions.map { it.first }.distinct().size == 3) }
 
@@ -28,17 +30,18 @@ class TouchSettingsCoordinator<Game : Any>(
     private fun touchId(direct: Boolean) = if (direct) "direct" else "touchpad"
 
     /** Controls › TOUCH SCREEN, for all games. */
-    fun globalGroup() = RowGroup("TOUCH SCREEN", listOf(
+    fun globalGroup() = RowGroup("TOUCH SCREEN", listOfNotNull(
         SettingsRow.choice("tap", "Screen tap", ChoiceSpec("Screen tap", { GameSource.ALL_GAMES },
             { listOf(ChoiceGroup(null, modes)) }, { modeId(store.global().mode) }, select = { id ->
             store.saveGlobal(store.global().copy(mode = mode(id)))
             changed(null)
         })),
+        if (!directTouchAvailable) null else
         SettingsRow.choice("mouse-touch", "Mouse touch", ChoiceSpec("Mouse touch", { GameSource.ALL_GAMES },
             { listOf(ChoiceGroup(null, touches)) }, { touchId(store.global().directTouch) }, select = { id ->
             store.saveGlobal(store.global().copy(directTouch = id == "direct"))
             changed(null)
-        }))), directTouchExplanation)
+        }))), if (directTouchAvailable) directTouchExplanation else null)
 
     /** Game settings › CONTROLS rows for one game. */
     fun gameRows(game: Game, scope: () -> String, enabled: () -> Boolean): List<SettingsRow> {
@@ -49,6 +52,7 @@ class TouchSettingsCoordinator<Game : Any>(
         return listOfNotNull(
             GameSettingsRows.choice("game-tap", "Screen tap", scope, modes,
                 mapped(store.mode(game), ::modeId, ::mode), enabled, reason),
+            if (!directTouchAvailable) null else
             GameSettingsRows.choice("game-mouse-touch", "Mouse touch", scope, touches,
                 mapped(store.directTouch(game), ::touchId) { it == "direct" }, enabled, reason),
             store.secondaryTouchpad(game)?.let { secondary ->
