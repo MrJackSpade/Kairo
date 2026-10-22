@@ -424,9 +424,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     /** Fails a launch whose required firmware is missing, naming what to import. */
     protected fun requireFirmware() {
-        val missing = firmwareSets.flatMap { it.second.missingRequired }
+        val missing = firmwareSets.map { it.second }.filter { it.missingRequirements.isNotEmpty() }
         if (missing.isNotEmpty()) error("Import the ${identity.guestName} firmware in Menu › Machine first " +
-            "(missing ${missing.joinToString(", ") { it.label }})")
+            "(missing ${missing.joinToString(", ") { it.missingText }})")
     }
 
     override fun handleProductResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {

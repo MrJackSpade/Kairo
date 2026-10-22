@@ -11,9 +11,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * The firmware files a machine reads from [directory], imported from a folder the player chooses:
  * every file there whose name a [Part] accepts, in any case, or whose content a part names by
- * SHA-1, is copied under the part's name.
+ * SHA-1, is copied under the part's name. The machine needs each of [requirements], one of whose
+ * parts must be installed; by default each required part is its own requirement.
  */
-class FirmwareSet(val directory: File, val parts: List<Part>) {
+class FirmwareSet(
+    val directory: File,
+    val parts: List<Part>,
+    val requirements: List<List<Part>> = parts.filter { it.required }.map { listOf(it) }
+) {
+    init { require(requirements.all { it.isNotEmpty() && parts.containsAll(it) }) }
     /**
      * One file the machine reads. [accepted] are the names it is found by (lower case), [sizes]
      * the sizes a good dump has, or empty for any size. [sha1] are the SHA-1 digests (lower-case
@@ -31,7 +37,10 @@ class FirmwareSet(val directory: File, val parts: List<Part>) {
 
     fun file(part: Part) = File(directory, part.name)
     fun installed(part: Part) = file(part).isFile
-    val missingRequired: List<Part> get() = parts.filter { it.required && !installed(it) }
+    /** The requirements none of whose parts is installed. */
+    val missingRequirements: List<List<Part>> get() = requirements.filter { it.none(::installed) }
+    /** [missingRequirements] for a message, such as "IPL-ROM, CG-ROM or CG-ROM (XVI)". */
+    val missingText: String get() = missingRequirements.joinToString(", ") { group -> group.joinToString(" or ") { it.label } }
     val installedCount: Int get() = parts.count(::installed)
 
     /** Opens the system folder picker; the result goes to [importFolder]. */
@@ -87,15 +96,14 @@ class FirmwareSet(val directory: File, val parts: List<Part>) {
     fun row(id: String, label: String, busy: () -> Boolean, enabled: () -> Boolean, disabledReason: () -> String,
             choose: () -> Unit) = SettingsRow.action(id, label,
         value = {
-            val missing = missingRequired
             when {
                 busy() -> "Importing…"
                 installedCount == 0 -> "Not installed"
-                missing.isEmpty() -> "Installed"
-                else -> "Missing ${missing.joinToString(", ") { it.label }}"
+                missingRequirements.isEmpty() -> "Installed"
+                else -> "Missing $missingText"
             }
         },
-        tone = { if (missingRequired.isEmpty() && installedCount > 0) ValueTone.CURRENT else ValueTone.SUMMARY },
+        tone = { if (missingRequirements.isEmpty() && installedCount > 0) ValueTone.CURRENT else ValueTone.SUMMARY },
         busy = busy, enabled = { !busy() && enabled() },
         disabledReason = { if (busy()) "Wait for the current import to finish" else disabledReason() },
         tray = { TraySpec(buttons = listOf(TrayButton(if (installedCount > 0) "Replace…" else "Choose folder…",
