@@ -82,7 +82,7 @@ class CatalogSnapshotStore(
             } finally { connection.disconnect() }
             task.report(CatalogUpdateState.APPLYING)
             require(temporary.length() == revision.size &&
-                sha.digest().joinToString("") { "%02x".format(it) } == revision.checksum) { "Catalog archive does not match metadata" }
+                sha.digest().toHex() == revision.checksum) { "Catalog archive does not match metadata" }
             validate(temporary)
             synchronized(this) {
                 task.ensureActive()
@@ -207,6 +207,6 @@ class CatalogSnapshotStore(
                 sha.update(buffer, 0, count)
             }
         }
-        return sha.digest().joinToString("") { "%02x".format(it) }
+        return sha.digest().toHex()
     }
 }

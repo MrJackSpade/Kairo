@@ -35,8 +35,7 @@ class CatalogArtworkStore(
     /** Copies a selected image into app storage; its URI permission need not persist. */
     fun importLocal(input: InputStream): String {
         val bytes = ArtworkImages.read(input)
-        val digest = MessageDigest.getInstance("SHA-256").digest(bytes)
-            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        val digest = MessageDigest.getInstance("SHA-256").digest(bytes).toHex()
         val path = "${pathPrefix}local/$digest.webp"
         val image = thumbnail(bytes)
         try {

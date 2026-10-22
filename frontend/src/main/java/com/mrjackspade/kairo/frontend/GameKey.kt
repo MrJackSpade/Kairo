@@ -13,7 +13,7 @@ import java.security.MessageDigest
      * a folder name cannot, or be long; a hash stores every key exactly and alike.
      */
     val storageName: String get() = STORAGE_PREFIX + MessageDigest.getInstance("SHA-256")
-        .digest(path.toByteArray(Charsets.UTF_8)).take(16).joinToString("") { "%02x".format(it) }
+        .digest(path.toByteArray(Charsets.UTF_8)).copyOf(16).toHex()
 
     companion object {
         const val STORAGE_PREFIX = "k1-"

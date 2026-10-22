@@ -37,7 +37,7 @@ object LaunchBoxArtworkReferences {
     private val tokens = java.util.concurrent.ConcurrentHashMap<String, String>()
     private fun token(url: String): String = tokens.getOrPut(url) {
         MessageDigest.getInstance("SHA-256").digest(url.toByteArray(Charsets.UTF_8))
-            .take(6).joinToString("") { "%02x".format(it.toInt() and 255) }
+            .copyOf(6).toHex()
     }
 
     /** Layering copies every value it keeps, so only the replaced field needs a new object. */

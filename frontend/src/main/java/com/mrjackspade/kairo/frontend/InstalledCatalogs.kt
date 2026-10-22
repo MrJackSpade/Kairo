@@ -174,7 +174,7 @@ class InstalledCatalogs(
                 it.fd.sync()
             } }
         }
-        return sha.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
+        return sha.digest().toHex()
     }
     private fun <T> connect(url: String, redirects: Int = 0, block: (HttpURLConnection) -> T): T {
         require(secureUrl(url))
