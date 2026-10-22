@@ -1,0 +1,203 @@
+name: Kairo app release
+
+# The release build of a frame-driven Kairo app (shared/gradle/kairo-machine-app.gradle), called by
+# the app's tag workflow with `uses: MrJackSpade/Kairo/.github/workflows/app-release.yml@<pinned
+# commit>` and `secrets: inherit`. For a tag v<version> it builds the release APK, the APK with
+# bundled artwork and the Play bundle (reviewed artwork only), verifies their signer, version,
+# alignment and contents, and publishes them as the tag's GitHub Release; a tag without a
+# prerelease suffix then dispatches the app's play-release.yml. A manual run builds and verifies
+# the same files and keeps them as a workflow artifact only.
+#
+# The app repository provides docs/releases/<tag>.md (the release notes) and the secrets
+# KAIRO_RELEASE_KEYSTORE_B64 and KAIRO_RELEASE_PASSWORD (the persistent Kairo signing key).
+
+on:
+  workflow_call:
+    inputs:
+      module:
+        description: The app's Gradle module and product name, such as kairo68
+        required: true
+        type: string
+      name:
+        description: The app's name, such as Kairo68
+        required: true
+        type: string
+      package:
+        description: The app's application ID, such as com.loxifi.kairo68
+        required: true
+        type: string
+      version:
+        description: Version name of a manual (non-tag) build
+        required: false
+        type: string
+        default: 0.1.0-ci
+      checks:
+        description: Bash commands that verify the app's generated files before the build
+        required: false
+        type: string
+        default: ''
+    secrets:
+      KAIRO_RELEASE_KEYSTORE_B64:
+        required: true
+      KAIRO_RELEASE_PASSWORD:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: write
+    env:
+      MODULE: ${{ inputs.module }}
+      APP_NAME: ${{ inputs.name }}
+      PACKAGE: ${{ inputs.package }}
+      # The persistent Kairo signing key's certificate, as Kairo98 and KairoDos are signed.
+      EXPECTED_SIGNER: c321ec6b35e2509741362fcc3fede816c81510aa8133d791ea55ce0e1594a51c
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the pinned Kairo frontend
+        run: |
+          git submodule update --init --recursive shared
+          bash shared/tools/verify_checkout.sh "$(git rev-parse HEAD:shared)"
+      - uses: ./shared/.github/actions/setup-android
+        id: android-toolchain
+      - name: Validate tag and set app version
+        shell: bash
+        env:
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$MANUAL_VERSION"
+          fi
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Expected a version such as 0.2.0" >&2
+            exit 1
+          fi
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            IFS=. read -r major minor patch <<< "$version"
+            patch=${patch%%-*}
+            version_code=$((10#$major * 1000000 + 10#$minor * 100 + 10#$patch))
+          else
+            version_code=$GITHUB_RUN_NUMBER
+          fi
+          {
+            echo "VERSION_NAME=$version"
+            echo "VERSION_CODE=$version_code"
+            echo "ARTIFACT_REF=${GITHUB_REF_NAME//\//-}"
+          } >> "$GITHUB_ENV"
+      - name: Validate release notes
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          if [[ ! -s "$notes" ]]; then
+            echo "Missing release notes: $notes" >&2
+            exit 1
+          fi
+      - name: Prepare the persistent signing key
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.KAIRO_RELEASE_KEYSTORE_B64 }}
+        run: |
+          keystore="$RUNNER_TEMP/kairo-release.p12"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
+          echo "KAIRO_RELEASE_KEYSTORE=$keystore" >> "$GITHUB_ENV"
+      - name: Verify portable catalog archive generation
+        run: python3 -m unittest discover -s shared/tools -p test_catalog_package.py
+      - name: Verify the app's generated files
+        if: inputs.checks != ''
+        shell: bash
+        run: ${{ inputs.checks }}
+      - name: Build both release APKs
+        env:
+          KAIRO_RELEASE_PASSWORD: ${{ secrets.KAIRO_RELEASE_PASSWORD }}
+        run: >-
+          ./gradlew --no-daemon
+          ":$MODULE:assembleWithoutImagesRelease"
+          ":$MODULE:assembleWithImagesRelease"
+          "-P${MODULE}VersionName=$VERSION_NAME"
+          "-P${MODULE}VersionCode=$VERSION_CODE"
+      - name: Build the Play bundle with the reviewed artwork catalog only
+        env:
+          KAIRO_RELEASE_PASSWORD: ${{ secrets.KAIRO_RELEASE_PASSWORD }}
+        run: >-
+          ./gradlew --no-daemon ":$MODULE:bundleWithoutImagesRelease" -PkairoDistribution=play
+          "-P${MODULE}VersionName=$VERSION_NAME" "-P${MODULE}VersionCode=$VERSION_CODE"
+      - name: Verify signer, version and alignment
+        shell: bash
+        env:
+          KAIRO_BUILD_TOOLS: ${{ steps.android-toolchain.outputs.build-tools }}
+        run: |
+          tools="$ANDROID_HOME/build-tools/$KAIRO_BUILD_TOOLS"
+          apk="$MODULE/build/outputs/apk/withoutImages/release/$MODULE-withoutImages-release.apk"
+          images="$MODULE/build/outputs/apk/withImages/release/$MODULE-withImages-release.apk"
+          bundle="$MODULE/build/outputs/bundle/withoutImagesRelease/$MODULE-withoutImages-release.aab"
+          for file in "$apk" "$images"; do
+            actual=$("$tools/apksigner" verify --print-certs "$file" | awk '/Signer #1 certificate SHA-256 digest:/ {print $NF}')
+            if [[ "$actual" != "$EXPECTED_SIGNER" ]]; then
+              echo "Unexpected signing certificate for $file: $actual" >&2
+              exit 1
+            fi
+            badging=$("$tools/aapt" dump badging "$file")
+            grep -F "package: name='$PACKAGE' versionCode='$VERSION_CODE' versionName='$VERSION_NAME'" <<< "$badging"
+            if grep -q '^application-debuggable' <<< "$badging"; then
+              echo "$file must not be debuggable" >&2
+              exit 1
+            fi
+            "$tools/zipalign" -c -P 16 4 "$file"
+          done
+          jarsigner -verify "$bundle" | grep -F "jar verified"
+          bundle_signer=$(keytool -printcert -jarfile "$bundle" | awk '/SHA256:/ {print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]')
+          if [[ "$bundle_signer" != "$EXPECTED_SIGNER" ]]; then
+            echo "Unexpected Play bundle signing certificate: $bundle_signer" >&2
+            exit 1
+          fi
+          {
+            echo "APK=$apk"
+            echo "IMAGES_APK=$images"
+            echo "BUNDLE=$bundle"
+          } >> "$GITHUB_ENV"
+      - name: Audit native libraries, notices and matching payloads
+        run: python3 shared/tools/audit_android_release.py "$APK" "$BUNDLE" "$IMAGES_APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.module }}-${{ env.ARTIFACT_REF }}-release
+          path: |
+            ${{ env.APK }}
+            ${{ env.BUNDLE }}
+            ${{ env.IMAGES_APK }}
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish the GitHub Release
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          apk="$RUNNER_TEMP/$APP_NAME-$tag.apk"
+          images="$RUNNER_TEMP/$APP_NAME-$tag-with-images.apk"
+          bundle="$RUNNER_TEMP/$APP_NAME-$tag-play.aab"
+          cp "$APK" "$apk"
+          cp "$IMAGES_APK" "$images"
+          cp "$BUNDLE" "$bundle"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" "$bundle" "$images" --clobber
+          else
+            release_flags=()
+            if [[ "$tag" == *-* ]]; then
+              release_flags+=(--prerelease)
+            fi
+            gh release create "$tag" "$apk" "$bundle" "$images" \
+              --verify-tag "${release_flags[@]}" --title "$APP_NAME $VERSION_NAME" \
+              --notes-file "docs/releases/$tag.md"
+            if [[ "$tag" != *-* ]]; then
+              gh workflow run play-release.yml -f tag="$tag"
+            fi
+          fi

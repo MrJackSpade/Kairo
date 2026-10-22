@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fills an app's catalog/artwork with the images its catalog references, for the withImages build.
 
-Usage: fetch_artwork.py <app root> [--workers N]
+Usage: fetch_artwork.py <app root> [--workers N] [--check]
 
 Every LaunchBox image in catalog/parts (art.json and the restricted art.nsfw.json) is fetched from
 its URL and written to catalog/artwork/<path> as the app's bundled image: WebP, shrunk to fit 960
@@ -105,6 +105,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", type=Path)
     parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--check", action="store_true",
+                        help="fetch nothing; fail when a referenced image is not bundled")
     args = parser.parse_args()
     root = args.root.resolve()
     config = load_config(root)
@@ -113,6 +115,12 @@ def main():
     assert set(images) == image_paths(documents, config.ARTWORK.expand)
     artwork = root / "catalog/artwork"
     missing = sorted(path for path in images if not (artwork / path).is_file())
+    if args.check:
+        if missing:
+            raise SystemExit(f"{len(missing)} of {len(images)} referenced images are not bundled, such as "
+                             f"{missing[0]}: run tools/fetch_artwork.py")
+        print(f"all {len(images)} referenced images are bundled")
+        return
     print(f"{len(images)} images referenced, {len(missing)} to fetch", flush=True)
 
     def one(path):

@@ -95,7 +95,11 @@ class Api:
 def save(path, value):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=1), encoding="utf-8")
+    with open(temporary, "w", encoding="utf-8") as file:
+        file.write(json.dumps(value, ensure_ascii=False, indent=1))
+        # On disk before the rename, so a crash cannot leave a zero-filled file under the name.
+        file.flush()
+        os.fsync(file.fileno())
     temporary.replace(path)
 
 

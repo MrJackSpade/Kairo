@@ -13,6 +13,11 @@ Product settings apply `shared/gradle/android-settings.gradle`; Android modules 
 
 Before building a clean product checkout, run `bash tools/checkout_shared.sh` (or `git submodule update --init shared` locally). Each product retains only the bootstrap needed to fetch the pinned shared checkout, then delegates commit and cleanliness validation to `tools/verify_checkout.sh` here. Missing shared files produce an explicit initialization error from the product wrapper.
 
+Frame-driven apps (`gradle/kairo-machine-app.gradle`) release through two reusable workflows, which the app calls from its own `tag-builds.yml` and `play-release.yml` with `uses: MrJackSpade/Kairo/.github/workflows/<file>@<commit>` and `secrets: inherit`:
+
+- `.github/workflows/app-release.yml` builds, for a tag `v<version>`, the release APK, the APK with bundled artwork and the Play bundle (reviewed artwork only); verifies their signer (the persistent Kairo key), version, alignment and payloads; publishes them as the tag's GitHub Release; and dispatches `play-release.yml` for a tag without a prerelease suffix. The app supplies `docs/releases/<tag>.md`, the secrets `KAIRO_RELEASE_KEYSTORE_B64` and `KAIRO_RELEASE_PASSWORD`, and its own verification commands as `checks`.
+- `.github/workflows/app-play-release.yml` publishes a release's Play bundle to production through `.github/actions/play-publish`. The app must exist in Play Console with the Play publishing service account invited, and the workload identity provider's condition must accept the app's repository.
+
 To update the toolchain, change this repository's version file or wrapper, verify the standalone library and both products, then update both product pins. Do not copy versions back into the app builds or workflows. Tag triggers, signing secrets, native build commands and publication remain product-owned.
 
 ## Native Debug optimization
