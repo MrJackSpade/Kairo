@@ -31,6 +31,8 @@ android {
         manifestPlaceholders = [kairoLabel: project.ext.kairoLabel, kairoActivity: "com.mrjackspade.${product}.MainActivity"]
         versionCode((property('VersionCode') ?: '1').toInteger())
         versionName property('VersionName') ?: '0.1.0'
+        // Google Play updates its builds itself, so they never offer GitHub releases (AppUpdateCheck).
+        if (providers.gradleProperty('kairoDistribution').orNull == 'play') resValue 'bool', 'kairo_update_check', 'false'
         ndk { abiFilters += 'arm64-v8a' }
         // Only the app's library (named after the product): a core's own tests and tools stay out.
         externalNativeBuild {

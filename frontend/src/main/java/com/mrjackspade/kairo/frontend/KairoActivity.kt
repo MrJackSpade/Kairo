@@ -51,7 +51,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         /** First-run step 1. */
         val folderStep: MachineFirstRun.Folder,
         /** The save folder's section in Configurations, such as SAVE STATES. */
-        val savesLabel: String
+        val savesLabel: String,
+        /** The app's GitHub repository, such as MrJackSpade/Kairo88, whose releases are offered as updates. */
+        val repository: String
     )
 
     protected abstract val identity: Identity
@@ -361,6 +363,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { transitioning }, ::hideKeyboard)
     }
     private var artworkDownloads: CatalogArtworkDownloadController<E, *>? = null
+    /** Offers a newer GitHub release over the library, never over first-run setup or a game. */
+    private val appUpdates by lazy {
+        AppUpdateCheck(this, identity, preferences, pages,
+            { libraryVisible && activityVisible && !(::firstRunSetup.isInitialized && firstRunSetup.isOpen) },
+            libraryScreen::showStatus)
+    }
     private val catalogUpdates by lazy {
         CatalogUpdateController(this, ::downloadCatalogUpdate,
             { message -> if (!message.endsWith("…")) toast(message) },
@@ -505,6 +513,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             MachineFirstRun.Step.ROM_FOLDER else MachineFirstRun.Step.FIRMWARE, tree != null)
         applyPauseState()
         catalogUpdates.check(true)
+        appUpdates.start()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -721,6 +730,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             overlay.setPaused(userPaused && !libraryVisible && !menuOpen && !transitioning)
             if (libraryVisible && !keepsNotice()) overlay.hideNotice()
         }
+        if (::libraryFlow.isInitialized) appUpdates.showIfReady()
         if (::onScreenControls.isInitialized) {
             if (::libraryFlow.isInitialized) touchUi.refreshControls(onScreenControls,
                 showingGuest, ::secondaryKeyboard.isInitialized && secondaryKeyboard.swapped)

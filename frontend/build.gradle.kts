@@ -23,6 +23,8 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.27.1")
     implementation("org.tukaani:xz:1.10")
     testImplementation("junit:junit:4.13.2")
+    // Android's org.json is a stub on the JVM; tests parse JSON with the real library.
+    testImplementation("org.json:json:20240303")
 }
 
 // Build the pinned Slang runtime from source, once for either product. The

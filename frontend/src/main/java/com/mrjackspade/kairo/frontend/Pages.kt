@@ -389,22 +389,25 @@ open class SetupPage(
     }
 }
 
+/** A button of a [ModalPage]. Every button closes the modal before it runs. */
+class ModalButton(val label: String, val tone: ButtonTone = ButtonTone.SECONDARY, val run: () -> Unit = {})
+
 /**
- * A modal confirmation over the page below: a title, a message, and Cancel then the verb,
- * opening on Cancel. Any direction moves between the two buttons; B or a tap outside cancels.
+ * A modal over the page below: a title, a message, and a row of buttons, opening on
+ * [initialButton]. Up and Left move to the previous button, Down and Right to the next; B or a
+ * tap outside closes it without running a button.
  */
-class ConfirmPage(private val confirm: Confirm) : Page() {
+open class ModalPage(
+    val title: String?,
+    val message: String,
+    private val modalButtons: List<ModalButton>,
+    private val initialButton: Int = 0
+) : Page() {
+    init { require(modalButtons.isNotEmpty() && initialButton in modalButtons.indices) }
     override val isModal: Boolean get() = true
-    private lateinit var cancel: View
-    private lateinit var accept: View
-    val title: String? get() = confirm.title
-    val message: String get() = confirm.message
-    val buttons: List<String> get() = listOf("Cancel", confirm.verb)
-    val focusedButton: String? get() = when (focusedItemId) {
-        "cancel" -> "Cancel"
-        "confirm" -> confirm.verb
-        else -> null
-    }
+    private val views = ArrayList<View>()
+    val buttons: List<String> get() = modalButtons.map { it.label }
+    val focusedButton: String? get() = focusedItemId?.removePrefix("button-")?.toIntOrNull()?.let { modalButtons[it].label }
 
     override fun createView(): View {
         val card = MaxWidthColumn(context, dp(440)).apply {
@@ -413,20 +416,21 @@ class ConfirmPage(private val confirm: Confirm) : Page() {
             setPadding(dp(24), dp(20), dp(20), dp(16))
             isClickable = true
         }
-        card.addView(Ui.text(context, confirm.title ?: "", Ui.TITLE, bold = true))
-        card.addView(Ui.text(context, confirm.message, Ui.SECONDARY, Ui.TEXT_BODY).apply {
+        card.addView(Ui.text(context, title ?: "", Ui.TITLE, bold = true))
+        card.addView(Ui.text(context, message, Ui.SECONDARY, Ui.TEXT_BODY).apply {
             setLineSpacing(dp(4).toFloat(), 1f)
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        val buttons = WrapLayout(context, dp(8))
-        cancel = Ui.choiceButton(context, "Cancel", ButtonTone.SECONDARY) { stack.pop() }
-        accept = Ui.choiceButton(context, confirm.verb,
-            if (confirm.danger) ButtonTone.DANGER else ButtonTone.PRIMARY) {
-            stack.pop()
-            confirm.run()
+        val row = WrapLayout(context, dp(8))
+        views.clear()
+        for (button in modalButtons) {
+            val view = Ui.choiceButton(context, button.label, button.tone) {
+                stack.pop()
+                button.run()
+            }
+            views.add(view)
+            row.addView(view, ViewGroup.LayoutParams(-2, dp(44)))
         }
-        buttons.addView(cancel, ViewGroup.LayoutParams(-2, dp(44)))
-        buttons.addView(accept, ViewGroup.LayoutParams(-2, dp(44)))
-        card.addView(buttons, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
+        card.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
         return FrameLayout(context).apply {
             setBackgroundColor(Ui.SCRIM)
             setOnClickListener { stack.pop() }
@@ -436,15 +440,23 @@ class ConfirmPage(private val confirm: Confirm) : Page() {
         }
     }
 
-    override fun navItems(): List<NavItem> = listOf(
-        NavItem("cancel", cancel, 0, 0.25f, { cancel.performClick() }),
-        NavItem("confirm", accept, 0, 0.75f, { accept.performClick() }))
+    override fun navItems(): List<NavItem> = views.mapIndexed { index, view ->
+        NavItem("button-$index", view, 0, (index + 0.5f) / views.size, { view.performClick() })
+    }
 
-    override fun initialFocus(items: List<NavItem>) = "cancel"
+    override fun initialFocus(items: List<NavItem>) = "button-$initialButton"
 
-    /** Two buttons in a row: Up and Left go to Cancel, Down and Right to the verb. */
-    override fun move(direction: String) = focus(if (direction == "up" || direction == "left") "cancel" else "confirm")
+    override fun move(direction: String) {
+        val current = focusedItemId?.removePrefix("button-")?.toIntOrNull() ?: initialButton
+        val step = if (direction == "up" || direction == "left") -1 else 1
+        focus("button-${(current + step).coerceIn(0, views.size - 1)}")
+    }
 }
+
+/** A modal confirmation: Cancel then the verb, opening on Cancel. */
+class ConfirmPage(confirm: Confirm) : ModalPage(confirm.title, confirm.message, listOf(
+    ModalButton("Cancel"),
+    ModalButton(confirm.verb, if (confirm.danger) ButtonTone.DANGER else ButtonTone.PRIMARY, confirm.run)))
 
 /** A text document in a card. Up and Down scroll 96 dp. */
 class DocumentPage(private val title: String, private val text: String,

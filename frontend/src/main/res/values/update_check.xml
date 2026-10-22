@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Whether the app offers newer GitHub releases (AppUpdateCheck). Google Play builds, which
+         Play updates, override it with false. -->
+    <bool name="kairo_update_check">true</bool>
+</resources>
