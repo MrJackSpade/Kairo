@@ -73,6 +73,8 @@ class LibraryScreen<T : LibraryItem>(
     var needsFolder: () -> Boolean = { false }
     /** Opens the library flyout. */
     var openMenuAction: () -> Unit = {}
+    /** A new entry list is on screen; [showEntries] publishes it from a worker. */
+    var entriesPublished: () -> Unit = {}
     private val list = ListView(context)
     private val emptyState = LinearLayout(context)
     private val emptyText = Ui.text(context, "", Ui.BODY, Ui.TEXT_MUTED)
@@ -479,6 +481,7 @@ class LibraryScreen<T : LibraryItem>(
             val refreshed = allEntries.firstOrNull { it.id == page.entryId }
             if (refreshed == null) closeDetail() else page.show(refreshed)
         }
+        entriesPublished()
     }
     /** Used by the debug ADB selector after cached entries or a scan arrive. */
     fun selectGame(query: String): Boolean {
