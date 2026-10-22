@@ -129,13 +129,28 @@ def name_forms(name):
     return {title_key(form) for form in forms if title_key(form)}
 
 
+LONG_VOWELS = {"ō": ("ou", "o"), "ô": ("ou", "o"), "ū": ("uu", "u"), "ā": ("aa", "a"),
+               "ē": ("ee", "e"), "ī": ("ii", "i")}
+
+
+def romanizations(title):
+    """A title's comparison forms with Hepburn long vowels written out or plain: MobyGames'
+    "Kyōdan" is LaunchBox's "Kyoudan" or "Kyodan"."""
+    forms = [title.replace("&", " and ")]
+    for vowel, spellings in LONG_VOWELS.items():
+        if any(vowel in form.lower() for form in forms):
+            forms = [form.replace(vowel, spelling).replace(vowel.upper(), spelling.capitalize())
+                     for form in forms for spelling in spellings]
+    return {title_key(form) for form in forms}
+
+
 def match_title(title, year, slugs, snapshots):
     """The one LaunchBox game key a title names, searching platforms in order, or None."""
-    sought = title_key(title.replace("&", " and "))
+    sought = romanizations(title)
     for slug in slugs:
         games = snapshots[slug]
         exact = [game_id for game_id, game in games.items()
-                 if any(sought in name_forms(name) for name in (game["Name"], *game["aliases"]))
+                 if any(sought & name_forms(name) for name in (game["Name"], *game["aliases"]))
                  and years_agree(year, year_of(game))]
         if len(exact) == 1:
             return f"{slug}:{exact[0]}"
