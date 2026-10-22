@@ -1,16 +1,16 @@
 // The application module of a frame-driven Kairo app: identity, manifest and launcher resources
-// (shared/app), beta signing, the artwork flavors, the catalog assets built from catalog/parts, and
+// (shared/app), release signing, the artwork flavors, the catalog assets built from catalog/parts, and
 // its native library. A product sets `ext.kairoProduct` (its lower-case name, such as "kairo88")
 // and `ext.kairoLabel` (its name, such as "Kairo88") before applying this script, after the
 // Android and Kotlin plugins. Its own files are com.mrjackspade.<product>.MainActivity, the icon
 // art res/drawable-nodpi/product_icon_art.png, src/main/assets, and src/main/cpp/CMakeLists.txt.
 //
 // Gradle properties <product>ApplicationId, <product>VersionCode and <product>VersionName override
-// the defaults. Environment variables <PRODUCT>_BETA_KEYSTORE and <PRODUCT>_BETA_PASSWORD sign
-// debug and release builds with the product's beta key (alias <product>-beta).
+// the defaults. Debug builds use the Android debug key. Environment variables KAIRO_RELEASE_KEYSTORE
+// and KAIRO_RELEASE_PASSWORD sign release builds with the persistent Kairo key (alias kairo98-beta),
+// as KairoDos releases are.
 
 def product = project.ext.kairoProduct as String
-def productUpper = product.toUpperCase()
 def sharedRoot = buildscript.sourceFile.parentFile.parentFile
 
 apply from: new File(sharedRoot, 'gradle/android-module.gradle')
@@ -18,8 +18,8 @@ apply from: new File(sharedRoot, 'gradle/catalog-binary.gradle')
 def compileCatalogParts = project.ext.compileCatalogParts
 
 def property = { String name -> providers.gradleProperty("$product$name").orNull }
-def keystore = providers.environmentVariable("${productUpper}_BETA_KEYSTORE").orNull
-def password = providers.environmentVariable("${productUpper}_BETA_PASSWORD").orNull
+def keystore = providers.environmentVariable('KAIRO_RELEASE_KEYSTORE').orNull
+def password = providers.environmentVariable('KAIRO_RELEASE_PASSWORD').orNull
 def signed = keystore != null && !keystore.isBlank() && password != null && !password.isBlank()
 
 android {
@@ -36,21 +36,20 @@ android {
     }
 
     signingConfigs {
-        create('beta') {
+        create('release') {
             if (signed) {
                 storeFile file(keystore)
                 storePassword password
-                keyAlias "$product-beta"
+                keyAlias 'kairo98-beta'
                 keyPassword password
             }
         }
     }
 
     buildTypes {
-        debug { if (signed) signingConfig signingConfigs.beta }
         release {
             minifyEnabled false
-            if (signed) signingConfig signingConfigs.beta
+            if (signed) signingConfig signingConfigs.release
         }
     }
 
