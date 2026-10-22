@@ -21,8 +21,8 @@ Every adult game is added to catalog/core-review-v1.json's exclusions if it is n
 medium found in several games' sets identifies none of them: it is listed under sharedContentIds.
 
 An archive matches a LaunchBox game when its file name's title equals the game's name or an
-alias and the years agree, or when the closest fuzzy title scores at least 0.93 with agreeing
-years, the same sequel numbers and no tie. Failing that, it joins a MobyGames-only game of exactly its title. Anything else
+alias and the years agree within one, or when the closest fuzzy title scores at least 0.93 with
+agreeing years, the same sequel numbers and no tie. Failing that, it joins a MobyGames-only game of exactly its title. Anything else
 becomes a "local" game titled from its group.
 """
 
@@ -64,6 +64,10 @@ def parse_hint(name):
     stem = re.sub(r"\.[A-Za-z0-9]{1,4}$", "", stem)
     stem = re.sub(r"\[[^]]*]", "", stem).strip()
     title = re.split(r"\s*\(", stem, maxsplit=1)[0].strip(" -_") or stem
+    # TOSEC moves a leading article to the end: "New Zealand Story, The".
+    article = re.match(r"^(.*), (The|A|An)$", title)
+    if article:
+        title = f"{article[2]} {article[1]}"
     groups = [group.strip() for group in re.findall(r"\(([^)]*)\)", stem)]
     year = next((int(group[:4]) for group in groups if YEAR.match(group)), None)
     publisher = next((group for group in groups if not re.match(r"(?:19|20)[0-9x]{2}", group)), None)
@@ -76,7 +80,8 @@ def year_of(game):
 
 
 def years_agree(a, b):
-    return a is None or b is None or a == b
+    """Sources often date a game a year apart (original release, port, region)."""
+    return a is None or b is None or abs(a - b) <= 1
 
 
 def first_url(game, categories):
