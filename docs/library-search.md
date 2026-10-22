@@ -61,12 +61,12 @@ pass waits for indexing to finish. No game/core is running.
 
 | Host | Entries / distinct shard prefixes | Cold nonempty edit / draw range | Warm nonempty edit / draw range | Empty-query draw cold / warm |
 | --- | --- | --- | --- | --- |
-| KairoDos | 49 / 44 | 18–38 / 22–45 ms | 19–30 / 24–38 ms | 68 / 82 ms |
-| Kairo98 | 215 / 133 | 19–43 / 24–48 ms | 21–45 / 27–55 ms | 109 / 92 ms |
+| KairoDos | 49 / 44 | 18â€“38 / 22â€“45 ms | 19â€“30 / 24â€“38 ms | 68 / 82 ms |
+| Kairo98 | 215 / 133 | 19â€“43 / 24â€“48 ms | 21â€“45 / 27â€“55 ms | 109 / 92 ms |
 
 Cold indexing still had 1826 ms (DOS) / 2712 ms (PC98) left after rapid typing;
 this background work did not block character rendering. Settled result checks
-were 41–122 ms / 209–345 ms, including UI idle/layout. They matched independently
+were 41â€“122 ms / 209â€“345 ms, including UI idle/layout. They matched independently
 computed case-insensitive catalog-title OR filename results, including empty
 matches. These measurements describe this device/library, not all storage or
 library sizes.

@@ -1,0 +1,111 @@
+{
+ "owner": "MrJackSpade",
+ "discord": "https://discord.gg/ZkYQ3bPTTq",
+ "publisher": "Loxifi LLC",
+ "publisherShort": "Loxifi",
+ "contact": "admin@loxifi.com",
+ "frontend": "Kairo",
+ "apps": [
+  {
+   "repo": "Kairo98",
+   "system": "PC-98",
+   "module": "kairo98",
+   "package": "com.loxifi.kairo98",
+   "icon": "kairo98/src/main/res/drawable-nodpi/kairo98_icon_art.png",
+   "googlePlay": true,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
+   "privacyPage": true,
+   "problemDetail": "disk format",
+   "frontends": {
+    "docsIndex": "../README.md#documentation",
+    "intro": "Kairo98 can open a PC-98 disk image or ZIP sent by another Android frontend. You do not need to select a library folder in Kairo98 first. Keep archive extraction off in the frontend; Kairo98 reads disk images inside ZIPs.",
+    "launchboxImport": "Import your PC-98 files into LaunchBox's **NEC PC-9801** platform.",
+    "esdeSystem": "PC-98",
+    "gameFile": "disk image",
+    "iisuShortName": "pc98",
+    "iisuConsole": "NEC PC-9800 Series",
+    "beaconName": "PC-98",
+    "beaconShortName": "PC98"
+   }
+  },
+  {
+   "repo": "KairoDos",
+   "system": "DOS",
+   "module": "kairodos",
+   "package": "com.loxifi.kairodos",
+   "icon": "kairodos/src/main/res/drawable-nodpi/kairodos_icon_art.png",
+   "googlePlay": true,
+   "firmware": false,
+   "saveStates": false,
+   "artworkHosts": ["raw.githubusercontent.com"],
+   "privacyPage": true,
+   "problemDetail": "file format",
+   "frontends": {
+    "docsIndex": "index.md",
+    "intro": "KairoDos can open a DOS game file or ZIP sent by another Android frontend. You do not need to select a library folder in KairoDos first. Keep archive extraction off in the frontend; KairoDos opens ZIPs and handles eXoDOS installer archives itself.",
+    "launchboxImport": "Import DOS games into LaunchBox's **MS-DOS** platform.",
+    "esdeSystem": "MS-DOS",
+    "gameFile": "game file",
+    "iisuShortName": "dos",
+    "iisuConsole": "DOS (PC)",
+    "beaconName": "MS-DOS",
+    "beaconShortName": "DOS",
+    "extra": "## eXoDOS installer archives\n\nWhen a frontend grants access to a single eXoDOS source ZIP, KairoDos saves the installed copy in private app storage and cannot remove the frontend's source file. Selecting a writable folder within KairoDos instead lets it create the installed ZIP beside the source and offer to remove the source after play."
+   }
+  },
+  {
+   "repo": "Kairo88",
+   "system": "PC-88",
+   "module": "kairo88",
+   "package": "com.loxifi.kairo88",
+   "icon": "kairo88/src/main/res/drawable-nodpi/product_icon_art.png",
+   "googlePlay": false,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
+   "privacyPage": false,
+   "problemDetail": "file format"
+  },
+  {
+   "repo": "Kairo68",
+   "system": "X68000",
+   "module": "kairo68",
+   "package": "com.loxifi.kairo68",
+   "icon": "kairo68/src/main/res/drawable-nodpi/product_icon_art.png",
+   "googlePlay": false,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
+   "privacyPage": false,
+   "problemDetail": "file format"
+  },
+  {
+   "repo": "KairoTowns",
+   "system": "FM Towns",
+   "module": "kairotowns",
+   "package": "com.loxifi.kairotowns",
+   "icon": "kairotowns/src/main/res/drawable-nodpi/product_icon_art.png",
+   "googlePlay": false,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
+   "privacyPage": false,
+   "problemDetail": "file format"
+  },
+  {
+   "repo": "KairoMSX",
+   "system": "MSX",
+   "module": "kairomsx",
+   "package": "com.loxifi.kairomsx",
+   "icon": "kairomsx/src/main/res/drawable-nodpi/product_icon_art.png",
+   "googlePlay": false,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
+   "privacyPage": false,
+   "problemDetail": "file format"
+  }
+ ]
+}

@@ -9,5 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Verify shared documents
+        run: python3 tools/docs.py . --check
       - uses: ./.github/actions/setup-android
       - run: ./gradlew --no-daemon :frontend:assembleDebug

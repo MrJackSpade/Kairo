@@ -1,0 +1,2 @@
+- **Report a game problem** in [Issues]({{issuesUrl}}). Include the title, {{problemDetail}}, and what happened.
+- **Chat** with other players on [Discord]({{discord}}).

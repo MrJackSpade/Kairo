@@ -1,0 +1,1 @@
+The shared RetroArch Slang shader runtime uses librashader under its GPL-3.0-only option, so a shader-enabled {{repo}} build is distributed under GPLv3 terms using first-party "or later" permission. See [shared licensing](../shared/docs/licensing.md).
