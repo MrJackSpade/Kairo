@@ -29,6 +29,19 @@ APPS = {
 
 CONTROL_FIELDS = {'controller', 'input', 'machine', 'launch', 'startupChoices', 'diskSwaps', 'media'}
 
+def artwork_split(policy, all_images):
+    """The images of the main artwork catalog (art.json) and of the adult one (art.nsfw.json).
+    An app lists either its adult images ("adultArtwork": {path: game title}), and every other
+    image is main, or the images approved as main ("approvedArtwork", Kairo98 and KairoDos)."""
+    if 'adultArtwork' in policy:
+        assert 'approvedArtwork' not in policy, 'list adultArtwork or approvedArtwork, not both'
+        withheld = set(policy['adultArtwork'])
+        unknown = withheld - all_images
+        assert not unknown, f'adultArtwork names images the catalog does not have: {sorted(unknown)[:5]}'
+        return all_images - withheld, withheld
+    approved = set(policy['approvedArtwork'])
+    return approved, all_images - approved
+
 def split(value):
     if not isinstance(value, dict):
         return value, {}, {}
@@ -53,9 +66,8 @@ def merge(*parts):
 
 def generate_parts(root, app, full_documents, optional_data, expand, compact_art, check=False):
     policy = json.loads((root/'catalog/core-review-v1.json').read_text('utf8'))
-    approved = policy['approvedArtwork']
     all_images = image_paths(full_documents, expand)
-    withheld = all_images - approved.keys()
+    approved, withheld = artwork_split(policy, all_images)
     data, controls, _ = split(full_documents)
     safe = split(filter_artwork(full_documents, approved, expand, compact_art))[2]
     extra = split(filter_artwork(full_documents, withheld, expand, compact_art))[2]
@@ -88,7 +100,7 @@ def generate_parts(root, app, full_documents, optional_data, expand, compact_art
             identity=spec.identity,name=spec.label,revision=release['revision'],
             source=base+f'{spec.package}.meta.json', archive_url=base+f'{spec.package}.zip', stored=True)
         (root/'catalog/artwork-exclusions-v1.json').write_bytes(compact({'schemaVersion':1,'artwork':sorted(withheld)}))
-    print(f'{app}: {len(all_images)} artwork paths; {len(withheld)} restricted; {len(approved)} reviewed')
+    print(f'{app}: {len(all_images)} artwork paths; {len(approved)} main; {len(withheld)} adult')
 
 def indexed_document(documents):
     """Byte ranges let Android load one shard without parsing the complete DOS catalog."""

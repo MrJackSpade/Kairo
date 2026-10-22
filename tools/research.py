@@ -322,7 +322,7 @@ def assemble(root, moby_root):
 
     # Adult games leave the core review; existing exclusions and their reasons are kept.
     review_path = root / "catalog/core-review-v1.json"
-    review = read(review_path, {"schemaVersion": 1, "excluded": {}, "approvedArtwork": {}})
+    review = read(review_path, {"schemaVersion": 1, "excluded": {}, "adultArtwork": {}})
     for old_key in [key for key in review["excluded"] if key in relinked]:
         # The exclusion follows a MobyGames-only game to the LaunchBox game it was linked to.
         review["excluded"].setdefault(relinked[old_key], review["excluded"][old_key])

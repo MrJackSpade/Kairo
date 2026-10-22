@@ -7,7 +7,7 @@ import sys
 import subprocess
 import zipfile
 from pathlib import Path
-from catalog_parts import APPS, merge, split, indexed_document
+from catalog_parts import APPS, artwork_split, merge, split, indexed_document
 from catalog_package import compact
 from catalog_package import image_paths
 from catalog_binary import verify_part
@@ -40,7 +40,6 @@ def audit(root, product, artifacts=()):
     if spec.name_index: from artwork_references import expand
     else: from dos_artwork import expand
     policy = json.loads((root/'catalog/core-review-v1.json').read_text('utf8'))
-    approved = policy['approvedArtwork']
     parts = {p.name:p.read_bytes() for p in (root/'catalog/parts').glob('*.json')}
     assert set(parts) == {'data.json','controls.json','art.json','art.nsfw.json'}
     documents = {name:json.loads(data)['documents'] for name,data in parts.items()}
@@ -55,9 +54,10 @@ def audit(root, product, artifacts=()):
     assert not image_paths(data, expand) and not image_paths(controls, expand)
     assert not split(data)[1], 'Controls leaked into display metadata'
     assert split(safe)[:2] == ({}, {}) and split(extra)[:2] == ({}, {})
-    assert image_paths(safe,expand) == approved.keys()
+    approved, expected_withheld = artwork_split(policy, image_paths(safe,expand) | image_paths(extra,expand))
+    assert image_paths(safe,expand) == approved
     withheld = image_paths(extra,expand)
-    assert withheld.isdisjoint(approved)
+    assert withheld == expected_withheld
     assert withheld == set(json.loads((root/'catalog/artwork-exclusions-v1.json').read_text('utf8'))['artwork'])
     expected_core = merge(data, controls, safe)
     assets = root/app/'src/main/assets/catalog'
@@ -72,8 +72,9 @@ def audit(root, product, artifacts=()):
     else:
         assert policy['excluded'].keys() <= legacy['name-index-v1.json']['games'].keys()
         for name in ('source-v1.json','core-v3.json'):
-            assert image_paths(json.loads((root/'catalog'/name).read_text('utf8')),expand) <= approved.keys()
-    for path, sha in approved.items():
+            assert image_paths(json.loads((root/'catalog'/name).read_text('utf8')),expand) <= approved
+    # Approved images are pinned by checksum; an app listing adult images instead pins none.
+    for path, sha in policy.get('approvedArtwork', {}).items():
         assert hashlib.sha256((root/'catalog/artwork'/path).read_bytes()).hexdigest() == sha
     package_name = spec.package
     package = root/f'catalog/optional/{package_name}.zip'
@@ -136,7 +137,7 @@ def audit(root, product, artifacts=()):
                         assert manifest['archive'].encode() not in payload
                         assert b'art.nsfw' not in payload and b'/catalog/optional/' not in payload
         print(f'{artifact}: distribution-specific catalog payload verified')
-    print(f'{product}: all metadata retained; {len(approved)} reviewed artwork paths, {len(withheld)} restricted paths')
+    print(f'{product}: all metadata retained; {len(approved)} main artwork paths, {len(withheld)} adult paths')
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)
