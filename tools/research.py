@@ -176,6 +176,8 @@ def assemble(root, moby_root):
 
     # Media: every scanned archive belongs to a game, its own local game, or nothing.
     media_decisions = read(research / "media-matches-v1.json", {"schemaVersion": 1, "archives": {}})
+    relinked = {f"{config.PLATFORMS[0]}:moby-{moby_id}": decision
+                for moby_id, decision in moby_decisions["games"].items() if decision != "own"}
     own = [(key, entry) for key, entry in games.items() if ":moby-" in key]
     titles = [title_key(entry["title"]) for _, entry in own]
     # A MobyGames-only game whose title no other MobyGames-only game shares.
@@ -203,6 +205,8 @@ def assemble(root, moby_root):
                     decision = "local"
             if decision == "ignore":
                 continue
+            # A MobyGames-only game linked to its LaunchBox game since this was decided.
+            decision = relinked.get(decision, decision)
             key = local_key(slugs[0], f"{set_name}:{group}") if decision == "local" else decision
             if key not in games:
                 if decision != "local":
@@ -254,6 +258,10 @@ def assemble(root, moby_root):
     # Adult games leave the core review; existing exclusions and their reasons are kept.
     review_path = root / "catalog/core-review-v1.json"
     review = read(review_path, {"schemaVersion": 1, "excluded": {}, "approvedArtwork": {}})
+    for old_key in [key for key in review["excluded"] if key in relinked]:
+        # The exclusion follows a MobyGames-only game to the LaunchBox game it was linked to.
+        review["excluded"].setdefault(relinked[old_key], review["excluded"][old_key])
+        del review["excluded"][old_key]
     for key, entry in sorted(games.items()):
         if entry.get("adult") and key not in review["excluded"]:
             reason = ("MobyGames Adult genre" if "mobygames" in entry else "Adult-content review")
