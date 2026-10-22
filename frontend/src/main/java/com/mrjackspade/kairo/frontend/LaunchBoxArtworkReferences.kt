@@ -9,9 +9,16 @@ import java.security.MessageDigest
  * when its image is downloaded or opened, for that game alone.
  */
 object LaunchBoxArtworkReferences {
+    /**
+     * Platform code -> cache folder, as shared/tools/launchbox_artwork.py PLATFORM_FOLDERS has
+     * them. Codes are permanent once published.
+     */
+    private val PLATFORM_FOLDERS = mapOf(88 to "pc88", 98 to "pc98", 68 to "x68000", 86 to "fmtowns", 80 to "msx")
+
     fun expand(art: JSONObject): JSONObject {
         if (!art.has("platform")) return art
         val platform = art.optInt("platform")
+        val folder = requireNotNull(PLATFORM_FOLDERS[platform]) { "Unknown artwork platform $platform" }
         val game = art.optInt("game")
         return JSONObject().apply {
             for ((kind, label) in listOf("boxArt" to "box", "preview" to "screenshot")) {
@@ -20,7 +27,7 @@ object LaunchBoxArtworkReferences {
                 val url = "https://images.launchbox-app.com/" +
                     (if (ref.optInt("revision") == 2) "r2_" else "") + id +
                     (if (ref.optInt("format") == 1) ".png" else ".jpg")
-                put(kind, "art/catalog/pc$platform/$game/$label-${token(url)}.webp")
+                put(kind, "art/catalog/$folder/$game/$label-${token(url)}.webp")
                 put(kind + "Url", url)
             }
         }

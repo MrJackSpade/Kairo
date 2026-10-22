@@ -9,6 +9,7 @@ The tools in `tools/` gather and assemble catalog data for every Kairo app. Each
 | `content_ids.py` | Hashes game media in a folder of files and ZIPs into content IDs (`sha256-<kind>-v1:<hex>`). The app describes its kinds, CD data files and size limits with a `Media`. |
 | `launchbox_artwork.py` | Compacts LaunchBox image URLs into catalog artwork references and expands them back to URLs and cache paths. Each app binds its platform codes and repository with `References`. |
 | `catalog_documents.py` | Assembles a reviewed catalog source into content-ID shards and the downloadable snapshot, using the app's record validator. |
+| `fetch_artwork.py` | Fills an app's `catalog/artwork` with every image its catalog parts reference, for the withImages build: WebP, shrunk to fit 960 by 360 pixels as Kairo98's bundled artwork is. Images already there are kept, so a stopped run continues. |
 | `catalog_parts.py` | Splits generated documents into the data, controls and artwork parts, and builds the importable artwork package. `APPS` describes each app's repository, product and package. |
 
 ## Platforms
