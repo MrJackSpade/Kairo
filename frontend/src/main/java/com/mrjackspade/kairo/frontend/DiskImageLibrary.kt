@@ -19,8 +19,16 @@ import java.util.zip.CRC32
 import java.util.zip.ZipFile
 
 /**
+ * A file of a program's folder ([DiskImageEntry.folder]): its path relative to the program's folder,
+ * and where it comes from, a document URI for a loose program or an archive member for one in an archive.
+ */
+data class FolderFile(val name: String, val source: String)
+
+/**
  * A disk image: loose in the games folder, or a member of a ZIP or 7z archive there. A descriptor
- * (such as a CD's .ccd) has its track data beside it under its own name, listed in [companions].
+ * (such as a CD's .ccd) has its track data beside it under its own name, listed in [companions]. A
+ * program (a kind in [DiskImageLibrary.Format.programs]) runs from its folder, whose other files
+ * are listed in [folder].
  */
 data class DiskImageEntry(
     override val id: String,
@@ -40,7 +48,9 @@ data class DiskImageEntry(
     /** What the library calls the image, from its [DiskImageLibrary.Format]. */
     override val mediaLabel: String = "Disk image",
     /** False for an archive with no disk image in it, such as one of manuals and scans. */
-    override val holdsGame: Boolean = true
+    override val holdsGame: Boolean = true,
+    /** A program's folder: every other file in it and below it, which the program may read. */
+    val folder: List<FolderFile> = emptyList()
 ) : LibraryItem {
     override val displayName: String get() = (zipEntry ?: path).substringAfterLast('/').substringAfterLast('\\')
     override val playable: Boolean get() = contentId != null && error == null
@@ -87,15 +97,25 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
          */
         val data: Map<String, List<String>> = emptyMap(),
         /** Descriptors skipped when another descriptor of the same name describes the same disc: cue to ccd. */
-        val supersededBy: Map<String, Set<String>> = emptyMap()
+        val supersededBy: Map<String, Set<String>> = emptyMap(),
+        /**
+         * Kinds that are programs rather than disk images: one runs from its folder, which the
+         * machine reads as a drive, so its entry lists the folder's files and plays from a copy of
+         * the whole folder.
+         */
+        val programs: Set<String> = emptySet()
     ) {
         init {
             require(kinds.values.all { it in labels && it in maxBytes })
             require(data.keys.all { it in kinds } && supersededBy.keys.all { it in kinds })
+            require(programs.all { it in kinds.values })
         }
         fun extension(name: String): String = name.substringAfterLast('.', "").lowercase(Locale.ROOT)
         fun kind(name: String): String? = kinds[extension(name)]
         fun isImage(name: String) = kind(name) != null
+        fun isProgram(name: String) = kind(name) in programs
+        /** Whether a scan lists every file: a program's folder holds files of any kind. */
+        val listsEveryFile: Boolean get() = programs.isNotEmpty()
         fun isArchive(name: String) = extension(name) in ARCHIVES
         /** Whether [name] is track data, read only through its descriptor. */
         fun isData(name: String) = !isImage(name) && data.values.any { extension(name) in it }
@@ -133,7 +153,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         cache.legacy?.let { legacy ->
             VersionedLibraryCache.Legacy(legacy.file, legacy.version, legacy.collectionName) { labeled(legacy.decode(it)) }
         }, cache.earlierRecords.mapValues { (_, read) -> { input: DataInputStream -> labeled(read(input)) } } +
-            (4 to ::readCacheRecordV4))
+            (4 to ::readCacheRecordV4) + (5 to ::readCacheRecordV5))
     private val scanPipeline by lazy {
         LibraryScanPipeline(storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
             { source, index, total -> "Scanning ${index + 1}/$total: ${source.path}" },
@@ -143,10 +163,10 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             afterCommit = { plan -> pruneArchives(plan.work) })
     }
     private val archiveCache = File(context.cacheDir, "rom-archives").apply { mkdirs() }
-    /** The working copies games play from, named by game key. */
+    /** The working copies games play from, named by game key: an image, or a program's folder. */
     val workingDirectory = File(context.filesDir, "media").apply {
         mkdirs()
-        listFiles()?.filter { it.name.endsWith(".part") }?.forEach { it.delete() }
+        listFiles()?.filter { it.name.endsWith(".part") }?.forEach { it.deleteRecursively() }
     }
 
     override val hashCount: Int get() = scanPipeline.hashCount
@@ -178,6 +198,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     /** The working copy the game plays from, with the saves written into it; the next launch copies the source again. */
     override fun resetWorkingImage(entry: DiskImageEntry) {
+        if (format.isProgram(entry.displayName)) {
+            val folder = programFolder(entry)
+            check(!folder.exists() || folder.deleteRecursively()) { "Could not remove the working copy of ${entry.displayName}" }
+            return
+        }
         val file = workingImage(entry)
         for (copy in setOf(file) + format.dataNames(file.name).map { File(workingDirectory, it) })
             check(!copy.exists() || copy.delete()) { "Could not remove the working copy of ${entry.displayName}" }
@@ -185,9 +210,13 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     override fun hasWorkingImage(entry: DiskImageEntry) = workingImage(entry).isFile
 
-    /** The working copy of [entry], whether or not it exists yet. */
+    /** The working copy of [entry], whether or not it exists yet: a program's is in its folder's copy. */
     fun workingImage(entry: DiskImageEntry) =
-        File(workingDirectory, "${entry.key.storageName}.${format.extension(entry.displayName)}")
+        if (format.isProgram(entry.displayName)) File(programFolder(entry), entry.displayName)
+        else File(workingDirectory, "${entry.key.storageName}.${format.extension(entry.displayName)}")
+
+    /** The working copy of a program's folder, which the machine reads as a drive. */
+    private fun programFolder(entry: DiskImageEntry) = File(workingDirectory, entry.key.storageName)
 
     /** The library entry whose working copy is [path], for a disk the machine holds. */
     override fun entryForWorkingImage(path: String, entries: List<DiskImageEntry>): DiskImageEntry? =
@@ -198,6 +227,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         val source = Source(file.uri, file.name, file.size, file.modified)
         require(!format.isDescriptor(file.name)) {
             "${file.name} needs its track data; open its folder or an archive that holds both"
+        }
+        require(!format.isProgram(file.name)) {
+            "${file.name} runs from its folder; choose the games folder that holds it"
         }
         if (format.isImage(file.name)) {
             val candidate = entry(source, null, file.size, -1, null, key = GameKey(file.uri.toString()))
@@ -214,7 +246,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 val data = image.data ?: error(image.missing())
                 val id = archive.open(data).use { contentId(it, data.size, data.crc, cancelled, image.name) }
                 entry(source, image.name, data.size, data.crc, id, companions = image.companions,
-                    key = GameKey.inArchive(file.uri.toString(), image.name))
+                    key = GameKey.inArchive(file.uri.toString(), image.name), folder = image.folderFiles)
             }
         }
     }
@@ -222,17 +254,32 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     private fun planScan(tree: Uri, cancelled: AtomicBoolean,
                          progress: (String) -> Unit): LibraryScanPipeline.Plan<Source, DiskImageEntry> {
         val result = DocumentTreeWalker(context.contentResolver).scan(tree, cancelled,
-            { name -> format.isImage(name) || format.isArchive(name) || format.isData(name) }, progress)
-        val files = result.files.map { Source(it.uri, it.path, it.size, it.modified) }
+            { name -> format.listsEveryFile || format.isImage(name) || format.isArchive(name) || format.isData(name) },
+            progress)
+        val everyFile = result.files.map { Source(it.uri, it.path, it.size, it.modified) }
+        val files = everyFile.filter { format.isImage(it.path) || format.isArchive(it.path) || format.isData(it.path) }
         // Track data is read through its descriptor; data without one is not an image.
         val byPath = files.associateBy { it.path.lowercase(Locale.ROOT) }
         return LibraryScanPipeline.Plan(files.filter { !format.isData(it.path) && !format.superseded(it.path, byPath.keys) }
             .map { source ->
                 if (format.isDescriptor(source.path)) source.copy(data = format.dataOf(source.path, byPath))
+                else if (format.isProgram(source.path)) source.copy(folder = folderOf(source, everyFile))
                 else source
             }, initialEntries = result.folders.map { folder ->
             entry(Source(folder.uri, folder.path, -1, 0), null, -1, -1, null, "Unreadable folder: ${folder.message}")
         })
+    }
+
+    /**
+     * A loose program's folder: the other files in its folder and below it, by their paths relative
+     * to it. A program at the top of the games folder takes only the files beside it, not the
+     * other games' folders.
+     */
+    private fun folderOf(program: Source, everyFile: List<Source>): List<Pair<String, Source>> {
+        val folder = program.path.substringBeforeLast('/', "")
+        return everyFile.filter { file ->
+            file !== program && if (folder.isEmpty()) '/' !in file.path else file.path.startsWith("$folder/")
+        }.map { file -> file.path.removePrefix("$folder/") to file }
     }
 
     /** The content each key was first scanned with stays its catalog record through later edits. */
@@ -252,7 +299,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     scan.checkCancelled()
                     val data = image.data
                     val candidate = entry(source, image.name, data?.size ?: -1, data?.crc ?: -1, null,
-                        companions = image.companions)
+                        companions = image.companions, folder = image.folderFiles)
                     val old = scan.prior[candidate.id]
                     try {
                         requireNotNull(data) { image.missing() }
@@ -314,6 +361,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
      */
     @Synchronized override fun prepare(entry: DiskImageEntry, cancelled: AtomicBoolean, progress: (String) -> Unit): File {
         require(entry.playable) { "This entry is not ready to launch" }
+        if (format.isProgram(entry.displayName)) return prepareProgram(entry, cancelled, progress)
         // The working copy holds the game's in-disk saves, so it stays when the source is edited.
         val file = workingImage(entry)
         val descriptor = format.isDescriptor(entry.displayName)
@@ -361,6 +409,61 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
     }
 
+    /**
+     * The working copy of a program's folder, made the first time: the program, verified against
+     * its content ID, and every file of its folder at its place in it. Returns the program's copy.
+     */
+    private fun prepareProgram(entry: DiskImageEntry, cancelled: AtomicBoolean, progress: (String) -> Unit): File {
+        val folder = programFolder(entry)
+        val program = File(folder, entry.displayName)
+        // The working copy holds what the game saves in its folder, so it stays when the source is edited.
+        if (program.isFile && program.length() > 0) return program
+        require(workingDirectory.usableSpace > maxOf(entry.sourceSize, entry.imageSize) + 16L * 1024 * 1024) {
+            "Not enough free space for this game's folder"
+        }
+        val partial = File(workingDirectory, "${folder.name}.part")
+        partial.deleteRecursively()
+        fun target(name: String): File {
+            val file = File(partial, name)
+            require(file.canonicalPath.startsWith(partial.canonicalPath + File.separator)) { "Unsafe file name $name" }
+            file.parentFile!!.mkdirs()
+            return file
+        }
+        try {
+            progress("Preparing ${entry.displayName}")
+            if (entry.zipEntry == null) {
+                context.contentResolver.openInputStream(Uri.parse(entry.uri))?.use { input ->
+                    target(entry.displayName).outputStream().use { output -> copyVerified(entry, input, -1, cancelled, output) }
+                } ?: error("Unable to open ${entry.displayName}")
+                for (file in entry.folder) {
+                    checkCancelled(cancelled)
+                    context.contentResolver.openInputStream(Uri.parse(file.source))?.use { input ->
+                        target(file.name).outputStream().use { input.copyTo(it) }
+                    } ?: error("Unable to open ${file.name}")
+                }
+            } else {
+                openArchive(archive(entry, cancelled)).use { archive ->
+                    val image = archive.images { checkCancelled(cancelled) }.firstOrNull { it.name == entry.zipEntry }
+                        ?: error("${entry.zipEntry} is missing from the archive")
+                    val member = image.data ?: error(image.missing())
+                    archive.open(member).use { input ->
+                        target(entry.displayName).outputStream().use { output -> copyVerified(entry, input, member.crc, cancelled, output) }
+                    }
+                    for ((file, folderFile) in image.folder.zip(image.folderFiles)) {
+                        checkCancelled(cancelled)
+                        archive.open(file).use { input -> target(folderFile.name).outputStream().use { input.copyTo(it) } }
+                    }
+                }
+            }
+            check(!folder.exists() || folder.deleteRecursively()) { "Could not replace the working copy of ${entry.displayName}" }
+            require(partial.renameTo(folder)) { "Unable to save the working copy of ${entry.displayName}" }
+            return program
+        } catch (error: Exception) {
+            partial.deleteRecursively()
+            throw error
+        }
+    }
+
     private fun copyVerified(entry: DiskImageEntry, input: InputStream, crc: Long, cancelled: AtomicBoolean,
                              output: OutputStream) {
         require(contentId(input, entry.imageSize, crc, cancelled, entry.displayName, output) == entry.contentId) {
@@ -375,17 +478,27 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             false, cancelled)
     }
 
-    /** A document to inspect; a descriptor also carries its track data. */
+    /** A document to inspect; a descriptor also carries its track data, and a program its folder's files. */
     private data class Source(val uri: Uri, val path: String, val size: Long, val modified: Long,
-                              val data: Source? = null)
+                              val data: Source? = null, val folder: List<Pair<String, Source>> = emptyList()) {
+        /** The newest of its documents' modification times, so an edit to any of them rehashes. */
+        val newest: Long get() = maxOf(modified, data?.modified ?: 0, folder.maxOfOrNull { it.second.modified } ?: 0)
+    }
 
     /** An archive member: its normalized path, size, and CRC-32 when the archive records one. */
     private class Member(val name: String, val size: Long, val crc: Long)
 
-    /** An image in an archive, with the member its bytes come from: itself, or a descriptor's track data. */
-    private inner class Image(val entry: Member, val data: Member?) {
+    /**
+     * An image in an archive, with the member its bytes come from: itself, or a descriptor's track
+     * data. A program also has its folder: the other members in its folder and below it.
+     */
+    private inner class Image(val entry: Member, val data: Member?, val folder: List<Member> = emptyList()) {
         val name: String get() = entry.name
         val companions: List<String> get() = if (data == null || data === entry) emptyList() else listOf(data.name)
+        val folderFiles: List<FolderFile> get() {
+            val directory = name.substringBeforeLast('/', "")
+            return folder.map { FolderFile(if (directory.isEmpty()) it.name else it.name.removePrefix("$directory/"), it.name) }
+        }
         fun missing() = "The track data of $name is missing from the archive"
     }
 
@@ -406,7 +519,12 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             return images.map { member ->
                 val data = if (format.isDescriptor(member.name)) format.dataOf(member.name, byName) else member
                 if (data != null) require(data.size in 1..format.limit(member.name)) { "Disk image exceeds size limit" }
-                Image(member, data)
+                if (format.isProgram(member.name)) {
+                    val directory = member.name.substringBeforeLast('/', "")
+                    Image(member, data, members.filter { other ->
+                        other !== member && (directory.isEmpty() || other.name.startsWith("$directory/"))
+                    })
+                } else Image(member, data)
             }
         }
     }
@@ -427,8 +545,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 require(++inspected <= MAX_ARCHIVE_ENTRIES) { "Archive has too many entries" }
                 val name = safeEntryName(item.name)
                 require(names.add(name.lowercase(Locale.ROOT))) { "Duplicate archive entry" }
-                if (item.isDirectory || !(format.isImage(name) || format.isData(name))) continue
-                require(item.compressedSize > 0 && item.size / item.compressedSize <= MAX_EXPANSION_RATIO) {
+                if (item.isDirectory || !(format.listsEveryFile || format.isImage(name) || format.isData(name))) continue
+                // An empty file (some program folders have them) expands to nothing.
+                require(item.size == 0L || (item.compressedSize > 0 && item.size / item.compressedSize <= MAX_EXPANSION_RATIO)) {
                     "Disk image exceeds expansion limit"
                 }
                 byName[item.name] = item
@@ -456,7 +575,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 require(++inspected <= MAX_ARCHIVE_ENTRIES) { "Archive has too many entries" }
                 val name = safeEntryName(item.name)
                 require(names.add(name.lowercase(Locale.ROOT))) { "Duplicate archive entry" }
-                if (item.isDirectory || !item.hasStream() || !(format.isImage(name) || format.isData(name))) continue
+                if (item.isDirectory || !item.hasStream() ||
+                    !(format.listsEveryFile || format.isImage(name) || format.isData(name))) continue
                 byName[item.name] = item
                 members.add(Member(item.name, item.size, if (item.hasCrc) item.crcValue else -1))
             }
@@ -531,16 +651,22 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         require(count > 0) { "Empty disk image" }
         if (expectedSize >= 0) require(count == expectedSize) { "Disk image size changed during read" }
         if (expectedCrc >= 0) require(crc.value == expectedCrc) { "Archive entry checksum mismatch" }
-        return "sha256-${format.kind(name)}-v1:${digest.digest().joinToString("") { "%02x".format(it) }}"
+        return "sha256-${format.kind(name)}-v1:${digest.digest().toHex()}"
     }
 
-    /** A loose descriptor's modification time is its newest file's, so changed track data rehashes. */
+    /**
+     * A loose descriptor's or program's modification time is its newest file's, so changed track
+     * data or program files rehash. A loose program's folder comes from [source]; one in an archive
+     * passes [folder].
+     */
     private fun entry(source: Source, member: String?, imageSize: Long, imageCrc: Long, contentId: String?,
                       error: String? = null, companions: List<String> = emptyList(),
-                      key: GameKey = keyOf(source.path, member), catalogId: String? = contentId): DiskImageEntry =
+                      key: GameKey = keyOf(source.path, member), catalogId: String? = contentId,
+                      folder: List<FolderFile> = source.folder.map { (name, file) -> FolderFile(name, file.uri.toString()) }
+    ): DiskImageEntry =
         DiskImageEntry(key.path, source.uri.toString(), source.path, member, source.size,
-            maxOf(source.modified, source.data?.modified ?: 0), imageSize, imageCrc, contentId, error, companions,
-            catalogId, label(member ?: source.path))
+            source.newest, imageSize, imageCrc, contentId, error, companions,
+            catalogId, label(member ?: source.path), folder = folder)
 
     /** An image's label; a folder or archive that failed whole is labeled as an image of none. */
     private fun label(name: String) = format.kind(name)?.let(format.labels::getValue) ?: "Disk image"
@@ -553,7 +679,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     private fun trusted(source: Source) = source.size >= 0 && source.modified > 0
     private fun sameSource(old: DiskImageEntry, source: Source) =
-        old.sourceSize == source.size && old.sourceModified == maxOf(source.modified, source.data?.modified ?: 0)
+        old.sourceSize == source.size && old.sourceModified == source.newest
     private fun sameFingerprint(old: DiskImageEntry, item: DiskImageEntry) =
         sameSource(old, Source(Uri.parse(item.uri), item.path, item.sourceSize, item.sourceModified)) &&
             old.imageSize == item.imageSize && old.imageCrc == item.imageCrc
@@ -575,9 +701,15 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         writeInt(entry.companions.size); entry.companions.forEach { writeText(it) }
         writeOptionalText(entry.catalogId)
         writeBoolean(entry.holdsGame)
+        writeInt(entry.folder.size); entry.folder.forEach { writeText(it.name); writeText(it.source) }
     }
 
-    private fun readCacheRecord(input: DataInputStream) = readCacheRecordV4(input).copy(holdsGame = input.readBoolean())
+    private fun readCacheRecord(input: DataInputStream) = with(input) {
+        readCacheRecordV5(input).copy(folder = List(readInt()) { FolderFile(readText(), readText()) })
+    }
+
+    /** Layout 5, from before programs' folders were recorded. */
+    private fun readCacheRecordV5(input: DataInputStream) = readCacheRecordV4(input).copy(holdsGame = input.readBoolean())
 
     /** Layout 4, from before archives without a game were remembered. */
     private fun readCacheRecordV4(input: DataInputStream) = with(input) {
@@ -587,8 +719,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     }
 
     companion object {
-        /** The cache record layout: 5 records whether an archive holds a game. */
-        private const val CACHE_LAYOUT = 5
+        /** The cache record layout: 5 records whether an archive holds a game, 6 a program's folder. */
+        private const val CACHE_LAYOUT = 6
         private const val MAX_DOCUMENTS = 50_000
         private const val MAX_ARCHIVE_ENTRIES = 50_000
         private const val MAX_ARCHIVE_IMAGES = 1_000
@@ -596,7 +728,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         private const val MAX_EXPANSION_RATIO = 1000L
         private const val MAX_STORE_BYTES = 16 * 1024 * 1024
         private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
-            .digest(bytes).joinToString("") { "%02x".format(it) }
+            .digest(bytes).toHex()
         private fun checkCancelled(cancelled: AtomicBoolean) {
             if (cancelled.get()) throw CancellationException("Cancelled")
         }
