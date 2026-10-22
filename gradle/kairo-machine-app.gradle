@@ -1,0 +1,97 @@
+// The application module of a frame-driven Kairo app: identity, manifest and launcher resources
+// (shared/app), beta signing, the artwork flavors, the catalog assets built from catalog/parts, and
+// its native library. A product sets `ext.kairoProduct` (its lower-case name, such as "kairo88")
+// and `ext.kairoLabel` (its name, such as "Kairo88") before applying this script, after the
+// Android and Kotlin plugins. Its own files are com.mrjackspade.<product>.MainActivity, the icon
+// art res/drawable-nodpi/product_icon_art.png, src/main/assets, and src/main/cpp/CMakeLists.txt.
+//
+// Gradle properties <product>ApplicationId, <product>VersionCode and <product>VersionName override
+// the defaults. Environment variables <PRODUCT>_BETA_KEYSTORE and <PRODUCT>_BETA_PASSWORD sign
+// debug and release builds with the product's beta key (alias <product>-beta).
+
+def product = project.ext.kairoProduct as String
+def productUpper = product.toUpperCase()
+def sharedRoot = buildscript.sourceFile.parentFile.parentFile
+
+apply from: new File(sharedRoot, 'gradle/android-module.gradle')
+apply from: new File(sharedRoot, 'gradle/catalog-binary.gradle')
+def compileCatalogParts = project.ext.compileCatalogParts
+
+def property = { String name -> providers.gradleProperty("$product$name").orNull }
+def keystore = providers.environmentVariable("${productUpper}_BETA_KEYSTORE").orNull
+def password = providers.environmentVariable("${productUpper}_BETA_PASSWORD").orNull
+def signed = keystore != null && !keystore.isBlank() && password != null && !password.isBlank()
+
+android {
+    namespace "com.mrjackspade.$product"
+    androidResources { noCompress += ['json', 'idx', 'bin'] }
+
+    defaultConfig {
+        applicationId property('ApplicationId') ?: "com.loxifi.$product"
+        manifestPlaceholders = [kairoLabel: project.ext.kairoLabel, kairoActivity: "com.mrjackspade.${product}.MainActivity"]
+        versionCode((property('VersionCode') ?: '1').toInteger())
+        versionName property('VersionName') ?: '0.1.0'
+        ndk { abiFilters += 'arm64-v8a' }
+        externalNativeBuild { cmake { arguments += '-DANDROID_STL=c++_shared' } }
+    }
+
+    signingConfigs {
+        create('beta') {
+            if (signed) {
+                storeFile file(keystore)
+                storePassword password
+                keyAlias "$product-beta"
+                keyPassword password
+            }
+        }
+    }
+
+    buildTypes {
+        debug { if (signed) signingConfig signingConfigs.beta }
+        release {
+            minifyEnabled false
+            if (signed) signingConfig signingConfigs.beta
+        }
+    }
+
+    flavorDimensions += 'artwork'
+    productFlavors {
+        create('withImages') {
+            dimension 'artwork'
+            resValue 'bool', 'catalog_art_download_enabled', 'true'
+        }
+        create('withoutImages') {
+            dimension 'artwork'
+            resValue 'bool', 'catalog_art_download_enabled', 'true'
+        }
+    }
+
+    externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt') } }
+
+    sourceSets {
+        main.manifest.srcFile new File(sharedRoot, 'app/AndroidManifest.xml')
+        main.res.srcDirs += new File(sharedRoot, 'app/res')
+        main.assets.srcDirs = [layout.buildDirectory.dir('generated/catalog-assets')]
+        withImages.assets.srcDirs = [rootProject.file('catalog/artwork')]
+    }
+}
+
+def catalogAssets = tasks.register('catalogAssets', Sync) {
+    from('src/main/assets') { exclude 'catalog/**' }
+    from(rootProject.file('catalog/parts')) {
+        into 'catalog'
+        include '*.idx'
+        if (providers.gradleProperty('kairoDistribution').orNull == 'play') exclude 'art.nsfw.*'
+    }
+    inputs.dir(rootProject.file('catalog/parts'))
+    into layout.buildDirectory.dir('generated/catalog-assets')
+    doLast {
+        compileCatalogParts.call(rootProject.file('catalog/parts'),
+            layout.buildDirectory.dir('generated/catalog-assets/catalog').get().asFile)
+    }
+}
+tasks.named('preBuild') { dependsOn catalogAssets }
+
+dependencies {
+    implementation project(':frontend')
+}

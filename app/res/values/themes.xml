@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Every Kairo control draws its own focus state, so Android's default
+         translucent focus highlight would only wash whole pages grey. -->
+    <style name="Theme.KairoApp" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:defaultFocusHighlightEnabled">false</item>
+        <!-- The launch splash, setup, and library share one background, with no grey or
+             black frame between them. The game area paints its own black. -->
+        <item name="android:windowBackground">@color/kairo_background</item>
+        <item name="android:colorBackground">@color/kairo_background</item>
+    </style>
+</resources>

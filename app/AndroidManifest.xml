@@ -1,0 +1,33 @@
+<!-- The application manifest of every frame-driven Kairo app (gradle/kairo-machine-app.gradle),
+     with the product's label and MainActivity filled in from its build. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Returns input focus to the game screen when the second screen takes it. -->
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
+    <application
+        android:allowBackup="false"
+        android:enableOnBackInvokedCallback="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="${kairoLabel}"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/Theme.KairoApp">
+        <!-- Recreating MainActivity stops the running machine. The app has no
+             configuration-specific resources, so it handles every declarable change in place
+             and rebuilds density- and font-sized views itself once no machine is running. -->
+        <activity
+            android:name="${kairoActivity}"
+            android:launchMode="singleTop"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|screenLayout|fontScale|uiMode|orientation|density|screenSize|smallestScreenSize|layoutDirection|colorMode|fontWeightAdjustment|grammaticalGender"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- External frontends launch this exported activity explicitly; do not claim arbitrary files. -->
+        </activity>
+        <activity-alias
+            android:name="${applicationId}.Launch"
+            android:targetActivity="${kairoActivity}"
+            android:exported="true" />
+    </application>
+</manifest>
