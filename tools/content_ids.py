@@ -8,6 +8,8 @@ them through a Media description, so the same scan serves every platform.
 
 import hashlib
 import re
+import shutil
+import subprocess
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,11 +23,13 @@ ANNOTATION = re.compile(r"\s*\[[^]]*\]")
 class Media:
     """An app's media rules: the kind of a file name (None when it is not game media), the
     member whose bytes a kind's ID hashes (a CD descriptor names its track data), and each
-    kind's size limit. version changes when the rules do, so cached scans are redone."""
+    kind's size limit. version changes when the rules do, so cached scans are redone.
+    seven_zip also opens .7z archives, through 7-Zip's command line."""
     kind: Callable[[str], Optional[str]]
     data: Callable[[str, str], str]
     limit: Callable[[str], int]
     version: int
+    seven_zip: bool = False
 
 
 def same_file(name, kind):
@@ -51,6 +55,40 @@ def digest(stream, kind):
     return f"sha256-{kind}-v1:" + sha.hexdigest()
 
 
+def seven_zip_program():
+    found = shutil.which("7z") or shutil.which("7z.exe")
+    if found:
+        return found
+    default = Path("C:/Program Files/7-Zip/7z.exe")
+    if default.is_file():
+        return str(default)
+    raise RuntimeError("7-Zip's 7z command is required to read .7z archives")
+
+
+def seven_zip_entries(path):
+    """[(name, size)] of a .7z archive's files, from 7-Zip's technical listing."""
+    listing = subprocess.run([seven_zip_program(), "l", "-slt", "-ba", "-sccUTF-8", str(path)],
+                             check=True, capture_output=True).stdout.decode("utf-8")
+    entries = []
+    for block in listing.replace("\r\n", "\n").split("\n\n"):
+        fields = dict(line.split(" = ", 1) for line in block.splitlines() if " = " in line)
+        if "Path" not in fields or fields.get("Folder") == "+" or "D" in fields.get("Attributes", ""):
+            continue
+        entries.append((fields["Path"].replace("\\", "/"), int(fields["Size"])))
+    return entries
+
+
+def seven_zip_digest(path, name, kind):
+    """The content ID of one .7z member, streamed out of 7-Zip without writing it to disk."""
+    process = subprocess.Popen([seven_zip_program(), "e", "-so", "-spd", "-sccUTF-8", str(path), "--", name],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    content_id = digest(process.stdout, kind)
+    error = process.stderr.read()
+    if process.wait():
+        raise RuntimeError(f"7-Zip could not read {name}: {error.decode('utf-8', 'replace').strip()}")
+    return content_id
+
+
 def scan(root, media, previous=None):
     """Scan direct media files and ordinary ZIPs; nested ZIPs are queued for later. A previous
     scan's IDs are reused for files whose size and modification time are unchanged."""
@@ -58,8 +96,9 @@ def scan(root, media, previous=None):
     old = {item["path"]: item for item in (previous or {}).get("archives", [])}
     formats_current = (previous or {}).get("mediaFormatsVersion", 1) >= media.version
     results = []
+    archives = (".zip", ".7z") if media.seven_zip else (".zip",)
     for path in sorted(root.rglob("*")):
-        if not path.is_file() or (path.suffix.lower() != ".zip" and not media.kind(path.name)):
+        if not path.is_file() or (path.suffix.lower() not in archives and not media.kind(path.name)):
             continue
         relative = path.relative_to(root).as_posix()
         stat = path.stat()
@@ -73,7 +112,27 @@ def scan(root, media, previous=None):
         item = {"path": relative, "titleHint": title_hint(path.name),
                 "fingerprint": fingerprint, "disks": [], "status": "pending"}
         try:
-            if path.suffix.lower() != ".zip":
+            if path.suffix.lower() == ".7z" and media.seven_zip:
+                entries = seven_zip_entries(path)
+                sizes = {name.lower(): (name, size) for name, size in entries}
+                for name, _ in entries:
+                    parts = name.split("/")
+                    if name.startswith("/") or any(part in ("", ".", "..") for part in parts) or re.match(r"^[a-zA-Z]:", name):
+                        raise ValueError("unsafe 7z entry")
+                    if name.lower().endswith((".zip", ".7z")):
+                        item["nestedZip"] = True
+                    kind = media.kind(name)
+                    if not kind:
+                        continue
+                    data_name = media.data(name, kind)
+                    data = (name, dict(entries)[name]) if data_name == name else sizes.get(data_name.lower())
+                    if data is None:
+                        raise ValueError(f"{data_name} is missing")
+                    if data[1] <= 0 or data[1] > media.limit(kind):
+                        raise ValueError("disk image exceeds size limit")
+                    content_id = cached_disks.get(name) or seven_zip_digest(path, data[0], kind)
+                    item["disks"].append({"entry": name, "contentId": content_id})
+            elif path.suffix.lower() != ".zip":
                 kind = media.kind(path.name)
                 data = path.with_name(media.data(path.name, kind))
                 if not data.is_file():
