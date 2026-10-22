@@ -15,7 +15,7 @@ UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 URL = re.compile(re.escape(BASE) + r"(r2_)?(" + UUID.pattern + r")\.(jpg|png)")
 KINDS = {"boxArt": "box", "preview": "screenshot"}
 # Platform code in compact artwork -> cache folder. Codes are permanent once published.
-PLATFORM_FOLDERS = {88: "pc88", 98: "pc98", 68: "x68000", 86: "fmtowns", 80: "msx"}
+PLATFORM_FOLDERS = {88: "pc88", 98: "pc98", 68: "x68000", 86: "fmtowns", 80: "msx", 83: "atarist"}
 
 
 class References:

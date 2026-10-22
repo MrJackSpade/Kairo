@@ -34,6 +34,7 @@ PLATFORMS = {
     "msx": "Microsoft MSX",
     "msx2": "Microsoft MSX2",
     "msx2plus": "Microsoft MSX2+",
+    "atarist": "Atari ST",
 }
 # Kairo platform slug -> public website listing slug, for the platforms whose listings are scraped.
 SITE_SLUGS = {

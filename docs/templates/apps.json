@@ -106,6 +106,19 @@
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": false,
    "problemDetail": "file format"
+  },
+  {
+   "repo": "KairoST",
+   "system": "Atari ST",
+   "module": "kairost",
+   "package": "com.loxifi.kairost",
+   "icon": "kairost/src/main/res/drawable-nodpi/product_icon_art.png",
+   "googlePlay": false,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
+   "privacyPage": false,
+   "problemDetail": "file format"
   }
  ]
 }

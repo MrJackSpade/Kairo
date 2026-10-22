@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Dump MobyGames records for the games of chosen platforms, for reference.
 
-The listings are MobyPlus exports saved as <platform>-listing.json in the output directory, one
-JSON list per platform; PLATFORMS gives each Kairo platform slug's MobyGames platform ID. Passes
-run over all chosen platforms in order: `details` saves each game's record and its release
+The listings are saved as <platform>-listing.json in the output directory, one JSON list per
+platform: MobyPlus exports, or the `listing` pass's equivalent built from the API (each game's
+id, url, title, genres, release_year on the platform and moby_score). PLATFORMS gives each Kairo
+platform slug's MobyGames platform ID. Passes run over all chosen platforms in order: `listing`
+pages through the API's game list for the platform and writes the listing; `details` saves each game's record and its release
 record on each platform; `art` saves each game's cover and screenshot lists on each platform,
 then downloads every image they name, eight at a time from the CDN. Each response is its own
 file under the output directory, so a stopped run resumes where it left off. API calls are made
@@ -32,7 +34,7 @@ from pathlib import Path
 API = "https://api.mobygames.com/v1"
 AGENT = {"User-Agent": "Kairo-catalog/1.0"}
 # Kairo platform slug -> MobyGames platform ID.
-PLATFORMS = {"pc98": 95, "pc88": 94, "pcfx": 59, "x68000": 106, "fmtowns": 102, "msx": 57}
+PLATFORMS = {"pc98": 95, "pc88": 94, "pcfx": 59, "x68000": 106, "fmtowns": 102, "msx": 57, "atarist": 24}
 # Chosen by the user: a request with no response for this long counts as a dropped connection.
 REQUEST_LIMIT_SECONDS = 120
 OFFLINE_RECHECK_SECONDS = 30
@@ -64,12 +66,13 @@ class Api:
         self.key = key
         self.last = 0.0
 
-    def get(self, path):
-        """The JSON at an API path, or {"error": 404} when MobyGames has no such record."""
+    def get(self, path, query=None):
+        """The JSON at an API path with optional query parameters, or {"error": 404} when
+        MobyGames has no such record."""
         wait = self.last + 1.0 - time.monotonic()
         if wait > 0:
             time.sleep(wait)
-        url = f"{API}{path}?{urllib.parse.urlencode({'api_key': self.key})}"
+        url = f"{API}{path}?{urllib.parse.urlencode({**(query or {}), 'api_key': self.key})}"
         try:
             payload, headers = fetch(url)
             self.last = time.monotonic()
@@ -86,7 +89,7 @@ class Api:
                 reset = int(error.headers["ratelimit-reset"])
                 print(f"Hourly quota used; waiting {reset} s for it to reset", flush=True)
                 time.sleep(reset + 1)
-                return self.get(path)
+                return self.get(path, query)
             raise
         if remaining is not None and int(remaining) == 0:
             print(f"Hourly quota used; waiting {reset} s for it to reset", flush=True)
@@ -105,10 +108,39 @@ def save(path, value):
     temporary.replace(path)
 
 
-def stored(api, path, endpoint):
+def stored(api, path, endpoint, query=None):
     if not path.exists():
-        save(path, api.get(endpoint))
+        save(path, api.get(endpoint, query))
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+LISTING_PAGE = 100
+
+
+def listing(api, root, names):
+    """Writes each platform's <platform>-listing.json from the API's game list, a page at a time
+    (each page saved under listing-pages/, so a stopped run resumes)."""
+    for name in names:
+        platform = PLATFORMS[name]
+        games = []
+        offset = 0
+        while True:
+            page = stored(api, root / "listing-pages" / f"{name}-{offset:05d}.json", "/games",
+                          {"platform": platform, "format": "normal", "limit": LISTING_PAGE, "offset": offset})
+            if "games" not in page:
+                raise SystemExit(f"{name}: the game list at offset {offset} has no games: {page}")
+            for game in page["games"]:
+                dates = [item.get("first_release_date") for item in game.get("platforms", [])
+                         if item.get("platform_id") == platform]
+                year = dates[0][:4] if dates and dates[0] else None
+                games.append({"id": game["game_id"], "url": game["moby_url"], "title": game["title"],
+                              "genres": [genre["genre_name"] for genre in game.get("genres", [])],
+                              "release_year": int(year) if year else None, "moby_score": game.get("moby_score")})
+            print(f"listing {name}: {len(games)} games", flush=True)
+            if len(page["games"]) < LISTING_PAGE:
+                break
+            offset += LISTING_PAGE
+        save(root / f"{name}-listing.json", games)
 
 
 def listings(directory, names, chosen=None):
@@ -178,16 +210,20 @@ def download(root, url):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("passes", nargs="+", choices=("details", "art"))
+    parser.add_argument("passes", nargs="+", choices=("listing", "details", "art"))
     parser.add_argument("--platforms", nargs="+", choices=PLATFORMS, required=True)
     parser.add_argument("--root", type=Path, default=Path(".downloads/mobygames"))
     parser.add_argument("--games-from", type=Path)
     args = parser.parse_args()
     api = Api(os.environ["MOBYGAMES_API_KEY"])
     chosen = json.loads(args.games_from.read_text(encoding="utf-8")) if args.games_from else None
-    platforms = listings(args.root, args.platforms, chosen)
-    for name in args.passes:
-        (details if name == "details" else art)(api, args.root, platforms)
+    if "listing" in args.passes:
+        listing(api, args.root, args.platforms)
+    passes = [name for name in args.passes if name != "listing"]
+    if passes:
+        platforms = listings(args.root, args.platforms, chosen)
+        for name in passes:
+            (details if name == "details" else art)(api, args.root, platforms)
 
 
 if __name__ == "__main__":

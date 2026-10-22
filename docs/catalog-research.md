@@ -5,7 +5,7 @@ The tools in `tools/` gather and assemble catalog data for every Kairo app. Each
 | Module | Purpose |
 | --- | --- |
 | `launchbox.py` | LaunchBox Games Database research. `snapshot` streams chosen platforms out of LaunchBox's `Metadata.zip`; `listing` caches a platform's public listing pages; `enrich` fills missing box art and screenshot URLs of match entries from their game pages. Also title matching (`key`, `candidates`), public page URLs, and the box art and screenshot choice for new match entries. |
-| `mobygames.py` | Dumps MobyGames records, cover and screenshot lists and images for chosen platforms. Game lists are MobyPlus exports saved as `<platform>-listing.json`; the API key comes from `MOBYGAMES_API_KEY`. |
+| `mobygames.py` | Dumps MobyGames records, cover and screenshot lists and images for chosen platforms. Game lists are saved as `<platform>-listing.json`: MobyPlus exports, or the `listing` pass's equivalent built from the API's game list. The API key comes from `MOBYGAMES_API_KEY`. |
 | `content_ids.py` | Hashes game media in a folder of files and ZIPs into content IDs (`sha256-<kind>-v1:<hex>`). The app describes its kinds, CD data files and size limits with a `Media`. |
 | `launchbox_artwork.py` | Compacts LaunchBox image URLs into catalog artwork references and expands them back to URLs and cache paths. Each app binds its platform codes and repository with `References`. |
 | `catalog_documents.py` | Assembles a reviewed catalog source into content-ID shards and the downloadable snapshot, using the app's record validator. |

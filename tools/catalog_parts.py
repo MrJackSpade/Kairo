@@ -25,6 +25,7 @@ APPS = {
     'kairo68': App('Kairo68', 'x68000', 'kairo68-art.nsfw', 'kairo68-art', 'Kairo68 artwork', True),
     'kairotowns': App('KairoTowns', 'fmtowns', 'kairotowns-art.nsfw', 'kairotowns-art', 'KairoTowns artwork', True),
     'kairomsx': App('KairoMSX', 'msx', 'kairomsx-art.nsfw', 'kairomsx-art', 'KairoMSX artwork', True),
+    'kairost': App('KairoST', 'atarist', 'kairost-art.nsfw', 'kairost-art', 'KairoST artwork', True),
 }
 
 CONTROL_FIELDS = {'controller', 'input', 'machine', 'launch', 'startupChoices', 'diskSwaps', 'media'}
