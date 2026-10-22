@@ -69,7 +69,7 @@ class App:
                 links.append({"label": "MobyGames", "url": MOBYGAMES_PAGE.format(entry["mobygames"])})
             self.games.append({"key": key, "title": entry["title"], "year": entry.get("year"),
                                "files": [group.rsplit(":", 1)[-1] for group in entry.get("sourceGroups", [])][:3],
-                               "links": links, "images": images})
+                               "links": links, "images": images, "adult": bool(entry.get("adult"))})
 
     def summary(self):
         verdicts = self.review["images"]

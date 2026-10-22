@@ -41,6 +41,7 @@
   <span id="apps"></span>
   <select id="filter" title="Which games to list">
     <option value="unreviewed">Unreviewed</option>
+    <option value="adult">Adult games</option>
     <option value="rejected">Rejected</option>
     <option value="wrong">Wrong game</option>
     <option value="all">All</option>
@@ -84,6 +85,7 @@ function filterRows() {
     filter === "all" ? true :
     filter === "unreviewed" ? unreviewed(game) :
     filter === "rejected" ? game.images.some(image => verdict(image) === "rejected") :
+    filter === "adult" ? game.adult :
     data.wrongGame[game.key]);
   page = 0;
 }
