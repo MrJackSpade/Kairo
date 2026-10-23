@@ -26,8 +26,8 @@ if (-not $version) { throw 'release-version is empty' }
 $tag = "v$version"
 $registry = Get-Content (Join-Path $shared 'docs\templates\apps.json') -Raw | ConvertFrom-Json
 
-function Git([string]$repo) {
-    $output = & git -C $repo @args 2>&1
+function Invoke-Git([string]$repo) {
+    $output = & git.exe -C $repo @args 2>&1
     if ($LASTEXITCODE -ne 0) { throw "git -C $repo $($args -join ' ') failed: $output" }
     return $output
 }
@@ -37,9 +37,9 @@ $problems = @()
 foreach ($app in $registry.apps) {
     $repo = Join-Path $Workspace $app.repo
     if (-not (Test-Path $repo)) { $problems += "$($app.repo): not checked out in $Workspace"; continue }
-    Git $repo fetch -q origin main --tags | Out-Null
-    $pin = (Git $repo rev-parse 'origin/main:shared').Trim()
-    Git (Join-Path $repo 'shared') fetch -q origin | Out-Null
+    Invoke-Git $repo fetch -q origin main --tags | Out-Null
+    $pin = (Invoke-Git $repo rev-parse 'origin/main:shared').Trim()
+    Invoke-Git (Join-Path $repo 'shared') fetch -q origin | Out-Null
     $pinned = (& git -C (Join-Path $repo 'shared') show "${pin}:release-version" 2>$null)
     if ($LASTEXITCODE -ne 0) { $problems += "$($app.repo): its pinned shared $pin has no release-version" }
     elseif ($pinned.Trim() -ne $version) { $problems += "$($app.repo): its pinned shared $pin releases $($pinned.Trim()), not $version" }
@@ -54,7 +54,7 @@ if ($problems) { throw "Not tagging $tag; fix these first:`n  $($problems -join 
 
 foreach ($repo in $apps) {
     $name = Split-Path -Leaf $repo
-    Git $repo tag -a $tag origin/main -m "$name $version" | Out-Null
-    Git $repo push -q origin $tag | Out-Null
-    Write-Output "$name`: $tag on $((Git $repo rev-parse --short origin/main).Trim())"
+    Invoke-Git $repo tag -a $tag origin/main -m "$name $version" | Out-Null
+    Invoke-Git $repo push -q origin $tag | Out-Null
+    Write-Output "$name`: $tag on $((Invoke-Git $repo rev-parse --short origin/main).Trim())"
 }
