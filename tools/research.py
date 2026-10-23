@@ -25,7 +25,8 @@ the game takes its next candidate image instead.
 Every adult game is added to catalog/core-review-v1.json's exclusions if it is not there yet. A
 medium found in several games' sets identifies none of them: it is listed under sharedContentIds.
 A game's disks form sets (disk_sets.py, by the app's BOOT_KINDS and COMPANION): "diskSets" maps each
-set's entry disk to the disks hidden behind it and the disk it boots with. An optional
+set's entry disk to the disks hidden behind it and the disk it boots with; "diskHidden" lists the
+disks hidden on their own, behind a set entry shared with other games. An optional
 MACHINE(disk name, scan set name, content ID) gives the machine settings a disk needs: "diskMachine"
 maps the disk to them.
 
@@ -299,11 +300,22 @@ def assemble(root, moby_root):
 
     # One library entry per disk set: the entry disk names the others, hidden behind it, and the
     # disk it boots with (disk_sets.py).
-    for key, game_disks in sorted(disks.items()):
-        sets = disk_sets([disk for disk in game_disks if disk["contentId"] not in shared],
-                         config.BOOT_KINDS, config.COMPANION)
+    # A disk shared with other games' sets (a series' common boot or sound disk) is in this game's
+    # sets too, so it hides like any other disk. It cannot carry this game's record, though: when it
+    # starts a set, the set's other disks are hidden by records of their own ("diskHidden").
+    # A shared disk that starts a set in one game stays listed: no other game's set hides it.
+    all_sets = {key: disk_sets(game_disks, config.BOOT_KINDS, config.COMPANION) for key, game_disks in sorted(disks.items())}
+    shared_entries = {entry for sets in all_sets.values() for entry in sets if entry in shared}
+    for key, sets in all_sets.items():
+        hidden = sorted({disk for entry, fields in sets.items() if entry in shared
+                         for disk in fields["setDisks"] if disk not in shared} - sets.keys())
+        sets = {entry: {**fields, "setDisks": [disk for disk in fields["setDisks"] if disk not in shared_entries]}
+                for entry, fields in sets.items() if entry not in shared}
+        sets = {entry: fields for entry, fields in sets.items() if fields["setDisks"] or "media" in fields}
         if sets:
             games[key]["diskSets"] = sets
+        if hidden:
+            games[key]["diskHidden"] = hidden
 
     descriptions = read(research / "descriptions-v1.json", {"schemaVersion": 1, "descriptions": {}})["descriptions"]
     unknown = descriptions.keys() - games.keys()

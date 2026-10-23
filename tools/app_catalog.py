@@ -13,6 +13,7 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "contentIds": [...], "sourceGroups": [...],               media this game is known by
       "diskSets": {"<entry>": {"setDisks": [...], "media": [...]}},   one library entry per disk set
       "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk's name asks for
+      "diskHidden": [...],                                      disks behind a set entry other games share
       "adult": true,                                            heart marker, core-review exclusion
       "hidden": true,                                           not a game: never listed in the library
       "controller": {"defaults": {"withoutSticks": [...], "withSticks": [...]}}   the game's own controls
@@ -155,6 +156,8 @@ def generate(root, check=False):
         # A disk with fields of its own: a disk set's entry names the disks hidden behind it and the
         # disk it boots with, and a disk may ask for machine settings.
         own = {disk: dict(fields) for disk, fields in entry.get("diskSets", {}).items()}
+        for disk in entry.get("diskHidden", []):
+            own.setdefault(disk, {})["hidden"] = True
         for disk, settings in entry.get("diskMachine", {}).items():
             own.setdefault(disk, {})["machine"] = settings
         for disk, fields in sorted(own.items()):

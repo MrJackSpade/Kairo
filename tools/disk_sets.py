@@ -10,6 +10,9 @@ TOSEC names each disk "Title (Year)(Publisher)(Disk 2 of 3)(Side B).zip". In a s
     inserted beside it at launch (`media`), by the app's [companion] rule.
 Alternate dumps of a whole set ("Title [FD] [Set 2].7z") keep their own entries, but the first
 set's entry hides them, so the library shows one entry while it has that set and the next otherwise.
+Likewise a game's other releases in its folder (a demo, a music disk, a hack, another version, a
+course or data volume) hide behind its main release, the one whose name adds the least to the
+title; they stay on the game's Disks page, which offers the disks of its folder.
 """
 import re
 
@@ -73,6 +76,19 @@ def _dump_set(key):
     return (folder, DUMP_SET.sub("", base)), rank
 
 
+# A release named as other than the game itself.
+SIDE_RELEASE = re.compile(r"\b(?:demo|trial|sample|preview|hack|cheat|trainer|invincibility|patch|music|sound|"
+                          r"gallery|opening|bonus|data|utility|tool|editor|course|scenario)\b|\bvol(?:ume)?\.?\s*\d",
+                          re.I)
+
+
+def _release_rank(name):
+    """Orders a game's releases in one folder by how much their name adds to the title: names with
+    no side-release word first, then fewer parenthesized notes, then the shorter name."""
+    notes = re.findall(r"\(([^)]*)\)", name)
+    return (bool(SIDE_RELEASE.search(" ".join(notes))), len(notes), len(name), name)
+
+
 def disk_sets(disks, boot_kinds, companion):
     """The disk sets of one game's [disks], each {archive, member, contentId}. [boot_kinds] lists
     the kinds the app starts from, preferred first; [companion] maps an entry's kind to (the kind
@@ -82,6 +98,7 @@ def disk_sets(disks, boot_kinds, companion):
     for disk in disks:
         sets.setdefault(_set_key(disk["archive"]), []).append(disk)
     found = {}
+    orphans = {}  # each folder's disks in archives that nothing starts from
     dump_sets = {}  # each set name's [(dump number, entry)]
     for set_key, members in sets.items():
         name = lambda disk: disk["member"] or disk["archive"].rpartition("/")[2]
@@ -90,6 +107,8 @@ def disk_sets(disks, boot_kinds, companion):
         mains = [d for d in members if d not in alternates and d not in users and not UTILITY.search(name(d)) and
                  kind(d["contentId"]) in boot_kinds]
         if not mains:
+            # An archive of only a user, utility or alternate disk: it hides behind the folder's main release.
+            orphans.setdefault(set_key[0], set()).update(disk["contentId"] for disk in members)
             continue
         mains.sort(key=lambda d: (boot_kinds.index(kind(d["contentId"])), _order(name(d))))
         entry = mains[0]["contentId"]
@@ -111,15 +130,27 @@ def disk_sets(disks, boot_kinds, companion):
             if candidates:
                 record["media"] = [{"role": role, "contentId": candidates[0]["contentId"]}]
     # The first dump set's entry hides the other sets' entries.
-    firsts = set()
-    for group in dump_sets.values():
+    firsts = {}  # each release's first set entry, by (folder, release name)
+    for group_key, group in dump_sets.items():
         group.sort()
-        firsts.add(group[0][1])
+        firsts[group_key] = group[0][1]
         found[group[0][1]]["setDisks"] |= {entry for _, entry in group[1:]}
-    # A disk that starts a first set is never hidden by another set.
+    # The main release in each folder hides the game's other releases there.
+    mains = set()
+    folders = {}
+    for (folder, name), entry in firsts.items():
+        # The kind the app starts from first wins, as a floppy release over a tape one.
+        folders.setdefault(folder, []).append(((boot_kinds.index(kind(entry)), *_release_rank(name)), entry))
+    for folder, releases in folders.items():
+        releases.sort()
+        main = releases[0][1]
+        mains.add(main)
+        found[main]["setDisks"] |= {entry for _, entry in releases[1:] if entry != main}
+        found[main]["setDisks"] |= orphans.get(folder, set()) - {main}
+    # A disk that starts a main release is never hidden by another set.
     result = {}
     for entry, record in sorted(found.items()):
-        hidden = sorted(record["setDisks"] - firsts - {entry})
+        hidden = sorted(record["setDisks"] - mains - {entry})
         if hidden or record["media"]:
             result[entry] = {"setDisks": hidden, **({"media": record["media"]} if record["media"] else {})}
     return result

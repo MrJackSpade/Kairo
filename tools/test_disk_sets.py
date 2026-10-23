@@ -78,6 +78,44 @@ class DiskSetsTest(unittest.TestCase):
         self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B)[FD + "op"]["media"],
                          [{"role": "floppyB", "contentId": FD + "sc"}])
 
+    def test_a_games_other_releases_in_its_folder_hide_behind_the_main_one(self):
+        disks = [disk("Yaksa (Wolf Team)/Yaksa (demo) [FD].7z", "Yaksa (demo).d88", FD + "demo"),
+                 disk("Yaksa (Wolf Team)/Yaksa (hack) [FD].7z", "Yaksa (hack) (Disk 1).d88", FD + "hack1"),
+                 disk("Yaksa (Wolf Team)/Yaksa (hack) [FD].7z", "Yaksa (hack) (Disk 2).d88", FD + "hack2"),
+                 disk("Yaksa (Wolf Team)/Yaksa (music disk) [FD].7z", "Yaksa (music disk).d88", FD + "music"),
+                 disk("Yaksa (Wolf Team)/Yaksa [FD].7z", "Yaksa (Disk 1).d88", FD + "1"),
+                 disk("Yaksa (Wolf Team)/Yaksa [FD].7z", "Yaksa (Disk 2).d88", FD + "2")]
+        sets = disk_sets(disks, ["fd"], FLOPPY_B)
+        self.assertEqual(sets[FD + "1"]["setDisks"], [FD + "2", FD + "demo", FD + "hack1", FD + "music"])
+        self.assertEqual(sets[FD + "1"]["media"], [{"role": "floppyB", "contentId": FD + "2"}])
+        # The hack keeps its own set, for when the main release is not in the library.
+        self.assertEqual(sets[FD + "hack1"]["setDisks"], [FD + "hack2"])
+
+    def test_a_publisher_named_like_a_side_release_is_not_one(self):
+        rom = "sha256-rom-v1:"
+        disks = [disk("Dam Busters, The (1985)(Sydney Dataproducts).zip", None, rom + "main"),
+                 disk("Dam Busters, The (1985)(Comptiq)(Demo).zip", None, rom + "demo")]
+        self.assertEqual(disk_sets(disks, ["rom"], {}), {rom + "main": {"setDisks": [rom + "demo"]}})
+
+    def test_releases_in_different_folders_stay_apart(self):
+        disks = [disk("100 Yen Disk No. 1/100 Yen Disk No. 1 [FD].7z", "100 Yen Disk No. 1.d88", FD + "1"),
+                 disk("100 Yen Disk No. 2/100 Yen Disk No. 2 [FD].7z", "100 Yen Disk No. 2.d88", FD + "2")]
+        self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B), {})
+
+    def test_an_archive_of_only_a_user_or_utility_disk_hides_behind_the_main_release(self):
+        disks = [disk("Vain Dream/Vain Dream (access to secret areas) [FD].7z",
+                      "Vain Dream (access to secret areas) (User disk).d88", FD + "secret"),
+                 disk("Vain Dream/Vain Dream [FD].7z", "Vain Dream (System disk).d88", FD + "system"),
+                 disk("Vain Dream/Vain Dream [FD].7z", "Vain Dream (Data disk A).d88", FD + "a")]
+        self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B)[FD + "system"]["setDisks"], [FD + "a", FD + "secret"])
+
+    def test_a_release_of_a_kind_the_app_cannot_start_never_becomes_the_main_one(self):
+        tape = "sha256-tape-v1:"
+        disks = [disk("Thunder Force/Thunder Force [CT].7z", "Thunder Force {V1 mode}.cmt", tape + "ct"),
+                 disk("Thunder Force/Thunder Force (SR) [FD].7z", "Thunder Force (SR).d88", FD + "sr"),
+                 disk("Thunder Force/Thunder Force [FD].7z", "Thunder Force {V1 mode}.d88", FD + "v1")]
+        self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B), {FD + "v1": {"setDisks": [FD + "sr", tape + "ct"]}})
+
     def test_a_utility_disk_is_hidden_but_never_inserted(self):
         disks = [disk("Game/Game [FD].7z", "Game.d88", FD + "a"),
                  disk("Game/Game [FD].7z", "Game (Utility).d88", FD + "u")]
