@@ -250,6 +250,8 @@ object Ui {
 
     /** In-app message bar in place of the system toast, styled like the rest of the app. */
     fun message(activity: Activity, value: String, long: Boolean = false) {
+        // Logged too, so what the app told the player shows in the device log.
+        android.util.Log.i("Kairo", "message: $value")
         val host = activity.findViewById<FrameLayout>(android.R.id.content) ?: return
         host.findViewWithTag<View>(MESSAGE_TAG)?.let(host::removeView)
         val bar = TextView(activity).apply {
