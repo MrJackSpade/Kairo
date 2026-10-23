@@ -3,3 +3,5 @@ third_party/** -text
 *.sh text eol=lf
 app/gitattributes text eol=lf
 githooks/* text eol=lf
+# Generated catalogs carry checksums of their exact bytes.
+catalog/** -text
