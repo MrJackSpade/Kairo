@@ -53,5 +53,8 @@ class MachineStatus(text: String) {
     val audioConfig: String = parts.getOrElse(5) { "" }
     /** Whether a frame that is not all black has been shown; null from a bridge that does not say. */
     val pictured: Boolean? = parts.getOrNull(6)?.let { it == "1" }
+    /** What the core reports of itself (MachineCore::details), such as tape → "1200/25650". */
+    val core: Map<String, String> = parts.getOrNull(7).orEmpty().split(';').filter { '=' in it }
+        .associate { it.substringBefore('=') to it.substringAfter('=') }
     val running: Boolean get() = state == "Running" || state == "Paused"
 }

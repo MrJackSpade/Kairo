@@ -74,6 +74,7 @@ public:
             xruns_ = 0;
             audio_state_ = "off";
             audio_config_.clear();
+            details_.clear();
             error_.clear();
             state_ = "Starting";
             active_ = true;
@@ -174,7 +175,7 @@ public:
     std::string status() {
         std::lock_guard<std::mutex> guard(command_mutex_);
         return state_ + "|" + error_ + "|" + std::to_string(frames_) + "|" + audio_state_ + "|" +
-               std::to_string(xruns_) + "|" + audio_config_ + "|" + (pictured_ ? "1" : "0");
+               std::to_string(xruns_) + "|" + audio_config_ + "|" + (pictured_ ? "1" : "0") + "|" + details_;
     }
 
 private:
@@ -303,8 +304,10 @@ private:
                 if (audio) audio->write(samples.data(), got);
             }
             {
+                std::string details = core->details();
                 std::lock_guard<std::mutex> guard(command_mutex_);
                 ++frames_;
+                details_.swap(details);
                 if (audio) xruns_ = earlier_underruns + audio->underruns();
             }
             // Each frame's slot lasts as long as the guest frame, stretched or shrunk
@@ -459,6 +462,8 @@ private:
     int32_t xruns_ = 0;
     std::string audio_state_ = "off";
     std::string audio_config_;
+    // The core's own details (Core::details), as of its last frame.
+    std::string details_;
 
     std::atomic<bool> muted_{false};
     std::atomic<bool> fast_forward_{false};

@@ -59,6 +59,10 @@ public:
     virtual int locks() { return 0; }
     // True while the guest boots, which then runs as fast as the host can, as in fast-forward.
     virtual bool booting() { return false; }
+    // What the core reports of itself for tests and diagnostics, as name=value pairs separated by
+    // ';', such as "tape=1200/25650"; names and values hold neither ';', '=' nor '|'. Read after
+    // every frame on the emulation thread, so keep it cheap.
+    virtual std::string details() { return ""; }
 
     virtual void reset() = 0;
     // 0, or a code the product's stateError explains.
