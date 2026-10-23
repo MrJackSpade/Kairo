@@ -68,11 +68,11 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                     var backoff = FIRST_BACKOFF_MILLIS
                     while (true) {
                         val wait = resumeAt.get()
-                        if (wait > System.currentTimeMillis()) CatalogArtworkStore.waitUntil(wait, stop)
+                        if (wait > System.currentTimeMillis()) ArtworkFetcher.waitUntil(wait, stop)
                         try {
                             download(source, stop)
                             saved.incrementAndGet()
-                        } catch (throttled: CatalogArtworkStore.Throttled) {
+                        } catch (throttled: ArtworkFetcher.Throttled) {
                             val resume = throttled.retryAt
                                 ?: (System.currentTimeMillis() + backoff).also { backoff = (backoff * 2).coerceAtMost(LAST_BACKOFF_MILLIS) }
                             resumeAt.accumulateAndGet(resume, ::maxOf)
