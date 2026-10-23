@@ -56,7 +56,9 @@ $module = Get-ChildItem $root -Directory | Where-Object {
 if (-not $module) { throw "No application module in ${root}: run this from an app's repository" }
 if ($Class -and $Filter) { throw '-Class and -Filter cannot be combined' }
 
-function Adb { $out = & adb -s $Device @args; if ($LASTEXITCODE -ne 0) { throw "adb $args failed: $out" }; $out }
+# The adb program itself: inside this script the name adb would call the Adb function below.
+$adb = (Get-Command adb -CommandType Application | Select-Object -First 1).Source
+function Adb { $out = & $adb -s $Device @args; if ($LASTEXITCODE -ne 0) { throw "adb $args failed: $out" }; $out }
 
 # The device must be there, and new enough for the framework's window inspection.
 $sdk = [int]((Adb shell getprop ro.build.version.sdk) | Select-Object -First 1)
@@ -105,7 +107,7 @@ Adb shell rm -rf "/sdcard/googletest/test_outputfiles/$runId" | Out-Null
 Write-Output "run $runId of $appPackage on $Device"
 $command = 'CLASSPATH=$(pm path androidx.test.services) app_process / androidx.test.services.shellexecutor.ShellMain ' +
     "am instrument -r -w $($arguments -join ' ') androidx.test.orchestrator/.AndroidTestOrchestrator"
-$output = & adb -s $Device shell $command 2>&1
+$output = & $adb -s $Device shell $command 2>&1
 $output | Write-Output
 
 $local = Join-Path $root ".build\uitest\$runId"
