@@ -26,9 +26,10 @@ class ControllerBindingsCodec(
             val joystick = item.optString("joystick").takeIf(String::isNotEmpty)
             val mouse = item.optString("mouse").takeIf(String::isNotEmpty)
             val cycleKeys = item.optJSONArray("cycleKeys")
-            if (listOf(keys != null, action != null, joystick != null, mouse != null,
-                    cycleKeys != null)
-                    .count { it } != 1) return false
+            val targets = listOf(keys != null, action != null, joystick != null, mouse != null,
+                cycleKeys != null).count { it }
+            // Keys may go with a joystick input, as a D-pad that sends both; every other target stands alone.
+            if (targets != 1 && !(targets == 2 && keys != null && joystick != null)) return false
             if (keys != null) {
                 if (keys.length() !in 1..4) return false
                 val mapped = ArrayList<Int>()
@@ -88,10 +89,12 @@ class ControllerBindingsCodec(
             val item = JSONObject().put("input", binding.input)
             when {
                 binding.action != null -> item.put("action", binding.action)
-                binding.joystick != null -> item.put("joystick", binding.joystick)
                 binding.mouse != null -> item.put("mouse", binding.mouse)
                 binding.cycleKeys.isNotEmpty() -> item.put("cycleKeys", JSONArray(binding.cycleKeys))
-                else -> item.put("keys", JSONArray(binding.keys))
+                else -> {
+                    if (binding.keys.isNotEmpty() || binding.joystick == null) item.put("keys", JSONArray(binding.keys))
+                    binding.joystick?.let { item.put("joystick", it) }
+                }
             }
             if (binding.mouseSpeed != 1f) item.put("mouseSpeed", binding.mouseSpeed.toDouble())
             array.put(item)

@@ -393,7 +393,9 @@ abstract class Page {
             val margin = Ui.dp(context, 16)
             val top = scroller.scrollY
             val bottom = top + scroller.height
-            val y = rect.top + top
+            // offsetDescendantRectToMyCoords leaves out the scroller's own scroll, so rect is
+            // already in content coordinates.
+            val y = rect.top
             when {
                 rect.height() + margin * 2 > scroller.height || y - margin < top ->
                     scroller.smoothScrollTo(0, (y - margin).coerceAtLeast(0))

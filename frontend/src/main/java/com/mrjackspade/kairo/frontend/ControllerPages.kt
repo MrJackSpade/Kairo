@@ -23,12 +23,48 @@ data class ControllerGuestSpec(
     val joystickHelp: String,
     val actions: List<Pair<String, String>>,
     /** Keys are picked on the guest keyboard layout; codes it lacks go on an Other tab. */
-    val keyboard: GuestKeyboardLayout
+    val keyboard: GuestKeyboardLayout,
+    /** How the joystick tab lays out [joystickControls]: one port of up/down/left/right and buttons, unless an app says otherwise. */
+    val joystickPorts: List<JoystickPort> = JoystickPort.single(joystickControls.map { it.first })
 ) {
+    fun joystickLabel(id: String) = joystickControls.firstOrNull { it.first == id }?.second ?: id
+
+    /** What a binding sends, as the controller pages and the keyboard panel name it. */
+    fun describe(binding: ControllerBinding): String = when {
+        binding.cycleKeys.isNotEmpty() -> {
+            val direction = if (binding.input == ControllerKeyCycles.pair(binding.input)?.first) "previous" else "next"
+            "Cycle $direction " + binding.cycleKeys.joinToString(" → ") { keyLabel(it) }
+        }
+        binding.mouse != null -> "Mouse " + when (binding.mouse) {
+            "leftButton" -> "left button"
+            "rightButton" -> "right button"
+            else -> binding.mouse.removePrefix("move").lowercase()
+        } + if (binding.mouse.startsWith("move")) java.lang.String.format(
+            java.util.Locale.ROOT, " · %.1f×", binding.mouseSpeed) else ""
+        binding.action != null -> actions.firstOrNull { it.first == binding.action }?.second
+            ?: binding.action.replaceFirstChar(Char::uppercase)
+        else -> (binding.keys.map { keyLabel(it) } +
+            listOfNotNull(binding.joystick?.let { "Joystick " + joystickLabel(it).lowercase() })).joinToString(" + ")
+    }
+
     companion object {
         /** The app actions every Kairo app offers a controller. */
         val STANDARD_ACTIONS = listOf("menu" to "Open menu", "pause" to "Pause or resume",
             "fastForward" to "Fast forward while held", "restart" to "Restart", "exit" to "Exit")
+    }
+}
+
+/** One guest joystick port: its direction controls by direction, and its buttons in order. */
+data class JoystickPort(val label: String?, val up: String?, val down: String?, val left: String?,
+                        val right: String?, val buttons: List<String>) {
+    companion object {
+        /** One unnamed port: controls named up/down/left/right are its directions, the rest its buttons. */
+        fun single(controls: List<String>): List<JoystickPort> {
+            fun direction(name: String) = controls.firstOrNull { it == name }
+            val directions = setOf("up", "down", "left", "right")
+            return listOf(JoystickPort(null, direction("up"), direction("down"), direction("left"), direction("right"),
+                controls.filter { it !in directions }))
+        }
     }
 }
 
@@ -144,6 +180,8 @@ class ControllerPages<Game : Any>(
     private val onConfigurationChanged: () -> Unit,
     private val mappingStatus: (Game?) -> String?,
     private val gameTitle: (Game) -> String,
+    /** Where a game's bindings come from: GameSource.ALL_GAMES, CUSTOM, or a catalog's name. */
+    private val gameSource: (Game) -> String,
     private val onScreen: OnScreenControls,
     private val touch: TouchSettingsCoordinator<Game>,
     /** Called after any mapping change, so the running game uses it at once. */
@@ -153,13 +191,27 @@ class ControllerPages<Game : Any>(
 
     private fun sticks() = configuration?.layout != ControllerLayout.WITHOUT_STICKS
 
-    /** Controls, for all games. In a game, the footnote points to that game's own mapping. */
+    /**
+     * Controls, for all games. In a game with its own bindings, that game's mapping comes first and
+     * the all-games one is named as such, so neither reads as what the game uses when it is not.
+     */
     fun controlsPage(running: Game?) = GroupsPage("Controls", { GameSource.ALL_GAMES }, {
+        val own = running?.takeIf { gameSource(it) != GameSource.ALL_GAMES }
+        val foot = running?.let { game ->
+            if (own != null) "${gameTitle(game)} uses its own button mapping, not the all-games one."
+            else "${gameTitle(game)} uses the all-games mapping. It can have its own in Game settings."
+        }
         listOf(
             RowGroup("CONTROLLER", listOfNotNull(
                 configuration?.let { layoutRow(it) },
-                SettingsRow.nav("mapping", "Button mapping",
-                    value = { if (globalCustom()) "Custom" else "Default" },
+                own?.let { game ->
+                    SettingsRow.nav("running-mapping", "${gameTitle(game)} mapping", value = { gameSource(game) },
+                        tone = { if (gameSource(game) == GameSource.CUSTOM) ValueTone.CUSTOM else ValueTone.SUMMARY }) {
+                        pages.push(mappingPage(game))
+                    }
+                },
+                SettingsRow.nav("mapping", if (own != null) "All-games mapping" else "Button mapping",
+                    value = { if (globalCustom()) GameSource.CUSTOM else GameSource.BUILT_IN },
                     tone = { if (globalCustom()) ValueTone.CUSTOM else ValueTone.SUMMARY }) {
                     pages.push(mappingPage(null))
                 },
@@ -171,7 +223,7 @@ class ControllerPages<Game : Any>(
                 SettingsRow.slider("dead-zone", "Stick dead zone", { "${(getDeadZone() * 100).roundToInt()}%" },
                     SliderSpec(10, 90, 1, 5, { (getDeadZone() * 100).roundToInt() }) {
                         setDeadZone(it / 100f)
-                    })), running?.let { "${gameTitle(it)} can have its own button mapping. Change it in Game settings." }),
+                    })), foot),
             touch.globalGroup(),
             onScreen.group())
     })
@@ -345,24 +397,9 @@ class ControllerPages<Game : Any>(
         pages.refresh()
     }
 
-    private fun targetLabel(binding: ControllerBinding): String = when {
-        binding.cycleKeys.isNotEmpty() -> {
-            val direction = if (binding.input == ControllerKeyCycles.pair(binding.input)?.first) "previous" else "next"
-            "Cycle $direction " + binding.cycleKeys.joinToString(" → ") { guest.keyLabel(it) }
-        }
-        binding.mouse != null -> "Mouse " + when (binding.mouse) {
-            "leftButton" -> "left button"
-            "rightButton" -> "right button"
-            else -> binding.mouse.removePrefix("move").lowercase()
-        } + if (binding.mouse.startsWith("move")) java.lang.String.format(
-            java.util.Locale.ROOT, " · %.1f×", binding.mouseSpeed) else ""
-        binding.joystick != null -> "Joystick " +
-            (guest.joystickControls.firstOrNull { it.first == binding.joystick }?.second?.lowercase()
-                ?: binding.joystick)
-        binding.action != null -> guest.actions.firstOrNull { it.first == binding.action }?.second
-            ?: binding.action.replaceFirstChar(Char::uppercase)
-        else -> binding.keys.joinToString(" + ") { guest.keyLabel(it) }
-    }
+    private fun targetLabel(binding: ControllerBinding): String = guest.describe(binding)
+
+    private fun joystickLabel(id: String) = "Joystick " + guest.joystickLabel(id).lowercase()
 
     private enum class Tab(val label: String) { KEYS("Keys"), CYCLE("Key cycle"), JOYSTICK("Joystick"),
         MOUSE("Mouse"), ACTION("Action") }
@@ -455,7 +492,8 @@ class ControllerPages<Game : Any>(
             "leftButton" to "Left button", "rightButton" to "Right button")
 
         override fun groups(): List<RowGroup> = when (tab) {
-            Tab.JOYSTICK -> listOf(RowGroup(null, guest.joystickControls.map { (id, label) ->
+            Tab.JOYSTICK -> listOf(RowGroup(null, listOf(SettingsRow.option("joy:none", "None", null,
+                { joystick == null }) { joystick = null; update() }) + guest.joystickControls.map { (id, label) ->
                 SettingsRow.option("joy:$id", label, null, { joystick == id }) { joystick = id; update() }
             }, guest.joystickHelp))
             Tab.MOUSE -> listOfNotNull(RowGroup(null, mouseOptions.map { (id, label) ->
@@ -525,7 +563,8 @@ class ControllerPages<Game : Any>(
         }
 
         private fun saveLabel() = when (tab) {
-            Tab.KEYS -> if (keys.isEmpty()) "Save keys" else "Save ${keys.size} key" + if (keys.size == 1) "" else "s"
+            Tab.KEYS -> if (keys.isEmpty()) "Save keys" else "Save ${keys.size} key" + (if (keys.size == 1) "" else "s") +
+                if (joystick != null) " + joystick" else ""
             Tab.CYCLE -> "Save key cycle"
             else -> "Save"
         }
@@ -631,18 +670,22 @@ class ControllerPages<Game : Any>(
             }
             val nothing: Boolean
             when (tab) {
-                Tab.KEYS, Tab.CYCLE -> {
+                Tab.CYCLE -> {
                     nothing = list.isEmpty()
+                    summary.text = if (nothing) "No keys selected" else list.joinToString(" → ") { guest.keyLabel(it) }
+                    hint.text = "2 to 16 keys, in order"
+                }
+                Tab.KEYS -> {
+                    nothing = list.isEmpty() && joystick == null
                     summary.text = if (nothing) "No keys selected"
-                        else list.joinToString(if (tab == Tab.CYCLE) " → " else " + ") { guest.keyLabel(it) }
-                    hint.text = if (tab == Tab.CYCLE) "2 to 16 keys, in order"
-                        else if (nothing) "Up to 4 keys"
+                        else (list.map { guest.keyLabel(it) } + listOfNotNull(joystick?.let(::joystickLabel))).joinToString(" + ")
+                    hint.text = if (list.isEmpty()) "Up to 4 keys"
                         else list.joinToString(" + ") { "0x" + it.toString(16).padStart(2, '0') }
                 }
                 Tab.JOYSTICK -> {
-                    nothing = joystick == null
-                    summary.text = joystick?.let { id -> "Joystick " +
-                        (guest.joystickControls.firstOrNull { it.first == id }?.second?.lowercase() ?: id) } ?: "Nothing selected"
+                    nothing = joystick == null && keys.isEmpty()
+                    summary.text = if (nothing) "Nothing selected"
+                        else (listOfNotNull(joystick?.let(::joystickLabel)) + keys.map { guest.keyLabel(it) }).joinToString(" + ")
                     hint.text = ""
                 }
                 Tab.MOUSE -> {
@@ -699,15 +742,18 @@ class ControllerPages<Game : Any>(
 
         private fun trySave() {
             val binding = when (tab) {
-                Tab.KEYS -> {
-                    if (keys.isEmpty()) { message("Choose at least one key"); return }
-                    ControllerBinding(input, keys.sortedWith(compareBy<Int> { it !in guest.modifierCodes }.thenBy { it }))
+                // Keys and a joystick input are one draft: either tab saves both.
+                Tab.KEYS, Tab.JOYSTICK -> {
+                    if (keys.isEmpty() && joystick == null) {
+                        message(if (tab == Tab.KEYS) "Choose at least one key" else "Choose a joystick control"); return
+                    }
+                    ControllerBinding(input, keys.sortedWith(compareBy<Int> { it !in guest.modifierCodes }.thenBy { it }),
+                        joystick = joystick)
                 }
                 Tab.CYCLE -> {
                     if (cycle.size !in 2..16) { message("Choose 2 to 16 keys"); return }
                     null
                 }
-                Tab.JOYSTICK -> ControllerBinding(input, joystick = joystick ?: run { message("Choose a joystick control"); return })
                 Tab.MOUSE -> ControllerBinding(input, mouse = mouse ?: run { message("Choose a mouse control"); return },
                     mouseSpeed = if (mouse!!.startsWith("move")) speed / 10f else 1f)
                 Tab.ACTION -> ControllerBinding(input, action = action ?: run { message("Choose an action"); return })

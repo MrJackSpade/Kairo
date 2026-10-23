@@ -22,26 +22,44 @@ import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
 
-/** Fitted, paged guest keyboard. Every key uses the same guest-key input router. */
+/** Fitted, paged guest keyboard, with the guest's joystick and touchpad as further tabs. */
 class GuestKeyboardPanel(
     context: Context,
-    private val input: InputRouter,
+    private val inputs: GuestPanelInputs,
     private val layout: GuestKeyboardLayout,
     private val onClose: () -> Unit,
     private val showClose: Boolean = true,
     private val onSwap: (() -> Unit)? = null,
-    mouse: MouseInputRouter? = null,
+    /** Whether the touchpad tab is offered, given a mouse in [inputs]. */
+    touchpadTab: Boolean = true,
     mouseReferenceSize: () -> Pair<Int, Int> = { 640 to 400 },
-    private val onVisibilityChanged: (() -> Unit)? = null,
-    private val mapping: KeyMappingMode? = null
+    private val onVisibilityChanged: (() -> Unit)? = null
 ) : LinearLayout(context) {
-    private companion object { const val TOUCHPAD_PAGE = -1 }
+    private companion object {
+        const val TOUCHPAD_PAGE = -1
+        const val JOYSTICK_PAGE = -2
+    }
+
+    private val input = inputs.keys
+    private val mapping = inputs.mapping
 
     private val handler = Handler(Looper.getMainLooper())
     private val latched = mutableSetOf<Int>()
     private val keyViews = mutableListOf<Pair<KeyboardKey, TextView>>()
     private val pageViews = mutableMapOf<Int, View>()
-    private val touchpad = mouse?.let { SecondaryTouchpadView(context, it, mouseReferenceSize) }
+    private val touchpad = inputs.mouse?.takeIf { touchpadTab }?.let { SecondaryTouchpadView(context, it, mouseReferenceSize) }
+    private val joystickPage = if (inputs.hasJoystick)
+        GuestJoystickPage(context, inputs.joystick!!, inputs.spec!!, mapping) else null
+    /** Names a press whose binding is not a key or joystick control, such as a mouse button or Menu. */
+    private val pressedLabel = Ui.text(context, "", Ui.SECONDARY, Ui.ON_ACCENT, bold = true).apply {
+        visibility = View.GONE
+        setPadding(dp(10), dp(4), dp(10), dp(4))
+        background = GradientDrawable().apply { setColor(Ui.ACCENT); cornerRadius = dp(5).toFloat() }
+    }
+    private val hidePressedLabel = Runnable { pressedLabel.visibility = View.GONE }
+    private val activationListener: (ControllerBinding) -> Unit = { binding ->
+        if (binding.action != null || binding.mouse != null) handler.post { showPressed(binding) }
+    }
     private val content = LinearLayout(context).apply { orientation = VERTICAL }
     /** The key rows or touchpad, with the mapping prompt over them. */
     private val stage = FrameLayout(context)
@@ -78,6 +96,10 @@ class GuestKeyboardPanel(
         setBackgroundColor(Ui.SURFACE)
         elevation = dp(14).toFloat()
         visibility = View.GONE
+        // A touch surface: no key in it may take focus, or a controller press after a touch
+        // would focus and light the first one (the mapping button) and could press it.
+        descendantFocusability = FOCUS_BLOCK_DESCENDANTS
+        isFocusable = false
 
         // Mapping is a keyboard control, not an input page: it sits with Swap, or with Close without a second screen.
         val mappingButton = mapping?.let { mode ->
@@ -130,6 +152,20 @@ class GuestKeyboardPanel(
                 setMargins(dp(2), 0, dp(2), 0)
             })
         }
+        if (joystickPage != null) {
+            val tab = TextView(context).apply {
+                text = "Joystick"
+                gravity = Gravity.CENTER
+                textSize = Ui.SECONDARY
+                setTextColor(keyText())
+                background = keyBackground(action = true)
+                attachPageSwitch(this, JOYSTICK_PAGE)
+            }
+            pageViews[JOYSTICK_PAGE] = tab
+            header.addView(tab, LayoutParams(0, dp(34), 1f).apply {
+                setMargins(dp(2), 0, dp(2), 0)
+            })
+        }
         if (touchpad != null) {
             val tab = ImageView(context).apply {
                 setImageResource(R.drawable.ic_mouse)
@@ -159,6 +195,9 @@ class GuestKeyboardPanel(
         }
         addView(header, LayoutParams(-1, dp(42)))
         stage.addView(content, FrameLayout.LayoutParams(-1, -1))
+        stage.addView(pressedLabel, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+            topMargin = dp(6)
+        })
         if (mapping != null) mappingPrompt = mappingPrompt().also {
             stage.addView(it, FrameLayout.LayoutParams(-1, -1))
         }
@@ -229,6 +268,7 @@ class GuestKeyboardPanel(
         super.onAttachedToWindow()
         input.addListener(inputListener)
         mapping?.addListener(mappingListener)
+        inputs.gamepad?.addActivationListener(activationListener)
         mappingChanged()
         updateHighlights()
     }
@@ -236,6 +276,7 @@ class GuestKeyboardPanel(
     override fun onDetachedFromWindow() {
         input.removeListener(inputListener)
         mapping?.removeListener(mappingListener)
+        inputs.gamepad?.removeActivationListener(activationListener)
         handler.removeCallbacksAndMessages(null)
         super.onDetachedFromWindow()
     }
@@ -279,6 +320,8 @@ class GuestKeyboardPanel(
         if (visibility == View.VISIBLE) mapping?.exit()
         visibility = View.GONE
         touchpad?.close()
+        joystickPage?.releaseAll()
+        pressedLabel.visibility = View.GONE
         input.releasePrefix("touch-key:")
         input.releasePrefix("touch-mod:")
         latched.clear()
@@ -302,6 +345,7 @@ class GuestKeyboardPanel(
 
     private fun showPage(target: Int) {
         if (page == TOUCHPAD_PAGE) touchpad?.close()
+        if (page == JOYSTICK_PAGE) joystickPage?.releaseAll()
         input.releasePrefix("touch-key:")
         if (page != target) {
             for (shift in layout.shiftCodes) {
@@ -313,8 +357,8 @@ class GuestKeyboardPanel(
         content.removeAllViews()
         keyViews.clear()
         keyActions.clear()
-        if (target == TOUCHPAD_PAGE) {
-            touchpad?.let { content.addView(it, LayoutParams(-1, -1)) }
+        if (target == TOUCHPAD_PAGE || target == JOYSTICK_PAGE) {
+            (if (target == TOUCHPAD_PAGE) touchpad else joystickPage)?.let { content.addView(it, LayoutParams(-1, -1)) }
             pageViews.forEach { (name, view) -> view.isActivated = name == page }
             return
         }
@@ -463,32 +507,18 @@ class GuestKeyboardPanel(
         }
     }
 
-    /** Latched modifiers and the current page fill with the accent; everything else stays quiet. */
-    private fun keyBackground(action: Boolean = false): RippleDrawable {
-        val states = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_activated), keyShape(Ui.ACCENT))
-            addState(intArrayOf(android.R.attr.state_pressed), keyShape(Ui.SELECTED))
-            addState(intArrayOf(), if (action) keyShape(Ui.SURFACE, Ui.LINE) else keyShape(Ui.RAISED))
-        }
-        return RippleDrawable(ColorStateList.valueOf(0x80a8eef1.toInt()), states, null)
+    private fun showPressed(binding: ControllerBinding) {
+        val spec = inputs.spec ?: return
+        if (visibility != View.VISIBLE) return
+        pressedLabel.text = spec.describe(binding)
+        pressedLabel.visibility = View.VISIBLE
+        handler.removeCallbacks(hidePressedLabel)
+        handler.postDelayed(hidePressedLabel, 900)
     }
 
-    private fun mappingBackground(fill: Int, stroke: Int?): RippleDrawable {
-        val states = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_pressed), keyShape(Ui.SELECTED, stroke))
-            addState(intArrayOf(), keyShape(fill, stroke))
-        }
-        return RippleDrawable(ColorStateList.valueOf(0x80a8eef1.toInt()), states, null)
-    }
-
-    private fun keyText() = ColorStateList(
-        arrayOf(intArrayOf(android.R.attr.state_activated), intArrayOf()), intArrayOf(Ui.ON_ACCENT, Ui.TEXT))
-
-    private fun keyShape(color: Int, stroke: Int? = null) = GradientDrawable().apply {
-        setColor(color)
-        cornerRadius = dp(5).toFloat()
-        stroke?.let { setStroke(dp(1), it) }
-    }
+    private fun keyBackground(action: Boolean = false) = PanelKeyStyle.keyBackground(context, action)
+    private fun mappingBackground(fill: Int, stroke: Int?) = PanelKeyStyle.mappingBackground(context, fill, stroke)
+    private fun keyText() = PanelKeyStyle.keyText()
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 

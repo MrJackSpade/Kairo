@@ -30,16 +30,14 @@ import kotlin.math.roundToInt
 /** Places the guest keyboard on another Android display when one is available. */
 class SecondaryDisplayCoordinator(
     private val activity: Activity,
-    private val input: InputRouter,
-    private val mouse: MouseInputRouter,
+    private val inputs: GuestPanelInputs,
     private val keyboardLayout: GuestKeyboardLayout,
     private val logTag: String,
     private val onAvailabilityChanged: (Boolean) -> Unit,
     private val onGameSurface: (Surface?, Int, Int) -> Unit,
     private val onGameTouch: (MotionEvent, Int, Int) -> Boolean,
     private val onSwapChanged: (Boolean) -> Unit,
-    private val gameAspect: () -> Double = { 1.6 },
-    private val mapping: KeyMappingMode? = null
+    private val gameAspect: () -> Double = { 1.6 }
 ) : DisplayManager.DisplayListener {
     private val displayManager = activity.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     private var started = false
@@ -290,9 +288,9 @@ class SecondaryDisplayCoordinator(
         companion = value
         companionStopped = false
         onAvailabilityChanged(true)
-        return GuestKeyboardPanel(value, input, keyboardLayout, {},
+        return GuestKeyboardPanel(value, inputs, keyboardLayout, {},
             showClose = false, onSwap = ::toggleSwap,
-            mouse = mouse, mapping = mapping).also { it.setInitialMode(touchpadMode) }
+            ).also { it.setInitialMode(touchpadMode) }
     }
 
     fun updateCompanion(value: SecondaryDisplayActivity) {
@@ -413,8 +411,8 @@ class SecondaryDisplayCoordinator(
             window?.decorView?.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             content = SecondaryDisplayContent(context,
-                GuestKeyboardPanel(context, input, keyboardLayout, {}, showClose = false,
-                    onSwap = ::toggleSwap, mouse = mouse, mapping = mapping), ::forwardGameSurface, onGameTouch,
+                GuestKeyboardPanel(context, inputs, keyboardLayout, {}, showClose = false,
+                    onSwap = ::toggleSwap), ::forwardGameSurface, onGameTouch,
                 gameAspect)
             setContentView(content)
         }

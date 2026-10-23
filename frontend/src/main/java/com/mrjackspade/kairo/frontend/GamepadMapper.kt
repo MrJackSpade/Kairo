@@ -31,6 +31,7 @@ class GamepadMapper(private val router: InputRouter,
         set(value) { field = value.coerceIn(0.10f, 0.90f) }
 
     private val active = HashSet<String>()
+    private val activations = java.util.concurrent.CopyOnWriteArraySet<(ControllerBinding) -> Unit>()
     private val heldActions = HashMap<String, String>()
     private val cycleIndex = HashMap<String, Int>()
     private var motionInputs = emptyList<String>()
@@ -54,6 +55,10 @@ class GamepadMapper(private val router: InputRouter,
     }
 
     fun hasButton(keyCode: Int) = resolve("button:$keyCode") != null
+
+    /** Told of each binding a press starts, so every press can show what it does. */
+    fun addActivationListener(listener: (ControllerBinding) -> Unit) { activations.add(listener) }
+    fun removeActivationListener(listener: (ControllerBinding) -> Unit) { activations.remove(listener) }
 
     fun pressVirtual(control: String, owner: String) {
         if (control !in PhysicalControllerBindings.controls || !owner.startsWith("onscreen:")) return
@@ -187,12 +192,16 @@ class GamepadMapper(private val router: InputRouter,
                 mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)
             return
         }
+        activations.forEach { it(binding) }
         when {
             binding.mouse != null -> {
                 mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)
                 startMouseTick()
             }
-            binding.joystick != null -> joystick.hold(owner, binding.joystick)
+            binding.joystick != null -> {
+                joystick.hold(owner, binding.joystick)
+                if (binding.keys.isNotEmpty()) router.hold(owner, binding.keys)
+            }
             binding.action != null -> {
                 heldActions[owner] = binding.action
                 runAction(binding.action)

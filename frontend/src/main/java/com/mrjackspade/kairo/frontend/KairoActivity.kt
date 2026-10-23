@@ -322,6 +322,10 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         KeyMappingMode(controllerFlow::activeBindings, controllerFlow::saveActive, controllerFlow::physical,
             { inputDispatch.guestCapture = it })
     }
+    /** What every guest keyboard panel drives, on either screen. */
+    private val panelInputs by lazy {
+        GuestPanelInputs(inputRouter, mouseRouter, joystickRouter, controllerSpec, keyMapping, gamepadMapper)
+    }
     private lateinit var root: FrameLayout
     private lateinit var screen: SurfaceView
     private lateinit var keyboardPanel: GuestKeyboardPanel
@@ -464,7 +468,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         ImmersiveWindow.apply(this)
         viewScale = ViewScale(this)
         buildUi()
-        secondaryKeyboard = SecondaryDisplayCoordinator(this, inputRouter, mouseRouter, keyboard, identity.appName,
+        secondaryKeyboard = SecondaryDisplayCoordinator(this, panelInputs, keyboard, identity.appName,
             { available ->
                 if (available && secondaryKeyboard.isKeyboardVisible && keyboardPanel.visibility == View.VISIBLE) {
                     keyboardPanel.close()
@@ -474,7 +478,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             },
             { surface, _, _ -> setGuestSurface(surface) },
             { event, width, height -> handleScreenTouch(event, width, height) },
-            ::onSecondarySwapChanged, { videoSize().third }, keyMapping)
+            ::onSecondarySwapChanged, { videoSize().third })
         artwork.restoreInstanceState(savedInstanceState)
         controllerPages = ControllerPages(this, pages,
             controllerFlow::load, controllerFlow::save, controllerFlow::reset,
@@ -483,7 +487,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { controllerProfiles.physicalCustom },
             { controllerFlow.deadZone }, { controllerFlow.deadZone = it },
             controllerSpec, { bindingsCodec.toJson(it) }, controllerProfiles.configuration,
-            { releaseInputs(); controllerFlow.refresh(null) }, ::controllerMappingStatus, ::titleOf,
+            { releaseInputs(); controllerFlow.refresh(null) }, ::controllerMappingStatus, ::titleOf, ::controllerSource,
             onScreenControls, touchSettingsCoordinator) { releaseInputs() }
         val libraryPage = LibraryScreen(this, catalog, identity.strings, pages,
             ::chooseRomFolder, { preferences.getString("last_played_entry", null) },
@@ -606,13 +610,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         onScreenControls = OnScreenControls(this, root, gamepadMapper, preferences, ::applyPauseState,
             { controllerProfiles.configuration.layout })
 
-        keyboardPanel = GuestKeyboardPanel(this, inputRouter, keyboard, ::hideKeyboard,
-            mouse = if (keyboardHasTouchpad) mouseRouter else null,
-            mouseReferenceSize = ::touchpadReferenceSize, mapping = keyMapping)
+        keyboardPanel = GuestKeyboardPanel(this, panelInputs, keyboard, ::hideKeyboard,
+            touchpadTab = keyboardHasTouchpad, mouseReferenceSize = ::touchpadReferenceSize)
         root.addView(keyboardPanel, FrameLayout.LayoutParams(-1, dp(keyboardHeightDp), Gravity.BOTTOM))
         onScreenControls.bindGuestKeyboard(keyboardPanel)
-        swappedKeyboardPanel = GuestKeyboardPanel(this, inputRouter, keyboard, {}, showClose = false,
-            onSwap = { secondaryKeyboard.toggleSwap() }, mouse = mouseRouter, mapping = keyMapping)
+        swappedKeyboardPanel = GuestKeyboardPanel(this, panelInputs, keyboard, {}, showClose = false,
+            onSwap = { secondaryKeyboard.toggleSwap() })
         root.addView(swappedKeyboardPanel, FrameLayout.LayoutParams(-1, -1))
 
         overlay = GameOverlay(this)

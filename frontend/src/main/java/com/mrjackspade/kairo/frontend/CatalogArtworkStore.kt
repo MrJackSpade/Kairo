@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.util.AtomicFile
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -56,19 +57,33 @@ class CatalogArtworkStore(
         return path
     }
 
+    /** A server asking us to slow down: not a failed image. [retryAt] is when it said to resume, if it did. */
+    class Throttled(val host: String, val retryAt: Long?) : IOException("$host is limiting requests")
+
+    /** When the next request may start, spread by the server's rate-limit headers. */
+    @Volatile private var nextRequestAt = 0L
+
     fun download(path: String, url: String, cancelled: AtomicBoolean) {
         require(validImageUrl(url)) { "Unsupported artwork URL" }
         val target = fileFor(path)
         if (availablePath(path) != null) return
-        checkCancelled(cancelled)
+        waitUntil(nextRequestAt, cancelled)
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.instanceFollowRedirects = false
         connection.connectTimeout = 10000
         connection.readTimeout = 20000
         try {
-            require(connection.responseCode == HttpURLConnection.HTTP_OK) {
-                "Image server returned ${connection.responseCode}"
-            }
+            val code = connection.responseCode
+            val now = System.currentTimeMillis()
+            val remaining = connection.getHeaderField("x-ratelimit-remaining")?.toLongOrNull()
+            val reset = connection.getHeaderField("x-ratelimit-reset")?.toLongOrNull()?.times(1000)
+            if (remaining != null && remaining > 0 && reset != null && reset > now)
+                nextRequestAt = now + (reset - now) / remaining
+            if (code == 429 || (code == HttpURLConnection.HTTP_FORBIDDEN &&
+                    (remaining == 0L || connection.getHeaderField("retry-after") != null)))
+                throw Throttled(connection.url.host, retryAfter(connection.getHeaderField("retry-after"), now)
+                    ?: reset?.takeIf { remaining == 0L })
+            require(code == HttpURLConnection.HTTP_OK) { "Image server returned $code" }
             require(connection.contentLengthLong <= MAX_DOWNLOAD_BYTES) { "Image is too large" }
             val bytes = ByteArrayOutputStream()
             connection.inputStream.use { input ->
@@ -146,7 +161,25 @@ class CatalogArtworkStore(
         if (cancelled.get()) throw CancellationException("Artwork download cancelled")
     }
 
+    /** Retry-After as seconds or an HTTP date, as epoch milliseconds. */
+    private fun retryAfter(value: String?, now: Long): Long? {
+        val text = value?.trim() ?: return null
+        text.toLongOrNull()?.let { return now + it * 1000 }
+        return java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", java.util.Locale.US)
+            .parse(text)?.time
+    }
+
     companion object {
+        /** Sleeps until [time], a slice at a time so Stop takes effect at once. */
+        fun waitUntil(time: Long, cancelled: AtomicBoolean) {
+            while (true) {
+                if (cancelled.get()) throw CancellationException("Artwork download cancelled")
+                val left = time - System.currentTimeMillis()
+                if (left <= 0) return
+                Thread.sleep(minOf(left, 200L))
+            }
+        }
+
         private const val MAX_DOWNLOAD_BYTES = 16 * 1024 * 1024
         private const val MAX_SOURCE_DIMENSION = 16384
         private const val MAX_HEIGHT = 360

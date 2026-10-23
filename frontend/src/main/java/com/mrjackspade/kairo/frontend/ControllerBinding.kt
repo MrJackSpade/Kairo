@@ -5,6 +5,7 @@ data class ControllerBinding(
     val input: String,
     val keys: List<Int> = emptyList(),
     val action: String? = null,
+    /** A joystick input, sent alone or together with [keys]. */
     val joystick: String? = null,
     val mouse: String? = null,
     /** Guest keys sent one at a time by a shoulder or D-pad left/right pair. */

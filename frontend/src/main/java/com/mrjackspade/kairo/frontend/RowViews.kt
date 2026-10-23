@@ -91,7 +91,13 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             chip.background = Ui.rounded(context, Color.TRANSPARENT, 4, color)
         }
         spinner?.visibility = if (next.busy()) View.VISIBLE else View.GONE
-        cycle?.visibility = if (focused && enabled && next.choice?.cycles == true) View.VISIBLE else View.GONE
+        // A cycling choice shows ‹ value › whether or not it is selected; the ‹ keeps its space when
+        // disabled, so the value never moves.
+        cycle?.visibility = when {
+            next.choice?.cycles != true -> View.GONE
+            enabled -> View.VISIBLE
+            else -> View.INVISIBLE
+        }
         switch?.setChecked(next.checked(), animate = builtKind == next.kind)
         radio?.checked = next.checked()
         slider?.let { bar -> next.slider?.let { bar.setRange(it.min, it.max, it.get()) } }
@@ -259,7 +265,7 @@ internal class TrayView(context: Context, val spec: TraySpec, flat: Boolean,
             setTextColor(Ui.TEXT)
             setHintTextColor(Ui.TEXT_FAINT)
             inputType = if (input.numeric) InputType.TYPE_CLASS_NUMBER else InputType.TYPE_CLASS_TEXT
-            imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+            imeOptions = EditorInfo.IME_ACTION_DONE
             background = Ui.rounded(context, Ui.BG, Ui.RADIUS_SMALL, Ui.ACCENT)
             setPadding(Ui.dp(context, 12), 0, Ui.dp(context, 12), 0)
             setOnEditorActionListener { _, action, _ ->

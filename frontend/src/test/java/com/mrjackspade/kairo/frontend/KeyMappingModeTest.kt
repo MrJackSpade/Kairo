@@ -108,4 +108,51 @@ class KeyMappingModeTest {
         harness.mode.toggle()
         assertTrue(harness.mode.mapped(listOf(44)))
     }
+
+    @Test fun aJoystickControlIsMappedLikeAKeyAndKeepsTheButtonsKeys() {
+        val harness = Harness(listOf(ControllerBinding("virtual:a", listOf(30))))
+        harness.mode.toggle()
+        harness.mode.tapJoystick("button1")
+        assertEquals("button1", harness.mode.waitingJoystick)
+        assertNull(harness.mode.waiting)
+        harness.mode.assign(buttonA)
+        assertEquals(listOf(ControllerBinding("virtual:a", listOf(30), joystick = "button1")), harness.stored)
+        assertTrue(harness.mode.mappedJoystick("button1"))
+        assertTrue(harness.mode.mapped(listOf(30)))
+    }
+
+    @Test fun mappingKeysKeepsTheButtonsJoystickControl() {
+        val harness = Harness(listOf(ControllerBinding("virtual:a", joystick = "button1")))
+        harness.mode.toggle()
+        harness.mode.tap(listOf(30))
+        harness.mode.assign(buttonA)
+        assertEquals(listOf(ControllerBinding("virtual:a", listOf(30), joystick = "button1")), harness.stored)
+    }
+
+    @Test fun aJoystickControlReplacesAnAction() {
+        val harness = Harness(listOf(ControllerBinding("virtual:b", action = "pause")))
+        harness.mode.toggle()
+        harness.mode.tapJoystick("button2")
+        harness.mode.assign(buttonB)
+        assertEquals(listOf(ControllerBinding("virtual:b", joystick = "button2")), harness.stored)
+    }
+
+    @Test fun clearingEachPartLeavesTheOther() {
+        val harness = Harness(listOf(ControllerBinding("virtual:up", listOf(58), joystick = "up"),
+            ControllerBinding("virtual:down", joystick = "down")))
+        harness.mode.toggle()
+        harness.mode.tapJoystick("up")
+        harness.mode.tapJoystick("up")
+        assertEquals(listOf(ControllerBinding("virtual:up", listOf(58)),
+            ControllerBinding("virtual:down", joystick = "down")), harness.stored)
+        harness.stored = listOf(ControllerBinding("virtual:up", listOf(58), joystick = "up"))
+        harness.mode.toggle()
+        harness.mode.toggle()
+        harness.mode.tap(listOf(58))
+        harness.mode.tap(listOf(58))
+        assertEquals(listOf(ControllerBinding("virtual:up", joystick = "up")), harness.stored)
+        harness.mode.tapJoystick("down")
+        harness.mode.tapJoystick("down")
+        assertEquals(listOf(ControllerBinding("virtual:up", joystick = "up")), harness.stored)
+    }
 }

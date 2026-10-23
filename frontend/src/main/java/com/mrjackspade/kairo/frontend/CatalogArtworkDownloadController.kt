@@ -17,7 +17,7 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
     @Volatile var running = false
         private set
     private var cancelled = AtomicBoolean(false)
-    /** Progress for the Download missing images row, such as "12 / 40". */
+    /** The Download missing images row's value: "Checking…", "12 / 40", a wait, then the last result. */
     var progress: String = ""
         private set
 
@@ -35,7 +35,7 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
         running = true
         val stop = AtomicBoolean(false)
         cancelled = stop
-        show(0, 0, 0)
+        show("Checking…", "Checking library artwork…")
         Thread {
             var completed = 0
             var downloaded = 0
@@ -43,32 +43,44 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
             var total = 0
             var errorMessage: String? = null
             val reasons = linkedMapOf<String, Int>()
+            fun post(row: String, task: String) = activity.runOnUiThread {
+                if (!activity.isDestroyed && !stop.get()) show(row, task)
+            }
+            fun counted() = "Downloading images $completed/$total" + (if (failures == 0) "" else " · $failures failed")
             try {
                 val sources = missing(games)
                 total = sources.size
-                activity.runOnUiThread {
-                    if (!activity.isDestroyed && !stop.get()) show(0, total, 0)
-                }
+                post("0 / $total", counted())
                 for (source in sources) {
                     if (stop.get()) break
-                    try {
-                        download(source, stop)
-                        downloaded++
-                    } catch (_: CancellationException) {
+                    // A server that asks us to wait is waited for; the same image is then tried again.
+                    var backoff = FIRST_BACKOFF_MILLIS
+                    while (true) {
+                        try {
+                            download(source, stop)
+                            downloaded++
+                        } catch (throttled: CatalogArtworkStore.Throttled) {
+                            val resume = throttled.retryAt
+                                ?: (System.currentTimeMillis() + backoff).also { backoff = (backoff * 2).coerceAtMost(LAST_BACKOFF_MILLIS) }
+                            Log.i("Kairo", "Artwork: ${throttled.host} is limiting requests; waiting until $resume")
+                            post("Waiting…", "Waiting for ${throttled.host}'s rate limit…")
+                            CatalogArtworkStore.waitUntil(resume, stop)
+                            post("$completed / $total", counted())
+                            continue
+                        } catch (cancel: CancellationException) {
+                            throw cancel
+                        } catch (error: Exception) {
+                            failures++
+                            val reason = reason(error)
+                            reasons[reason] = (reasons[reason] ?: 0) + 1
+                            Log.e("Kairo", "Artwork download failed: $source", error)
+                        }
                         break
-                    } catch (error: Exception) {
-                        failures++
-                        val reason = reason(error)
-                        reasons[reason] = (reasons[reason] ?: 0) + 1
-                        Log.e("Kairo", "Artwork download failed: $source", error)
                     }
                     completed++
-                    val done = completed
-                    val failed = failures
-                    activity.runOnUiThread {
-                        if (!activity.isDestroyed && !stop.get()) show(done, total, failed)
-                    }
+                    post("$completed / $total", counted())
                 }
+            } catch (_: CancellationException) {
             } catch (error: Exception) {
                 errorMessage = error.message ?: "Unknown error"
             }
@@ -77,11 +89,18 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                 total == 0 -> "No missing catalog images for this library"
                 stop.get() -> "Image download stopped · $downloaded saved"
                 failures == 0 -> "Downloaded $downloaded images"
-                else -> "Downloaded $downloaded images · $failures failed: " + summary(reasons)
+                else -> "Downloaded $downloaded images · $failures failed: " + breakdown(reasons)
+            }
+            val value = when {
+                errorMessage != null -> "Failed"
+                total == 0 -> "None missing"
+                stop.get() -> "Stopped · $downloaded saved"
+                failures == 0 -> "$downloaded saved"
+                else -> "$downloaded saved · $failures failed"
             }
             activity.runOnUiThread {
                 running = false
-                progress = ""
+                progress = value
                 if (!activity.isDestroyed) {
                     screen.tasks.hide(TASK)
                     screen.refreshArtwork()
@@ -99,21 +118,21 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
         else -> error.message ?: error.javaClass.simpleName
     }
 
-    private fun summary(reasons: Map<String, Int>): String {
-        val (top, _) = reasons.entries.maxBy { it.value }.toPair()
-        return if (reasons.size == 1) top else "$top (and ${reasons.size - 1} other errors)"
-    }
+    /** Every reason with its count, most common first. */
+    private fun breakdown(reasons: Map<String, Int>): String =
+        reasons.entries.sortedByDescending { it.value }.joinToString("; ") { "${it.key} (${it.value})" }
 
-    private fun show(completed: Int, total: Int, failures: Int) {
-        progress = if (total == 0) "" else "$completed / $total"
-        screen.tasks.show(TASK, if (total == 0) "Checking library artwork…"
-            else "Downloading images $completed/$total" + (if (failures == 0) "" else " · $failures failed"),
-            PRIORITY, ::cancel)
+    private fun show(row: String, task: String) {
+        progress = row
+        screen.tasks.show(TASK, task, PRIORITY, ::cancel)
         changed()
     }
 
     private companion object {
         const val TASK = "images"
         const val PRIORITY = 3
+        // Used only when a server limits requests without saying when to resume.
+        const val FIRST_BACKOFF_MILLIS = 1_000L
+        const val LAST_BACKOFF_MILLIS = 64_000L
     }
 }
