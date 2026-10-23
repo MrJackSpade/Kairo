@@ -1,0 +1,100 @@
+name: Kairo app debug build
+
+# The debug build of every Kairo app (shared/gradle/kairo-app.gradle), called by the app's
+# android.yml with `uses: MrJackSpade/Kairo/.github/workflows/app-build.yml@<pinned commit>` and
+# `secrets: inherit`, for a pull request or a manual run. It verifies the app's generated files
+# (tools/check-app.sh), builds the debug APK without artwork and runs the app's `tests`. With
+# `signed`, it signs the APK with the persistent Kairo key under the given version, so it updates an
+# installed release, and keeps it as a workflow artifact.
+
+on:
+  workflow_call:
+    inputs:
+      module:
+        description: The app's Gradle module and product name, such as kairo68
+        required: true
+        type: string
+      tests:
+        description: Bash commands that test the app after the debug build
+        required: false
+        type: string
+        default: ''
+      signed:
+        description: Sign the APK with the persistent Kairo key and keep it as an artifact
+        required: false
+        type: boolean
+        default: false
+      version_code:
+        description: Version code of a signed APK, above the installed app's
+        required: false
+        type: string
+        default: ''
+      version_name:
+        description: Version name of a signed APK
+        required: false
+        type: string
+        default: ''
+    secrets:
+      KAIRO_RELEASE_KEYSTORE_B64:
+        required: false
+      KAIRO_RELEASE_PASSWORD:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      MODULE: ${{ inputs.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the pinned Kairo frontend
+        run: |
+          git submodule update --init --recursive shared
+          bash shared/tools/verify_checkout.sh "$(git rev-parse HEAD:shared)"
+      - uses: ./shared/.github/actions/setup-android
+      - name: Verify portable catalog archive generation
+        run: python3 -m unittest discover -s shared/tools -p test_catalog_package.py
+      - name: Verify the app's generated files
+        run: sh shared/tools/check-app.sh
+      - name: Prepare the persistent signing key
+        if: inputs.signed
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.KAIRO_RELEASE_KEYSTORE_B64 }}
+          KAIRO_RELEASE_PASSWORD: ${{ secrets.KAIRO_RELEASE_PASSWORD }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          VERSION_NAME: ${{ inputs.version_name }}
+        run: |
+          if [[ -z "$KEYSTORE_B64" || -z "$KAIRO_RELEASE_PASSWORD" ]]; then
+            echo "The signing secrets KAIRO_RELEASE_KEYSTORE_B64 and KAIRO_RELEASE_PASSWORD are missing" >&2
+            exit 1
+          fi
+          if [[ ! "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] ||
+             [[ ! "$VERSION_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "A signed build needs a version code and a version name such as 1.3.1-dev" >&2
+            exit 1
+          fi
+          keystore="$RUNNER_TEMP/kairo-release.p12"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
+          {
+            echo "KAIRO_RELEASE_KEYSTORE=$keystore"
+            echo "VERSION_ARGS=-P${MODULE}VersionCode=$VERSION_CODE -P${MODULE}VersionName=$VERSION_NAME"
+          } >> "$GITHUB_ENV"
+      - name: Build the debug APK
+        env:
+          KAIRO_RELEASE_PASSWORD: ${{ inputs.signed && secrets.KAIRO_RELEASE_PASSWORD || '' }}
+        run: ./gradlew --no-daemon ":$MODULE:assembleWithoutImagesDebug" $VERSION_ARGS
+      - name: Test the app
+        if: inputs.tests != ''
+        shell: bash
+        run: ${{ inputs.tests }}
+      - uses: actions/upload-artifact@v4
+        if: inputs.signed
+        with:
+          name: ${{ inputs.module }}-signed-debug
+          path: ${{ inputs.module }}/build/outputs/apk/withoutImages/debug/*.apk
+          if-no-files-found: error
+          retention-days: 7

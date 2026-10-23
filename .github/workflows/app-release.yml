@@ -1,6 +1,6 @@
 name: Kairo app release
 
-# The release build of a frame-driven Kairo app (shared/gradle/kairo-machine-app.gradle), called by
+# The release build of every Kairo app (shared/gradle/kairo-app.gradle), called by
 # the app's tag workflow with `uses: MrJackSpade/Kairo/.github/workflows/app-release.yml@<pinned
 # commit>` and `secrets: inherit`. For a tag v<version> it builds the release APK, the APK with
 # bundled artwork and the Play bundle (reviewed artwork only), verifies their signer, version,
@@ -32,8 +32,8 @@ on:
         required: false
         type: string
         default: 0.1.0-ci
-      checks:
-        description: Bash commands that verify the app's generated files before the build
+      audits:
+        description: Bash commands that audit the built files, named by $APK, $BUNDLE and $IMAGES_APK
         required: false
         type: string
         default: ''
@@ -68,7 +68,7 @@ jobs:
         shell: bash
         run: |
           pinned="$(git rev-parse HEAD:shared)"
-          for file in .github/workflows/tag-builds.yml .github/workflows/play-release.yml; do
+          for file in .github/workflows/tag-builds.yml .github/workflows/play-release.yml .github/workflows/android.yml; do
             if grep -q 'MrJackSpade/Kairo/.github/workflows/' "$file" &&
                grep 'MrJackSpade/Kairo/.github/workflows/' "$file" | grep -vq "@$pinned\$"; then
               echo "$file must call the shared workflows at the submodule's commit $pinned" >&2
@@ -116,6 +116,17 @@ jobs:
             echo "Missing release notes: $notes" >&2
             exit 1
           fi
+      - name: Require the shared source to be public
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The release's GPL source includes the pinned shared frontend.
+          if [[ "$(gh api repos/MrJackSpade/Kairo --jq .private)" != "false" ]]; then
+            echo "The Kairo frontend repository must be public before a release" >&2
+            exit 1
+          fi
       - name: Prepare the persistent signing key
         shell: bash
         env:
@@ -127,9 +138,7 @@ jobs:
       - name: Verify portable catalog archive generation
         run: python3 -m unittest discover -s shared/tools -p test_catalog_package.py
       - name: Verify the app's generated files
-        if: inputs.checks != ''
-        shell: bash
-        run: ${{ inputs.checks }}
+        run: sh shared/tools/check-app.sh
       - name: Build both release APKs
         env:
           KAIRO_RELEASE_PASSWORD: ${{ secrets.KAIRO_RELEASE_PASSWORD }}
@@ -180,7 +189,11 @@ jobs:
             echo "BUNDLE=$bundle"
           } >> "$GITHUB_ENV"
       - name: Audit native libraries, notices and matching payloads
-        run: python3 shared/tools/audit_android_release.py "$APK" "$BUNDLE" "$IMAGES_APK"
+        run: python3 shared/tools/audit_android_release.py "$MODULE" "$APK" "$BUNDLE" "$IMAGES_APK"
+      - name: Audit the built files for the app
+        if: inputs.audits != ''
+        shell: bash
+        run: ${{ inputs.audits }}
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.module }}-${{ env.ARTIFACT_REF }}-release

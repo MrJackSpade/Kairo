@@ -64,8 +64,7 @@ function Adb { $out = & $adb -s $Device @args; if ($LASTEXITCODE -ne 0) { throw 
 $sdk = [int]((Adb shell getprop ro.build.version.sdk) | Select-Object -First 1)
 if ($sdk -lt 29) { throw "$Device runs Android API $sdk; the UI tests need Android 10 (API 29) or later" }
 
-$flavored = Select-String -Path (Join-Path $root "$module\build.gradle.kts") -Pattern 'productFlavors|kairo-machine-app.gradle' -Quiet
-$variant = if ($flavored) { $Flavor.Substring(0, 1).ToUpper() + $Flavor.Substring(1) + 'UiTest' } else { 'UiTest' }
+$variant = $Flavor.Substring(0, 1).ToUpper() + $Flavor.Substring(1) + 'UiTest'
 if (-not $SkipBuild) {
     # The resources decrypt during the build; a shell may predate the variable.
     if (-not $env:LOCAL_BUILD_TOKEN) { $env:LOCAL_BUILD_TOKEN = [Environment]::GetEnvironmentVariable('LOCAL_BUILD_TOKEN', 'User') }

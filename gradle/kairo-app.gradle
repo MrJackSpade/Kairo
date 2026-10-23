@@ -1,14 +1,17 @@
-// The application module of a frame-driven Kairo app: identity, manifest and launcher resources
-// (shared/app), release signing, the artwork flavors, the catalog assets built from catalog/parts, and
-// its native library. A product sets `ext.kairoProduct` (its lower-case name, such as "kairo88")
-// and `ext.kairoLabel` (its name, such as "Kairo88") before applying this script, after the
-// Android and Kotlin plugins. Its own files are com.mrjackspade.<product>.MainActivity, the icon
-// art res/drawable-nodpi/product_icon_art.png, src/main/assets, and src/main/cpp/CMakeLists.txt.
+// The application module of every Kairo app: identity, manifest and launcher resources
+// (shared/app), signing, the artwork flavors, the catalog assets built from catalog/parts, its
+// native library, the frontend and the UI tests. A product sets `ext.kairoProduct` (its lower-case
+// name, such as "kairo88") and `ext.kairoLabel` (its name, such as "Kairo88") before applying this
+// script, after the Android and Kotlin plugins. Its own files are
+// com.mrjackspade.<product>.MainActivity, the icon art res/drawable-nodpi/product_icon_art.png,
+// src/main/assets, and src/main/cpp/CMakeLists.txt, whose library is named after the product.
+// `ext.kairoLauncherBackground` sets the launcher icon's background color (default #05080D).
+// A product adds only what is its own (CMake options, extra assets, modules) in its build file.
 //
 // Gradle properties <product>ApplicationId, <product>VersionCode and <product>VersionName override
-// the defaults. Debug builds use the Android debug key. Environment variables KAIRO_RELEASE_KEYSTORE
-// and KAIRO_RELEASE_PASSWORD sign release builds with the persistent Kairo key (alias kairo98-beta),
-// as KairoDos releases are.
+// the defaults. Environment variables KAIRO_RELEASE_KEYSTORE and KAIRO_RELEASE_PASSWORD sign debug
+// and release builds with the persistent Kairo key (alias kairo98-beta), so a local build updates
+// an installed release; without them debug builds use the Android debug key.
 
 def product = project.ext.kairoProduct as String
 def sharedRoot = buildscript.sourceFile.parentFile.parentFile
@@ -35,6 +38,8 @@ android {
         // Declared in both builds: a resource only the Play build had added a field to the app's R class,
         // so its code differed from the GitHub build's (audit_android_release.py).
         resValue 'bool', 'kairo_update_check', (providers.gradleProperty('kairoDistribution').orNull != 'play').toString()
+        resValue 'color', 'ic_launcher_background',
+            project.ext.has('kairoLauncherBackground') ? project.ext.kairoLauncherBackground as String : '#05080D'
         ndk { abiFilters += 'arm64-v8a' }
         // Only the app's library (named after the product): a core's own tests and tools stay out.
         externalNativeBuild {
@@ -48,7 +53,7 @@ android {
     }
 
     signingConfigs {
-        create('release') {
+        create('kairo') {
             if (signed) {
                 storeFile file(keystore)
                 storePassword password
@@ -59,9 +64,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (signed) signingConfig signingConfigs.kairo
+        }
         release {
             minifyEnabled false
-            if (signed) signingConfig signingConfigs.release
+            if (signed) signingConfig signingConfigs.kairo
         }
     }
 

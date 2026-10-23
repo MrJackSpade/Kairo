@@ -1,4 +1,4 @@
-<!-- The application manifest of every frame-driven Kairo app (gradle/kairo-machine-app.gradle),
+<!-- The application manifest of every Kairo app (gradle/kairo-app.gradle),
      with the product's label and MainActivity filled in from its build. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />

@@ -37,16 +37,12 @@ if (-not $Module) {
     $Module = $modules[0].Name
 }
 
-# Signing: Kairo98's debug builds and every release build use the persistent Kairo key, read from
-# the local ignored files. Kairo98 reads it as KAIRO98_BETA_*, the others as KAIRO_RELEASE_*.
+# Signing: debug and release builds use the persistent Kairo key (gradle/kairo-app.gradle), read
+# from the local ignored files.
 $signing = Join-Path (Split-Path -Parent $root) 'Kairo98\.downloads\ci-signing'
 if (Test-Path (Join-Path $signing 'password.txt')) {
-    $keystore = Join-Path $signing 'kairo98-beta.p12'
-    $password = (Get-Content -Raw (Join-Path $signing 'password.txt')).Trim()
-    $env:KAIRO98_BETA_KEYSTORE = $keystore
-    $env:KAIRO98_BETA_PASSWORD = $password
-    $env:KAIRO_RELEASE_KEYSTORE = $keystore
-    $env:KAIRO_RELEASE_PASSWORD = $password
+    $env:KAIRO_RELEASE_KEYSTORE = Join-Path $signing 'kairo98-beta.p12'
+    $env:KAIRO_RELEASE_PASSWORD = (Get-Content -Raw (Join-Path $signing 'password.txt')).Trim()
 }
 
 if ($Clean) {
@@ -56,10 +52,8 @@ if ($Clean) {
     }
 }
 
-# The shared app module (gradle/kairo-machine-app.gradle) defines the artwork flavors; an app with
-# its own module, as KairoDos, has build types only.
-$flavored = Select-String -Path (Join-Path $root "$Module\build.gradle.kts") -Pattern 'kairo-machine-app.gradle' -SimpleMatch -Quiet
-$variant = if ($flavored) { $Flavor + (Get-Culture).TextInfo.ToTitleCase($Type) } else { $Type }
+# Every app's module (gradle/kairo-app.gradle) has the artwork flavors.
+$variant = $Flavor + (Get-Culture).TextInfo.ToTitleCase($Type)
 $task = ":${Module}:assemble$($variant.Substring(0,1).ToUpper())$($variant.Substring(1))"
 $arguments = @($task, '--console=plain')
 if ($VersionCode) { $arguments += "-P${Module}VersionCode=$VersionCode" }
@@ -80,7 +74,7 @@ Select-String -Path $log -CaseSensitive -Pattern '^e: |error:|What went wrong|BU
 if ($exit -ne 0) { throw "Build failed (exit $exit); full log: $log" }
 
 $apk = Get-ChildItem (Join-Path $root "$Module\build\outputs\apk") -Recurse -Filter *.apk |
-    Where-Object { (-not $flavored -or $_.FullName -match [regex]::Escape($Flavor)) -and $_.FullName -match $Type } |
+    Where-Object { $_.FullName -match [regex]::Escape($Flavor) -and $_.FullName -match $Type } |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $apk) { throw "No $variant APK under $Module\build\outputs\apk" }
 "APK: $($apk.FullName)"
