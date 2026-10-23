@@ -27,5 +27,6 @@ jobs:
       - uses: ./.github/actions/discord-sync
         with:
           webhook: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
+          bot-token: ${{ secrets.KAIRO_DISCORD_BOT_TOKEN }}
           state: .github/discord-sync/issues
           issue: ${{ inputs.issue }}

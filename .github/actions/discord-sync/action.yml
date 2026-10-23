@@ -4,6 +4,9 @@ inputs:
   webhook:
     description: The Kairo Discord forum webhook (a secret)
     required: true
+  bot-token:
+    description: The Kairo Discord bot's token (a secret), which archives closed issues' posts
+    required: true
   state:
     description: The calling repository's folder for its Discord message IDs, such as .github/discord-sync/issues
     required: true
@@ -19,6 +22,7 @@ runs:
       shell: bash
       env:
         DISCORD_FORUM_WEBHOOK: ${{ inputs.webhook }}
+        DISCORD_BOT_TOKEN: ${{ inputs.bot-token }}
         DISCORD_SYNC_STATE: ${{ inputs.state }}
         GITHUB_TOKEN: ${{ github.token }}
         SYNC_ISSUE: ${{ inputs.issue }}

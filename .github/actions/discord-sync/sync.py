@@ -5,7 +5,8 @@ Every Kairo app mirrors into the one Kairo forum: each issue becomes a forum pos
 message in that post, sent under the GitHub user's name and avatar. Images and
 videos uploaded to GitHub are attached to the message instead of linked.
 An issue opened before the sync existed is mirrored in full the first time
-anything happens to it. The Discord IDs are recorded in the calling repository, in the folder
+anything happens to it. A closed issue's post is archived, which a webhook cannot do, so the
+Kairo Discord bot does it (DISCORD_BOT_TOKEN, with Manage Threads in the forum). The Discord IDs are recorded in the calling repository, in the folder
 DISCORD_SYNC_STATE names, so later events can edit or delete the right messages:
 
   <number>/thread.json           {"thread_id": ..., "message_id": ...}
@@ -15,6 +16,7 @@ Every event writes or removes its own file, so concurrent runs never touch the
 same path and their commits always rebase cleanly.
 """
 
+import contextlib
 import json
 import os
 import re
@@ -29,7 +31,10 @@ STATE = Path(os.environ["DISCORD_SYNC_STATE"]).resolve()
 WEBHOOK = os.environ["DISCORD_FORUM_WEBHOOK"]
 if not WEBHOOK:
     raise SystemExit("The Kairo Discord forum webhook secret is not set in this repository")
-REPO = os.environ["GITHUB_REPOSITORY"]
+BOT_TOKEN = os.environ["DISCORD_BOT_TOKEN"]
+if not BOT_TOKEN:
+    raise SystemExit("The Kairo Discord bot token secret is not set in this repository")
+REPO =os.environ["GITHUB_REPOSITORY"]
 # The repository's own name heads its threads, since every app shares the forum.
 REPO_NAME = REPO.split("/")[1]
 NO_MENTIONS = {"parse": []}
@@ -88,6 +93,25 @@ def discord(method, suffix, query, payload=None, files=()):
             headers["Content-Type"] = "application/json"
     # The label keeps the webhook token out of error messages.
     return request(method, WEBHOOK + suffix + query, f"Discord webhook{suffix}", headers, data)
+
+
+def set_archived(thread_id, archived):
+    """Archive or unarchive a forum post through the bot; webhooks cannot change threads."""
+    headers = {"Authorization": f"Bot {BOT_TOKEN}", "Content-Type": "application/json",
+               "User-Agent": f"{REPO} discord-sync"}
+    request("PATCH", f"https://discord.com/api/v10/channels/{thread_id}", f"Discord thread {thread_id}",
+            headers, json.dumps({"archived": archived}).encode())
+
+
+@contextlib.contextmanager
+def thread_of(issue):
+    """The issue's thread, open while the body of the with-block posts or edits in it: an archived
+    thread refuses edits, and a message posted to it unarchives it. Afterwards the thread is
+    archived when the issue is closed and left open when it is open."""
+    thread = read(thread_path(issue))
+    set_archived(thread["thread_id"], False)
+    yield thread
+    set_archived(thread["thread_id"], issue["state"] == "closed")
 
 
 def multipart(boundary, payload, files):
@@ -225,17 +249,17 @@ def ensure_thread(issue):
 def edit_issue(issue):
     if ensure_thread(issue):
         return
-    thread = read(thread_path(issue))
     content, files = render(issue["body"], issue["html_url"])
-    discord("PATCH", f"/messages/{thread['message_id']}", f"?thread_id={thread['thread_id']}",
-            changed_message(content), files)
+    with thread_of(issue) as thread:
+        discord("PATCH", f"/messages/{thread['message_id']}", f"?thread_id={thread['thread_id']}",
+                changed_message(content), files)
     print(f"Issue #{issue['number']} edited in thread {thread['thread_id']}")
 
 
 def post_state(issue, actor):
-    thread = read(thread_path(issue))
     payload = new_message(actor, with_footer(status(issue), issue["html_url"]))
-    discord("POST", "", f"?wait=true&thread_id={thread['thread_id']}", payload)
+    with thread_of(issue) as thread:
+        discord("POST", "", f"?wait=true&thread_id={thread['thread_id']}", payload)
     print(f"Issue #{issue['number']} {status(issue)} in thread {thread['thread_id']}")
 
 
@@ -246,32 +270,32 @@ def change_state(issue, actor):
 
 
 def add_comment(issue, comment):
-    thread = read(thread_path(issue))
     path = comment_path(issue, comment)
     if path.exists():
         raise RuntimeError(f"Comment {comment['id']} is already in Discord: {path}")
     content, files = render(comment["body"], comment["html_url"])
-    message = discord("POST", "", f"?wait=true&thread_id={thread['thread_id']}",
-                      new_message(comment["user"], content), files)
-    write_new(path, {"message_id": message["id"]})
+    with thread_of(issue) as thread:
+        message = discord("POST", "", f"?wait=true&thread_id={thread['thread_id']}",
+                          new_message(comment["user"], content), files)
+        write_new(path, {"message_id": message["id"]})
     print(f"Comment {comment['id']} -> message {message['id']}")
 
 
 def edit_comment(issue, comment):
-    thread = read(thread_path(issue))
     message_id = read(comment_path(issue, comment))["message_id"]
     content, files = render(comment["body"], comment["html_url"])
-    discord("PATCH", f"/messages/{message_id}", f"?thread_id={thread['thread_id']}",
-            changed_message(content), files)
+    with thread_of(issue) as thread:
+        discord("PATCH", f"/messages/{message_id}", f"?thread_id={thread['thread_id']}",
+                changed_message(content), files)
     print(f"Comment {comment['id']} edited in message {message_id}")
 
 
 def delete_comment(issue, comment):
-    thread = read(thread_path(issue))
     path = comment_path(issue, comment)
     message_id = read(path)["message_id"]
-    discord("DELETE", f"/messages/{message_id}", f"?thread_id={thread['thread_id']}")
-    path.unlink()
+    with thread_of(issue) as thread:
+        discord("DELETE", f"/messages/{message_id}", f"?thread_id={thread['thread_id']}")
+        path.unlink()
     print(f"Comment {comment['id']} deleted message {message_id}")
 
 
