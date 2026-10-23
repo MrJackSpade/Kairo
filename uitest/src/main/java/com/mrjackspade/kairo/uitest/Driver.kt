@@ -38,23 +38,27 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
     fun roots(): List<View> = onMain { WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow } }
 
     /** An element the selector finds anywhere in the app. */
-    fun find(by: By) = Element(this, listOf(by))
+    fun find(by: By) = Element(this, listOf(Element.Step(by)))
 
     /** An element inside the page named [name], such as "Machine" or "flyout". */
-    fun page(name: String) = Element(this, listOf(By.page(name)))
+    fun page(name: String) = Element(this, listOf(Element.Step(By.page(name))))
 
     /**
      * The views [path] selects: each selector searches below the views the previous one found.
      * Only present views count (Views.present); they are returned in drawing order, so the topmost comes last.
      * Main thread only.
      */
-    internal fun resolve(path: List<By>): List<View> {
+    internal fun resolve(path: List<By>): List<View> = resolveSteps(path.map { Element.Step(it) })
+
+    /** [resolve] for steps that may each keep one match by index. Main thread only. */
+    internal fun resolveSteps(path: List<Element.Step>): List<View> {
         var scopes = WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }
-        for ((depth, by) in path.withIndex()) {
-            scopes = scopes.flatMap { scope ->
+        for ((depth, step) in path.withIndex()) {
+            val matches = scopes.flatMap { scope ->
                 // A scope does not match itself again; the first selector may match a window's root.
-                Views.descendants(scope).drop(if (depth == 0) 0 else 1).filter { Views.present(it) && by.matches(it) }.toList()
+                Views.descendants(scope).drop(if (depth == 0) 0 else 1).filter { Views.present(it) && step.by.matches(it) }.toList()
             }.distinct()
+            scopes = step.index?.let { listOfNotNull(matches.getOrNull(it)) } ?: matches
             if (scopes.isEmpty()) return emptyList()
         }
         return scopes

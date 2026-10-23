@@ -32,16 +32,29 @@ abstract class GameTests : KairoUiTest() {
         driver.waitFrames(settleFrames)
         screens.openGameMenu().find(By.id("f-save")).tap()
         val save = driver.page("Save state").waitUntilShown()
+        val before = save.find(By.id("slot0")).texts()
         save.find(By.id("slot0")).tap()
-        driver.waitUntil("the state to be saved") { !save.exists() || save.find(By.id("slot0")).texts().none { it == "Empty" } }
+        driver.waitUntil("slot 1 to show the saved state") { !save.exists() || save.find(By.id("slot0")).texts() != before }
+        closeMenu()
         driver.waitForGame("Running")
         driver.waitFrames(settleFrames)
         screens.openGameMenu().find(By.id("f-load")).tap()
         driver.page("Load state").waitUntilShown().find(By.id("slot0")).tap()
+        closeMenu()
         driver.waitForGame("Running")
         driver.waitFrames(10)
         val probe = driver.probe()
         expect.equal("the game's error after loading", "", probe.details["error"] ?: "")
+    }
+
+    /** Closes the menu and any page over the game, as the menu button does, when one is open. */
+    private fun closeMenu() {
+        driver.idle()
+        val pages = driver.find(By.id("page"))
+        if (pages.exists()) {
+            driver.press(android.view.KeyEvent.KEYCODE_BUTTON_MODE)
+            pages.waitUntilGone()
+        }
     }
 }
 

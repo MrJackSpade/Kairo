@@ -7,28 +7,31 @@ import com.mrjackspade.kairo.frontend.TestAttributes
 
 /**
  * A selector path to an element, like a Selenium WebElement except that it holds no view: every
- * action looks the element up again, so it always acts on what is on screen now. With no [index],
- * it is the topmost match (the one drawn last); [nth] picks one by drawing order.
+ * action looks the element up again, so it always acts on what is on screen now. Each step of the
+ * path searches inside what the step before found; a step with an index keeps only that match (in
+ * drawing order), and the element is the topmost of what the last step finds.
  */
-class Element internal constructor(private val driver: Driver, private val path: List<By>, private val index: Int? = null) {
-    val description: String = path.joinToString(" › ") + (index?.let { " [#$it]" } ?: "")
+class Element internal constructor(private val driver: Driver, private val path: List<Step>) {
+    /** One selector of the path, and which of its matches to keep: null keeps every one. */
+    class Step(val by: By, val index: Int? = null) {
+        override fun toString() = by.description + (index?.let { " [#$it]" } ?: "")
+    }
+
+    val description: String = path.joinToString(" › ")
 
     /** An element inside this one. */
-    fun find(by: By) = Element(driver, path + by)
+    fun find(by: By) = Element(driver, path + Step(by))
 
-    /** The [n]th match in drawing order, counting from 0. */
-    fun nth(n: Int) = Element(driver, path, n)
+    /** The [n]th match of this element's selector in drawing order, counting from 0. */
+    fun nth(n: Int) = Element(driver, path.dropLast(1) + Step(path.last().by, n))
 
-    private fun current(): View? {
-        val matches = driver.resolve(path)
-        return if (index == null) matches.lastOrNull() else matches.getOrNull(index)
-    }
+    private fun current(): View? = driver.resolveSteps(path).lastOrNull()
 
     /** Whether it is on screen now, without waiting. */
     fun exists(): Boolean = driver.onMain { current() != null }
 
     /** How many views match now, without waiting. */
-    fun count(): Int = driver.onMain { driver.resolve(path).size }
+    fun count(): Int = driver.onMain { driver.resolveSteps(path.dropLast(1) + Step(path.last().by)).size }
 
     /** Each match now, in drawing order, as its own element. */
     fun all(): List<Element> = (0 until count()).map(::nth)
