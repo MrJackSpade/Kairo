@@ -22,6 +22,13 @@ object LaunchBoxArtworkReferences {
         val game = art.optInt("game")
         return JSONObject().apply {
             for ((kind, label) in listOf("boxArt" to "box", "preview" to "screenshot")) {
+                // An image LaunchBox lacks keeps its self-hosted path and URL beside the group's others.
+                val hosted = art.opt(kind) as? String
+                if (hosted != null) {
+                    put(kind, hosted)
+                    put(kind + "Url", art.getString(kind + "Url"))
+                    continue
+                }
                 val ref = art.optJSONObject(kind) ?: continue
                 val id = ref.optString("id")
                 val url = "https://images.launchbox-app.com/" +

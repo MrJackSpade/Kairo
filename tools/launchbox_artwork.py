@@ -4,7 +4,9 @@ A LaunchBox image pair compacts to {"platform": code, "game": id, "boxArt"/"prev
 {"id": uuid, "format": 0 jpg | 1 png, "revision": 0 | 2 (r2_ variant)}}. Expanding it gives the
 image URLs and their cache paths, art/catalog/<platform folder>/<game>/<box|screenshot>-<token>.webp.
 Artwork from sources without an image server of their own is served from the app repository's
-catalog/artwork at its own path; those records keep the path and URL as they are.
+catalog/artwork at its own path; those records keep the path and URL as they are. A group can
+mix the two: LaunchBox's image where it has one, and a self-hosted image ("boxArt": path,
+"boxArtUrl": url) where it does not, so LaunchBox is always preferred.
 """
 import copy
 import hashlib
@@ -48,7 +50,7 @@ class References:
             raise ValueError("invalid artwork")
         if not (art.keys() & {"platform", "game"}) and not any(isinstance(v, dict) for v in art.values()):
             return copy.deepcopy(art)
-        if (not {"platform", "game"} < art.keys() or art.keys() - {"platform", "game", *KINDS}
+        if (not {"platform", "game"} < art.keys() or art.keys() - {"platform", "game", *KINDS, *(k + "Url" for k in KINDS)}
                 or type(art["platform"]) is not int or art["platform"] not in self.platforms
                 or type(art["game"]) is not int or not 1 <= art["game"] <= 2147483647):
             raise ValueError("invalid artwork group")
@@ -57,6 +59,16 @@ class References:
             if kind not in art:
                 continue
             ref = art[kind]
+            if isinstance(ref, str):
+                # An image LaunchBox lacks, served from the repository beside the group's others.
+                path = self.self_hosted_path.fullmatch(ref)
+                if not path or path[2] != label or art.get(kind + "Url") != self.self_hosted_base + ref:
+                    raise ValueError("invalid self-hosted image in an artwork group")
+                result[kind] = ref
+                result[kind + "Url"] = art[kind + "Url"]
+                continue
+            if kind + "Url" in art:
+                raise ValueError("a LaunchBox image has no URL field")
             if (not isinstance(ref, dict) or set(ref) != {"id", "format", "revision"}
                     or not isinstance(ref["id"], str) or not UUID.fullmatch(ref["id"])
                     or type(ref["format"]) is not int or ref["format"] not in (0, 1)
@@ -90,6 +102,11 @@ class References:
             return original
         for kind, label in KINDS.items():
             if kind not in original and kind + "Url" not in original:
+                continue
+            hosted = self.self_hosted_path.fullmatch(original.get(kind, ""))
+            if hosted and hosted[2] == label and original.get(kind + "Url") == self.self_hosted_base + hosted[0]:
+                result[kind] = original[kind]
+                result[kind + "Url"] = original[kind + "Url"]
                 continue
             path = self.path.fullmatch(original.get(kind, ""))
             url = URL.fullmatch(original.get(kind + "Url", ""))

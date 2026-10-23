@@ -371,9 +371,14 @@ def assemble(root, moby_root):
                  if "mobygames" in entry and not entry.get("boxArtUrl") and "artwork" not in entry}
     moby_art.require(uncovered.values())
     for key, game_id in uncovered.items():
-        artwork = moby_art.artwork(key, game_id, cover_required=bool(games[key].get("screenshotUrl")))
+        screenshot = games[key].get("screenshotUrl")
+        artwork = moby_art.artwork(key, game_id, cover_only=bool(screenshot))
+        if artwork and screenshot:
+            # LaunchBox's screenshot stays; MobyGames fills only the cover LaunchBox lacks.
+            games[key].pop("screenshotUrl")
+            artwork = {**config.ARTWORK.from_urls(config.ARTWORK_CODE, int(games[key]["launchbox"]),
+                                                  {"preview": screenshot}), **artwork}
         if artwork:
-            games[key].pop("screenshotUrl", None)
             games[key]["artwork"] = artwork
 
     # Adult games leave the core review; existing exclusions and their reasons are kept.

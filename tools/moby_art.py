@@ -77,12 +77,12 @@ class MobyArt:
                              f"shared/tools/mobygames.py art --platforms {self.slug} --games-from {needed} "
                              f"--root {self.dump}")
 
-    def artwork(self, key, game_id, cover_required):
-        """The game's self-hosted artwork, or None when MobyGames has no image for it, or no cover
-        when [cover_required] (the game has a LaunchBox screenshot to keep)."""
+    def artwork(self, key, game_id, cover_only):
+        """The game's self-hosted artwork, or None when MobyGames has no image for it. With
+        [cover_only] (the game has a LaunchBox screenshot, which is always preferred), the cover alone."""
         picks = self._picks(game_id)
-        if cover_required and picks[0] is None:
-            return None
+        if cover_only:
+            picks = (picks[0], None)
         artwork = {}
         for (field, kind), url in zip((("boxArt", "box"), ("preview", "screenshot")), picks):
             if url is None:
