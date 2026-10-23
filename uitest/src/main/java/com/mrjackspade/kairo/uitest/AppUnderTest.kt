@@ -30,6 +30,12 @@ abstract class AppUnderTest {
     /** A game that starts with the test BIOS and shows a picture. */
     abstract val bootGame: String
 
+    /**
+     * The title [bootGame] has while it runs: its library title, unless starting it makes it another
+     * game, as an eXoDOS installer becomes the game it installs.
+     */
+    open val runningTitle: String get() = bootGame
+
     /** [bootGame]'s file in the test resources, such as "games/Acrojet.zip", for launches from a frontend. */
     abstract val bootGameFile: String
 

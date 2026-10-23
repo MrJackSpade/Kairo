@@ -16,7 +16,7 @@ abstract class GameTests : KairoUiTest() {
         val picture = driver.pictures.game("running")
         expect.that("the game draws a picture, not a blank screen", picture.litFraction() > 0.02) { "lit ${picture.litFraction()}" }
         expect.that("the picture has more than one colour", picture.distinctColors() > 1) { "${picture.distinctColors()} colours" }
-        expect.equal("the running game's title", app.bootGame, driver.probe().title)
+        expect.equal("the running game's title", app.runningTitle, driver.probe().title)
     }
 
     @Test
@@ -44,7 +44,7 @@ abstract class GameTests : KairoUiTest() {
         // A restart boots the machine again, so its frame count starts over.
         driver.waitUntil("the frame count to start over") { driver.probeNow().details["frames"]?.toLongOrNull()?.let { it < before } == true }
         driver.waitForGame("Running")
-        expect.equal("the restarted game's title", app.bootGame, driver.probe().title)
+        expect.equal("the restarted game's title", app.runningTitle, driver.probe().title)
     }
 
     @Test

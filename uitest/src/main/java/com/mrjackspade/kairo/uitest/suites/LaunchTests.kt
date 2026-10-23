@@ -14,7 +14,7 @@ abstract class LaunchTests : KairoUiTest() {
         screens.completeFirstRun().waitForGame(app.bootGame)
         driver.launchExternally(screens.documents.file(app.bootGameFile))
         driver.waitForGame("Running")
-        expect.equal("the game the frontend started", app.bootGame, driver.probe().title)
+        expect.equal("the game the frontend started", app.runningTitle, driver.probe().title)
     }
 
     @Test
@@ -47,6 +47,6 @@ abstract class LaunchTests : KairoUiTest() {
         driver.waitFrames(SETTLE_FRAMES)
         driver.launchExternally(screens.documents.file(app.bootGameFile))
         driver.waitForGame("Running")
-        expect.equal("the game after a second launch", app.bootGame, driver.probe().title)
+        expect.equal("the game after a second launch", app.runningTitle, driver.probe().title)
     }
 }

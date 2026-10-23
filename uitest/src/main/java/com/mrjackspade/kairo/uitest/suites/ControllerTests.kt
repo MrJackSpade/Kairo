@@ -71,7 +71,7 @@ abstract class ControllerTests : KairoUiTest() {
         screens.openGameMenu().find(By.item("f-controls")).tap()
         controls = driver.page("Controls").waitUntilShown()
         val own = controls.find(By.item("running-mapping"))
-        expect.equal("the running game's own mapping row", "${app.bootGame} mapping", own.find(By.id("label")).text())
+        expect.equal("the running game's own mapping row", "${app.runningTitle} mapping", own.find(By.id("label")).text())
         expect.equal("its value", "Custom", own.find(By.id("value")).text())
         expect.equal("the all-games row beside it", "All-games mapping", controls.find(By.item("mapping")).find(By.id("label")).text())
         expect.equal("the all-games row's value", "Built-in", controls.find(By.item("mapping")).find(By.id("value")).text())
@@ -157,6 +157,6 @@ abstract class ControllerTests : KairoUiTest() {
         library.open(app.bootGame)
         driver.press(KeyEvent.KEYCODE_BUTTON_A) // Play is focused on a playable game's page.
         driver.waitForGame("Running")
-        expect.equal("the game A started", app.bootGame, driver.probe().title)
+        expect.equal("the game A started", app.runningTitle, driver.probe().title)
     }
 }
