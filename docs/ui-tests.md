@@ -122,7 +122,7 @@ Each app's own tests:
 | --- | --- |
 | Kairo88 (`Pc88Tests`) | A V1 mode game starts in V1 mode; a disk's own mode outranks the default; a game without one starts in the default; a two-disk game starts with Disk B in drive 2; the main release starts, not its SR version. |
 | Kairo68 (`X68000Tests`) | A two-disk game starts with its second disk in floppy 1; the boot runs faster than the real machine; a key press ends the fast boot; the memory setting reaches the machine. |
-| KairoTowns (`FmTownsTests`) | A CD game starts with its user disk in floppy A. |
+| KairoTowns (`FmTownsTests`) | A CD game starts with its user disk in floppy A; the CPU clock and memory settings reach the machine. |
 | KairoMSX (`MsxTests`) | A turbo R game starts on the FS-A1GT; its kanji font is found by content; an MSX-BASIC cartridge starts on real firmware and draws; an MSX1 cartridge starts on C-BIOS MSX1; a game's own machine choice wins; The Dam Busters starts from the Start button. |
 | Kairo98 (`Pc98Tests`) | The Disks page shows each drive; ejecting a floppy empties it; the built-in font stands in until one is imported. |
 | KairoDos (`DosTests`) | An eXoDOS installer installs and runs on its first launch; the ARM64 dynamic core runs generated code; the video card choice is kept. |
