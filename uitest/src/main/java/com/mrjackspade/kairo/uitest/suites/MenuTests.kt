@@ -38,6 +38,19 @@ abstract class MenuTests : KairoUiTest() {
         crawl("game settings", minimumPages = 3, minimumItems = 8)
     }
 
+    /**
+     * A page at rest is not laid out again and again. Its header's scope chip (the game's name)
+     * once had its width set on every layout, which asked for another layout: the window was laid
+     * out on every frame for as long as the page was open. Its status may refresh four times a second.
+     */
+    @Test
+    fun aSettledPageStopsLayingOut() {
+        screens.completeFirstRun().open(app.bootGame).openSettings()
+        driver.idle()
+        val layouts = driver.layoutsDuring(1000)
+        expect.that("a settled settings page is laid out at most 4 times in a second", layouts <= 4) { "$layouts layouts" }
+    }
+
     /** Kairo#28: a cycling choice shows its ‹ whether or not it is selected, and its value never moves. */
     @Test
     fun aCyclingChoiceShowsItsArrowAndKeepsItsValueInPlace() {

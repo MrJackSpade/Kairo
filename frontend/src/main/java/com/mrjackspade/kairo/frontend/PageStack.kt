@@ -449,7 +449,15 @@ abstract class Page {
 
     /** Back arrow, then a title that is the label of the row that opened the page, then scope. */
     protected fun header(title: String, scope: String?): View {
-        val bar = LinearLayout(context).apply {
+        val chip = Ui.text(context, scope ?: "", Ui.LABEL, Ui.TEXT_MUTED).apply {
+            background = Ui.rounded(context, android.graphics.Color.TRANSPARENT, 999, Ui.LINE)
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            maxLines = 1
+            ellipsize = TextUtils.TruncateAt.END
+            visibility = if (scope.isNullOrEmpty()) View.GONE else View.VISIBLE
+        }
+        scopeChip = chip
+        val bar = HeaderBar(context, chip).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(6), dp(4), dp(18), 0)
@@ -462,20 +470,23 @@ abstract class Page {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }, LinearLayout.LayoutParams(0, -2, 1f))
-        scopeChip = Ui.text(context, scope ?: "", Ui.LABEL, Ui.TEXT_MUTED).apply {
-            background = Ui.rounded(context, android.graphics.Color.TRANSPARENT, 999, Ui.LINE)
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            maxLines = 1
-            ellipsize = TextUtils.TruncateAt.END
-            visibility = if (scope.isNullOrEmpty()) View.GONE else View.VISIBLE
-        }
-        bar.addView(scopeChip, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
-        bar.addOnLayoutChangeListener { _, left, _, right, _, _, _, _, _ ->
-            scopeChip?.maxWidth = ((right - left) * 0.45f).toInt()
-        }
+        bar.addView(chip, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(8) })
         return bar
     }
     protected var scopeChip: android.widget.TextView? = null
+}
+
+/**
+ * A page header, whose scope chip takes at most 45% of its width. The cap is set while measuring,
+ * and only when it changes: TextView.setMaxWidth always asks for another layout, so setting it on
+ * every layout (as a layout listener once did) relaid the window out on every frame.
+ */
+private class HeaderBar(context: Context, private val chip: android.widget.TextView) : LinearLayout(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        val cap = (MeasureSpec.getSize(widthMeasureSpec) * 0.45f).toInt()
+        if (chip.maxWidth != cap) chip.maxWidth = cap
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+    }
 }
 
 /**

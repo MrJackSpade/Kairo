@@ -158,7 +158,9 @@ internal class RowView(private val context: Context, private val host: RowHost, 
         }.testId("value")
         val line = object : LinearLayout(context) {
             override fun onMeasure(widthSpec: Int, heightSpec: Int) {
-                valueView.maxWidth = (MeasureSpec.getSize(widthSpec) * 0.6f).toInt()
+                // setMaxWidth always asks for another layout, so it is set only when it changes.
+                val cap = (MeasureSpec.getSize(widthSpec) * 0.6f).toInt()
+                if (valueView.maxWidth != cap) valueView.maxWidth = cap
                 super.onMeasure(widthSpec, heightSpec)
             }
         }.apply {

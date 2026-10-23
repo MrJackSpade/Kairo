@@ -78,8 +78,31 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
         WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }.flatMap(Views::texts)
     }
 
-    /** Waits until the main thread has nothing left to do, as after an action. */
-    fun idle() = instrumentation.waitForIdleSync()
+    /**
+     * Waits until the main thread has run everything queued before now, as after an action. It
+     * does not wait for the queue to empty (waitForIdleSync), which never happens while a view lays
+     * itself out on every frame: that hung the whole run; MenuTests counts layouts instead.
+     */
+    fun idle() = instrumentation.runOnMainSync {}
+
+    /**
+     * How many times the app's windows were laid out over [millis] of the test thread's time. A
+     * settled page is laid out only when something on it changes.
+     */
+    fun layoutsDuring(millis: Long): Int {
+        var count = 0
+        val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener { count++ }
+        val observed = onMain {
+            WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }.onEach {
+                it.viewTreeObserver.addOnGlobalLayoutListener(listener)
+            }
+        }
+        SystemClock.sleep(millis)
+        return onMain {
+            observed.forEach { it.viewTreeObserver.removeOnGlobalLayoutListener(listener) }
+            count
+        }.also { log.step("measure", "$it layouts in $millis ms") }
+    }
 
     // Touch -----------------------------------------------------------------------------------
 
