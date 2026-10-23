@@ -2,8 +2,12 @@
 """Common APK/AAB payload and ELF alignment checks (not a runtime/license audit)."""
 import argparse
 import hashlib
+import re
 import struct
 import zipfile
+
+# The adult catalog parts (art.nsfw, data.nsfw), which Play builds leave out.
+ADULT_PART = re.compile(r'assets/catalog/[^/]+\.nsfw\.')
 
 # A bundle keeps the baseline profile as metadata; bundletool installs it as the APK's assets/dexopt/.
 BUNDLE_PROFILES = 'BUNDLE-METADATA/com.android.tools.build.profiles/'
@@ -65,11 +69,11 @@ if __name__ == '__main__':
     parser.add_argument('with_images_apk', nargs='?')
     args = parser.parse_args()
     common = inspect(args.apk, '')
-    assert {n:v for n,v in common.items() if not n.startswith('assets/catalog/art.nsfw.')} == inspect(args.aab, 'base/'), 'APK/AAB payload mismatch'
+    assert {n:v for n,v in common.items() if not ADULT_PART.match(n)} == inspect(args.aab, 'base/'), 'APK/AAB payload mismatch'
     if args.with_images_apk:
         with_images = inspect(args.with_images_apk, '', allow_art=True)
         # The compiled baseline profile records its own variant's dex checksums, so it differs with the dex.
         derived = ('assets/art/', 'assets/dexopt/')
         assert {n: v for n, v in with_images.items() if not n.startswith(derived)} == {
             n: v for n, v in common.items() if not n.startswith(derived)}, 'Image variant changes non-artwork payload'
-    print('APK and Play bundle share code and core assets; only the optional artwork catalog differs')
+    print('APK and Play bundle share code and core assets; only the adult catalog parts differ')

@@ -18,6 +18,8 @@ and the decision is recorded so it can be reviewed and corrected:
                          nothing matches is local without a recorded decision
   moby-matches-v1.json   {"<MobyGames ID>": "<game key>" | "own"}
   descriptions-v1.json   {"<game key>": "original description"}
+  descriptions-adult-v1.json  {"<game key>": "frank description"} of an adult game, which replaces
+                         its main description only in the adult data part (catalog_parts.py)
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork"|"controller": ...}} applied last
 A game LaunchBox has no cover for takes its MobyGames cover and screenshot (moby_art.py), encoded
 into catalog/artwork; moby-artwork-v1.json records their sources.
@@ -332,6 +334,13 @@ def assemble(root, moby_root):
         raise SystemExit(f"descriptions for unknown games: {sorted(unknown)[:5]}")
     for key, text in descriptions.items():
         games[key]["description"] = text
+    adult_descriptions = read(research / "descriptions-adult-v1.json",
+                              {"schemaVersion": 1, "descriptions": {}})["descriptions"]
+    unknown = adult_descriptions.keys() - games.keys()
+    if unknown:
+        raise SystemExit(f"adult descriptions for unknown games: {sorted(unknown)[:5]}")
+    for key, text in adult_descriptions.items():
+        games[key]["adultDescription"] = text
 
     overrides = read(research / "overrides-v1.json", {"schemaVersion": 1, "games": {}})["games"]
     for key, fields in overrides.items():
@@ -402,7 +411,8 @@ def assemble(root, moby_root):
           f"{sum(':local-' in key for key in games)} local games, {sum(v == 'ignore' for v in decided)} ignored; "
           f"MobyGames: {sum(v != 'own' for v in moby_decisions['games'].values())} linked, "
           f"{sum(v == 'own' for v in moby_decisions['games'].values())} own; "
-          f"{len(shared)} shared media left out; {sum('description' in g for g in games.values())} described")
+          f"{len(shared)} shared media left out; {sum('description' in g for g in games.values())} described, "
+          f"{sum('adultDescription' in g for g in games.values())} with adult descriptions")
 
 
 def main():

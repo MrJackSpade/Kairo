@@ -65,14 +65,34 @@ def merge(*parts):
             result[key] = merge(result.get(key, {}), value) if isinstance(value, dict) else (result.get(key, 0) | value if key == 'kinds' else value)
     return result
 
-def generate_parts(root, app, full_documents, optional_data, expand, compact_art, check=False):
+def adult_descriptions(adult_data):
+    """The games of an adult data part, {document: {"games": {key: {"description": text}}}}: frank
+    descriptions of adult games, which replace their main descriptions where the part ships."""
+    games = {}
+    for document, value in adult_data.items():
+        assert set(value) == {'games'}, f'{document}: an adult data document holds only games'
+        for key, record in value['games'].items():
+            assert set(record) == {'description'}, f'{document} {key}: adult data holds only descriptions'
+            text = record['description']
+            assert isinstance(text, str) and 0 < len(text.strip()) <= 8000, f'{key}: invalid adult description'
+            games[key] = record
+    return games
+
+def generate_parts(root, app, full_documents, optional_data, adult_data, expand, compact_art, check=False):
+    """Writes the parts: data, controls and art always ship; art.nsfw (adult images) and data.nsfw
+    (adult descriptions, from [adult_data]) are left out of Play builds and reach Play users in the
+    importable package instead."""
     policy = json.loads((root/'catalog/core-review-v1.json').read_text('utf8'))
     all_images = image_paths(full_documents, expand)
     approved, withheld = artwork_split(policy, all_images)
     data, controls, _ = split(full_documents)
     safe = split(filter_artwork(full_documents, approved, expand, compact_art))[2]
     extra = split(filter_artwork(full_documents, withheld, expand, compact_art))[2]
-    outputs = {'data.json':data, 'controls.json':controls, 'art.json':safe, 'art.nsfw.json':extra}
+    adult = adult_descriptions(adult_data)
+    unknown = set(adult) - set(data.get('name-index-v1.json', {}).get('games', {}))
+    assert not unknown, f'adult descriptions for games the catalog does not have: {sorted(unknown)[:5]}'
+    outputs = {'data.json':data, 'controls.json':controls, 'art.json':safe, 'art.nsfw.json':extra,
+               'data.nsfw.json':adult_data}
     directory = root/'catalog/parts'
     directory.mkdir(parents=True, exist_ok=True)
     for name, value in outputs.items():
@@ -81,15 +101,17 @@ def generate_parts(root, app, full_documents, optional_data, expand, compact_art
             if check: assert (directory/filename).read_bytes() == content, f'Stale {filename}'
             else: (directory/filename).write_bytes(content)
     assert merge(data, controls, safe, extra) == full_documents
-    # The importable catalog contributes only artwork. Metadata and controls are always shipped.
+    # The importable catalog contributes only adult images and descriptions. Metadata and controls are always shipped.
     restricted = filter_artwork(optional_data, withheld, expand, compact_art)
     _, _, art = split(restricted)
     spec = APPS[app]
     if not spec.name_index:
+        assert not adult, f'{app}: adult descriptions need a name index'
         payload = {'schemaVersion':1,'games':art.get('games',{}),'folders':{},
                    'controllers':{'schemaVersion':1,'profiles':{},'presets':{},'assignments':{}}}
     else:
-        games = art.get('nameIndex',{}).get('games',{})
+        # The package carries the adult images and the adult descriptions, for builds without either part.
+        games = merge(art.get('nameIndex',{}).get('games',{}), adult)
         payload = {'schemaVersion':1,'games':art.get('games',{}),'nameIndex':{'schemaVersion':1,
             'games':games,'names':{k:v for k,v in optional_data['nameIndex']['names'].items() if v in games}}}
     if not check:
@@ -101,7 +123,8 @@ def generate_parts(root, app, full_documents, optional_data, expand, compact_art
             identity=spec.identity,name=spec.label,revision=release['revision'],
             source=base+f'{spec.package}.meta.json', archive_url=base+f'{spec.package}.zip', stored=True)
         (root/'catalog/artwork-exclusions-v1.json').write_bytes(compact({'schemaVersion':1,'artwork':sorted(withheld)}))
-    print(f'{app}: {len(all_images)} artwork paths; {len(approved)} main; {len(withheld)} adult')
+    print(f'{app}: {len(all_images)} artwork paths; {len(approved)} main; {len(withheld)} adult; '
+          f'{len(adult)} adult descriptions')
 
 def indexed_document(documents):
     """Byte ranges let Android load one shard without parsing the complete DOS catalog."""

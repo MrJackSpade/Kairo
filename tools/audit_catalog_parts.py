@@ -7,7 +7,7 @@ import sys
 import subprocess
 import zipfile
 from pathlib import Path
-from catalog_parts import APPS, artwork_split, merge, split, indexed_document
+from catalog_parts import APPS, adult_descriptions, artwork_split, merge, split, indexed_document
 from catalog_package import compact
 from catalog_package import image_paths
 from catalog_binary import verify_part
@@ -41,7 +41,7 @@ def audit(root, product, artifacts=()):
     else: from dos_artwork import expand
     policy = json.loads((root/'catalog/core-review-v1.json').read_text('utf8'))
     parts = {p.name:p.read_bytes() for p in (root/'catalog/parts').glob('*.json')}
-    assert set(parts) == {'data.json','controls.json','art.json','art.nsfw.json'}
+    assert set(parts) == {'data.json','controls.json','art.json','art.nsfw.json','data.nsfw.json'}
     documents = {name:json.loads(data)['documents'] for name,data in parts.items()}
     for name, value in documents.items():
         repository_file(root/'catalog/parts'/name)
@@ -51,6 +51,8 @@ def audit(root, product, artifacts=()):
         filename = name.removesuffix('.json')+'.idx'
         assert (root/'catalog/parts'/filename).read_bytes() == compact(index)
     data, controls, safe, extra = [documents[k] for k in ('data.json','controls.json','art.json','art.nsfw.json')]
+    adult = adult_descriptions(documents['data.nsfw.json'])
+    assert set(adult) <= set(data.get('name-index-v1.json', {}).get('games', {})), 'Adult descriptions for unknown games'
     assert not image_paths(data, expand) and not image_paths(controls, expand)
     assert not split(data)[1], 'Controls leaked into display metadata'
     assert split(safe)[:2] == ({}, {}) and split(extra)[:2] == ({}, {})
@@ -109,7 +111,13 @@ def audit(root, product, artifacts=()):
                     assert record.keys() <= {'artwork','variants'}
                     artwork_only(record.get('variants',{}))
             artwork_only(optional['games'])
-            if spec.name_index: artwork_only(optional['nameIndex']['games'])
+            if spec.name_index:
+                # A name-index game also carries its adult description, the one data.nsfw holds.
+                games = optional['nameIndex']['games']
+                artwork_only({k: {f: v for f, v in r.items() if f != 'description'} for k, r in games.items()})
+                assert {k: {'description': r['description']} for k, r in games.items() if 'description' in r} == adult
+            else:
+                assert not adult
     for artifact in artifacts:
         play = artifact.suffix == '.aab'
         with zipfile.ZipFile(artifact) as z:
@@ -117,7 +125,7 @@ def audit(root, product, artifacts=()):
             files = {n[len(prefix):]:z.read(n) for n in z.namelist() if n.startswith(prefix) and not n.endswith('/')}
             selected = {n.removeprefix('catalog/'):v for n,v in files.items() if n.startswith('catalog/')}
             # Builds ship each part compiled to <part>.bin with a schema-2 <part>.idx (catalog-binary.gradle).
-            shipped = [n.removesuffix('.json') for n in documents if not(play and n.startswith('art.nsfw.'))]
+            shipped = [n.removesuffix('.json') for n in documents if not(play and '.nsfw.' in n)]
             assert set(selected) == {p+suffix for p in shipped for suffix in ('.idx','.bin')}, (artifact,'Wrong catalog partition payload')
             for part in shipped:
                 verify_part(selected[part+'.idx'], selected[part+'.bin'], documents[part+'.json'])
@@ -135,9 +143,10 @@ def audit(root, product, artifacts=()):
                     if name.endswith('.dex'):
                         payload=z.read(name)
                         assert manifest['archive'].encode() not in payload
-                        assert b'art.nsfw' not in payload and b'/catalog/optional/' not in payload
+                        assert b'.nsfw' not in payload and b'/catalog/optional/' not in payload
         print(f'{artifact}: distribution-specific catalog payload verified')
-    print(f'{product}: all metadata retained; {len(approved)} main artwork paths, {len(withheld)} adult paths')
+    print(f'{product}: all metadata retained; {len(approved)} main artwork paths, {len(withheld)} adult paths, '
+          f'{len(adult)} adult descriptions')
 
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)

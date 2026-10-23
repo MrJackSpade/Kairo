@@ -8,6 +8,8 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
 
   {"schemaVersion": 1, "games": {"<platform>:<id>": {
       "title": "...", "aliases": [...], "description": "...",   shipped display metadata
+      "adultDescription": "...",                                an adult game's frank description, shipped
+                                                                only in the adult data part (data.nsfw)
       "boxArtUrl": "...", "screenshotUrl": "...",               LaunchBox images, compacted
       "artwork": {...},                                         or a reviewed compact pick
       "contentIds": [...], "sourceGroups": [...],               media this game is known by
@@ -214,7 +216,10 @@ def generate(root, check=False):
             (root / path).parent.mkdir(parents=True, exist_ok=True)
             (root / path).write_bytes(content)
     optional = {"schemaVersion": 1, "games": {}, "nameIndex": name_index}
-    generate_parts(root, config.APP, documents, optional, config.ARTWORK.expand, config.ARTWORK.compact, check)
+    # Kept out of the name index and the update pack: they reach a build only through data.nsfw.
+    adult = {"name-index-v1.json": {"games": {key: {"description": entry["adultDescription"]}
+             for key, entry in sorted(research["games"].items()) if entry.get("adultDescription")}}}
+    generate_parts(root, config.APP, documents, optional, adult, config.ARTWORK.expand, config.ARTWORK.compact, check)
     print(f"{config.APP}: {len(games)} games, {manifest['games']} content IDs, {len(unique_names)} unique names, "
           f"{len(image_paths(name_index, config.ARTWORK.expand))} artwork paths")
 
