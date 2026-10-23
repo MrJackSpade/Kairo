@@ -84,4 +84,14 @@ class ControllerConfigurationTest {
         assertEquals("physical", preferences.getString("controller_physical_v1", null))
         assertEquals("legacy", preferences.getString("controller_global_v1", null))
     }
+
+    @Test
+    fun aProfileKeepsItsDirectionsAndLeavesNoButtonUnbound() {
+        val steering = listOf(ControllerBinding("virtual:up", listOf(273)), ControllerBinding("virtual:a", listOf(32)))
+        val standard = listOf(ControllerBinding("virtual:up", listOf(119)), ControllerBinding("virtual:lsup", joystick = "joy1up"),
+            ControllerBinding("virtual:a", listOf(13)), ControllerBinding("virtual:b", listOf(27)),
+            ControllerBinding("virtual:start", listOf(27)), ControllerBinding("virtual:menu", action = "menu"))
+        assertEquals(steering + listOf(ControllerBinding("virtual:b", listOf(27)), ControllerBinding("virtual:start", listOf(27))),
+            ControllerDefaults.layered(steering, standard))
+    }
 }

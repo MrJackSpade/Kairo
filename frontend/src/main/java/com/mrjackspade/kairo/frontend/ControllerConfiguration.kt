@@ -115,6 +115,19 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
 
 /** Missing variants fall back; an explicitly empty list is an intentional mapping. */
 object ControllerDefaults {
+    /** The buttons a game's profile never leaves dead: face, shoulder and system buttons. */
+    val BUTTONS = listOf("a", "b", "x", "y", "l1", "r1", "l2", "r2", "start", "select").map { "virtual:$it" }.toSet()
+
+    /**
+     * A catalog profile over the all-games mapping: the profile's bindings, then every button it
+     * leaves unbound as [standard] binds it. Directions stay the profile's, so a steering profile's
+     * D-pad still drives the left stick too. A player's own mapping is never layered.
+     */
+    fun layered(profile: List<ControllerBinding>, standard: List<ControllerBinding>): List<ControllerBinding> {
+        val bound = profile.map { it.input }.toSet()
+        return profile + standard.filter { it.input in BUTTONS && it.input !in bound }
+    }
+
     data class Resolution<T>(val bindings: List<T>, val fallback: Boolean)
     fun <T> resolve(layout: ControllerLayout, withoutSticks: List<T>, withSticks: List<T>?): Resolution<T> =
         if (layout == ControllerLayout.WITH_STICKS && withSticks != null) Resolution(withSticks, false)

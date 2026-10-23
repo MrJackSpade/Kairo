@@ -151,12 +151,16 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             val defaults = org.json.JSONObject(game.controllerDefaultBindings)
             val bindings = defaults.optJSONArray(controllerProfiles.configuration.layout.key)
                 ?: defaults.optJSONArray("withoutSticks")
-            if (bindings != null) return bindingsCodec.parse(bindings.toString())
+            if (bindings != null)
+                return ControllerDefaults.layered(bindingsCodec.parse(bindings.toString()), controllerFlow.global())
         }
-        return if (game?.overriddenFields?.contains("controller") == true ||
-            (configured != null && (configured != "[]" || game.controllerProfile == "custom-v1")))
-            bindingsCodec.parse(configured)
-        else controllerFlow.global()
+        return when {
+            // The player's own mapping, exactly as they set it.
+            game?.overriddenFields?.contains("controller") == true -> bindingsCodec.parse(configured)
+            configured != null && (configured != "[]" || game.controllerProfile == "custom-v1") ->
+                ControllerDefaults.layered(bindingsCodec.parse(configured), controllerFlow.global())
+            else -> controllerFlow.global()
+        }
     }
 
     override val touchModes get() = listOf(
