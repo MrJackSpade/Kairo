@@ -1,7 +1,7 @@
-"""Announce a GitHub release as a post in the Kairo Discord forum, which every Kairo app shares.
+"""Announce a GitHub release in the Kairo Discord server's releases channel, which every Kairo app shares.
 
-The post is named after the release, headed by the repository's name when the release name
-does not already start with it.
+The announcement is titled after the release, headed by the repository's name when the release
+name does not already start with it. The channel is a text channel, so it is a message, not a post.
 """
 
 import json
@@ -13,9 +13,9 @@ import urllib.request
 
 tag = sys.argv[1]
 repo = os.environ["GITHUB_REPOSITORY"]
-webhook = os.environ["DISCORD_FORUM_WEBHOOK"]
+webhook = os.environ["DISCORD_RELEASE_WEBHOOK"]
 if not webhook:
-    raise SystemExit("The Kairo Discord forum webhook secret is not set in this repository")
+    raise SystemExit("The Kairo Discord releases webhook secret is not set in this repository")
 repo_name = repo.split("/")[1]
 fields = "name,tagName,url,body,isPrerelease,publishedAt,author,assets"
 release = json.loads(subprocess.check_output(["gh", "release", "view", tag, "-R", repo, "--json", fields]))
@@ -42,7 +42,7 @@ if release["body"]:
 if downloads:
     embed["fields"] = [{"name": "Downloads", "value": clip(downloads, 1024)}]
 
-payload = {"thread_name": clip(title, 100), "embeds": [embed], "allowed_mentions": {"parse": []}}
+payload = {"embeds": [embed], "allowed_mentions": {"parse": []}}
 request = urllib.request.Request(
     webhook + "?wait=true",
     data=json.dumps(payload).encode(),
@@ -53,4 +53,4 @@ try:
         message = json.load(response)
 except urllib.error.HTTPError as error:
     raise RuntimeError(f"Discord webhook -> {error.code}: {error.read().decode()}") from None
-print(f"Announced {release['tagName']} as Discord thread {message['channel_id']}")
+print(f"Announced {release['tagName']} as Discord message {message['id']} in channel {message['channel_id']}")

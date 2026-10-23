@@ -1,8 +1,8 @@
 name: Kairo Discord release announcement
-description: Announce one of the calling repository's GitHub releases in the Kairo Discord forum
+description: Announce one of the calling repository's GitHub releases in the Kairo Discord releases channel
 inputs:
   webhook:
-    description: The Kairo Discord forum webhook (a secret)
+    description: The Kairo Discord releases channel's webhook (a secret)
     required: true
   tag:
     description: The release tag to announce
@@ -12,7 +12,7 @@ runs:
   steps:
     - shell: bash
       env:
-        DISCORD_FORUM_WEBHOOK: ${{ inputs.webhook }}
+        DISCORD_RELEASE_WEBHOOK: ${{ inputs.webhook }}
         GH_TOKEN: ${{ github.token }}
         TAG: ${{ inputs.tag }}
         KAIRO_ACTION_PATH: ${{ github.action_path }}
