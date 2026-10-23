@@ -71,7 +71,9 @@ class StateSlotCoordinator(
     private fun save(id: GameKey, store: StateSlots, index: Int) {
         if (isBusy) return
         isBusy = true
+        android.util.Log.i("Kairo", "save slot $index: capturing the thumbnail")
         SurfaceThumbnail.capture(surface(), handler) { thumbnail ->
+            android.util.Log.i("Kairo", "save slot $index: thumbnail ${if (thumbnail == null) "none" else "captured"}")
             Thread({
                 var scratch: File? = null
                 var saved = false
