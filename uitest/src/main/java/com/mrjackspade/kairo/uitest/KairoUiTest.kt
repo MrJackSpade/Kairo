@@ -53,6 +53,7 @@ class AppSession(private val app: () -> AppUnderTest) : TestRule {
             } catch (failure: Throwable) {
                 log.step("result", "failed", mapOf("error" to failure.toString()))
                 try { driver.pictures.screenshot("failure") } catch (screenshot: Throwable) { failure.addSuppressed(screenshot) }
+                try { log.text("failure-views", driver.onMain { Views.dump() }) } catch (dump: Throwable) { failure.addSuppressed(dump) }
                 throw failure
             } finally {
                 finishActivities()

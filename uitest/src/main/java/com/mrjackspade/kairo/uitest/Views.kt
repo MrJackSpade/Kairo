@@ -57,6 +57,28 @@ object Views {
     }
 
     /** A short description for the log: the view's test id and key, class, and text. */
+    /**
+     * Every window's view tree, one view a line: what it is, where (in its window), and why it may
+     * not take a touch (hidden, faded, not part of the page the player has), for a failing test.
+     */
+    fun dump(): String = buildString {
+        for (root in android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+            append("window ").append(root.javaClass.simpleName).append(" on display ")
+                .append(root.display?.displayId).append('\n')
+            fun visit(view: View, depth: Int) {
+                append("  ".repeat(depth + 1)).append(describe(view)).append(' ')
+                    .append(boundsInWindow(view).toShortString())
+                if (view.visibility != View.VISIBLE) append(" visibility=").append(view.visibility)
+                if (view.alpha != 1f) append(" alpha=").append(view.alpha)
+                if (view.isClickable) append(" clickable")
+                if (!present(view)) append(" absent")
+                append('\n')
+                if (view is ViewGroup) for (index in 0 until view.childCount) visit(view.getChildAt(index), depth + 1)
+            }
+            visit(root, 0)
+        }
+    }
+
     fun describe(view: View): String {
         val id = com.mrjackspade.kairo.frontend.TestAttributes.id(view)
         val key = com.mrjackspade.kairo.frontend.TestAttributes.key(view)

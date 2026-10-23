@@ -39,6 +39,14 @@ class TestLog(testClass: String, testName: String) {
         return file
     }
 
+    /** Saves [text] as a numbered text file named for [name] and records it; returns the file name. */
+    @Synchronized fun text(name: String, text: String): String {
+        val file = "%03d-%s.txt".format(++files, name.replace(Regex("[^A-Za-z0-9._-]+"), "_"))
+        storage.openOutputFile("$directory/$file").use { it.write(text.toByteArray()) }
+        step("text", file)
+        return file
+    }
+
     fun close() = lines.close()
 
     companion object {
