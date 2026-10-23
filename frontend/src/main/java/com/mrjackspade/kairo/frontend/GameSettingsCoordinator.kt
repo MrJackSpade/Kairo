@@ -43,13 +43,25 @@ object GameSettingsRows {
     fun choice(id: String, label: String, scope: () -> String, options: List<ChoiceOption>,
                value: GameValue<String>, enabled: () -> Boolean = { true },
                disabledReason: () -> String? = { null }, foot: String? = null,
-               defaultLabel: (() -> String)? = null): SettingsRow {
-        fun optionLabel(option: String) = options.firstOrNull { it.id == option }?.label ?: option
+               defaultLabel: (() -> String)? = null): SettingsRow =
+        choice(id, label, scope, { options }, value, enabled, disabledReason, foot, defaultLabel)
+
+    /**
+     * A choice whose [options] are read each time they show, with [actions] below them that get
+     * the function picking a value for this game (such as importing a file and choosing it).
+     */
+    fun choice(id: String, label: String, scope: () -> String, options: () -> List<ChoiceOption>,
+               value: GameValue<String>, enabled: () -> Boolean = { true },
+               disabledReason: () -> String? = { null }, foot: String? = null,
+               defaultLabel: (() -> String)? = null,
+               actions: (select: (String) -> Unit) -> List<SettingsRow> = { emptyList() }): SettingsRow {
+        fun optionLabel(option: String) = options().firstOrNull { it.id == option }?.label ?: option
         fun fallbackLabel() = defaultLabel?.invoke() ?: optionLabel(value.fallback())
+        val select = { picked: String -> value.set(picked.takeIf { it != DEFAULT }) }
         val spec = ChoiceSpec(label, { scope() }, {
             listOf(ChoiceGroup(null, listOf(ChoiceOption(DEFAULT, "Default",
-                "${value.source()}: ${fallbackLabel()}")) + options, foot))
-        }, { value.custom() ?: DEFAULT }, { picked -> value.set(picked.takeIf { it != DEFAULT }) })
+                "${value.source()}: ${fallbackLabel()}")) + options(), foot))
+        }, { value.custom() ?: DEFAULT }, select, actions = { actions(select) })
         return SettingsRow.choice(id, label, spec,
             value = { value.custom()?.let(::optionLabel) ?: fallbackLabel() },
             tone = { if (value.custom() != null) ValueTone.CUSTOM else ValueTone.CURRENT },

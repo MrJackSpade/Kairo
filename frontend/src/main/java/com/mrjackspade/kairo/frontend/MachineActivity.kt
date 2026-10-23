@@ -380,9 +380,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val scope = { titleOf(entry) }
         val noHash = { GameSettingsRows.NO_HASH }
         return RowGroup("MACHINE", machineOptions.map { option ->
-            GameSettingsRows.choice(option.id, option.label, scope, option.choices,
+            GameSettingsRows.choice(option.id, option.label, scope, { option.choices },
                 machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) }, { optionDefault(option) },
-                    GameSource.ALL_GAMES, option::stored), enabled, noHash)
+                    GameSource.ALL_GAMES, option::stored), enabled, noHash, actions = option.actions)
         }, "Machine changes apply on the next launch or restart.")
     }
 
@@ -391,14 +391,15 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         listOfNotNull(
             machineOptions.takeIf { it.isNotEmpty() }?.let { options ->
                 RowGroup("ALL GAMES", options.map { option ->
+                    val select = { value: String ->
+                        preferences.edit().apply {
+                            if (option.numeric) putInt(option.id, value.toInt()) else putString(option.id, value)
+                        }.apply()
+                        refreshSettingValues()
+                    }
                     SettingsRow.choice("default-${option.id}", option.label, ChoiceSpec(option.label,
                         { GameSource.ALL_GAMES }, { listOf(ChoiceGroup(null, option.choices)) }, { optionDefault(option) },
-                        select = { value ->
-                            preferences.edit().apply {
-                                if (option.numeric) putInt(option.id, value.toInt()) else putString(option.id, value)
-                            }.apply()
-                            refreshSettingValues()
-                        }))
+                        select = select, actions = { option.actions(select) }))
                 }, "A game's own settings come first. Changes apply on the next launch or restart.")
             },
         ) + firmwareGroups()
@@ -488,13 +489,19 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         return true
     }
 
+    /**
+     * After a firmware import that succeeded, on its worker thread: for a product that keeps its
+     * own record of the firmware files, such as KairoST's library of every TOS it has seen.
+     */
+    protected open fun firmwareImported() {}
+
     /** Runs a firmware import off the UI thread and reports its result. */
     private fun importFirmware(run: () -> String) {
         firmwareImporting = true
         firmwareChanged()
         Thread {
             val message = try {
-                run()
+                run().also { firmwareImported() }
             } catch (error: Exception) {
                 "Firmware import failed: ${error.message ?: error.javaClass.simpleName}"
             }
