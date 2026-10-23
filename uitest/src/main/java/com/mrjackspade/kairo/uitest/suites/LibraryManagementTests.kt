@@ -57,7 +57,7 @@ abstract class LibraryManagementTests : KairoUiTest() {
         driver.waitUntil("the save folder to be the chosen one") {
             configurations.find(By.item("save-folder")).find(By.id("value")).textNow()?.contains("saves") == true
         }
-        driver.press(android.view.KeyEvent.KEYCODE_BUTTON_MODE)
+        screens.closeMenu()
         library.open(app.bootGame).play()
         driver.waitFrames(SETTLE_FRAMES)
         screens.openGameMenu().find(By.item("f-save")).tap()
@@ -78,7 +78,7 @@ abstract class SettingsTests : KairoUiTest() {
         org.junit.Assume.assumeTrue("${app.name} has no machine option to change", option != null)
         val library = screens.completeFirstRun().waitForGame(app.bootGame)
         val picked = screens.choose(screens.openMachinePage(), "default-$option")
-        driver.press(android.view.KeyEvent.KEYCODE_BUTTON_MODE)
+        screens.closeMenu()
         library.open(app.bootGame).play()
         expect.equal("${app.bootGame}'s $option", picked, driver.probe().details["option.$option"])
     }
