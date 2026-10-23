@@ -11,7 +11,7 @@ Every Kairo app and this standalone library build use the same pinned setup:
 
 Product settings apply `shared/gradle/android-settings.gradle`; Android modules apply `shared/gradle/android-module.gradle` after their plugin declarations. The frontend resolves its convention relative to its own directory so it also builds standalone.
 
-Before building a clean product checkout, run `bash tools/checkout_shared.sh` (or `git submodule update --init shared` locally). Each product retains only the bootstrap needed to fetch the pinned shared checkout, then delegates commit and cleanliness validation to `tools/verify_checkout.sh` here. Missing shared files produce an explicit initialization error from the product wrapper.
+Before building a clean app checkout, run `git submodule update --init shared`. The shared workflows then run `tools/verify_checkout.sh`, which validates the pinned commit and a clean checkout.
 
 Every Kairo app releases the same version, the one in `release-version`. To release: set it, pin that shared commit in every app, add each app's `docs/releases/v<version>.md`, then run `tools/tag-release.ps1`, which checks every app and tags them all. Each app's pre-push hook and release workflow run `tools/check-release-version.sh`, which refuses a tag that is not `v<release-version>` of the pinned shared.
 
