@@ -5,6 +5,7 @@ import hashlib
 import re
 import struct
 import zipfile
+from pathlib import Path
 
 # The adult catalog parts (art.nsfw, data.nsfw), which Play builds leave out.
 ADULT_PART = re.compile(r'assets/catalog/[^/]+\.nsfw\.')
@@ -54,8 +55,14 @@ def inspect(path, prefix, allow_art=False):
         assert ('assets/SLANG_RUNTIME_NOTICES.txt' in payload) == shaders, 'Shader runtime and its notices disagree'
         artwork = {n for n in payload if n.startswith('assets/art/')}
         if allow_art:
-            assert any(n.endswith(('.webp', '.png', '.jpg')) for n in artwork), 'No bundled images'
-            print(f'{path}: {len(artwork)} bundled artwork files')
+            # The image variant bundles exactly the repository's catalog/artwork (kairo-machine-app.gradle),
+            # which holds no images for an app whose catalog has none yet.
+            root = Path('catalog/artwork')
+            expected = {'assets/' + p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()} \
+                if root.is_dir() else set()
+            assert artwork == expected, \
+                f'Bundled artwork differs from catalog/artwork: {len(artwork - expected)} extra, {len(expected - artwork)} missing'
+            print(f'{path}: {len(artwork)} bundled artwork files, as catalog/artwork holds')
         else:
             assert not artwork, 'Unexpected bundled artwork'
         print(f'{path}: {native} ARM64 libraries, 16 KB ELF alignment verified')
