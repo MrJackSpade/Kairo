@@ -88,7 +88,8 @@ class MenuCrawler(
     private fun returnTo(page: String) {
         var presses = 0
         while (topPage() != page) {
-            check(driver.find(By.page(page)).exists()) { "The crawl lost its way: $page is no longer open (on top: ${topPage()})" }
+            // The page may be hidden under the one on top, so ask the stack rather than the screen.
+            check(page in driver.openPages()) { "The crawl lost its way: $page is no longer open (on top: ${topPage()})" }
             driver.press(KeyEvent.KEYCODE_BUTTON_B)
             presses++
             check(presses <= 20) { "B did not return to $page" }

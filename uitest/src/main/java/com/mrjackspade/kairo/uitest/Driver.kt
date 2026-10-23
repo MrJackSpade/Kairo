@@ -13,6 +13,7 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import com.mrjackspade.kairo.frontend.GameProbe
 import com.mrjackspade.kairo.frontend.KairoActivity
+import com.mrjackspade.kairo.frontend.TestAttributes
 
 /**
  * Drives the app as a player would, Selenium-style: it finds elements by selector in every window
@@ -29,6 +30,8 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
 
     /** Runs [block] on the main thread and returns its result; its failure fails the caller. */
     fun <T> onMain(block: () -> T): T {
+        // Already there, as when a block reads roots(): runOnMainSync refuses the main thread.
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return block()
         var result: Result<T>? = null
         instrumentation.runOnMainSync { result = runCatching(block) }
         return checkNotNull(result).getOrThrow()
@@ -36,6 +39,18 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
 
     /** The root view of every window the app shows, on every display, bottom to top. */
     fun roots(): List<View> = onMain { WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow } }
+
+    /**
+     * The name of every page still on a page stack, shown or not. find() sees only what the player
+     * sees, and a page under another is hidden; this says whether it is still open to return to.
+     */
+    fun openPages(): List<String> = onMain {
+        WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }
+            .flatMap { Views.descendants(it) }
+            .filter { TestAttributes.id(it) == TestAttributes.PAGE }
+            .mapNotNull { TestAttributes.key(it) }
+            .toList()
+    }
 
     /** An element the selector finds anywhere in the app. */
     fun find(by: By) = Element(this, listOf(Element.Step(by)))

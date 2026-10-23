@@ -59,7 +59,13 @@ abstract class MenuTests : KairoUiTest() {
         val row = controls.find(By.item("osc"))
         val value = row.find(By.id("value"))
         expect.that("the ‹ shows on a row that is not selected", row.find(By.id("cycle")).exists())
-        val before = value.boundsInWindowNow()
+        // Within the row: selecting a row with the D-pad may scroll the page, which moves the row.
+        fun valueInRow(): android.graphics.Rect? {
+            val inWindow = value.boundsInWindowNow() ?: return null
+            val rowBounds = row.boundsInWindowNow() ?: return null
+            return android.graphics.Rect(inWindow).apply { offset(-rowBounds.left, -rowBounds.top) }
+        }
+        val before = valueInRow()
         // Down from nothing selected selects the first row; on until the row is the selected one.
         val focused = controls.find(By.focusedItem())
         for (step in 0 until controls.find(By.anyItem()).count()) {
@@ -68,7 +74,7 @@ abstract class MenuTests : KairoUiTest() {
         }
         expect.equal("the selected row", "osc", focused.itemId())
         expect.that("the ‹ shows on the selected row", row.find(By.id("cycle")).exists())
-        expect.equal("the value's place once the row is selected", before, value.boundsInWindowNow())
+        expect.equal("the value's place in its row once the row is selected", before, valueInRow())
     }
 
     /** Kairo#30: Down and Up move the selection through a long page and keep it on screen both ways. */

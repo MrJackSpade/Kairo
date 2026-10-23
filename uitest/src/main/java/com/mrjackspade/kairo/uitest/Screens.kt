@@ -20,6 +20,23 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
      * [onPage] runs with each setup page's title once it is on screen, for tests that check them.
      */
     fun completeFirstRun(games: String = "games", importBios: Boolean = true, onPage: (String) -> Unit = {}): Library {
+        val folder = reachFolderStep(onPage)
+        onPage(app.folderStepTitle)
+        documents.answerFolder(documents.folder(games)) { folder.find(By.id("footer:choose")).tap() }
+        app.biosTitle?.let { title ->
+            val step = setupPage(title).waitUntilShown()
+            onPage(title)
+            app.biosResource?.takeIf { importBios }?.let { bios -> importBiosFolder(step, bios) }
+            step.find(By.id("footer:done")).tap()
+        }
+        return library.waitUntilShown()
+    }
+
+    /**
+     * The games folder step of first run, on screen. A device with a controller is asked for its
+     * layout first; that step is answered as completeFirstRun answers it, with [onPage] run on it.
+     */
+    fun reachFolderStep(onPage: (String) -> Unit = {}): Element {
         val layout = driver.page("Controller layout")
         val folder = setupPage(app.folderStepTitle)
         driver.waitUntil("a setup page") { layout.exists() || folder.exists() }
@@ -30,16 +47,7 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
             (if (auto.exists()) auto else layout.find(By.id("layout:WITH_STICKS"))).tap()
             layout.find(By.id("footer:continue")).tap()
         }
-        folder.waitUntilShown()
-        onPage(app.folderStepTitle)
-        documents.answerFolder(documents.folder(games)) { folder.find(By.id("footer:choose")).tap() }
-        app.biosTitle?.let { title ->
-            val step = setupPage(title).waitUntilShown()
-            onPage(title)
-            app.biosResource?.takeIf { importBios }?.let { bios -> importBiosFolder(step, bios) }
-            step.find(By.id("footer:done")).tap()
-        }
-        return library.waitUntilShown()
+        return folder.waitUntilShown()
     }
 
     /** A BIOS file's row on a BIOS page, by its file name (row id "firmware<set>-<file>"). */

@@ -5,8 +5,8 @@ import com.mrjackspade.kairo.uitest.Expect
 
 /** Checks the suites make of any screen. */
 internal object Checks {
-    // The word, not a file name's extension such as FMT_SYS.ROM.
-    private val rom = Regex("(?<![.\\w])ROMs?\\b")
+    // The word, not a file name's extension such as FMT_SYS.ROM or a drive's name such as CD-ROM.
+    private val rom = Regex("(?<![.\\w-])ROMs?\\b")
 
     /** No text on screen calls games or BIOS files "ROMs". */
     fun noRom(driver: Driver, expect: Expect, where: String) {

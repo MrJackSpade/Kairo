@@ -9,7 +9,7 @@ import org.junit.Test
 abstract class FirstRunTests : KairoUiTest() {
     @Test
     fun theFirstStepAsksForTheGamesFolder() {
-        val page = screens.setupPage(app.folderStepTitle).waitUntilShown()
+        val page = screens.reachFolderStep()
         expect.that("the first step offers to choose the games folder", page.find(By.id("footer:choose")).exists())
         expect.that("the first step can be skipped", page.find(By.id("footer:skip")).exists())
     }
@@ -36,7 +36,7 @@ abstract class FirstRunTests : KairoUiTest() {
     fun theBiosStepListsEveryFileAndWhetherItIsRequired() {
         val title = app.biosTitle
         assumeTrue("${app.name} has no BIOS step", title != null)
-        val folder = screens.setupPage(app.folderStepTitle).waitUntilShown()
+        val folder = screens.reachFolderStep()
         screens.documents.answerFolder(screens.documents.folder("games")) { folder.find(By.id("footer:choose")).tap() }
         val page = screens.setupPage(title!!).waitUntilShown()
         expect.that("the BIOS step offers to import a whole folder", page.find(By.id("firmware-folder")).exists())
@@ -53,7 +53,7 @@ abstract class FirstRunTests : KairoUiTest() {
         val title = app.biosTitle
         assumeTrue("${app.name} has no BIOS step", title != null)
         assumeTrue("${app.name}'s tests carry no BIOS files", app.biosResource != null)
-        val folder = screens.setupPage(app.folderStepTitle).waitUntilShown()
+        val folder = screens.reachFolderStep()
         screens.documents.answerFolder(screens.documents.folder("games")) { folder.find(By.id("footer:choose")).tap() }
         val page = screens.setupPage(title!!).waitUntilShown()
         screens.importBiosFolder(page)
