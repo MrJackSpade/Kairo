@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Merged into UI test builds only (shared/gradle/kairo-uitest.gradle): the tests' document provider. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The tests run in this app's process, which Android shows only the packages named here: the
+         runner binds the orchestrator's service and reads through the test services, and cannot
+         start without them. -->
+    <queries>
+        <package android:name="androidx.test.orchestrator" />
+        <package android:name="androidx.test.services" />
+    </queries>
     <application>
         <provider
             android:name="com.mrjackspade.kairo.uitest.provider.TestDocumentsProvider"

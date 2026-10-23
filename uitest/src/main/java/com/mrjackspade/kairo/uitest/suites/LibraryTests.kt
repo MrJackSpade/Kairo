@@ -21,23 +21,30 @@ abstract class LibraryTests : KairoUiTest() {
     }
 
     /**
-     * Kairo#39: the scan reads each archive where it is. The app's own storage, apart from the
-     * test games folder, holds less after the scan than the archives it read: copies of them would
-     * hold at least as much.
+     * Kairo#39: the scan reads each archive where it is. After it, no file in the app's own
+     * storage, apart from the test games folder, is a copy of one of the archives it read.
      */
     @Test
     fun theScanReadsArchivesWhereTheyAre() {
         screens.completeFirstRun().waitForGame(app.bootGame)
         val target = driver.instrumentation.targetContext
         val games = java.io.File(target.filesDir, com.mrjackspade.kairo.frontend.UiTestDocuments.DIRECTORY)
+        fun digest(file: java.io.File) = java.security.MessageDigest.getInstance("SHA-256").let { sha ->
+            file.inputStream().use { input ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) { val read = input.read(buffer); if (read < 0) break; sha.update(buffer, 0, read) }
+            }
+            sha.digest().joinToString("") { "%02x".format(it) }
+        }
         val archives = games.walkTopDown().filter { it.isFile && it.extension.lowercase() in setOf("zip", "7z", "lzh") }
-            .sumOf { it.length() }
-        org.junit.Assume.assumeTrue("${app.name}'s test games are not in archives", archives > 0)
-        fun size(folder: java.io.File) = folder.walkTopDown().onEnter { it != games }.filter { it.isFile }.sumOf { it.length() }
-        val storage = size(target.filesDir) + size(target.cacheDir)
-        driver.log.step("storage", "$storage bytes of app storage after scanning $archives bytes of archives")
-        expect.that("app storage after the scan ($storage bytes) is less than the archives it read ($archives bytes)",
-            storage < archives)
+            .associateBy({ it.length() to digest(it) }, { it.name })
+        org.junit.Assume.assumeTrue("${app.name}'s test games are not in archives", archives.isNotEmpty())
+        val sizes = archives.keys.map { it.first }.toSet()
+        val copies = sequenceOf(target.filesDir, target.cacheDir).flatMap { root ->
+            root.walkTopDown().onEnter { it != games }.filter { it.isFile && it.length() in sizes }
+        }.mapNotNull { file -> archives[file.length() to digest(file)]?.let { "${file.path} copies $it" } }.toList()
+        driver.log.step("storage", "${archives.size} archives scanned; ${copies.size} copies in app storage")
+        expect.that("no archive is copied into app storage", copies.isEmpty()) { copies.joinToString() }
     }
 
     @Test
