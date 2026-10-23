@@ -76,10 +76,8 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         val earlier = previous?.entries?.associateBy(entryId).orEmpty()
         val prior = if (forceHash) emptyMap() else earlier
         hashes.set(0)
-        val progressLock = Any()
-        val report: (String) -> Unit = { message -> synchronized(progressLock) {
-            if (!cancelled.get()) progress(message)
-        } }
+        // Workers report concurrently, so [progress] must be thread-safe (LibraryFlow keeps only the newest).
+        val report: (String) -> Unit = { message -> if (!cancelled.get()) progress(message) }
         val context = ScanContext(previous, prior, earlier, forceHash, cancelled, report) { hashes.incrementAndGet(); Unit }
         val read = android.os.SystemClock.elapsedRealtime()
         val plan = enumerate(tree, depth, cancelled, progress)

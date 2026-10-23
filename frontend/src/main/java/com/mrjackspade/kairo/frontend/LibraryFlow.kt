@@ -200,11 +200,16 @@ class LibraryFlow<T : LibraryItem>(
             scanning = false
             rehashing = false
         }
+        // Scan workers report from several threads, once per game: only the newest message waits for
+        // the main thread. One screen update per game (7,669 in a DOS library) held the check up for
+        // seconds (Kairo#32).
+        val pendingStatus = java.util.concurrent.atomic.AtomicReference<String?>()
         Thread {
             try {
                 val scanned = scan(selected, depth, cancelled) { message ->
-                    activity.runOnUiThread {
-                        if (!cancelled.get() && tree == selected) screen.showStatus(message)
+                    if (pendingStatus.getAndSet(message) == null) activity.runOnUiThread {
+                        val latest = pendingStatus.getAndSet(null)
+                        if (latest != null && !cancelled.get() && tree == selected) screen.showStatus(latest)
                     }
                 }
                 activity.runOnUiThread {
