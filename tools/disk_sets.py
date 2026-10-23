@@ -89,6 +89,49 @@ def _release_rank(name):
     return (bool(SIDE_RELEASE.search(" ".join(notes))), len(notes), len(name), name)
 
 
+def set_name(archive):
+    """The name a multi-disk set's archives share: the file name up to its disk tag, without dump
+    flags or extension, in its folder. An archive without a disk tag is its own set."""
+    folder, _, base = archive.rpartition("/")
+    base = base.rsplit(".", 1)[0] if "." in base else base
+    match = DISK_TAG.search(base)
+    if match:
+        base = base[:match.start()]
+    base = DUMP_SET.sub("", base).strip()
+    return f"{folder}/{base}" if folder else base
+
+
+def group(archive):
+    """The game an archive belongs to by its name: a disk of a set (one with a disk tag) by its set's
+    name, so every disk of an unmatched set is one game; any other archive by its file name."""
+    base = archive.rpartition("/")[2]
+    return set_name(base) if DISK_TAG.search(base) else base
+
+
+def ungrouped_sets(archives, games):
+    """The multi-disk sets of a scan whose disks are still more than one library entry: for each,
+    (its set name, the archives whose disks show). [archives] are a scan's ready archives, each
+    {path, disks: [{contentId}]}; [games] the research's games, with their diskSets and diskHidden."""
+    hidden = set()
+    for game in games.values():
+        for fields in game.get("diskSets", {}).values():
+            hidden.update(fields["setDisks"])
+        hidden.update(game.get("diskHidden", []))
+    sets = {}
+    for archive in archives:
+        if DISK_TAG.search(archive["path"].rpartition("/")[2]):
+            sets.setdefault(set_name(archive["path"]), []).append(archive)
+    result = []
+    for name, members in sorted(sets.items()):
+        if len(members) < 2:
+            continue
+        shown = [archive["path"] for archive in members
+                 if any(disk["contentId"] not in hidden for disk in archive["disks"])]
+        if len(shown) > 1:
+            result.append((name, shown))
+    return result
+
+
 def disk_sets(disks, boot_kinds, companion):
     """The disk sets of one game's [disks], each {archive, member, contentId}. [boot_kinds] lists
     the kinds the app starts from, preferred first; [companion] maps an entry's kind to (the kind

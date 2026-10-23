@@ -6,8 +6,9 @@ Usage: research.py <app root> --mobygames <dump directory>
 Writes catalog/research/games-v1.json for tools/app_catalog.py. The app's tools/catalog_config.py
 names its PLATFORMS (LaunchBox slugs), MOBYGAMES (its MobyGames listing slug) and SCANS:
 {set name: (scan index path, LaunchBox slugs to match against, in order)}. An optional
-GROUP(archive path) names the game an archive belongs to (default: its file name); archives of
-one group share a title hint and, when unmatched, one local game. An optional NOT_GAME(archive path)
+GROUP(archive path) names the game an archive belongs to (default: its file name, or for a disk
+of a set its set's name, disk_sets.group); archives of one group share a title hint and, when
+unmatched, one local game. An optional NOT_GAME(archive path)
 marks archives that are not games, such as utilities, system disks and firmware: a game whose
 archives are all not games is hidden from the library, so it never shows even in a games folder.
 
@@ -45,7 +46,7 @@ from pathlib import Path
 
 from launchbox import BOX_TYPES, SCREENSHOT_TYPES, candidates, key as title_key
 from moby_art import MobyArt
-from disk_sets import disk_sets
+from disk_sets import disk_sets, group as disk_group, ungrouped_sets
 import art_verdicts
 from launchbox_artwork import URL
 
@@ -227,11 +228,12 @@ def assemble(root, moby_root):
     titles = [title_key(entry["title"]) for _, entry in own]
     # A MobyGames-only game whose title no other MobyGames-only game shares.
     own_moby = {title_key(entry["title"]): key for key, entry in own if titles.count(title_key(entry["title"])) == 1}
-    group_of = getattr(config, "GROUP", lambda path: path.rsplit("/", 1)[-1])
+    group_of = getattr(config, "GROUP", disk_group)
     not_game = getattr(config, "NOT_GAME", lambda path: False)
     machine_of = getattr(config, "MACHINE", lambda name, set_name, content_id: {})
     archive_counts = {}  # each game's (archives, archives that are not games)
     disks = {}  # each game's disks: archive, member and content ID (disk_sets.py)
+    scanned = []  # every ready archive of the standard sets, for the grouping check
     for set_name, (index_path, slugs) in config.SCANS.items():
         index = read(root / index_path, None)
         if index is None:
@@ -239,6 +241,7 @@ def assemble(root, moby_root):
         for archive in index["archives"]:
             if archive["status"] != "ready":
                 continue
+            scanned.append(archive)
             name = f"{set_name}:{archive['path']}"
             group = group_of(archive["path"])
             title, year, _ = parse_hint(group)
@@ -316,6 +319,12 @@ def assemble(root, moby_root):
             games[key]["diskSets"] = sets
         if hidden:
             games[key]["diskHidden"] = hidden
+
+    # Every multi-disk set of the standard sets is one library entry; a set that is not fails here.
+    ungrouped = ungrouped_sets(scanned, games)
+    if ungrouped:
+        raise SystemExit(f"{len(ungrouped)} multi-disk sets are more than one library entry: " +
+                         "; ".join(f"{name} ({len(shown)} entries)" for name, shown in ungrouped[:10]))
 
     descriptions = read(research / "descriptions-v1.json", {"schemaVersion": 1, "descriptions": {}})["descriptions"]
     unknown = descriptions.keys() - games.keys()
