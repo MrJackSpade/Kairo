@@ -25,7 +25,7 @@ end; it has no time limit.
 | `MachineBridge`, `MachineStatus` | What the activity needs from the native machine, and its status line. |
 | `LayeredGameCatalog` | The catalog layers (shipped, updated, installed, user catalog, user overrides) with the common fields. A product's `Schema` adds its own fields, media roles, content IDs and update URLs. |
 | `DiskImageLibrary` | Disk images in the games folder, loose or in ZIP and 7z archives, named by content ID, played from working copies. A product's `Format` lists its image extensions and kinds. Kinds in `Format.programs` are programs that run from their folder (KairoST's Atari programs): an entry lists the folder's files, and its working copy is a copy of the whole folder. |
-| `FirmwareSet` | Firmware files imported from a folder the player chooses, matched by name and checked by size, with a settings row. |
+| `FirmwareSet` | Firmware files imported from a folder the player chooses, matched by name, SHA-1 or (`Part.identifies`) a header that names the firmware's version, the best-ranked match taken, and checked by size, with a settings row. |
 | `MachineFirstRun` | The first-run games folder and firmware steps. |
 | `FolderStateSlots`, `LaunchBoxArtworkReferences` | Save-state slots in a custom save folder, and catalog artwork references. |
 

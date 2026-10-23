@@ -32,21 +32,27 @@ class FirmwareSet(
      * gives its largest size, [maxBytes], so larger files are not read. [validate] checks a copy
      * further and throws to reject it. [status] can name an installed-like state the set does not
      * know (such as a game's own font); [missing] and [removeLabel] name the empty state and the
-     * button that returns to it.
+     * button that returns to it. [identifies] finds the part in a folder import by the first
+     * [HEADER_BYTES] of a file of one of its [sizes], for firmware whose dumps differ (versions,
+     * languages) but say what they are in a header: it gives a file it recognizes a rank, the
+     * highest-ranked file a folder holds is imported, and null for any other file. It only sorts
+     * what a folder holds, and never refuses a file the player picks.
      */
     class Part(val name: String, val label: String, val description: String, val accepted: Set<String>,
                val required: Boolean, val sizes: Set<Long> = emptySet(), val sha1: Set<String> = emptySet(),
                val maxBytes: Long = sizes.maxOrNull() ?: Long.MAX_VALUE, val validate: (File) -> Unit = {},
                val status: (() -> String?)? = null, val missing: String = "Missing",
-               val removeLabel: String = "Remove") {
+               val removeLabel: String = "Remove", val identifies: ((ByteArray) -> Int?)? = null) {
         init {
             require(description.isNotBlank()) { "$label has no description" }
             require(sha1.isEmpty() || maxBytes < Long.MAX_VALUE) { "$label is found by content but has no size limit" }
+            require(identifies == null || sizes.isNotEmpty()) { "$label is found by its header but has no sizes" }
         }
     }
 
     private val hashed = parts.filter { it.sha1.isNotEmpty() }
     private val largestHashed = hashed.maxOfOrNull { it.maxBytes } ?: 0L
+    private val headed = parts.filter { it.identifies != null }
 
     fun file(part: Part) = File(directory, part.name)
     fun installed(part: Part) = file(part).isFile
@@ -95,7 +101,7 @@ class FirmwareSet(
      */
     fun importFolder(resolver: ContentResolver, tree: Uri, cancelled: AtomicBoolean): List<Part> {
         val files = DocumentTreeWalker(resolver).scan(tree, cancelled,
-            { name -> hashed.isNotEmpty() || partFor(name) != null }, {}).files
+            { name -> hashed.isNotEmpty() || headed.isNotEmpty() || partFor(name) != null }, {}).files
         val byName = parts.mapNotNull { part ->
             files.firstOrNull { partFor(it.path.substringAfterLast('/')) === part }?.let { part to it.uri }
         }
@@ -105,7 +111,17 @@ class FirmwareSet(
             val digest = sha1(resolver, file.uri)
             hashed.firstOrNull { digest in it.sha1 }?.let { it to file.uri }
         }
-        val found = byName + byContent.distinctBy { it.first }.filter { (part, _) -> byName.none { it.first === part } }
+        // Then by header: each file of a size a headed part has, its first bytes read once; a part
+        // takes the file it ranks highest.
+        val byHeader = files.filter { file -> headed.any { file.size in it.sizes } }.flatMap { file ->
+            if (cancelled.get()) throw java.util.concurrent.CancellationException("Cancelled")
+            val header = header(resolver, file.uri)
+            headed.mapNotNull { part ->
+                if (file.size !in part.sizes) null
+                else part.identifies!!(header)?.let { rank -> Triple(part, rank, file.uri) }
+            }
+        }.groupBy { it.first }.map { (part, matches) -> part to matches.maxBy { it.second }.third }
+        val found = (byName + byContent + byHeader).distinctBy { it.first }
         // Every copy is checked before any replaces an installed file.
         val staged = found.map { (part, uri) -> part to stage(resolver, uri, part) }
         try {
@@ -152,6 +168,19 @@ class FirmwareSet(
         return parts.firstOrNull { lower in it.accepted }
     }
 
+    /** The first [HEADER_BYTES] of [uri], fewer when it is shorter. */
+    private fun header(resolver: ContentResolver, uri: Uri): ByteArray =
+        (resolver.openInputStream(uri) ?: error("Unable to open $uri")).use { input ->
+            val bytes = ByteArray(HEADER_BYTES)
+            var count = 0
+            while (count < bytes.size) {
+                val read = input.read(bytes, count, bytes.size - count)
+                if (read < 0) break
+                count += read
+            }
+            bytes.copyOf(count)
+        }
+
     private fun sha1(resolver: ContentResolver, uri: Uri): String =
         (resolver.openInputStream(uri) ?: error("Unable to open $uri")).use(::sha1)
 
@@ -169,6 +198,9 @@ class FirmwareSet(
     }
 
     companion object {
+        /** How much of a file [Part.identifies] reads. */
+        const val HEADER_BYTES = 256
+
         /**
          * Copies one picked file to [target], replacing it only once the copy is whole and good: it
          * must be exactly [exactBytes] when given, at most [maxBytes], not empty, and pass [validate].
