@@ -422,8 +422,17 @@ class LibraryScreen<T : LibraryItem>(
         updateEmptyState()
         if (!busy && entries.isNotEmpty() && message.isNotEmpty() && !SUMMARY.containsMatchIn(message))
             (context as? android.app.Activity)?.let { Ui.message(it, message, long = true) }
-        pages.refresh()
+        // An open page's rows can depend on whether a task runs; the flyout's status line follows
+        // each message by itself (its tick). A scan sends a message per file, and rebuilding the
+        // open page for each one kept the main thread busy for most of a scan.
+        if (busy != pagesBusy || !busy) {
+            pagesBusy = busy
+            pages.refresh()
+        }
     }
+
+    /** Whether the open page was last refreshed while a task ran. */
+    private var pagesBusy = false
 
     private fun updateEmptyState() {
         if (entries.isNotEmpty()) {
