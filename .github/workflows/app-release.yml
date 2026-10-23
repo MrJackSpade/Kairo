@@ -103,6 +103,10 @@ jobs:
             echo "VERSION_CODE=$version_code"
             echo "ARTIFACT_REF=${GITHUB_REF_NAME//\//-}"
           } >> "$GITHUB_ENV"
+      - name: Require the Kairo release version
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: sh shared/tools/check-release-version.sh "$GITHUB_REF_NAME" "$(cat shared/release-version)"
       - name: Validate release notes
         if: github.ref_type == 'tag'
         shell: bash

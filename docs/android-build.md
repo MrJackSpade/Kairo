@@ -13,6 +13,8 @@ Product settings apply `shared/gradle/android-settings.gradle`; Android modules 
 
 Before building a clean product checkout, run `bash tools/checkout_shared.sh` (or `git submodule update --init shared` locally). Each product retains only the bootstrap needed to fetch the pinned shared checkout, then delegates commit and cleanliness validation to `tools/verify_checkout.sh` here. Missing shared files produce an explicit initialization error from the product wrapper.
 
+Every Kairo app releases the same version, the one in `release-version`. To release: set it, pin that shared commit in every app, add each app's `docs/releases/v<version>.md`, then run `tools/tag-release.ps1`, which checks every app and tags them all. Each app's pre-push hook and release workflow run `tools/check-release-version.sh`, which refuses a tag that is not `v<release-version>` of the pinned shared.
+
 Frame-driven apps (`gradle/kairo-machine-app.gradle`) release through two reusable workflows, which the app calls from its own `tag-builds.yml` and `play-release.yml` with `uses: MrJackSpade/Kairo/.github/workflows/<file>@<commit>` and `secrets: inherit`:
 
 - `.github/workflows/app-release.yml` builds, for a tag `v<version>`, the release APK, the APK with bundled artwork and the Play bundle (reviewed artwork only); verifies their signer (the persistent Kairo key), version, alignment and payloads; publishes them as the tag's GitHub Release; and dispatches `play-release.yml` for a tag without a prerelease suffix. The app supplies `docs/releases/<tag>.md`, the secrets `KAIRO_RELEASE_KEYSTORE_B64` and `KAIRO_RELEASE_PASSWORD`, and its own verification commands as `checks`.
