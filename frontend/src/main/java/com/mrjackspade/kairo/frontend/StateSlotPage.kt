@@ -140,7 +140,6 @@ class StateSlotPage(
     private fun activate(slot: Slot) {
         if (confirm != null) closeConfirm()
         focus("slot${slot.index}", reveal = false)
-        android.util.Log.i("Kairo", "slot ${slot.index} chosen: busy ${busy()}, saved ${slot.savedAt}")
         if (busy()) return
         val savedAt = slot.savedAt
         when {
@@ -189,10 +188,11 @@ class StateSlotPage(
             LinearLayout.LayoutParams(-1, -2))
         val buttons = WrapLayout(context, dp(8)).apply { alignEnd = false }
         val cancel = Ui.toneButton(context, "Cancel", ButtonTone.SECONDARY, minWidth = 96) { closeConfirm() }
+            .testId("confirm.cancel")
         val primary = Ui.toneButton(context, verb, ButtonTone.PRIMARY, minWidth = 96) {
             closeConfirm()
             run()
-        }
+        }.testId("confirm.go")
         buttons.addView(cancel, LinearLayout.LayoutParams(-2, dp(44)))
         buttons.addView(primary, LinearLayout.LayoutParams(-2, dp(44)))
         val center = FrameLayout(context).apply {

@@ -21,22 +21,13 @@ abstract class StateTests : KairoUiTest() {
         val menu = screens.openGameMenu()
         driver.waitForGame("Paused")
         val picture = driver.pictures.game("saved-slot$slot")
-        menu.find(By.item("f-save")).tap()
-        val page = driver.page("Save state").waitUntilShown()
-        val before = page.find(By.item("slot$slot")).texts()
-        page.find(By.item("slot$slot")).tap()
-        driver.waitUntil("slot $slot to show the saved state") { !page.exists() || page.find(By.item("slot$slot")).texts() != before }
-        screens.closeMenu()
-        driver.waitForGame("Running")
+        screens.saveState(slot, menu)
         return picture
     }
 
     /** Loads [slot] from the game menu; returns the picture once loaded, with the menu still pausing it. */
     private fun load(slot: Int): Picture {
-        screens.openGameMenu().find(By.item("f-load")).tap()
-        driver.page("Load state").waitUntilShown().find(By.item("slot$slot")).tap()
-        screens.closeMenu()
-        driver.waitForGame("Running")
+        screens.loadState(slot)
         screens.openGameMenu()
         driver.waitForGame("Paused")
         val picture = driver.pictures.game("loaded-slot$slot")

@@ -87,6 +87,41 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
         return driver.page("flyout").waitUntilShown()
     }
 
+    /**
+     * Saves the running game to [slot] from the game [menu] (open, the game paused), replacing a
+     * save there as the player confirms, and waits for the app to say it saved; then closes the
+     * menu and waits for the game to run again.
+     */
+    fun saveState(slot: Int, menu: Element = openGameMenu().also { driver.waitForGame("Paused") }) {
+        menu.find(By.item("f-save")).tap()
+        val card = driver.page("Save state").waitUntilShown().find(By.item("slot$slot"))
+        card.tap()
+        driver.find(By.id("confirm.go")).takeIf { it.exists() }?.tap()
+        awaitSlotMessage("Saved to slot $slot", "Save failed")
+        closeMenu()
+        driver.waitForGame("Running")
+    }
+
+    /**
+     * Loads [slot] from the game menu, confirming as the player does, and waits for the app to say
+     * it loaded; then closes the menu and waits for the game to run again.
+     */
+    fun loadState(slot: Int) {
+        openGameMenu().find(By.item("f-load")).tap()
+        driver.page("Load state").waitUntilShown().find(By.item("slot$slot")).tap()
+        driver.find(By.id("confirm.go")).tap()
+        awaitSlotMessage("Loaded slot $slot", "Load failed")
+        closeMenu()
+        driver.waitForGame("Running")
+    }
+
+    /** Waits for the app's message [done]; fails at once with its message when it starts [failed]. */
+    private fun awaitSlotMessage(done: String, failed: String) = driver.waitUntil("the app to say \"$done\"") {
+        val texts = driver.visibleTexts()
+        texts.firstOrNull { it.startsWith(failed) }?.let { throw AssertionError(it) }
+        done in texts
+    }
+
     /** Closes the menu and any page over the game, as the menu button does, when one is open. */
     fun closeMenu() {
         driver.idle()

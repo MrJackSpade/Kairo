@@ -60,8 +60,7 @@ abstract class LibraryManagementTests : KairoUiTest() {
         screens.closeMenu()
         library.open(app.bootGame).play()
         driver.waitFrames(SETTLE_FRAMES)
-        screens.openGameMenu().find(By.item("f-save")).tap()
-        driver.page("Save state").waitUntilShown().find(By.item("slot1")).tap()
+        screens.saveState(1)
         driver.waitUntil("a save in the chosen folder") { screens.documents.files("saves").isNotEmpty() }
         driver.log.step("files", screens.documents.files("saves").joinToString())
     }
