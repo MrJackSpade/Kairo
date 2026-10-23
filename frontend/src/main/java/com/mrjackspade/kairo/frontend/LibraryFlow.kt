@@ -194,7 +194,7 @@ class LibraryFlow<T : LibraryItem>(
         scanEdits.clear()
         scanning = true
         rehashing = forceHash
-        screen.showStatus(if (forceHash) "Rehashing folder…" else "Scanning folder…")
+        screen.showStatus(if (forceHash) "Rehashing folder…" else "Checking the games folder…")
         fun finished() {
             if (scanCancelled !== cancelled) return
             scanning = false

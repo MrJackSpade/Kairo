@@ -159,7 +159,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             (4 to ::readCacheRecordV4) + (5 to ::readCacheRecordV5))
     private val scanPipeline by lazy {
         LibraryScanPipeline(storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
-            { source, index, total -> "Scanning ${index + 1}/$total: ${source.path}" },
+            { source, index, total -> "Checking ${index + 1} of $total for changes: ${source.path}" },
             displayOrder = { entries -> entries.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { it.path + (it.zipEntry ?: "") }) },
             metadata = { JSONObject().put("mediaFormatsVersion", cache.mediaFormatsVersion) })

@@ -42,6 +42,11 @@ class MachineOption(
 
     companion object {
         const val SECTION = "machine"
+        const val SKIP_MEMORY_CHECK = "skipMemoryCheck"
+
+        /** Skip memory check: the same option, on by default, in every app whose machine counts its memory at boot. */
+        fun skipMemoryCheck() = MachineOption(SKIP_MEMORY_CHECK, "Skip memory check",
+            listOf(ChoiceOption("on", "On"), ChoiceOption("off", "Off")), "on")
 
         /** Whether [value] is a `machine` section holding only valid choices of [options]. */
         fun validSection(options: List<MachineOption>, value: Any): Boolean = value is JSONObject &&
