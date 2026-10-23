@@ -4,17 +4,21 @@ Runs a native host test inside a Windows job object with a hard memory limit.
 
 .DESCRIPTION
 A test that exceeds the limit is killed by Windows instead of exhausting the workstation's
-memory. These emulators should need tens of megabytes; the limit only stops a runaway.
+memory. These emulators should need tens of megabytes; the limit only stops a runaway. The limit
+is 10 GB per process.
+
+The script declares no parameters: every word after the program goes to it unchanged, so a test's
+own options (such as --memory) never bind to the script, and each reaches the test as one
+argument, quotes included.
 
 .EXAMPLE
 shared\tools\run-limited.ps1 .build\host\boot_test.exe bios .build\run "roms\game.cue" 20
 #>
-param(
-    [Parameter(Mandatory = $true, Position = 0)][string]$Program,
-    [Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments,
-    [int]$MemoryGB = 10
-)
 $ErrorActionPreference = 'Stop'
+if ($args.Count -lt 1) { throw 'usage: run-limited.ps1 <program> [argument...]' }
+$Program = [string]$args[0]
+$Arguments = @($args | Select-Object -Skip 1 | ForEach-Object { [string]$_ })
+$LimitBytes = 10GB
 
 if (-not ('KairoJob' -as [type])) {
     Add-Type -TypeDefinition @'
@@ -56,10 +60,10 @@ public static class KairoJob {
 '@
 }
 
-$job = [KairoJob]::Create([uint64]$MemoryGB * 1GB)
+$job = [KairoJob]::Create([uint64]$LimitBytes)
 $start = New-Object System.Diagnostics.ProcessStartInfo
 $start.FileName = (Resolve-Path $Program).Path
-$start.Arguments = ($Arguments | ForEach-Object { '"' + $_ + '"' }) -join ' '
+foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
 $start.UseShellExecute = $false
 $process = [System.Diagnostics.Process]::Start($start)
 [KairoJob]::Assign($job, $process.Handle)
