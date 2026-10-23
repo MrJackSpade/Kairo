@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.uitest.suites
 
+import com.mrjackspade.kairo.frontend.GuestKeyboardPanel
 import com.mrjackspade.kairo.uitest.By
 import com.mrjackspade.kairo.uitest.KairoUiTest
 import org.junit.Assume.assumeTrue
@@ -84,13 +85,50 @@ abstract class TouchTests : KairoUiTest() {
         }
     }
 
+    /**
+     * Kairo#31: a touch on the keyboard leaves no part of it holding focus, so the controller's
+     * buttons go on reaching the game instead of lighting up the keyboard's own buttons.
+     */
+    @Test
+    fun touchingTheKeyboardLeavesTheControllerWithTheGame() {
+        play()
+        openKeyboard()
+        driver.find(By.id("keyboard.key")).nth(0).tap()
+        val focusedInKeyboard = driver.onMain {
+            driver.roots().mapNotNull { it.findFocus() }.filter { view ->
+                generateSequence(view) { it.parent as? android.view.View }
+                    .any { com.mrjackspade.kairo.frontend.TestAttributes.id(it)?.startsWith("keyboard.") == true }
+            }.map { com.mrjackspade.kairo.frontend.TestAttributes.id(it) ?: it.javaClass.simpleName }
+        }
+        expect.that("nothing in the touch keyboard holds focus after a touch", focusedInKeyboard.isEmpty()) { focusedInKeyboard.joinToString() }
+        val mark = driver.inputMark()
+        driver.press(android.view.KeyEvent.KEYCODE_BUTTON_A)
+        expect.that("A still reaches the game", driver.inputSince(mark).isNotEmpty())
+    }
+
+    @Test
+    fun theJoystickTabDrivesTheJoystick() {
+        play()
+        openKeyboard()
+        driver.find(By.id("keyboard.tab").withKey(GuestKeyboardPanel.JOYSTICK_PAGE.toString())).tap()
+        val controls = driver.find(By.id("joystick.control"))
+        controls.waitUntilShown()
+        for (control in controls.all()) {
+            val mark = driver.inputMark()
+            control.tap()
+            driver.waitForInput("joystick ${control.key()} pressed", mark) { events -> events.any { it.kind == "joystick" && it.down } }
+            driver.waitForInput("joystick ${control.key()} released", mark) { events -> events.any { it.kind == "joystick" && !it.down } }
+        }
+    }
+
     @Test
     fun theTouchpadMovesTheMouse() {
         play()
         openKeyboard()
         val tabs = driver.find(By.id("keyboard.tab"))
         assumeTrue("${app.name}'s touch keyboard has no touchpad", tabs.exists() || driver.find(By.id("keyboard.touchpad")).exists())
-        if (!driver.find(By.id("keyboard.touchpad")).exists()) tabs.all().last().tap()
+        if (!driver.find(By.id("keyboard.touchpad")).exists())
+            driver.find(By.id("keyboard.tab").withKey(GuestKeyboardPanel.TOUCHPAD_PAGE.toString())).tap()
         val pad = driver.find(By.id("keyboard.touchpad")).waitUntilShown()
         val mark = driver.inputMark()
         pad.drag(0.3f, 0.5f, 0.7f, 0.5f, steps = 20)

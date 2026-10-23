@@ -40,6 +40,44 @@ abstract class ControllerTests : KairoUiTest() {
     }
 
     @Test
+    fun aIsReturnAndBIsSpace() {
+        play()
+        expect.that("A sends Return (key ${app.returnKey})", sends(KeyEvent.KEYCODE_BUTTON_A).contains("key ${app.returnKey} down"))
+        expect.that("B sends Space (key ${app.spaceKey})", sends(KeyEvent.KEYCODE_BUTTON_B).contains("key ${app.spaceKey} down"))
+    }
+
+    @Test
+    fun theDPadReachesTheArrowKeys() {
+        play()
+        val pad = listOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)
+        for ((button, key) in pad.zip(app.arrowKeys)) {
+            val events = sends(button)
+            expect.that("${KeyEvent.keyCodeToString(button)} sends cursor key $key", events.contains("key $key down")) { events.joinToString() }
+        }
+    }
+
+    @Test
+    fun theControlsPageNamesTheGamesOwnMapping() {
+        play()
+        screens.openGameMenu().find(By.item("f-controls")).tap()
+        var controls = driver.page("Controls").waitUntilShown()
+        expect.that("a game on the all-games mapping has no row of its own", !controls.find(By.item("running-mapping")).exists())
+        expect.equal("the mapping row of a game on the all-games mapping", "Button mapping",
+            controls.find(By.item("mapping")).find(By.id("label")).text())
+        screens.closeMenu()
+        screens.openGameSettingsInGame().find(By.item("game-mapping")).tap()
+        screens.mapToFirstKey(driver.page("Button mapping").waitUntilShown(), "a")
+        screens.closeMenu()
+        screens.openGameMenu().find(By.item("f-controls")).tap()
+        controls = driver.page("Controls").waitUntilShown()
+        val own = controls.find(By.item("running-mapping"))
+        expect.equal("the running game's own mapping row", "${app.bootGame} mapping", own.find(By.id("label")).text())
+        expect.equal("its value", "Custom", own.find(By.id("value")).text())
+        expect.equal("the all-games row beside it", "All-games mapping", controls.find(By.item("mapping")).find(By.id("label")).text())
+        expect.equal("the all-games row's value", "Built-in", controls.find(By.item("mapping")).find(By.id("value")).text())
+    }
+
+    @Test
     fun mappingAButtonToAKeySendsThatKey() {
         play()
         screens.openGameMenu().find(By.item("f-controls")).tap()

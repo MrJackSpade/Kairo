@@ -20,6 +20,26 @@ abstract class LibraryTests : KairoUiTest() {
         for (game in app.singleEntryGames) expect.equal("entries titled \"$game\"", 1, titles.count { it == game })
     }
 
+    /**
+     * Kairo#39: the scan reads each archive where it is. The app's own storage, apart from the
+     * test games folder, holds less after the scan than the archives it read: copies of them would
+     * hold at least as much.
+     */
+    @Test
+    fun theScanReadsArchivesWhereTheyAre() {
+        screens.completeFirstRun().waitForGame(app.bootGame)
+        val target = driver.instrumentation.targetContext
+        val games = java.io.File(target.filesDir, com.mrjackspade.kairo.frontend.UiTestDocuments.DIRECTORY)
+        val archives = games.walkTopDown().filter { it.isFile && it.extension.lowercase() in setOf("zip", "7z", "lzh") }
+            .sumOf { it.length() }
+        org.junit.Assume.assumeTrue("${app.name}'s test games are not in archives", archives > 0)
+        fun size(folder: java.io.File) = folder.walkTopDown().onEnter { it != games }.filter { it.isFile }.sumOf { it.length() }
+        val storage = size(target.filesDir) + size(target.cacheDir)
+        driver.log.step("storage", "$storage bytes of app storage after scanning $archives bytes of archives")
+        expect.that("app storage after the scan ($storage bytes) is less than the archives it read ($archives bytes)",
+            storage < archives)
+    }
+
     @Test
     fun differentReleasesStaySeparate() {
         val library = screens.completeFirstRun().waitForGame(app.bootGame)
@@ -60,6 +80,21 @@ abstract class SearchTests : KairoUiTest() {
         val others = entries.filterNot { (it.title + " " + it.file).contains(app.searchTerm, ignoreCase = true) }
         expect.that("every result matches \"${app.searchTerm}\"", others.isEmpty()) { others.joinToString { it.title } }
         expect.that("\"${app.bootGame}\" is a result", entries.any { it.title == app.bootGame })
+    }
+
+    /** Kairo#29: the search field lets the system show its full-screen keyboard, as every text field does. */
+    @Test
+    fun theSearchFieldAllowsTheFullScreenKeyboard() {
+        val library = screens.completeFirstRun().waitForGame(app.bootGame)
+        library.search(app.searchTerm)
+        val fields = driver.onMain {
+            driver.roots().flatMap { com.mrjackspade.kairo.uitest.Views.descendants(it).toList() }
+                .filterIsInstance<android.widget.EditText>().filter { it.isShown }
+                .map { (com.mrjackspade.kairo.frontend.TestAttributes.id(it) ?: "field") to it.imeOptions }
+        }
+        expect.that("a text field is shown", fields.isNotEmpty())
+        for ((id, options) in fields)
+            expect.that("$id allows the full-screen keyboard", options and android.view.inputmethod.EditorInfo.IME_FLAG_NO_EXTRACT_UI == 0)
     }
 
     @Test

@@ -190,7 +190,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             SettingsRow.Kind.SWITCH -> switch = SwitchView(context).also { line.addView(it, gap(40, 22)) }
             SettingsRow.Kind.OPTION -> radio = RadioView(context).also { line.addView(it, gap(20, 20)) }
             else -> {
-                if (next.kind == SettingsRow.Kind.CHOICE) cycle = Ui.text(context, "‹", 18f, Ui.TEXT_FAINT).apply {
+                if (next.kind == SettingsRow.Kind.CHOICE) cycle = Ui.text(context, "‹", 18f, Ui.TEXT_FAINT).testId("cycle").apply {
                     visibility = View.GONE
                     includeFontPadding = false
                 }.also { line.addView(it, gap().apply { marginEnd = -dp(4) }) }

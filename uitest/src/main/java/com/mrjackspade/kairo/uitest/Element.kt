@@ -54,6 +54,18 @@ class Element internal constructor(private val driver: Driver, private val path:
 
     private fun boundsNow() = driver.onMain { current()?.let(Views::boundsInWindow) }
 
+    /** Where it is in its window now, without waiting; null when it is not on screen. */
+    fun boundsInWindowNow(): android.graphics.Rect? = boundsNow()
+
+    /** Whether all of it is on screen now, cut off by neither a scrolling page nor the screen's edge. */
+    fun fullyOnScreenNow(): Boolean = driver.onMain {
+        current()?.let { view ->
+            val visible = android.graphics.Rect()
+            Views.present(view) && view.getGlobalVisibleRect(visible) &&
+                visible.width() == view.width && visible.height() == view.height
+        } == true
+    }
+
     /** The text it shows itself now, without waiting; null when it is not on screen. */
     fun textNow(): String? = driver.onMain { current()?.let(Views::ownText) }
 

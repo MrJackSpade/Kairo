@@ -54,6 +54,16 @@ abstract class AppUnderTest {
     /** A word that finds [bootGame] in library search and leaves out other games. */
     abstract val searchTerm: String
 
+    /**
+     * The guest's cursor keys, up, down, left and right, as guest key codes: the D-pad reaches them
+     * by default in every app (Kairo#37).
+     */
+    abstract val arrowKeys: List<Int>
+
+    /** The guest's Return and Space keys, which A and B send by default in every app (Kairo#37). */
+    abstract val returnKey: Int
+    abstract val spaceKey: Int
+
     /** Whether the app saves and loads states (KairoDos, on DOSBox Staging, has none). */
     open val hasStates = true
 

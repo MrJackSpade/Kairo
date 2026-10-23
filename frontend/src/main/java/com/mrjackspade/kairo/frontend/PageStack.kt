@@ -380,7 +380,10 @@ abstract class Page {
     fun itemView(id: String): View? = nav.firstOrNull { it.id == id }?.view
 
     private fun applyFocus(reveal: Boolean) {
-        nav.forEach { it.show(it.id == focusId) }
+        nav.forEach {
+            it.show(it.id == focusId)
+            TestAttributes.markFocused(it.view, it.id == focusId)
+        }
         if (reveal) focused?.let { item -> reveal(item.view) }
     }
 

@@ -36,6 +36,9 @@ class By private constructor(val description: String, private val test: (View) -
         /** Every focusable item of a page. */
         fun anyItem() = By("any item") { TestAttributes.item(it) != null }
 
+        /** The item the page's controller focus is on. */
+        fun focusedItem() = By("the focused item") { TestAttributes.item(it) != null && TestAttributes.focused(it) }
+
         /** An id matching [pattern], for ids that carry an index, such as "firmware0-n88.rom". */
         fun idMatching(pattern: Regex) = By("id~/$pattern/") { TestAttributes.id(it)?.let(pattern::matches) == true }
 

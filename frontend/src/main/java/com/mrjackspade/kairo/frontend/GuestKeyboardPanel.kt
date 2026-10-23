@@ -35,7 +35,8 @@ class GuestKeyboardPanel(
     mouseReferenceSize: () -> Pair<Int, Int> = { 640 to 400 },
     private val onVisibilityChanged: (() -> Unit)? = null
 ) : LinearLayout(context) {
-    private companion object {
+    /** The page numbers of the touchpad and Joystick tabs, which also key their tabs for the UI tests. */
+    companion object {
         const val TOUCHPAD_PAGE = -1
         const val JOYSTICK_PAGE = -2
     }

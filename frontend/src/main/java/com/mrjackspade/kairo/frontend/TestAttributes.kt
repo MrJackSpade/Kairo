@@ -24,6 +24,12 @@ object TestAttributes {
     /** The navigation id of a focusable item, or null for a view that is not one. */
     fun item(view: View): String? = (view.getTag(R.id.kairo_test_role) as? String)?.removePrefix("$ITEM:")
 
+    /** Marks whether a page's item is the one its controller focus is on. */
+    fun markFocused(view: View, focused: Boolean) = view.setTag(R.id.kairo_test_focused, focused)
+
+    /** Whether a page's item is the one its controller focus is on. */
+    fun focused(view: View): Boolean = view.getTag(R.id.kairo_test_focused) == true
+
     /** The role of a page's focusable items: rows, buttons, tabs and keys a controller can reach. */
     const val ITEM = "item"
 
