@@ -66,6 +66,9 @@ internal class RowView(private val context: Context, private val host: RowHost, 
     fun bind(next: SettingsRow, focused: Boolean, trayOpen: Boolean) {
         if (builtKind != next.kind || builtDescription != (next.description != null)) build(next)
         row = next
+        // The row by its id, its parts by their role; switches and options say whether they are on.
+        TestAttributes.mark(line, next.id, if (next.kind == SettingsRow.Kind.SWITCH || next.kind == SettingsRow.Kind.OPTION)
+            next.checked().toString() else null)
         val enabled = next.enabled()
         line.alpha = if (enabled || next.kind == SettingsRow.Kind.INFO) 1f else 0.45f
         line.isSelected = focused || trayOpen
@@ -146,7 +149,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             gravity = Gravity.END
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
-        }
+        }.testId("value")
         val line = object : LinearLayout(context) {
             override fun onMeasure(widthSpec: Int, heightSpec: Int) {
                 valueView.maxWidth = (MeasureSpec.getSize(widthSpec) * 0.6f).toInt()
@@ -165,13 +168,13 @@ internal class RowView(private val context: Context, private val host: RowHost, 
         label = Ui.text(context, "", Ui.BODY).apply {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
-        }
+        }.testId("label")
         text.addView(label)
-        if (next.description != null) description = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED)
+        if (next.description != null) description = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).testId("description")
             .also { text.addView(it, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) }) }
         line.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
         if (next.kind != SettingsRow.Kind.OPTION) {
-            tag = Ui.chip(context, "").also { line.addView(it, gap()) }
+            tag = Ui.chip(context, "").testId("tag").also { line.addView(it, gap()) }
             spinner = Ui.spinner(context).also {
                 it.visibility = View.GONE
                 line.addView(it, gap(16))
@@ -203,9 +206,9 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(14), dp(13), dp(28), dp(13))
         }
-        label = Ui.text(context, "", Ui.BODY)
+        label = Ui.text(context, "", Ui.BODY).testId("label")
         line.addView(label, LinearLayout.LayoutParams(-2, -2))
-        value = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).apply {
+        value = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).testId("value").apply {
             gravity = Gravity.END
             setPadding(0, dp(1), 0, 0)
             breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
@@ -226,9 +229,9 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(22)
         }
-        label = Ui.text(context, "", Ui.BODY)
+        label = Ui.text(context, "", Ui.BODY).testId("label")
         top.addView(label, LinearLayout.LayoutParams(0, -2, 1f))
-        value = Ui.text(context, "", Ui.SECONDARY)
+        value = Ui.text(context, "", Ui.SECONDARY).testId("value")
         top.addView(value, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10) })
         line.addView(top)
         slider = SliderBar(context) { picked -> row?.let { host.slide(it, picked) } }
@@ -247,7 +250,7 @@ internal class TrayView(context: Context, val spec: TraySpec, flat: Boolean,
                         private val press: (TrayButton, String) -> Unit) : LinearLayout(context) {
     val buttons = ArrayList<View>()
     val entry: EditText? = spec.input?.let { input ->
-        EditText(context).apply {
+        EditText(context).testId("tray.input").apply {
             setText(input.initial)
             setSelection(text.length)
             hint = input.hint
@@ -285,6 +288,7 @@ internal class TrayView(context: Context, val spec: TraySpec, flat: Boolean,
         val row = WrapLayout(context, Ui.dp(context, 8))
         spec.buttons.forEach { button ->
             val view = Ui.choiceButton(context, button.label, button.tone) { press(button, text) }
+                .testId("tray.button", button.label)
             buttons += view
             row.addView(view, ViewGroup.LayoutParams(-2, Ui.dp(context, 44)))
         }

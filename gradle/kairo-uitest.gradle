@@ -1,0 +1,71 @@
+// UI tests (docs/ui-tests.md): Selenium-style device tests in the app's src/androidTest, on the
+// shared framework and suites in shared/uitest. An app applies this after its android block.
+//
+// - Build type uiTest: a debug build under its own package (<applicationId>.uitest) and label, so it
+//   installs beside any other copy of the app, with the tests' document provider
+//   (shared/uitest/provider) and no update check. The androidTest APK tests it.
+// - The tests run under Android Test Orchestrator, which clears the app's data before each test.
+// - Test resources: uitest/TestResources.part1.dat, decrypted with LOCAL_BUILD_TOKEN into the test
+//   APK's assets (tools/test_resources.py) when they are not unpacked yet.
+// tools/uitest.ps1 builds, installs and runs them on a device.
+
+def versions = new Properties()
+def sharedRoot = buildscript.sourceFile.parentFile.parentFile
+new File(buildscript.sourceFile.parentFile, 'android-versions.properties').withInputStream { versions.load(it) }
+def label = project.ext.has('kairoLabel') ? project.ext.kairoLabel : project.name
+
+android {
+    buildTypes {
+        create('uiTest') {
+            initWith(getByName('debug'))
+            applicationIdSuffix '.uitest'
+            versionNameSuffix '-uitest'
+            matchingFallbacks += ['debug']
+            manifestPlaceholders += [kairoLabel: "$label UI test"]
+            // The tests must never wait on, or be interrupted by, a GitHub release check.
+            resValue 'bool', 'kairo_update_check', 'false'
+        }
+    }
+    testBuildType 'uiTest'
+    defaultConfig {
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        testInstrumentationRunnerArguments clearPackageData: 'true', useTestStorageService: 'true'
+    }
+    testOptions { execution 'ANDROIDX_TEST_ORCHESTRATOR' }
+    sourceSets {
+        uiTest {
+            java.srcDir new File(sharedRoot, 'uitest/provider/java')
+            manifest.srcFile new File(sharedRoot, 'uitest/provider/AndroidManifest.xml')
+        }
+        androidTest.assets.srcDir layout.buildDirectory.dir('uitest-resources')
+    }
+}
+
+dependencies {
+    androidTestImplementation project(':uitest')
+    androidTestUtil "androidx.test:orchestrator:${versions.androidx_test_orchestrator}"
+    androidTestUtil "androidx.test.services:test-services:${versions.androidx_test_services}"
+}
+
+// The copyrighted test resources, decrypted into the test APK's assets under uitest/.
+def resourceBundle = rootProject.file('uitest/TestResources.part1.dat')
+def explodeTestResources = tasks.register('explodeTestResources', Exec) {
+    inputs.file resourceBundle
+    outputs.dir layout.buildDirectory.dir('uitest-resources/uitest')
+    commandLine 'python', new File(sharedRoot, 'tools/test_resources.py').absolutePath, 'unpack',
+        resourceBundle.absolutePath, layout.buildDirectory.dir('uitest-resources/uitest').get().asFile.absolutePath
+}
+tasks.configureEach { task ->
+    if (task.name ==~ /merge.*AndroidTestAssets/) task.dependsOn explodeTestResources
+}
+
+// The orchestrator and test services APKs, for tools/uitest.ps1 to install.
+configurations { uiTestTools }
+dependencies {
+    uiTestTools "androidx.test:orchestrator:${versions.androidx_test_orchestrator}@apk"
+    uiTestTools "androidx.test.services:test-services:${versions.androidx_test_services}@apk"
+}
+tasks.register('uiTestTools', Copy) {
+    from configurations.uiTestTools
+    into layout.buildDirectory.dir('uitest-tools')
+}

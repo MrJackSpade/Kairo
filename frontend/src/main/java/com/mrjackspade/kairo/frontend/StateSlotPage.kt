@@ -27,6 +27,8 @@ class StateSlotPage(
 ) : Page() {
     class Slot(val index: Int, val savedAt: Long?, val thumbnail: Bitmap?)
 
+    override val testName: String get() = if (saving) "Save state" else "Load state"
+
     private class Card(val slot: Slot, val view: FrameLayout, val body: LinearLayout,
                        val spinner: View)
 

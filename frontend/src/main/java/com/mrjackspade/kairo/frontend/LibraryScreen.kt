@@ -75,15 +75,15 @@ class LibraryScreen<T : LibraryItem>(
     var openMenuAction: () -> Unit = {}
     /** A new entry list is on screen; [showEntries] publishes it from a worker. */
     var entriesPublished: () -> Unit = {}
-    private val list = ListView(context)
+    private val list = ListView(context).testId("library.list")
     private val emptyState = LinearLayout(context)
-    private val emptyText = Ui.text(context, "", Ui.BODY, Ui.TEXT_MUTED)
-    private val emptyButton = Ui.primaryButton(context, "Choose ${strings.folder}…") { chooseFolder() }
-    private val scanProgress = Ui.spinner(context, 24, 3)
+    private val emptyText = Ui.text(context, "", Ui.BODY, Ui.TEXT_MUTED).testId("library.status")
+    private val emptyButton = Ui.primaryButton(context, "Choose ${strings.folder}…") { chooseFolder() }.testId("library.choose-folder")
+    private val scanProgress = Ui.spinner(context, 24, 3).testId("library.scanning")
     val tasks = TaskStrip(context)
     private var detailPage: GameDetailPage<T>? = null
-    private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openMenu() }
-    private val searchButton = Ui.iconButton(context, R.drawable.ic_search, "Search games") { toggleSearch() }
+    private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openMenu() }.testId("library.menu")
+    private val searchButton = Ui.iconButton(context, R.drawable.ic_search, "Search games") { toggleSearch() }.testId("library.search")
     /** Header focus: 0 menu, 1 search, 2 the task strip's Stop. -1 is the game list. */
     private var headerSelection = -1
     private var lastHeaderSelection = 0
@@ -96,7 +96,7 @@ class LibraryScreen<T : LibraryItem>(
             }
             return super.onKeyPreIme(keyCode, event)
         }
-    }
+    }.testId("library.search.field")
     val searchFocused: Boolean get() = search.hasFocus()
     /**
      * Search typed on another screen (a dual-screen device's lower screen), so the keyboard leaves
@@ -230,13 +230,14 @@ class LibraryScreen<T : LibraryItem>(
                 maxLines = 2
                 ellipsize = android.text.TextUtils.TruncateAt.END
             }
-            text.addView(title)
-            text.addView(detail)
+            text.addView(title.testId("title"))
+            text.addView(detail.testId("detail"))
             view.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
             holder = Row(art, mark, title, detail)
             view.tag = holder
         }
         val entry = entries[index]
+        TestAttributes.mark(view, "library.entry", entry.id)
         val pinned = index == 0 && pinnedId != null && items.firstOrNull() is Header
         val game = metadata(entry)
         holder.title.text = game.title
@@ -281,6 +282,7 @@ class LibraryScreen<T : LibraryItem>(
             text = strings.productName
             scale = 2
             brand = true
+            testId("library.brand")
         }, LinearLayout.LayoutParams(0, -2, 1f))
         scanProgress.visibility = View.GONE
         header.addView(scanProgress, LinearLayout.LayoutParams(dp(24), dp(24)).apply {

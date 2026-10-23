@@ -36,17 +36,11 @@ system theme overlays, and a killed process takes its machine with it.
 
 ## Device check
 
-`ConfigurationChangeFixture` launches a game through the existing external
-launch interface. It checks that both activities declare the changes above,
-then toggles dark mode and font scale twice each through the shell. After each
-change the same game activity, session object and companion (when present)
-remain, and the machine returns to running. It restores the original night
-mode and font scale afterwards.
-
-```
-adb shell am instrument -w -e configChangeUri '<stored game URI>' com.loxifi.kairo98.test/com.mrjackspade.kairo.frontend.LibraryUiInstrumentation
-adb shell am instrument -w -e configChangeUri '<stored game URI>' com.loxifi.kairodos.test/com.mrjackspade.kairodos.CatalogUpdateInstrumentation
-```
+`ConfigurationChangeFixture` launched a game through the external launch
+interface, checked that both activities declare the changes above, then toggled
+dark mode and font scale twice each through the shell. After each change the same
+game activity, session object and companion (when present) remained, and the
+machine returned to running. The fixture was removed when the device tests moved to the UI tests ([ui-tests.md](ui-tests.md)).
 
 Attaching and detaching a hardware keyboard needs a real or virtual input
 device, so check it by hand during a game.

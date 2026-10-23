@@ -27,9 +27,9 @@ class SaveFolderSettings(
 ) {
     /** The chosen folder, or null for app storage. */
     val folder: FolderSaveLocation? get() = preferences.getString(PREFERENCE, null)?.let(Uri::parse)?.let { uri ->
-        check(activity.contentResolver.persistedUriPermissions.any {
-            it.uri == uri && it.isReadPermission && it.isWritePermission
-        }) { "Access to the save folder was lost. Choose it again in Configurations › Save folder." }
+        check(FolderGrants.has(activity, uri, write = true)) {
+            "Access to the save folder was lost. Choose it again in Configurations › Save folder."
+        }
         FolderSaveLocation(activity.contentResolver, uri)
     }
 
@@ -63,8 +63,7 @@ class SaveFolderSettings(
         val uri = data?.data
         if (result != Activity.RESULT_OK || uri == null) return true
         if (uri.toString() == preferences.getString(PREFERENCE, null)) return true
-        activity.contentResolver.takePersistableUriPermission(uri,
-            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        FolderGrants.take(activity, uri, write = true)
         change(FolderSaveLocation(activity.contentResolver, uri)) {
             check(preferences.edit().putString(PREFERENCE, uri.toString()).commit()) {
                 "Could not remember the save folder"

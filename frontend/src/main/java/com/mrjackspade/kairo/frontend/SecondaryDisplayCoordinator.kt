@@ -449,6 +449,7 @@ internal class SecondaryDisplayContent(
 ) : FrameLayout(context), SurfaceHolder.Callback {
     fun setInitialMode(touchpad: Boolean) = keyboard.setInitialMode(touchpad)
     private val gameSurface = SurfaceView(context).apply {
+        testId("secondary.surface")
         visibility = View.GONE
         holder.addCallback(this@SecondaryDisplayContent)
         setOnTouchListener { view, event -> onGameTouch(event, view.width, view.height) }
@@ -485,7 +486,7 @@ internal class SecondaryDisplayContent(
         }
     }
 
-    private val libraryPanel = LinearLayout(context).apply {
+    private val libraryPanel = LinearLayout(context).testId("secondary.library").apply {
         orientation = LinearLayout.HORIZONTAL
         visibility = View.GONE
         setPadding(dp(24), dp(24), dp(24), dp(24))
@@ -514,7 +515,7 @@ internal class SecondaryDisplayContent(
     /** The library search typed on this screen, which filters the library on the other. */
     private var onSearchChanged: ((String) -> Unit)? = null
     private var onSearchDone: (() -> Unit)? = null
-    private val searchField = android.widget.EditText(context).apply {
+    private val searchField = android.widget.EditText(context).testId("secondary.search.field").apply {
         visibility = View.GONE
         hint = "Search by title or file name"
         textSize = Ui.BODY

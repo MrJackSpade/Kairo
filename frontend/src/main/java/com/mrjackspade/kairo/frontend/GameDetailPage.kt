@@ -21,6 +21,7 @@ class GameDetailPage<T : LibraryItem>(
     private val commandLaunch: ((T) -> Unit)? = null,
     private val closed: (GameDetailPage<T>) -> Unit
 ) : Page() {
+    override val testName: String get() = "Game"
     private lateinit var imagePanel: FrameLayout
     private lateinit var image: ImageView
     private lateinit var imageFallback: android.widget.TextView

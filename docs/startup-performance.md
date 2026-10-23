@@ -91,23 +91,7 @@ eagerly initialized; a downloaded filename match wins without loading it;
 removing that in-memory update produces the same bundled filename record.
 This test does not edit catalog files or user overrides.
 
-Build the app and Android test APK. Stop the other app, then invoke:
-
-```text
-adb shell am instrument -w -e snapshotActivation true <runner>
-adb shell am force-stop <target-package>
-adb shell am instrument -w -e startup true <runner>
-```
-
-Runners:
-
-- PC98: `com.loxifi.kairo98.test/com.mrjackspade.kairo.frontend.LibraryUiInstrumentation`
-- DOS: `com.loxifi.kairodos.test/com.mrjackspade.kairodos.CatalogUpdateInstrumentation`
-
-For a separate phase trace, add `-e traceStartup true`; pull
-`/data/data/<target-package>/files/startup-profile.trace`. It uses one launch
-and must not replace untraced timing. Trace files and local measurement logs
-remain ignored workstation artifacts.
+These measurements came from the `startup` and `snapshotActivation` fixtures. The fixture was removed when the device tests moved to the UI tests ([ui-tests.md](ui-tests.md)).
 
 Installed APK SHA-256:
 

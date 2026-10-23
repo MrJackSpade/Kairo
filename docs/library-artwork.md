@@ -38,12 +38,7 @@ coordinator and bottom-screen views. It passed in **both DOS and PC98**:
 - A decode deliberately completing after stop, clear, and resume cannot
   resurrect the cleared page. Cached artwork remains usable after resume.
 
-Commands:
-
-```text
-am instrument -w -e libraryArtwork true com.loxifi.kairodos.test/com.mrjackspade.kairodos.CatalogUpdateInstrumentation
-am instrument -w -e libraryArtwork true com.loxifi.kairo98.test/com.mrjackspade.kairo.frontend.LibraryUiInstrumentation
-```
+The fixture was removed when the device tests moved to the UI tests ([ui-tests.md](ui-tests.md)).
 
 Both APKs update the existing packages on RGDS. Installed hashes matched the
 local tested artifacts:

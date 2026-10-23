@@ -161,6 +161,19 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected open fun gameRows(): List<SettingsRow> = emptyList()
     /** The guest's state for the game flyout's status line: Running, Paused, Stopped and the like. */
     protected abstract fun sessionStatus(): String
+
+    /**
+     * What the session is doing, for the UI tests, which read it in the app's process
+     * (shared/uitest): the game's title, the state the menu shows ("None" with no game), and
+     * [probeDetails]. Call it on the main thread.
+     */
+    fun gameProbe(): GameProbe = currentEntry.let { entry ->
+        GameProbe(entry?.let(::titleOf), if (entry == null) "None" else sessionStatus(),
+            if (entry == null) emptyMap() else probeDetails())
+    }
+
+    /** Details of the running session for [gameProbe], such as its frame count and media. */
+    protected open fun probeDetails(): Map<String, String> = emptyMap()
     /** More of the flyout's status line after the state, such as the media in the machine. */
     protected open fun sessionDetails(): List<String> = emptyList()
     protected open fun diagnosticsRows(running: Boolean): List<SettingsRow> = emptyList()
@@ -627,6 +640,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }
 
     private fun newScreen() = SurfaceView(this).apply {
+        testId("game.surface")
         holder.addCallback(this@KairoActivity)
         isFocusableInTouchMode = true
         contentDescription = "${identity.guestName} display"

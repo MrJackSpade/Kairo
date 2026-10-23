@@ -17,6 +17,11 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     fun start(firmware: String, home: String, media: List<String?>, settings: Map<String, String>): Boolean =
         nativeStart(firmware, home, media.map { it ?: "" }.toTypedArray(),
             settings.flatMap { (name, value) -> listOf(name, value) }.toTypedArray())
+            .also { started -> if (started) startedSettings = settings }
+
+    /** The settings the running machine started with, as the UI tests read them (KairoActivity.gameProbe). */
+    @Volatile var startedSettings: Map<String, String> = emptyMap()
+        private set
 
     override fun media(slot: Int, path: String?): Boolean = nativeMedia(slot, path) == 0
     override fun mediaPaths(): List<String>? = nativeMediaPaths()?.toList()

@@ -318,7 +318,11 @@ abstract class Page {
         stack = owner
         view = createView()
         view.isClickable = true
+        TestAttributes.mark(view, TestAttributes.PAGE, testName)
     }
+
+    /** What the UI tests call this page (TestAttributes): its title, or its kind. */
+    open val testName: String get() = javaClass.simpleName.ifEmpty { javaClass.name.substringAfterLast('.') }
 
     internal open fun layoutParams() = FrameLayout.LayoutParams(-1, -1)
     internal open fun width() = stack.width
@@ -351,6 +355,8 @@ abstract class Page {
     /** Rebuild navigation after the page changed its views, keeping focus by id. */
     protected fun renav(first: Boolean = false) {
         nav = navItems()
+        // An item a builder named more precisely keeps that name, such as a modal button by its label.
+        nav.forEach { if (TestAttributes.id(it.view) == null) TestAttributes.mark(it.view, it.id) }
         if (first) focusId = initialFocus(nav)
         // Nothing focused stays that way until a direction key; a lost item moves focus to the start.
         else if (focusId != null && nav.none { it.id == focusId }) focusId = initialFocus(nav) ?: nav.firstOrNull()?.id
@@ -442,6 +448,7 @@ abstract class Page {
         }
         bar.addView(Ui.iconButton(context, R.drawable.ic_back, "Back") { stack.back() }.apply {
             isFocusable = false
+            testId("page.back")
         }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(4) })
         bar.addView(Ui.text(context, title, Ui.TITLE, bold = true).apply {
             maxLines = 1

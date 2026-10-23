@@ -104,3 +104,5 @@ tasks.named('preBuild') { dependsOn catalogAssets }
 dependencies {
     implementation project(':frontend')
 }
+
+apply from: new File(sharedRoot, 'gradle/kairo-uitest.gradle')

@@ -58,13 +58,9 @@ class LibraryFlow<T : LibraryItem>(
         screen.strings.folder
     }
 
-    fun hasGrant(uri: Uri): Boolean = activity.contentResolver.persistedUriPermissions.any {
-        it.uri == uri && it.isReadPermission && (!writable || it.isWritePermission)
-    }
+    fun hasGrant(uri: Uri): Boolean = FolderGrants.has(activity, uri, writable)
 
-    fun hasWriteGrant(uri: Uri): Boolean = activity.contentResolver.persistedUriPermissions.any {
-        it.uri == uri && it.isWritePermission
-    }
+    fun hasWriteGrant(uri: Uri): Boolean = FolderGrants.has(activity, uri, write = true)
 
     fun restore(): Uri? {
         val saved = preferences.getString("rom_tree", null)?.let(Uri::parse)
@@ -168,9 +164,7 @@ class LibraryFlow<T : LibraryItem>(
         try {
             val keepWrite = writable ||
                 (data.flags and Intent.FLAG_GRANT_WRITE_URI_PERMISSION != 0)
-            activity.contentResolver.takePersistableUriPermission(selected,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    (if (keepWrite) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0))
+            FolderGrants.take(activity, selected, keepWrite)
             scanCancelled.set(true)
             supersedeLoad()
             tree = selected

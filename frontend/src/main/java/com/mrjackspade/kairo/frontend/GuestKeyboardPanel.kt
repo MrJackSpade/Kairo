@@ -334,6 +334,8 @@ class GuestKeyboardPanel(
         // Letters, digits, and symbols sit on the lighter key; named keys are darker.
         val action = modifier || key.label.length > 1
         val view = TextView(context).apply {
+            // The key by its guest code, as the controller mapping names keys.
+            testId("keyboard.key", key.code.toString())
             gravity = Gravity.CENTER
             setTextColor(keyText())
             setAutoSizeTextTypeUniformWithConfiguration(9, 16, 1, TypedValue.COMPLEX_UNIT_SP)

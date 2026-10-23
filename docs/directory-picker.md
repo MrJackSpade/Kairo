@@ -26,10 +26,7 @@ also exercises companion-screen confirm/Back/scroll after entering touch mode;
 Exit confirmations are checked through companion key and hat input in both hosts
 by `ExitDialogFixture`, now against the game flyout's inline Exit confirm.
 
-Both test runners accept `-e directoryPicker true`:
-
-- DOS: `com.loxifi.kairodos.test/com.mrjackspade.kairodos.CatalogUpdateInstrumentation`
-- PC98: `com.loxifi.kairo98.test/com.mrjackspade.kairo.frontend.LibraryUiInstrumentation`
+The fixture was removed when the device tests moved to the UI tests ([ui-tests.md](ui-tests.md)).
 
 This component is part of Kairo issue #25. Executable selection and launch remain
 DOS-host responsibilities; see KairoDos `docs/dos-program-picker.md`.

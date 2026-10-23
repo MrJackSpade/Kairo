@@ -45,6 +45,7 @@ internal object PageParts {
             addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_HORIZONTAL))
         }
         return ScrollView(context).apply {
+            testId("page.scroll")
             isVerticalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             isFillViewport = true
@@ -108,6 +109,7 @@ open class GroupsPage(
     private lateinit var scrollView: ScrollView
     private var footer: Footer? = null
     override val scroll: ScrollView get() = scrollView
+    override val testName: String get() = title
 
     override fun groups() = content()
 
@@ -212,6 +214,7 @@ class FlyoutModel(
 class FlyoutPage(private val model: FlyoutModel, private val start: String? = null,
                  private val confirm: Boolean = false) : RowsPage(flat = true) {
     override val isFlyout: Boolean get() = true
+    override val testName: String get() = "flyout"
     private lateinit var scrollView: ScrollView
     private lateinit var title: TextView
     private lateinit var status: TextView
@@ -257,6 +260,7 @@ class FlyoutPage(private val model: FlyoutModel, private val start: String? = nu
         content.addView(statusLine)
         content.addView(rowsView(), LinearLayout.LayoutParams(-1, -2))
         scrollView = ScrollView(context).apply {
+            testId("page.scroll")
             isVerticalScrollBarEnabled = false
             overScrollMode = View.OVER_SCROLL_NEVER
             isFillViewport = true
@@ -312,6 +316,7 @@ open class SetupPage(
     private lateinit var scrollView: ScrollView
     private lateinit var footer: Footer
     override val scroll: ScrollView get() = scrollView
+    override val testName: String get() = title
 
     override fun groups() = content()
 
@@ -409,6 +414,7 @@ open class ModalPage(
 ) : Page() {
     init { require(modalButtons.isNotEmpty() && initialButton in modalButtons.indices) }
     override val isModal: Boolean get() = true
+    override val testName: String get() = title ?: "modal"
     private val views = ArrayList<View>()
     val buttons: List<String> get() = modalButtons.map { it.label }
     val focusedButton: String? get() = focusedItemId?.removePrefix("button-")?.toIntOrNull()?.let { modalButtons[it].label }
@@ -430,7 +436,7 @@ open class ModalPage(
             val view = Ui.choiceButton(context, button.label, button.tone) {
                 stack.pop()
                 button.run()
-            }
+            }.testId("modal.button", button.label)
             views.add(view)
             row.addView(view, ViewGroup.LayoutParams(-2, dp(44)))
         }
@@ -465,6 +471,7 @@ class ConfirmPage(confirm: Confirm) : ModalPage(confirm.title, confirm.message, 
 /** A text document in a card. Up and Down scroll 96 dp. */
 class DocumentPage(private val title: String, private val text: String,
                    private val textSize: Float = Ui.SECONDARY) : Page() {
+    override val testName: String get() = title
     private lateinit var scrollView: ScrollView
     override val scroll: ScrollView get() = scrollView
 
@@ -503,6 +510,7 @@ class DocumentPage(private val title: String, private val text: String,
 class ImagePage(private val title: String, private val scope: String?, bitmap: Bitmap,
                 hint: String?, private val load: ((ImagePage) -> Unit)? = null,
                 private val release: () -> Unit = {}) : Page() {
+    override val testName: String get() = title
     private lateinit var scrollView: ScrollView
     private lateinit var image: ImageView
     private lateinit var frame: FrameLayout

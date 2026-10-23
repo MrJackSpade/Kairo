@@ -1,5 +1,6 @@
 // Applied by both products and the standalone shared-library build.
 def versions = new Properties()
+def sharedRoot = buildscript.sourceFile.parentFile.parentFile
 new File(buildscript.sourceFile.parentFile, 'android-versions.properties').withInputStream {
     versions.load(it)
 }
@@ -16,6 +17,10 @@ settings.pluginManagement {
         id('org.jetbrains.kotlin.android').version(versions.kotlin)
     }
 }
+
+// The UI test framework and shared suites (docs/ui-tests.md), which every app's androidTest uses.
+settings.include(':uitest')
+settings.project(':uitest').projectDir = new File(sharedRoot, 'uitest')
 
 settings.dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)

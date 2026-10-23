@@ -359,6 +359,20 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         mounted.fill(null)
     }
 
+    /**
+     * Frames, error, each media slot by its label ("media.Drive 1"), each machine option as the
+     * game's settings give it ("option.basic"), and what the native machine started with
+     * ("machine.basic").
+     */
+    override fun probeDetails(): Map<String, String> {
+        val status = MachineStatus(bridge.status())
+        val details = linkedMapOf("frames" to status.frames, "error" to status.error)
+        mediaSlots.forEachIndexed { slot, media -> details["media.${media.label}"] = mounted[slot]?.displayName ?: "" }
+        currentGame?.let { game -> optionValues(game).forEach { (id, value) -> details["option.$id"] = value } }
+        (bridge as? NativeMachine)?.startedSettings?.forEach { (name, value) -> details["machine.$name"] = value }
+        return details
+    }
+
     // Machine options ---------------------------------------------------------------------------------
 
     /** The all-games default of [option]. */

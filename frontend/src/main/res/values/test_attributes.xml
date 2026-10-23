@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- View tags that name elements for the UI tests (TestAttributes, shared/uitest). -->
+<resources>
+    <item name="kairo_test_id" type="id" />
+    <item name="kairo_test_key" type="id" />
+</resources>
