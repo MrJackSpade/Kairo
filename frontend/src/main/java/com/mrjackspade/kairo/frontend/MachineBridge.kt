@@ -51,5 +51,7 @@ class MachineStatus(text: String) {
     val audio: String = parts.getOrElse(3) { "" }
     val xruns: String = parts.getOrElse(4) { "" }
     val audioConfig: String = parts.getOrElse(5) { "" }
+    /** Whether a frame that is not all black has been shown; null from a bridge that does not say. */
+    val pictured: Boolean? = parts.getOrNull(6)?.let { it == "1" }
     val running: Boolean get() = state == "Running" || state == "Paused"
 }

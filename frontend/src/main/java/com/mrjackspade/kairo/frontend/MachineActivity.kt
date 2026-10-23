@@ -345,11 +345,24 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 if (!current(generation)) return@runOnUiThread
                 if (failure == null) {
                     currentGame = game
-                    enterSession(entry, fromFrontend)
+                    // A machine that boots to a black screen (Kairo68#2) keeps the launch's message up
+                    // until it shows something.
+                    val blank = MachineStatus(bridge.status()).pictured == false
+                    enterSession(entry, fromFrontend, if (blank) "Starting ${entry.displayName}…" else null)
+                    if (blank) awaitPicture(generation)
                     gameStarted(entry, game)
                 } else launchFailed(failure)
             }
         }.apply { name = "${identity.appName}-launch"; start() }
+    }
+
+    /** Ends the session's loading once the machine shows a picture, or stops without one. */
+    private fun awaitPicture(generation: Int) {
+        handler.postDelayed({
+            if (!current(generation) || currentEntry == null) return@postDelayed
+            val status = MachineStatus(bridge.status())
+            if (status.pictured == true || !status.running) sessionRunning() else awaitPicture(generation)
+        }, PICTURE_POLL_MILLIS)
     }
 
     /** Restart boots the game again from its disks, with any machine changes since it started. */
@@ -615,6 +628,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
         private const val FIRMWARE_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 2
         private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."
+        /** How often a loading session checks whether the machine shows a picture yet. */
+        private const val PICTURE_POLL_MILLIS = 100L
     }
 }
 

@@ -69,6 +69,8 @@ public:
             std::lock_guard<std::mutex> guard(command_mutex_);
             commands_.clear();
             frames_ = 0;
+            pictured_ = false;
+            pictured_seen_ = false;
             xruns_ = 0;
             audio_state_ = "off";
             audio_config_.clear();
@@ -151,12 +153,13 @@ public:
     // is written only as far as the output queue has room.
     void set_fast_forward(bool enabled) { fast_forward_.store(enabled); }
 
-    // "<state>|<error>|<frames>|<audio>|<xruns>|<audio config>": state is
-    // Stopped, Starting, Running, Paused or Error.
+    // "<state>|<error>|<frames>|<audio>|<xruns>|<audio config>|<pictured>": state is
+    // Stopped, Starting, Running, Paused or Error; pictured is 1 once a frame that is
+    // not all black has been published.
     std::string status() {
         std::lock_guard<std::mutex> guard(command_mutex_);
         return state_ + "|" + error_ + "|" + std::to_string(frames_) + "|" + audio_state_ + "|" +
-               std::to_string(xruns_) + "|" + audio_config_;
+               std::to_string(xruns_) + "|" + audio_config_ + "|" + (pictured_ ? "1" : "0");
     }
 
 private:
@@ -326,6 +329,11 @@ private:
         uint32_t width = 0, height = 0;
         const uint8_t *pixels = core.frame(width, height);
         if (!pixels || !width || !height) return;
+        if (!pictured_seen_ && !black(pixels, width, height)) {
+            pictured_seen_ = true;
+            std::lock_guard<std::mutex> guard(command_mutex_);
+            pictured_ = true;
+        }
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
             pending_.assign(pixels, pixels + static_cast<size_t>(width) * height * 4);
@@ -334,6 +342,15 @@ private:
             has_pending_ = true;
         }
         present_ready_.notify_one();
+    }
+
+    // Whether every pixel's colour channels are at most 16 of 255, as a booting
+    // machine's screen is before it shows anything.
+    static bool black(const uint8_t *pixels, uint32_t width, uint32_t height) {
+        const size_t bytes = static_cast<size_t>(width) * height * 4;
+        for (size_t i = 0; i < bytes; i += 4)
+            if (pixels[i] > 16 || pixels[i + 1] > 16 || pixels[i + 2] > 16) return false;
+        return true;
     }
 
     // Presentation runs on its own thread: ANativeWindow_lock and eglSwapBuffers
@@ -417,6 +434,10 @@ private:
     std::string state_ = "Stopped";
     std::string error_;
     uint64_t frames_ = 0;
+    // Whether a frame that is not all black has been published since the start;
+    // pictured_seen_ is the worker's own copy, so later frames are not scanned.
+    bool pictured_ = false;
+    bool pictured_seen_ = false;
     int32_t xruns_ = 0;
     std::string audio_state_ = "off";
     std::string audio_config_;
