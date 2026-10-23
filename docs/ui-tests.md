@@ -35,6 +35,12 @@ within their page or row; tests select an element inside its page.
 | Game | `game.surface` | |
 | Lower screen | `secondary.library`, `secondary.search.field`, `secondary.surface` | |
 | On-screen keyboard key | `keyboard.key` | the guest key code |
+| Keyboard panel | `keyboard.tab`, `keyboard.touchpad`, `keyboard.swap`, `keyboard.close`, `keyboard.mapping` | a tab's page number |
+| On-screen control | `touch.control` (`touch.arrange` while arranging) | the control: `a`, `start`, `up`, `ls`, … |
+| Button mapping key picker | `target.key` (page `Button target`) | the guest key code |
+
+Every focusable item also carries a role (`TestAttributes.item`): its navigation id, whatever its
+test id. `By.item(id)` and `By.anyItem()` select by it; the menu crawler finds every item this way.
 
 A new element gets a name where it is built (`.testId("…")`); pages and their focusable items are
 named automatically (`Page.attach`, `Page.renav`).
@@ -50,6 +56,15 @@ named automatically (`Page.attach`, `Page.renav`).
   yet.
 - **Keys**: `driver.press(keyCode)` sends a controller (or keyboard) key through the system's input
   path to whichever window has focus; `driver.type` types text.
+- **Gestures**: `element.hold(millis)` and `element.drag(from, to)` touch on-screen controls, the
+  touchpad and sliders, reading the element's position again for every event.
+- **What the game receives**: the app records every key, joystick control, mouse motion and button
+  sent to the guest (`GuestInputRecord`, `KairoActivity.guestInput`). `driver.inputMark()` notes
+  where it stands; `inputSince` and `waitForInput` read what arrived after.
+- **Launches**: `driver.launchExternally(uri)` starts a game as a frontend does (a VIEW intent).
+- **Every menu**: `MenuCrawler` opens every item and page reachable from the page on top, closing
+  trays and modals with Cancel, restoring switches, answering pickers and links as cancelled, and
+  skipping what is destructive or slow; it checks each page and reports what it reached.
 - **Pickers**: the tests never drive the system file picker. `TestDocuments.answerFolder` and
   `answerFile` answer the app's picker request with a folder or file of the test resources, served
   by the UI test build's document provider. The app treats its own provider like any other
@@ -89,20 +104,31 @@ Shared suites run in every app through its descriptor:
 | --- | --- |
 | `FirstRunTests` | The first step asks for the games folder; the controller step gives no instructions; choosing the folder lists its games; the BIOS step lists every file with Required or Optional and a description; importing the BIOS folder installs every file. |
 | `LibraryTests` | The header shows the product name; each game is one entry; different releases stay separate; non-games are never listed; no screen tells the player how to open a game. |
-| `SearchTests` | Search finds the game and only matching games; on two screens, search is typed on the lower screen. |
-| `GameTests` | The game starts and draws; Exit returns to the library; a saved state loads back. |
-| `WordingTests` | No screen says "ROM" (setup steps, library, its menu, Machine, Manage library). |
+| `SearchTests` | Search finds the game and only matching games; closing search brings back every game; a search with no match shows none; on two screens, search is typed on the lower screen. |
+| `GameTests` | The game starts, draws and is named; Return to library ends it; Exit closes the app; Restart boots it again; the menu pauses it. |
+| `WordingTests` | No screen says "ROM": the setup steps, the library, a game's page (the crawls check every other page). |
+| `MenuTests` | Every page and item of the library menu, the game menu, and a game's settings opens and returns (MenuCrawler), with plain words on each. |
+| `ControllerTests` | Every mapped button reaches the game and is released; mapping a button to a key sends that key; a game's own mapping stays with it; Reset restores the defaults; a fast-forward button speeds the game while held; the controller drives the menus. |
+| `TouchTests` | On-screen buttons and the D-pad reach the game; hiding the on-screen controls removes them; the touch keyboard types its keys; the touchpad moves and clicks the mouse; a tap on the game in Mouse mode clicks. |
+| `LaunchTests` | A frontend launch starts the game, also before setup; returning from it closes the app; a second launch replaces the first. |
+| `StateTests` | A saved state loads back to where it was saved; each slot keeps its own; a state outlives the app; a game's states are its own. |
+| `MediaTests` | Inserting a disk puts it in the drive; ejecting empties it. |
+| `LibraryManagementTests` | Refresh finds a game added to the folder; deleting a game removes its file; resetting a game's settings restores the defaults; saves go to a chosen folder. |
+| `SettingsTests` | A machine default applies to games; a game's own setting overrides it; a setting is kept when the app starts again; Sound switches off and on. |
 
 Each app's own tests:
 
 | App | Tests |
 | --- | --- |
-| Kairo88 (`Pc88Tests`) | A V1 mode game starts in V1 mode; a two-disk game starts with Disk B in drive 2; the main release starts, not its SR version. |
-| Kairo68 (`X68000Tests`) | A two-disk game starts with its second disk in floppy 1; the boot runs faster than the real machine. |
+| Kairo88 (`Pc88Tests`) | A V1 mode game starts in V1 mode; a disk's own mode outranks the default; a game without one starts in the default; a two-disk game starts with Disk B in drive 2; the main release starts, not its SR version. |
+| Kairo68 (`X68000Tests`) | A two-disk game starts with its second disk in floppy 1; the boot runs faster than the real machine; a key press ends the fast boot; the memory setting reaches the machine. |
 | KairoTowns (`FmTownsTests`) | A CD game starts with its user disk in floppy A. |
-| KairoMSX (`MsxTests`) | A turbo R game starts on the FS-A1GT; an MSX-BASIC cartridge starts on real firmware and draws; an MSX1 cartridge starts on C-BIOS MSX1; The Dam Busters starts from the Start button. |
-| Kairo98 (`Pc98Tests`) | The built-in font stands in until one is imported. |
-| KairoDos (`DosTests`) | An eXoDOS installer installs and runs on its first launch; the ARM64 dynamic core runs generated code. |
+| KairoMSX (`MsxTests`) | A turbo R game starts on the FS-A1GT; its kanji font is found by content; an MSX-BASIC cartridge starts on real firmware and draws; an MSX1 cartridge starts on C-BIOS MSX1; a game's own machine choice wins; The Dam Busters starts from the Start button. |
+| Kairo98 (`Pc98Tests`) | The Disks page shows each drive; ejecting a floppy empties it; the built-in font stands in until one is imported. |
+| KairoDos (`DosTests`) | An eXoDOS installer installs and runs on its first launch; the ARM64 dynamic core runs generated code; the video card choice is kept. |
+
+KairoDos has no saved states, so it runs no `StateTests`; Kairo98 and KairoDos have no shared media
+page (Kairo98's Disks page has its own tests).
 
 ## Running
 

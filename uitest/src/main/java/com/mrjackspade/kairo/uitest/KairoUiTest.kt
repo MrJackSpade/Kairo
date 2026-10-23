@@ -74,6 +74,13 @@ class AppSession(private val app: () -> AppUnderTest) : TestRule {
         }
     }
 
+    /** Closes the app and starts it again from its launcher, keeping its data, as a player reopening it. */
+    fun relaunch() {
+        driver.log.step("relaunch", "closing and reopening the app")
+        finishActivities()
+        launch()
+    }
+
     private fun launch() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val target = instrumentation.targetContext

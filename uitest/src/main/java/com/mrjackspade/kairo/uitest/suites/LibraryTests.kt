@@ -63,6 +63,25 @@ abstract class SearchTests : KairoUiTest() {
     }
 
     @Test
+    fun closingSearchBringsBackEveryGame() {
+        val library = screens.completeFirstRun().waitForGame(app.bootGame)
+        val all = library.entries().size
+        library.search(app.searchTerm)
+        library.waitForGame(app.bootGame)
+        expect.that("the search narrows the library", library.entries().size < all || all == 1) { "${library.entries().size} of $all" }
+        // The search button closes search and clears its text.
+        driver.find(By.id("library.search")).tap()
+        driver.waitUntil("every game to be listed again") { library.entries().size == all }
+    }
+
+    @Test
+    fun aSearchWithNoMatchShowsNoGames() {
+        val library = screens.completeFirstRun().waitForGame(app.bootGame)
+        library.search("zzqqxx")
+        driver.waitUntil("no game to be listed") { !driver.find(By.id("library.entry")).exists() }
+    }
+
+    @Test
     fun onTwoScreensSearchIsTypedOnTheLowerScreen() {
         val library = screens.completeFirstRun()
         org.junit.Assume.assumeTrue("this device has one screen", driver.find(By.id("secondary.library")).exists())

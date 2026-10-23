@@ -86,6 +86,7 @@ class GuestKeyboardPanel(
                 imageTintList = keyText()
                 setPadding(dp(14), dp(8), dp(14), dp(8))
                 contentDescription = "Controller mapping"
+                testId("keyboard.mapping")
                 background = keyBackground(action = true)
                 onPress(this) { mode.toggle() }
             }
@@ -101,6 +102,7 @@ class GuestKeyboardPanel(
             brand.addView(TextView(context).apply {
                 text = "\u2191\u2193"
                 contentDescription = "Swap game and keyboard screens"
+                testId("keyboard.swap")
                 gravity = Gravity.CENTER
                 textSize = 22f
                 setTextColor(keyText())
@@ -148,6 +150,7 @@ class GuestKeyboardPanel(
         if (showClose) {
             header.addView(TextView(context).apply {
                 text = "Close ×"
+                testId("keyboard.close")
                 gravity = Gravity.CENTER
                 textSize = 14f
                 setTextColor(Ui.ACCENT_SOFT)
@@ -286,6 +289,8 @@ class GuestKeyboardPanel(
     }
 
     private fun attachPageSwitch(tab: View, target: Int) {
+        // The tab by its page number; the touchpad's tab is the last page.
+        TestAttributes.mark(tab, "keyboard.tab", target.toString())
         tab.setOnClickListener { if (page != target) showPage(target) }
         tab.setOnTouchListener { _, event ->
             // A focus change can cancel ACTION_UP on a second display. Switch on press

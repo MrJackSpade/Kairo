@@ -37,8 +37,26 @@ class TestDocuments(private val instrumentation: Instrumentation, private val lo
         val top = instrumentation.context.assets.list(ASSETS).orEmpty()
         check(top.isNotEmpty()) { "The test APK has no test resources under assets/$ASSETS (see tools/test_resources.py)" }
         for (child in top) copy("$ASSETS/$child", File(root, child))
+        // An empty folder a test can choose for the app to write into, such as a save folder.
+        check(File(root, "saves").mkdirs()) { "Could not create the test saves folder" }
         log.step("resources", "installed $files files, $bytes bytes", mapOf("folders" to top.joinToString()))
     }
+
+    /** Moves a test document, as a player moving a file in another app would; [to] is created. */
+    fun move(from: String, to: String) {
+        val source = File(root, from)
+        val target = File(root, to)
+        check(source.isFile) { "No test document $from" }
+        target.parentFile!!.mkdirs()
+        check(source.renameTo(target)) { "Could not move $from to $to" }
+        log.step("documents", "moved $from to $to")
+    }
+
+    fun exists(path: String) = File(root, path).exists()
+
+    /** The files under a folder of the test documents, as paths below the documents' root. */
+    fun files(folder: String): List<String> =
+        File(root, folder).walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath }.toList()
 
     /** A folder of the test resources, such as "games" or "bios", as a picked document tree. */
     fun folder(path: String): Uri {

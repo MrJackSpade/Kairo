@@ -57,6 +57,9 @@ class Element internal constructor(private val driver: Driver, private val path:
     /** The text it shows itself now, without waiting; null when it is not on screen. */
     fun textNow(): String? = driver.onMain { current()?.let(Views::ownText) }
 
+    /** Its navigation id as a focusable item (TestAttributes.item); fails for a view that is not one. */
+    fun itemId(): String = withView { view -> checkNotNull(TestAttributes.item(view)) { "$description is not a focusable item" } }
+
     /** Its key now, without waiting; null when it is not on screen or has none. */
     fun keyNow(): String? = driver.onMain { current()?.let(TestAttributes::key) }
 
@@ -76,6 +79,42 @@ class Element internal constructor(private val driver: Driver, private val path:
         }
         driver.idle()
         return this
+    }
+
+    /** Presses it at its centre for [millis], as a finger held on an on-screen button. */
+    fun hold(millis: Long): Element = drag(0.5f, 0.5f, 0.5f, 0.5f, steps = 1, stepMillis = millis)
+
+    /**
+     * Drags a finger across it: down at ([fromX], [fromY]) and up at ([toX], [toY]), as fractions
+     * of its width and height (beyond 0..1 leaves it, as pushing a stick past its rim does), in
+     * [steps] moves [stepMillis] apart, holding [holdMillis] at the end before lifting. Every event
+     * reads the element's position again, so the gesture follows it if it moves.
+     */
+    fun drag(fromX: Float, fromY: Float, toX: Float, toY: Float, steps: Int = 12, stepMillis: Long = 16,
+             holdMillis: Long = 0): Element {
+        waitUntilShown()
+        driver.log.step("drag", description, mapOf("from" to "$fromX,$fromY", "to" to "$toX,$toY", "steps" to steps))
+        val down = android.os.SystemClock.uptimeMillis()
+        touch(android.view.MotionEvent.ACTION_DOWN, down, fromX, fromY)
+        for (step in 1..steps) {
+            Thread.sleep(stepMillis)
+            val fraction = step.toFloat() / steps
+            touch(android.view.MotionEvent.ACTION_MOVE, down, fromX + (toX - fromX) * fraction, fromY + (toY - fromY) * fraction)
+        }
+        if (holdMillis > 0) Thread.sleep(holdMillis)
+        touch(android.view.MotionEvent.ACTION_UP, down, toX, toY)
+        driver.idle()
+        return this
+    }
+
+    /** One touch event at a fraction of its current bounds, dispatched to its window. */
+    private fun touch(action: Int, downTime: Long, fractionX: Float, fractionY: Float) = driver.onMain {
+        val view = checkNotNull(current()) { "$description went away during a touch" }
+        val bounds = Views.boundsInWindow(view)
+        val event = android.view.MotionEvent.obtain(downTime, android.os.SystemClock.uptimeMillis(), action,
+            bounds.left + bounds.width() * fractionX, bounds.top + bounds.height() * fractionY, 0)
+        event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+        try { view.rootView.dispatchTouchEvent(event) } finally { event.recycle() }
     }
 
     /** Touches it to focus it, then types [text] through the system's input path. */

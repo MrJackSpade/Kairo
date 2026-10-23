@@ -66,13 +66,80 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
         return driver.page("flyout").waitUntilShown()
     }
 
-    /** Leaves the running game for the library through the menu's Exit, confirming it. */
-    fun exitGame(): Library {
-        openGameMenu().find(By.id("f-exit")).tap()
-        // The confirmation is a modal titled by its question; its buttons are named by label.
-        driver.find(By.id("modal.button")).waitUntilShown()
-        driver.find(By.id("modal.button")).all().first { it.key() != "Cancel" }.tap()
+    /** Closes the menu and any page over the game, as the menu button does, when one is open. */
+    fun closeMenu() {
+        driver.idle()
+        val pages = driver.find(By.id("page"))
+        if (pages.exists()) {
+            driver.press(KeyEvent.KEYCODE_BUTTON_MODE)
+            pages.waitUntilGone()
+        }
+    }
+
+    /**
+     * Opens the choice row [row] on [page] and picks [option], or else the first option not chosen
+     * now; returns the option's id once the choice page has closed.
+     */
+    fun choose(page: Element, row: String, option: String? = null): String {
+        val title = page.find(By.item(row)).find(By.id("label")).text()
+        page.find(By.item(row)).tap()
+        val choices = driver.page(title).waitUntilShown()
+        val picked = option?.let { choices.find(By.item("o:$it")) }
+            ?: choices.find(By.anyItem()).all().first { it.key() == "false" && it.itemId().startsWith("o:") }
+        val id = picked.itemId().removePrefix("o:")
+        picked.tap()
+        choices.waitUntilGone()
+        driver.log.step("choose", "$row = $id")
+        return id
+    }
+
+    /**
+     * Maps [control] ("a", "b", "start", …) to the first key of the guest's keyboard on the Button
+     * mapping page [mapping], saves, and returns the key's guest code.
+     */
+    fun mapToFirstKey(mapping: Element, control: String): Int {
+        mapping.find(By.item("m:$control")).tap()
+        val target = driver.page("Button target").waitUntilShown()
+        target.find(By.item("tab:KEYS")).tap()
+        val key = target.find(By.id("target.key")).nth(0)
+        val code = checkNotNull(key.key()?.toInt()) { "The key picker's first key has no code" }
+        key.tap()
+        target.find(By.id("footer:save")).tap()
+        target.waitUntilGone()
+        driver.log.step("map", "$control = key $code")
+        return code
+    }
+
+    /** The running game's settings, from its menu. */
+    fun openGameSettingsInGame(): Element {
+        openGameMenu().find(By.item("f-game")).tap()
+        return driver.page("Game settings").waitUntilShown()
+    }
+
+    /**
+     * Confirms what the last tap asked about, by its button that is not Cancel: a modal's (titled
+     * confirmations) or the tray's under the row (the others).
+     */
+    fun confirm() {
+        val modal = driver.find(By.id("modal.button"))
+        val tray = driver.find(By.id("tray.button"))
+        driver.waitUntil("a confirmation") { modal.exists() || tray.exists() }
+        val buttons = if (modal.exists()) modal.all() else tray.all()
+        buttons.first { it.key() != "Cancel" }.tap()
+    }
+
+    /** Ends the running game and returns to the library: the menu's Return to library, confirmed. */
+    fun endGame(): Library {
+        openGameMenu().find(By.item("f-library")).tap()
+        confirm()
         return library.waitUntilShown()
+    }
+
+    /** Closes the app through the menu's Exit, confirmed, and waits until no activity of it is open. */
+    fun exitApp(menu: Element) {
+        menu.find(By.item("f-exit")).tap()
+        confirm()
+        driver.waitUntil("the app to close") { !driver.onMain { driver.anyActivityOpen() } }
     }
 }
 

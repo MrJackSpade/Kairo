@@ -240,9 +240,15 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     @Volatile protected var sessionGeneration = 0
         private set
 
-    protected val inputRouter by lazy { InputRouter(::sendKey, maxKeyCode, keyboard.lockCodes) }
-    protected val joystickRouter by lazy { JoystickInputRouter(::sendJoystick, joystickControls) }
-    protected val mouseRouter by lazy { MouseInputRouter(::sendMouseMove, ::sendMouseButton) }
+    /** Everything sent to the guest, for the UI tests (GuestInputRecord). */
+    val guestInput = GuestInputRecord()
+    private fun recordedKey(code: Int, down: Boolean) { guestInput.key(code, down); sendKey(code, down) }
+    private fun recordedJoystick(control: Int, down: Boolean) { guestInput.joystick(control, down); sendJoystick(control, down) }
+    private fun recordedMove(dx: Int, dy: Int) { guestInput.move(dx, dy); sendMouseMove(dx, dy) }
+    private fun recordedButton(button: Int, down: Boolean) { guestInput.button(button, down); sendMouseButton(button, down) }
+    protected val inputRouter by lazy { InputRouter(::recordedKey, maxKeyCode, keyboard.lockCodes) }
+    protected val joystickRouter by lazy { JoystickInputRouter(::recordedJoystick, joystickControls) }
+    protected val mouseRouter by lazy { MouseInputRouter(::recordedMove, ::recordedButton) }
     protected val gamepadMapper by lazy {
         GamepadMapper(inputRouter, joystickRouter, mouseRouter, ::controllerAction, ::controllerActionReleased,
             bindingsCodec.parse(null))
@@ -1036,7 +1042,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         val dy = mouseFractionY.toInt().coerceIn(-frameHeight, frameHeight)
         mouseFractionX -= dx
         mouseFractionY -= dy
-        if (dx != 0 || dy != 0) sendMouseMove(dx, dy)
+        if (dx != 0 || dy != 0) recordedMove(dx, dy)
     }
 
     /** A screen touch drives the guest mouse in Mouse mode, and opens the keyboard otherwise. */

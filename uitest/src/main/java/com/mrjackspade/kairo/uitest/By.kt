@@ -30,6 +30,12 @@ class By private constructor(val description: String, private val test: (View) -
         fun id(id: String) = By("id=$id") { TestAttributes.id(it) == id }
         fun key(key: String) = By("key=$key") { TestAttributes.key(it) == key }
 
+        /** A focusable item of its page (a row, button, tab or key) by its navigation id. */
+        fun item(id: String) = By("item $id") { TestAttributes.item(it) == id }
+
+        /** Every focusable item of a page. */
+        fun anyItem() = By("any item") { TestAttributes.item(it) != null }
+
         /** An id matching [pattern], for ids that carry an index, such as "firmware0-n88.rom". */
         fun idMatching(pattern: Regex) = By("id~/$pattern/") { TestAttributes.id(it)?.let(pattern::matches) == true }
 

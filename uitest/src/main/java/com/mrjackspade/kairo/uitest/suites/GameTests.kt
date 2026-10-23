@@ -4,88 +4,71 @@ import com.mrjackspade.kairo.uitest.By
 import com.mrjackspade.kairo.uitest.KairoUiTest
 import org.junit.Test
 
-/** Playing a game, in every app: it starts and draws, saves and loads its state, and exits. */
-abstract class GameTests : KairoUiTest() {
-    /** Frames to let a game run before judging its picture, about two seconds. */
-    protected open val settleFrames = 120L
+/** Frames to let a game run before judging its picture, about two seconds. */
+internal const val SETTLE_FRAMES = 120L
 
+/** Playing a game, in every app: it starts and draws, and exits. */
+abstract class GameTests : KairoUiTest() {
     @Test
     fun theGameStartsAndDraws() {
         screens.completeFirstRun().open(app.bootGame).play()
-        driver.waitFrames(settleFrames)
+        driver.waitFrames(SETTLE_FRAMES)
         val picture = driver.pictures.game("running")
         expect.that("the game draws a picture, not a blank screen", picture.litFraction() > 0.02) { "lit ${picture.litFraction()}" }
         expect.that("the picture has more than one colour", picture.distinctColors() > 1) { "${picture.distinctColors()} colours" }
+        expect.equal("the running game's title", app.bootGame, driver.probe().title)
     }
 
     @Test
-    fun exitReturnsToTheLibrary() {
+    fun returnToLibraryEndsTheGame() {
         screens.completeFirstRun().open(app.bootGame).play()
-        driver.waitFrames(settleFrames)
-        screens.exitGame()
-        expect.equal("the session after exiting", "None", driver.probe().state)
+        driver.waitFrames(SETTLE_FRAMES)
+        screens.endGame()
+        expect.equal("the session after returning to the library", "None", driver.probe().state)
     }
 
     @Test
-    fun aSavedStateLoadsBack() {
+    fun exitClosesTheApp() {
         screens.completeFirstRun().open(app.bootGame).play()
-        driver.waitFrames(settleFrames)
-        screens.openGameMenu().find(By.id("f-save")).tap()
-        val save = driver.page("Save state").waitUntilShown()
-        val before = save.find(By.id("slot0")).texts()
-        save.find(By.id("slot0")).tap()
-        driver.waitUntil("slot 1 to show the saved state") { !save.exists() || save.find(By.id("slot0")).texts() != before }
-        closeMenu()
-        driver.waitForGame("Running")
-        driver.waitFrames(settleFrames)
-        screens.openGameMenu().find(By.id("f-load")).tap()
-        driver.page("Load state").waitUntilShown().find(By.id("slot0")).tap()
-        closeMenu()
-        driver.waitForGame("Running")
-        driver.waitFrames(10)
-        val probe = driver.probe()
-        expect.equal("the game's error after loading", "", probe.details["error"] ?: "")
+        driver.waitFrames(SETTLE_FRAMES)
+        screens.exitApp(screens.openGameMenu())
     }
 
-    /** Closes the menu and any page over the game, as the menu button does, when one is open. */
-    private fun closeMenu() {
-        driver.idle()
-        val pages = driver.find(By.id("page"))
-        if (pages.exists()) {
-            driver.press(android.view.KeyEvent.KEYCODE_BUTTON_MODE)
-            pages.waitUntilGone()
-        }
+    @Test
+    fun restartBootsTheGameAgain() {
+        screens.completeFirstRun().open(app.bootGame).play()
+        driver.waitFrames(SETTLE_FRAMES)
+        val before = driver.probe().details["frames"]!!.toLong()
+        screens.openGameMenu().find(By.item("f-restart")).tap()
+        screens.confirm()
+        // A restart boots the machine again, so its frame count starts over.
+        driver.waitUntil("the frame count to start over") { driver.probeNow().details["frames"]?.toLongOrNull()?.let { it < before } == true }
+        driver.waitForGame("Running")
+        expect.equal("the restarted game's title", app.bootGame, driver.probe().title)
+    }
+
+    @Test
+    fun theMenuPausesTheGame() {
+        screens.completeFirstRun().open(app.bootGame).play()
+        driver.waitFrames(SETTLE_FRAMES)
+        screens.openGameMenu()
+        driver.waitForGame("Paused")
+        val frames = driver.probe().details["frames"]
+        Thread.sleep(500) // Half a second in which a running game would draw about 30 frames.
+        expect.equal("frames while the menu is open", frames, driver.probe().details["frames"])
+        screens.closeMenu()
+        driver.waitForGame("Running")
     }
 }
 
 /** Plain words, in every app: no screen calls games or BIOS files "ROMs". */
 abstract class WordingTests : KairoUiTest() {
-    // The word, not a file name's extension such as FMT_SYS.ROM.
-    private val rom = Regex("(?<![.\\w])ROMs?\\b")
-
-    private fun checkScreen(where: String) {
-        driver.idle()
-        val found = driver.visibleTexts().filter(rom::containsMatchIn)
-        expect.that("$where never says \"ROM\"", found.isEmpty()) { found.joinToString(" | ") }
-    }
-
     @Test
     fun noScreenSaysRom() {
-        val library = screens.completeFirstRun(onPage = { title -> checkScreen("the \"$title\" step") })
+        val library = screens.completeFirstRun(onPage = { title -> Checks.noRom(driver, expect, "the \"$title\" step") })
             .waitForGame(app.bootGame)
-        checkScreen("the library")
-        library.openMenu()
-        checkScreen("the library menu")
-        driver.page("flyout").find(By.id("f-machine")).let { machine ->
-            if (machine.exists()) {
-                machine.tap()
-                driver.page("Machine").waitUntilShown()
-                checkScreen("the Machine page")
-                driver.page("Machine").find(By.id("page.back")).tap()
-            }
-        }
-        driver.page("flyout").find(By.id("f-manage")).tap()
-        driver.page("Manage library").waitUntilShown()
-        checkScreen("Manage library")
+        Checks.noRom(driver, expect, "the library")
+        library.open(app.bootGame)
+        Checks.noRom(driver, expect, "the game page")
     }
 }

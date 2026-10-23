@@ -30,6 +30,18 @@ abstract class AppUnderTest {
     /** A game that starts with the test BIOS and shows a picture. */
     abstract val bootGame: String
 
+    /** [bootGame]'s file in the test resources, such as "games/Acrojet.zip", for launches from a frontend. */
+    abstract val bootGameFile: String
+
+    /** Another game, for checking that one game's settings leave others alone. */
+    abstract val otherGame: String
+
+    /**
+     * A machine option (MachineOption id) whose default the tests may change and that
+     * [bootGame]'s catalog record leaves alone; null for an app without such options.
+     */
+    open val defaultOption: String? = null
+
     /** Games whose disks, dumps and other releases must show as exactly one library entry each. */
     open val singleEntryGames: List<String> = emptyList()
 
@@ -41,6 +53,18 @@ abstract class AppUnderTest {
 
     /** A word that finds [bootGame] in library search and leaves out other games. */
     abstract val searchTerm: String
+
+    /** Whether the app saves and loads states (KairoDos, on DOSBox Staging, has none). */
+    open val hasStates = true
+
+    /**
+     * A disk change to try while [MediaSwap.game] runs: its media page row for [MediaSwap.slot]
+     * ("Drive 2", "Floppy A", "Cartridge B") takes the library disk whose name contains
+     * [MediaSwap.insert]; null for an app without media pages.
+     */
+    open val mediaSwap: MediaSwap? = null
+
+    class MediaSwap(val game: String, val slot: String, val insert: String)
 
     class BiosFile(val file: String, val required: Boolean)
 }

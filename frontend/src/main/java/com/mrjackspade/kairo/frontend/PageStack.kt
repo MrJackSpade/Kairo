@@ -356,7 +356,10 @@ abstract class Page {
     protected fun renav(first: Boolean = false) {
         nav = navItems()
         // An item a builder named more precisely keeps that name, such as a modal button by its label.
-        nav.forEach { if (TestAttributes.id(it.view) == null) TestAttributes.mark(it.view, it.id) }
+        nav.forEach {
+            if (TestAttributes.id(it.view) == null) TestAttributes.mark(it.view, it.id)
+            TestAttributes.markItem(it.view, it.id)
+        }
         if (first) focusId = initialFocus(nav)
         // Nothing focused stays that way until a direction key; a lost item moves focus to the start.
         else if (focusId != null && nav.none { it.id == focusId }) focusId = initialFocus(nav) ?: nav.firstOrNull()?.id

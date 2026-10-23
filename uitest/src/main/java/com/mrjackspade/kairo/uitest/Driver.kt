@@ -148,6 +148,13 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
             ?: error("No Kairo activity is open (resumed: ${resumed.map(Activity::getLocalClassName)})")
     }
 
+    /** Whether any activity of the app is still open. Main thread only. */
+    internal fun anyActivityOpen(): Boolean {
+        val registry = ActivityLifecycleMonitorRegistry.getInstance()
+        return listOf(Stage.RESUMED, Stage.PAUSED, Stage.STOPPED, Stage.STARTED, Stage.CREATED)
+            .any { registry.getActivitiesInStage(it).isNotEmpty() }
+    }
+
     /** [probe] without logging, for polling. */
     fun probeNow(): GameProbe = onMain { activityNow().gameProbe() }
 
@@ -165,6 +172,37 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
     fun waitFrames(frames: Long) {
         val start = probe().details.getValue("frames").toLong()
         waitUntil("$frames more frames") { probeNow().details["frames"]?.toLongOrNull()?.let { it >= start + frames } == true }
+    }
+
+    // Guest input --------------------------------------------------------------------------------
+
+    /** The newest guest input so far, to read what arrives after it (GuestInputRecord). */
+    fun inputMark(): Long = onMain { activityNow().guestInput.latest }
+
+    /** Every input the guest received after [mark], logged. */
+    fun inputSince(mark: Long): List<com.mrjackspade.kairo.frontend.GuestInputRecord.Event> =
+        onMain { activityNow().guestInput.since(mark) }.also { events ->
+            log.step("input", "${events.size} events since #$mark", mapOf("events" to events.take(40).joinToString()))
+        }
+
+    /** Waits until the input the guest received after [mark] satisfies [holds]. */
+    fun waitForInput(what: String, mark: Long, holds: (List<com.mrjackspade.kairo.frontend.GuestInputRecord.Event>) -> Boolean) =
+        waitUntil("the guest to receive $what") { holds(onMain { activityNow().guestInput.since(mark) }) }
+
+    // Launches from outside --------------------------------------------------------------------
+
+    /**
+     * Starts [game] the way a frontend does: a VIEW intent for the file's document, sent to the
+     * app's launcher activity. Returns once the activity has handled it.
+     */
+    fun launchExternally(game: android.net.Uri) {
+        val target = instrumentation.targetContext
+        val launcher = checkNotNull(target.packageManager.getLaunchIntentForPackage(target.packageName)).component
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).setComponent(launcher).setData(game)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        log.step("launch", "external VIEW of $game")
+        target.startActivity(intent)
+        idle()
     }
 
     val pictures = Pictures(this)

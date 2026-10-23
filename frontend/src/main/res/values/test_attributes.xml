@@ -3,4 +3,5 @@
 <resources>
     <item name="kairo_test_id" type="id" />
     <item name="kairo_test_key" type="id" />
+    <item name="kairo_test_role" type="id" />
 </resources>

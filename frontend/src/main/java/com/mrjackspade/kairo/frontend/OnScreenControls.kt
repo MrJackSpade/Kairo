@@ -277,6 +277,8 @@ class OnScreenControls(
         }
         return view.apply {
             tag = spec.id
+            // The control by its id ("a", "start", "ls"); the arranger's copy is named apart.
+            TestAttributes.mark(this, if (editing) "touch.arrange" else "touch.control", spec.id)
             contentDescription = controlName(spec.id)
             isClickable = true
             if (editing) {

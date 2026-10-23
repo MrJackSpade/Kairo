@@ -36,6 +36,7 @@ class SecondaryTouchpadView(
     init {
         setBackgroundColor(Ui.RAISED)
         contentDescription = "Guest mouse touchpad. Drag to move, tap to click, hold to drag."
+        testId("keyboard.touchpad")
         isClickable = true
     }
 

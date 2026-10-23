@@ -437,6 +437,7 @@ class ControllerPages<Game : Any>(
             val view = FrameLayout(context).apply {
                 isClickable = true
                 contentDescription = guest.keyLabel(key.code) + " 0x" + key.code.toString(16).padStart(2, '0')
+                testId("target.key", key.code.toString())
                 setOnClickListener { toggle(key.code) }
                 addView(label, FrameLayout.LayoutParams(-1, -1))
                 addView(number, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply {
@@ -447,6 +448,7 @@ class ControllerPages<Game : Any>(
         }
         private val keyViews = ArrayList<KeyView>()
         override val scroll: ScrollView get() = scrollView
+        override val testName: String get() = "Button target"
 
         private val mouseOptions = listOf("moveUp" to "Move up", "moveDown" to "Move down",
             "moveLeft" to "Move left", "moveRight" to "Move right",

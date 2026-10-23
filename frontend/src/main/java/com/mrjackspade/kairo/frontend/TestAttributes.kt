@@ -18,6 +18,15 @@ object TestAttributes {
     fun id(view: View): String? = view.getTag(R.id.kairo_test_id) as? String
     fun key(view: View): String? = view.getTag(R.id.kairo_test_key) as? String
 
+    /** Marks a view as something the player activates on its page: a focusable item ([ITEM]). */
+    fun markItem(view: View, navigationId: String) = view.setTag(R.id.kairo_test_role, "$ITEM:$navigationId")
+
+    /** The navigation id of a focusable item, or null for a view that is not one. */
+    fun item(view: View): String? = (view.getTag(R.id.kairo_test_role) as? String)?.removePrefix("$ITEM:")
+
+    /** The role of a page's focusable items: rows, buttons, tabs and keys a controller can reach. */
+    const val ITEM = "item"
+
     /** A page's root: its kind, and the title the player sees, when it has one. */
     const val PAGE = "page"
 }
