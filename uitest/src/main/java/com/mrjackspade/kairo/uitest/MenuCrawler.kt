@@ -117,7 +117,7 @@ class MenuCrawler(
             Intent.ACTION_GET_CONTENT, Intent.ACTION_CREATE_DOCUMENT, Intent.ACTION_VIEW, Intent.ACTION_SEND)
 
         private val DESTRUCTIVE = Regex("exit|delete|remove|reset|restart|uninstall|recheck|catalogs|images|clear|" +
-            "^slot|^f-library$|^play$|^command$|^layout:", RegexOption.IGNORE_CASE)
+            "^slot|^f-library$|^play$|^command$|^layout:|^footer:save$", RegexOption.IGNORE_CASE)
 
         /** Destructive, slow or network items, and options (picking one changes a setting). */
         fun skipByDefault(item: String): Boolean = DESTRUCTIVE.containsMatchIn(item) || item.startsWith("o:")

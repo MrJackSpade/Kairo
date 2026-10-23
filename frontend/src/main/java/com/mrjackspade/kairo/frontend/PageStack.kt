@@ -34,6 +34,9 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
     }
     private val pages = ArrayList<Page>()
     private val running = HashMap<View, Animator>()
+
+    /** Tells the UI tests whether a page is still sliding (id pages, key moving or settled), so they touch only settled pages. */
+    private fun markMotion() = TestAttributes.mark(this, "pages", if (running.isEmpty()) "settled" else "moving")
     /** The library view moved aside by the first page, restored when the last page closes. */
     private var covered: View? = null
 
@@ -266,10 +269,12 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
             override fun onAnimationCancel(animation: Animator) { cancelled = true }
             override fun onAnimationEnd(animation: Animator) {
                 if (running[view] === set) running.remove(view)
+                markMotion()
                 if (!cancelled) end?.invoke()
             }
         })
         running[view] = set
+        markMotion()
         set.start()
     }
 

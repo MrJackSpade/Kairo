@@ -78,6 +78,8 @@ class Element internal constructor(private val driver: Driver, private val path:
     /** Touches its centre, scrolling it into view first when its page has scrolled it (partly) away. */
     fun tap(): Element {
         waitUntilShown()
+        // A page still sliding in or out can take the touch meant for this view.
+        driver.waitUntil("the pages to settle") { !driver.find(By.id("pages").withKey("moving")).exists() }
         if (!driver.onMain { current()?.let(Views::tappable) == true }) {
             driver.log.step("scroll", "$description into view")
             driver.onMain { current()?.let { it.requestRectangleOnScreen(android.graphics.Rect(0, 0, it.width, it.height), true) } }
