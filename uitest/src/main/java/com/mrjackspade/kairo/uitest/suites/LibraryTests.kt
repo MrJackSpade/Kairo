@@ -2,6 +2,7 @@ package com.mrjackspade.kairo.uitest.suites
 
 import com.mrjackspade.kairo.uitest.By
 import com.mrjackspade.kairo.uitest.KairoUiTest
+import com.mrjackspade.kairo.uitest.Library
 import org.junit.Test
 
 /** The game library, in every app: its header, one entry per game, and no non-games. */
@@ -83,9 +84,14 @@ abstract class SearchTests : KairoUiTest() {
         val library = screens.completeFirstRun().waitForGame(app.bootGame)
         library.search(app.searchTerm)
         library.waitForGame(app.bootGame)
-        val entries = library.entries()
-        val others = entries.filterNot { (it.title + " " + it.file).contains(app.searchTerm, ignoreCase = true) }
-        expect.that("every result matches \"${app.searchTerm}\"", others.isEmpty()) { others.joinToString { it.title } }
+        // The list filters as the term is typed, so it may still show earlier results at first.
+        fun others(entries: List<Library.Entry>) =
+            entries.filterNot { (it.title + " " + it.file).contains(app.searchTerm, ignoreCase = true) }
+        var entries = emptyList<Library.Entry>()
+        driver.waitUntil("every result to match \"${app.searchTerm}\"") {
+            entries = library.entries()
+            others(entries).isEmpty()
+        }
         expect.that("\"${app.bootGame}\" is a result", entries.any { it.title == app.bootGame })
     }
 

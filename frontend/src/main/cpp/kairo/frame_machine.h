@@ -99,6 +99,21 @@ public:
         enqueue(std::move(command));
     }
 
+    // On the emulation thread, from a task: while the session is paused, runs one
+    // guest frame, drops its sound and shows it. A core draws its picture only as it
+    // runs, so after a state load the paused screen would otherwise keep the picture
+    // from before the load.
+    void redraw_paused(Core &core) {
+        if (!paused_) return;
+        if (!core.run_frame()) {
+            report("Error", core.error());
+            return;
+        }
+        publish(core);
+        int16_t discarded[kAudioChunk * 2];
+        while (core.read_audio(discarded, kAudioChunk) > 0) {}
+    }
+
     // Runs task on the emulation thread between frames and waits for its result,
     // or returns kNotRunning when the session ends first.
     int call(std::function<int(Core &)> task) {
@@ -163,6 +178,9 @@ public:
     }
 
 private:
+    // Whether the session is paused; the emulation thread's alone.
+    bool paused_ = false;
+
     struct Command {
         enum Kind { Task, Pause, Resume, Stop } kind;
         std::function<void(Core &)> task;
@@ -231,7 +249,7 @@ private:
         open_audio();
 
         std::vector<int16_t> samples(kAudioChunk * 2);
-        bool paused = false;
+        paused_ = false;
         bool stop = false;
         auto next_frame = std::chrono::steady_clock::now();
         while (!stop) {
@@ -241,7 +259,7 @@ private:
                 // once, but the frame itself still waits for its slot on the grid below.
                 std::unique_lock<std::mutex> guard(command_mutex_);
                 const auto has_commands = [this] { return !commands_.empty(); };
-                if (paused) command_ready_.wait(guard, has_commands);
+                if (paused_) command_ready_.wait(guard, has_commands);
                 else command_ready_.wait_until(guard, next_frame, has_commands);
                 pending.swap(commands_);
             }
@@ -251,13 +269,13 @@ private:
                         command.task(*core);
                         break;
                     case Command::Pause:
-                        paused = true;
+                        paused_ = true;
                         core->release_inputs();
                         if (audio) audio->pause();
                         report("Paused");
                         break;
                     case Command::Resume:
-                        paused = false;
+                        paused_ = false;
                         if (audio) audio->resume();
                         next_frame = std::chrono::steady_clock::now();
                         report("Running");
@@ -268,7 +286,7 @@ private:
                         break;
                 }
             }
-            if (stop || paused) continue;
+            if (stop || paused_) continue;
             // Running a frame for every input event would run the guest faster than
             // its refresh rate, overfill the audio stream, and push next_frame ahead
             // of real time so audio starves once the input stops.

@@ -41,8 +41,8 @@ class TestDocumentsProvider : DocumentsProvider() {
             .add(Document.COLUMN_MIME_TYPE, if (directory) Document.MIME_TYPE_DIR else mime(file.name))
             .add(Document.COLUMN_SIZE, if (directory) null else file.length())
             .add(Document.COLUMN_LAST_MODIFIED, file.lastModified())
-            .add(Document.COLUMN_FLAGS, if (directory) Document.FLAG_DIR_SUPPORTS_CREATE else
-                Document.FLAG_SUPPORTS_WRITE or Document.FLAG_SUPPORTS_DELETE)
+            .add(Document.COLUMN_FLAGS, Document.FLAG_SUPPORTS_DELETE or Document.FLAG_SUPPORTS_RENAME or
+                if (directory) Document.FLAG_DIR_SUPPORTS_CREATE else Document.FLAG_SUPPORTS_WRITE)
     }
 
     private fun mime(name: String) = MimeTypeMap.getSingleton()
@@ -78,6 +78,14 @@ class TestDocumentsProvider : DocumentsProvider() {
 
     override fun deleteDocument(documentId: String) {
         check(file(documentId).deleteRecursively()) { "Could not delete $documentId" }
+    }
+
+    /** Renames in place, as a device's storage does; the app's folder saves stage and then rename. */
+    override fun renameDocument(documentId: String, displayName: String): String {
+        val from = file(documentId)
+        val to = File(from.parentFile, displayName)
+        check(!to.exists() && from.renameTo(to)) { "Could not rename $documentId to $displayName" }
+        return id(to)
     }
 
     private companion object {

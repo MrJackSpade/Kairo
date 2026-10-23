@@ -39,6 +39,9 @@ abstract class AppUnderTest {
     /** [bootGame]'s file in the test resources, such as "games/Acrojet.zip", for launches from a frontend. */
     abstract val bootGameFile: String
 
+    /** [bootGameFile] below the games folder, as library entry keys name it (Library.entryFrom). */
+    val bootGameEntryFile: String get() = bootGameFile.substringAfter('/')
+
     /** Another game, for checking that one game's settings leave others alone. */
     abstract val otherGame: String
 

@@ -41,6 +41,14 @@ object Views {
     /** Present and at least partly on screen now, where a touch can reach it. */
     fun onScreen(view: View): Boolean = present(view) && view.getGlobalVisibleRect(Rect())
 
+    /** Whether the view's centre, where a tap lands, is on screen: a row cut off at the edge may not be. */
+    fun tappable(view: View): Boolean {
+        val visible = Rect()
+        if (!present(view) || !view.getGlobalVisibleRect(visible)) return false
+        val bounds = boundsInWindow(view)
+        return visible.contains(bounds.centerX(), bounds.centerY())
+    }
+
     /** Where the view is now, in its window. */
     fun boundsInWindow(view: View): Rect {
         val origin = IntArray(2)

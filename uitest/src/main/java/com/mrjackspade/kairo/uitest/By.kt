@@ -30,6 +30,14 @@ class By private constructor(val description: String, private val test: (View) -
         fun id(id: String) = By("id=$id") { TestAttributes.id(it) == id }
         fun key(key: String) = By("key=$key") { TestAttributes.key(it) == key }
 
+        /**
+         * A library entry listed from [file], a path below the games folder: its key is that path, or
+         * that path followed by the member it starts from, as an archive's disk.
+         */
+        fun fromFile(file: String) = By("from file $file") { view ->
+            TestAttributes.key(view)?.let { it == file || it.startsWith("$file/") } == true
+        }
+
         /** A focusable item of its page (a row, button, tab or key) by its navigation id. */
         fun item(id: String) = By("item $id") { TestAttributes.item(it) == id }
 

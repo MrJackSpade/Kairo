@@ -75,13 +75,13 @@ class Element internal constructor(private val driver: Driver, private val path:
     /** Its key now, without waiting; null when it is not on screen or has none. */
     fun keyNow(): String? = driver.onMain { current()?.let(TestAttributes::key) }
 
-    /** Touches it where it is now, scrolling it into view first when its page has scrolled it away. */
+    /** Touches its centre, scrolling it into view first when its page has scrolled it (partly) away. */
     fun tap(): Element {
         waitUntilShown()
-        if (!driver.onMain { current()?.let(Views::onScreen) == true }) {
+        if (!driver.onMain { current()?.let(Views::tappable) == true }) {
             driver.log.step("scroll", "$description into view")
             driver.onMain { current()?.let { it.requestRectangleOnScreen(android.graphics.Rect(0, 0, it.width, it.height), true) } }
-            driver.waitUntil("$description to be on screen") { driver.onMain { current()?.let(Views::onScreen) == true } }
+            driver.waitUntil("$description to be on screen") { driver.onMain { current()?.let(Views::tappable) == true } }
             waitUntilShown()
         }
         driver.onMain {

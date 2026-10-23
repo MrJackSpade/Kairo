@@ -37,17 +37,22 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
      * layout first; that step is answered as completeFirstRun answers it, with [onPage] run on it.
      */
     fun reachFolderStep(onPage: (String) -> Unit = {}): Element {
-        val layout = driver.page("Controller layout")
         val folder = setupPage(app.folderStepTitle)
-        driver.waitUntil("a setup page") { layout.exists() || folder.exists() }
-        if (layout.exists()) {
-            layout.waitUntilShown()
-            onPage("Controller layout")
-            val auto = layout.find(By.id("layout:AUTO"))
-            (if (auto.exists()) auto else layout.find(By.id("layout:WITH_STICKS"))).tap()
-            layout.find(By.id("footer:continue")).tap()
-        }
+        driver.waitUntil("a setup page") { controllerLayout.exists() || folder.exists() }
+        if (controllerLayout.exists()) answerControllerLayout(onPage)
         return folder.waitUntilShown()
+    }
+
+    /** The controller layout page, which a device with a controller shows before anything else. */
+    val controllerLayout: Element get() = driver.page("Controller layout")
+
+    /** Answers the controller layout page as a player would: the automatic layout where offered. */
+    fun answerControllerLayout(onPage: (String) -> Unit = {}) {
+        val layout = controllerLayout.waitUntilShown()
+        onPage("Controller layout")
+        val auto = layout.find(By.id("layout:AUTO"))
+        (if (auto.exists()) auto else layout.find(By.id("layout:WITH_STICKS"))).tap()
+        layout.find(By.id("footer:continue")).tap()
     }
 
     /** A BIOS file's row on a BIOS page, by its file name (row id "firmware<set>-<file>"). */
@@ -195,17 +200,34 @@ class Library(private val driver: Driver) {
         return seen.values.toList()
     }
 
-    class Entry(val key: String, val title: String, val file: String)
+    class Entry(val key: String, val title: String, val file: String) {
+        /** Whether this entry is listed from [file], a path below the games folder (By.fromFile). */
+        fun isFrom(file: String) = key == file || key.startsWith("$file/")
+    }
 
-    private fun reveal(title: String): Boolean {
-        val entry = driver.find(By.id("library.entry").withText(title))
+    /**
+     * The entry listed from [file], a path below the games folder, brought into view: the way to
+     * name one game where several entries share its title.
+     */
+    fun entryFrom(file: String): Element {
+        val entry = driver.find(By.id("library.entry") and By.fromFile(file))
+        driver.waitUntil("the library to list $file") { !scanning.exists() && reveal(entry) }
+        return entry
+    }
+
+    private fun reveal(title: String): Boolean = reveal(driver.find(By.id("library.entry").withText(title)))
+
+    private fun reveal(entry: Element): Boolean {
         if (entry.exists()) return true
         return try { entry.revealIn(list); true } catch (_: AssertionError) { false }
     }
 
     /** Opens [title]'s game page. */
-    fun open(title: String): GamePage {
-        entry(title).tap()
+    fun open(title: String): GamePage = open(entry(title))
+
+    /** Opens the game page of [entry], such as [entryFrom]'s. */
+    fun open(entry: Element): GamePage {
+        entry.tap()
         return GamePage(driver).also { it.page.waitUntilShown() }
     }
 

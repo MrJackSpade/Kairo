@@ -306,14 +306,14 @@ class LayeredGameCatalog(private val context: Context, private val schema: Schem
     /** Overrides from before games had keys, for [GameKeyMigration]. */
     fun legacyOverrides() = GameKeyMigration.OverrideStore(overrides) { synchronized(this) { invalidate() } }
 
-    /** Hide a known support disk without removing it from media lookup or disk swaps. */
+    /**
+     * Hide a known support disk without removing it from media lookup or disk swaps. Read from the
+     * resolved record, so a disk is hidden by its game's shared record too (a name-indexed
+     * catalog's disk records only name their game), with the usual layer precedence.
+     */
     @Synchronized override fun hiddenFromLibrary(item: LibraryItem): Boolean {
-        val contentId = matchId(item) ?: return false
-        fun hidden(source: JSONObject?): Boolean? = source?.optJSONObject("games")
-            ?.optJSONObject(contentId)?.opt("hidden") as? Boolean
-        return CatalogFieldLayers.hidden(hidden(base), hidden(shardFor(contentId)),
-            hidden(update), *installedCatalogs.sources(contentId).map { it.record?.opt("hidden") }.toTypedArray(),
-            hidden(additions), overrides.record(item.key)?.opt("hidden"))
+        if (matchId(item) == null) return false
+        return CatalogFieldLayers.hidden(resolve(item).record.opt("hidden"))
     }
 
     /** Read for every library entry, so it takes the field from the highest layer instead of merging records. */

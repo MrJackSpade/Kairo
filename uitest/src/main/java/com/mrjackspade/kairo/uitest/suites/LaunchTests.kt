@@ -20,6 +20,11 @@ abstract class LaunchTests : KairoUiTest() {
     @Test
     fun aFrontendLaunchWorksBeforeSetup() {
         driver.launchExternally(screens.documents.file(app.bootGameFile))
+        // A device with a controller is asked for its layout first; the game starts after it.
+        driver.waitUntil("the controller layout or the game") {
+            screens.controllerLayout.exists() || driver.probeNow().state == "Running"
+        }
+        if (screens.controllerLayout.exists()) screens.answerControllerLayout()
         driver.waitForGame("Running")
         driver.waitFrames(SETTLE_FRAMES)
         val picture = driver.pictures.game("before-setup")

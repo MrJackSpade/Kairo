@@ -3,7 +3,6 @@ package com.mrjackspade.kairo.uitest
 import android.app.Activity
 import android.app.Instrumentation
 import android.content.Intent
-import android.content.IntentFilter
 import android.view.KeyEvent
 import com.mrjackspade.kairo.frontend.TestAttributes
 
@@ -33,17 +32,22 @@ class MenuCrawler(
 
     /** Crawls from the page on top, and returns there. */
     fun crawl(): Report {
-        val monitors = OUTSIDE_ACTIONS.map { action ->
-            driver.instrumentation.addMonitor(IntentFilter(action).apply {
-                if (action == Intent.ACTION_VIEW) { addDataScheme("http"); addDataScheme("https") }
-            }, Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true)
+        // Matched by action whatever the intent's MIME type: an IntentFilter without types never
+        // matches a picker that names one, such as the catalog import's */*.
+        val cancelled = Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
+        val monitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? = cancelled.takeIf {
+                intent.action in OUTSIDE_ACTIONS &&
+                    (intent.action != Intent.ACTION_VIEW || intent.scheme == "http" || intent.scheme == "https")
+            }
         }
+        driver.instrumentation.addMonitor(monitor)
         try {
             val start = topPage()
             visit(start, listOf(start))
         } finally {
-            report.pickers = monitors.sumOf { it.hits }
-            monitors.forEach(driver.instrumentation::removeMonitor)
+            report.pickers = monitor.hits
+            driver.instrumentation.removeMonitor(monitor)
         }
         driver.log.step("crawl", report.toString(), mapOf("pages" to report.pages.joinToString(" | "),
             "skipped" to report.skipped.joinToString(" | ")))
@@ -112,7 +116,7 @@ class MenuCrawler(
         private val OUTSIDE_ACTIONS = listOf(Intent.ACTION_OPEN_DOCUMENT, Intent.ACTION_OPEN_DOCUMENT_TREE,
             Intent.ACTION_GET_CONTENT, Intent.ACTION_CREATE_DOCUMENT, Intent.ACTION_VIEW, Intent.ACTION_SEND)
 
-        private val DESTRUCTIVE = Regex("exit|delete|remove|reset|restart|uninstall|recheck|catalogs|images|" +
+        private val DESTRUCTIVE = Regex("exit|delete|remove|reset|restart|uninstall|recheck|catalogs|images|clear|" +
             "^slot|^f-library$|^play$|^command$|^layout:", RegexOption.IGNORE_CASE)
 
         /** Destructive, slow or network items, and options (picking one changes a setting). */

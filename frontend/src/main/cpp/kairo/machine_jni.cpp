@@ -140,7 +140,9 @@ extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLoadState)(JNIEnv *env, j
     std::string path = utf8(env, directory);
     return machine.call([path](kairo::MachineCore &core) {
         core.release_inputs();
-        return core.load_state(path);
+        const int result = core.load_state(path);
+        if (result == 0) machine.redraw_paused(core);
+        return result;
     });
 }
 

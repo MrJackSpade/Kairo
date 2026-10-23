@@ -15,22 +15,25 @@ abstract class LibraryManagementTests : KairoUiTest() {
     fun refreshFindsAGameAddedToTheFolder() {
         screens.documents.move(app.bootGameFile, spare)
         val library = screens.completeFirstRun().waitForGame(app.otherGame)
-        expect.that("${app.bootGame} is not listed while its file is elsewhere", library.entries().none { it.title == app.bootGame })
+        // By file: other entries may share the game's title, as another release of it does.
+        expect.that("nothing from ${app.bootGameFile} is listed while the file is elsewhere",
+            library.entries().none { it.isFrom(app.bootGameEntryFile) })
         screens.documents.move(spare, app.bootGameFile)
         library.openMenu().find(By.item("f-refresh")).tap()
-        library.waitForGame(app.bootGame)
-        expect.that("Refresh lists ${app.bootGame}", library.entry(app.bootGame).exists())
+        expect.that("Refresh lists ${app.bootGameFile}", library.entryFrom(app.bootGameEntryFile).exists())
     }
 
     @Test
     fun deletingAGameRemovesItsFile() {
         val library = screens.completeFirstRun().waitForGame(app.bootGame)
-        val settings = library.open(app.bootGame).openSettings()
+        val settings = library.open(library.entryFrom(app.bootGameEntryFile)).openSettings()
         settings.find(By.item("delete")).tap()
         screens.confirm()
         driver.waitUntil("the game file to be deleted") { !screens.documents.exists(app.bootGameFile) }
         library.waitUntilShown()
-        driver.waitUntil("${app.bootGame} to leave the library") { library.entries().none { it.title == app.bootGame } }
+        driver.waitUntil("${app.bootGameFile} to leave the library") {
+            library.entries().none { it.isFrom(app.bootGameEntryFile) }
+        }
     }
 
     @Test
