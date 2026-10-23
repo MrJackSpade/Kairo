@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class LibraryScanPipeline<Work : Any, Entry : Any>(
     private val cache: VersionedLibraryCache<Entry>,
     private val entryId: (Entry) -> String,
-    private val enumerate: (Uri, AtomicBoolean, (String) -> Unit) -> Plan<Work, Entry>,
+    private val enumerate: (Uri, ScanDepth, AtomicBoolean, (String) -> Unit) -> Plan<Work, Entry>,
     private val inspect: (Work, ScanContext<Entry>) -> List<Entry>,
     private val failed: (Work, ScanContext<Entry>, Exception) -> List<Entry>,
     private val label: (Work, Int, Int) -> String? = { _, _, _ -> null },
@@ -59,9 +59,12 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         synchronized(writeLock) { cache.write(tree.toString(), cacheOrder(entries), metadata()) }
     }
 
-    @Synchronized fun scan(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean,
+    @Synchronized fun scan(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean,
                            progress: (String) -> Unit): List<Entry> {
+        val forceHash = depth.rehash
         if (cancelled.get()) throw CancellationException("Cancelled")
+        // Each phase's time goes to the log, so a scan can be profiled on a device (Kairo#32).
+        val start = android.os.SystemClock.elapsedRealtime()
         val previous = try {
             cache.readForTree(tree.toString())
         } catch (failure: Exception) {
@@ -78,7 +81,9 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
             if (!cancelled.get()) progress(message)
         } }
         val context = ScanContext(previous, prior, earlier, forceHash, cancelled, report) { hashes.incrementAndGet(); Unit }
-        val plan = enumerate(tree, cancelled, progress)
+        val read = android.os.SystemClock.elapsedRealtime()
+        val plan = enumerate(tree, depth, cancelled, progress)
+        val walked = android.os.SystemClock.elapsedRealtime()
         context.checkCancelled()
         val entries = ArrayList<Entry>()
         entries.addAll(plan.initialEntries)
@@ -94,11 +99,16 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
                 failed(work, context, error)
             }
         }
+        val checked = android.os.SystemClock.elapsedRealtime()
         inspected.forEach(entries::addAll)
         entries.addAll(plan.finalEntries)
         context.checkCancelled()
         val saved = cacheOrder(entries)
         synchronized(writeLock) { cache.write(tree.toString(), saved, metadata()) }
+        val written = android.os.SystemClock.elapsedRealtime()
+        android.util.Log.i("KairoLibrary", "Scan: cache read ${read - start} ms, walk ${walked - read} ms " +
+            "(${plan.work.size} items), check ${checked - walked} ms (${hashes.get()} hashed), " +
+            "write ${written - checked} ms, ${saved.size} entries")
         afterCommit(plan)
         return displayOrder(saved)
     }

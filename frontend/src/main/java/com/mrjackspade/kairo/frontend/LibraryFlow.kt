@@ -16,7 +16,7 @@ class LibraryFlow<T : LibraryItem>(
     val screen: LibraryScreen<T>,
     private val requestCode: Int,
     private val cached: (Uri) -> List<T>,
-    private val scan: (Uri, Boolean, AtomicBoolean, (String) -> Unit) -> List<T>,
+    private val scan: (Uri, ScanDepth, AtomicBoolean, (String) -> Unit) -> List<T>,
     private val emptyStatus: String,
     private val expiredStatus: String,
     private val scanSummary: (List<T>) -> String,
@@ -174,7 +174,7 @@ class LibraryFlow<T : LibraryItem>(
             screen.showEntries(entries)
             displayedEntries = entries
             runAfterLoad()
-            onFolderSelected?.invoke(selected) ?: refresh(false)
+            onFolderSelected?.invoke(selected) ?: refresh(ScanDepth.EVERY_FOLDER)
         } catch (failure: Exception) {
             val message = "Cannot keep folder access: ${failure.message}"
             screen.showStatus(message)
@@ -184,7 +184,7 @@ class LibraryFlow<T : LibraryItem>(
     }
 
     /** [announce] puts the scan summary in the message bar, for scans the user started. */
-    fun refresh(forceHash: Boolean, announce: Boolean = false) {
+    fun refresh(depth: ScanDepth, announce: Boolean = false) {
         val selected = tree ?: run { screen.showStatus(emptyStatus); return }
         if (!hasGrant(selected)) { screen.showStatus(expiredStatus); return }
         scanCancelled.set(true)
@@ -193,8 +193,8 @@ class LibraryFlow<T : LibraryItem>(
         // This scan lists the folder after every earlier edit was made.
         scanEdits.clear()
         scanning = true
-        rehashing = forceHash
-        screen.showStatus(if (forceHash) "Rehashing folder…" else "Checking the games folder…")
+        rehashing = depth.rehash
+        screen.showStatus(if (depth.rehash) "Rehashing folder…" else "Checking the games folder…")
         fun finished() {
             if (scanCancelled !== cancelled) return
             scanning = false
@@ -202,7 +202,7 @@ class LibraryFlow<T : LibraryItem>(
         }
         Thread {
             try {
-                val scanned = scan(selected, forceHash, cancelled) { message ->
+                val scanned = scan(selected, depth, cancelled) { message ->
                     activity.runOnUiThread {
                         if (!cancelled.get() && tree == selected) screen.showStatus(message)
                     }

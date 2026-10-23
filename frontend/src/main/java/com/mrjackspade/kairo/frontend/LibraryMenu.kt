@@ -47,7 +47,7 @@ class LibraryMenu<T : LibraryItem>(
             listOf(
                 RowGroup("LIBRARY", listOf(
                     SettingsRow.action("f-refresh", "Refresh", busy = { flow.scanning && !flow.rehashing }) {
-                        if (!flow.scanning) flow.refresh(false, announce = true)
+                        if (!flow.scanning) flow.refresh(ScanDepth.EVERY_FOLDER, announce = true)
                     },
                     SettingsRow.nav("f-manage", "Manage library") { pages.push(managePage()) })),
                 RowGroup("SETTINGS", settings()),
@@ -78,12 +78,12 @@ class LibraryMenu<T : LibraryItem>(
                     value = { if (flow.scanning && !flow.rehashing) "Scanning…"
                         else if (flow.tree == null) "" else "${flow.entries.count { it.playable }} games" },
                     busy = { flow.scanning && !flow.rehashing }) {
-                    if (!flow.scanning) flow.refresh(false, announce = true)
+                    if (!flow.scanning) flow.refresh(ScanDepth.EVERY_FOLDER, announce = true)
                 },
                 SettingsRow.action("recheck", "Recheck all files",
                     value = { if (flow.rehashing) "Checking…" else "" },
                     busy = { flow.rehashing }) {
-                    if (!flow.scanning) flow.refresh(true, announce = true)
+                    if (!flow.scanning) flow.refresh(ScanDepth.EVERY_FILE, announce = true)
                 }),
                 "Refresh finds added, changed, or removed games. Recheck all files verifies every file again."),
             RowGroup("CATALOGS", listOfNotNull(

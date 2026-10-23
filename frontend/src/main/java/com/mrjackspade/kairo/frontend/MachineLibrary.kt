@@ -8,7 +8,7 @@ interface MachineLibrary<E : LibraryItem> {
     /** Images hashed by the last scan, for the library status. */
     val hashCount: Int
     fun cached(tree: Uri): List<E>
-    fun scan(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean, progress: (String) -> Unit): List<E>
+    fun scan(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean, progress: (String) -> Unit): List<E>
     /** Saves a library edited without a scan, such as after deleting a source. */
     fun store(tree: Uri, entries: List<E>)
     /** Reads one file a frontend app sent, which need not be in the ROM folder. */

@@ -94,8 +94,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun videoSize() = Triple(machine.screenWidth, machine.screenHeight, machine.aspect)
 
     override fun cachedLibrary(tree: Uri) = library.cached(tree)
-    override fun scanLibrary(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean, progress: (String) -> Unit) =
-        library.scan(tree, forceHash, cancelled, progress)
+    override fun scanLibrary(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean, progress: (String) -> Unit) =
+        library.scan(tree, depth, cancelled, progress)
     override fun storeLibrary(tree: Uri, entries: List<E>) = library.store(tree, entries)
     override val hashCount: Int get() = library.hashCount
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean) = library.inspectExternal(file, cancelled)

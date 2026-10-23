@@ -157,6 +157,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             VersionedLibraryCache.Legacy(legacy.file, legacy.version, legacy.collectionName) { labeled(legacy.decode(it)) }
         }, cache.earlierRecords.mapValues { (_, read) -> { input: DataInputStream -> labeled(read(input)) } } +
             (4 to ::readCacheRecordV4) + (5 to ::readCacheRecordV5))
+    /** The games folder's listings, so a launch lists only the folders that changed (ScanDepth). */
+    private val folderListings = FolderListings(File(context.filesDir, "folder-listings-v1.json"))
     private val scanPipeline by lazy {
         LibraryScanPipeline(storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
             { source, index, total -> "Checking ${index + 1} of $total for changes: ${source.path}" },
@@ -181,8 +183,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     override fun store(tree: Uri, entries: List<DiskImageEntry>) = scanPipeline.store(tree, entries)
 
-    override fun scan(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean,
-                      progress: (String) -> Unit): List<DiskImageEntry> = scanPipeline.scan(tree, forceHash, cancelled, progress)
+    override fun scan(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean,
+                      progress: (String) -> Unit): List<DiskImageEntry> = scanPipeline.scan(tree, depth, cancelled, progress)
 
     /** Delete the source document shared by every image entry from that file, and a loose descriptor's track data. */
     override fun deleteSource(entry: DiskImageEntry, entries: List<DiskImageEntry>) {
@@ -254,11 +256,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
     }
 
-    private fun planScan(tree: Uri, cancelled: AtomicBoolean,
+    private fun planScan(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean,
                          progress: (String) -> Unit): LibraryScanPipeline.Plan<Source, DiskImageEntry> {
         val result = DocumentTreeWalker(context.contentResolver).scan(tree, cancelled,
             { name -> format.listsEveryFile || format.isImage(name) || format.isArchive(name) || format.isData(name) },
-            progress)
+            progress, folderListings, depth)
         val everyFile = result.files.map { Source(it.uri, it.path, it.size, it.modified) }
         val files = everyFile.filter { format.isImage(it.path) || format.isArchive(it.path) || format.isData(it.path) }
         // Track data is read through its descriptor; data without one is not an image.

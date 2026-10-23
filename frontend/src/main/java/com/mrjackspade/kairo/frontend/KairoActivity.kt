@@ -90,7 +90,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     protected abstract val catalog: LibraryCatalog
     protected abstract fun cachedLibrary(tree: Uri): List<E>
-    protected abstract fun scanLibrary(tree: Uri, forceHash: Boolean, cancelled: AtomicBoolean,
+    protected abstract fun scanLibrary(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean,
                                        progress: (String) -> Unit): List<E>
     protected abstract fun storeLibrary(tree: Uri, entries: List<E>)
     protected abstract val hashCount: Int
@@ -500,7 +500,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { _ ->
                 if (firstRunSetup.isChoosingRomFolder && firmware != null) advanceFirstRunFirmware(folderChosen = true)
                 else if (firstRunSetup.isOpen) finishFirstRun()
-                else libraryFlow.refresh(false)
+                else libraryFlow.refresh(ScanDepth.CHANGED_FOLDERS)
             },
             { message -> if (firstRunSetup.isOpen) toast(message) }, writableFolder, ::storeLibrary)
         artworkDownloads = createArtworkDownloads(libraryPage) { libraryEntries }
@@ -537,7 +537,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             savedInstanceState.getBoolean("controller_setup_external_v1")) &&
             ExternalGameIntent.hasRequest(intent)
         if (externallyRequested) dispatchExternalGame(intent)
-        else if (tree != null && libraryFlow.hasGrant(tree!!) && firstRunStep >= 2) libraryFlow.refresh(false)
+        else if (tree != null && libraryFlow.hasGrant(tree!!) && firstRunStep >= 2) libraryFlow.refresh(ScanDepth.CHANGED_FOLDERS)
         if (firstRunStep < 2 && !externallyRequested) firstRunSetup.show(if (firstRunStep == 0 || firmware == null)
             MachineFirstRun.Step.ROM_FOLDER else MachineFirstRun.Step.FIRMWARE, tree != null)
         applyPauseState()
@@ -783,7 +783,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         firstRunSetup.close()
         applyPauseState()
         val folder = tree
-        if (folder != null && libraryFlow.hasGrant(folder)) libraryFlow.refresh(false)
+        if (folder != null && libraryFlow.hasGrant(folder)) libraryFlow.refresh(ScanDepth.CHANGED_FOLDERS)
         else libraryScreen.showStatus("Choose a ${identity.strings.folder} from the library menu when you’re ready")
     }
 
@@ -793,7 +793,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         refreshSettingValues()
     }
 
-    protected fun refreshLibrary(forceHash: Boolean) = libraryFlow.refresh(forceHash)
+    protected fun refreshLibrary(depth: ScanDepth) = libraryFlow.refresh(depth)
 
     /** Edits the library list without a scan, as after a launch installs a game. */
     protected fun editLibrary(change: (List<E>) -> List<E>) = libraryFlow.edit(change)
