@@ -72,8 +72,9 @@ named automatically (`Page.attach`, `Page.renav`).
 - **The game**: `driver.probe()` reads the session (`KairoActivity.gameProbe`): its state, frames,
   media by slot (`media.<slot>`), options (`option.<id>`) and what the machine started with
   (`machine.<name>`). `driver.pictures.game()` copies the game's picture as shown.
-- **Waits** poll until their condition holds. They have no bound unless the run sets
-  `patienceSeconds` (`uitest.ps1 -PatienceSeconds`); every 10 seconds a wait logs what it still waits for.
+- **Waits** poll until their condition holds, for at most 30 seconds; a wait that runs out fails its
+  test with what it waited for. `patienceSeconds` (`uitest.ps1 -PatienceSeconds`) changes the bound
+  for a run. Every 10 seconds a wait logs what it still waits for.
 
 ## The record
 

@@ -19,7 +19,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Device,
     # A test class, or class#method, to run alone; every test otherwise.
     [string]$Class,
-    # How long any one wait may last before it fails its test; unbounded otherwise (uitest Patience).
+    # How long any one wait may last before it fails its test; 30 seconds otherwise (uitest Patience).
     [int]$PatienceSeconds,
     [ValidateSet('withImages', 'withoutImages', '')][string]$Flavor = 'withoutImages'
 )
