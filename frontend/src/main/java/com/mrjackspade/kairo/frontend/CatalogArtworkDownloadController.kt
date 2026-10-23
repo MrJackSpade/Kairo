@@ -4,6 +4,9 @@ import android.app.Activity
 import android.util.Log
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /** Drives the shared library's cancellable missing-artwork download flow. */
 class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
@@ -37,53 +40,64 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
         cancelled = stop
         show("Checking…", "Checking library artwork…")
         Thread {
-            var completed = 0
-            var downloaded = 0
-            var failures = 0
+            val completed = AtomicInteger()
+            val saved = AtomicInteger()
+            val failed = AtomicInteger()
             var total = 0
             var errorMessage: String? = null
             val reasons = linkedMapOf<String, Int>()
-            fun post(row: String, task: String) = activity.runOnUiThread {
-                if (!activity.isDestroyed && !stop.get()) show(row, task)
+            // Several workers report: only the newest state waits for the main thread.
+            val pending = AtomicReference<Pair<String, String>?>()
+            fun post(row: String, task: String) {
+                if (pending.getAndSet(row to task) == null) activity.runOnUiThread {
+                    val latest = pending.getAndSet(null)
+                    if (latest != null && !activity.isDestroyed && !stop.get()) show(latest.first, latest.second)
+                }
             }
-            fun counted() = "Downloading images $completed/$total" + (if (failures == 0) "" else " · $failures failed")
+            fun counted() = "Downloading images ${completed.get()}/$total" +
+                (if (failed.get() == 0) "" else " · ${failed.get()} failed")
+            // A server that asks us to wait holds every worker until then.
+            val resumeAt = AtomicLong(0)
             try {
                 val sources = missing(games)
                 total = sources.size
                 post("0 / $total", counted())
-                for (source in sources) {
-                    if (stop.get()) break
-                    // A server that asks us to wait is waited for; the same image is then tried again.
+                // Each image is downloaded, decoded and encoded again: one at a time left the
+                // network and the other cores idle, about one image a second (KairoDos#83).
+                ParallelScanWork.map(sources, stop, WORKERS) { _, source ->
                     var backoff = FIRST_BACKOFF_MILLIS
                     while (true) {
+                        val wait = resumeAt.get()
+                        if (wait > System.currentTimeMillis()) CatalogArtworkStore.waitUntil(wait, stop)
                         try {
                             download(source, stop)
-                            downloaded++
+                            saved.incrementAndGet()
                         } catch (throttled: CatalogArtworkStore.Throttled) {
                             val resume = throttled.retryAt
                                 ?: (System.currentTimeMillis() + backoff).also { backoff = (backoff * 2).coerceAtMost(LAST_BACKOFF_MILLIS) }
+                            resumeAt.accumulateAndGet(resume, ::maxOf)
                             Log.i("Kairo", "Artwork: ${throttled.host} is limiting requests; waiting until $resume")
                             post("Waiting…", "Waiting for ${throttled.host}'s rate limit…")
-                            CatalogArtworkStore.waitUntil(resume, stop)
-                            post("$completed / $total", counted())
                             continue
                         } catch (cancel: CancellationException) {
                             throw cancel
                         } catch (error: Exception) {
-                            failures++
+                            failed.incrementAndGet()
                             val reason = reason(error)
-                            reasons[reason] = (reasons[reason] ?: 0) + 1
+                            synchronized(reasons) { reasons[reason] = (reasons[reason] ?: 0) + 1 }
                             Log.e("Kairo", "Artwork download failed: $source", error)
                         }
                         break
                     }
-                    completed++
-                    post("$completed / $total", counted())
+                    completed.incrementAndGet()
+                    post("${completed.get()} / $total", counted())
                 }
             } catch (_: CancellationException) {
             } catch (error: Exception) {
                 errorMessage = error.message ?: "Unknown error"
             }
+            val downloaded = saved.get()
+            val failures = failed.get()
             val result = when {
                 errorMessage != null -> "Image download failed: $errorMessage"
                 total == 0 -> "No missing catalog images for this library"
@@ -131,6 +145,8 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
     private companion object {
         const val TASK = "images"
         const val PRIORITY = 3
+        /** Images downloaded at once. */
+        const val WORKERS = 4
         // Used only when a server limits requests without saying when to resume.
         const val FIRST_BACKOFF_MILLIS = 1_000L
         const val LAST_BACKOFF_MILLIS = 64_000L
