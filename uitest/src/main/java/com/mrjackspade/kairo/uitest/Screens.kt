@@ -59,11 +59,19 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
     fun biosRow(page: Element, file: String) =
         page.find(By.idMatching(Regex("firmware\\d+-" + Regex.escape(file))))
 
-    /** Imports the test resources' [bios] folder from a BIOS page's folder row, and waits for it. */
+    /**
+     * Imports the test resources' [bios] folder from a BIOS page's folder row, and waits until the
+     * import has finished: a BIOS file is installed, every required one is, and the folder row no
+     * longer shows it working. Until then the page refuses to move on, which an app whose BIOS
+     * files are all optional would otherwise not wait for.
+     */
     fun importBiosFolder(page: Element, bios: String = checkNotNull(app.biosResource) { "${app.name}'s tests have no BIOS files" }) {
-        documents.answerFolder(documents.folder(bios)) { page.find(By.id("firmware-folder")).tap() }
-        driver.waitUntil("every required BIOS file to be installed") {
-            app.biosFiles.filter { it.required }.all { biosRow(page, it.file).find(By.id("value")).textNow() == "Installed" }
+        val folderRow = page.find(By.id("firmware-folder"))
+        documents.answerFolder(documents.folder(bios)) { folderRow.tap() }
+        fun installed(file: AppUnderTest.BiosFile) = biosRow(page, file.file).find(By.id("value")).textNow() == "Installed"
+        driver.waitUntil("the BIOS import from $bios to finish") {
+            app.biosFiles.any(::installed) && app.biosFiles.filter { it.required }.all(::installed) &&
+                !folderRow.find(By.id("busy")).exists()
         }
     }
 

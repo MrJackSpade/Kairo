@@ -183,7 +183,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
         line.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
         if (next.kind != SettingsRow.Kind.OPTION) {
             tag = Ui.chip(context, "").testId("tag").also { line.addView(it, gap()) }
-            spinner = Ui.spinner(context).also {
+            spinner = Ui.spinner(context).testId("busy").also {
                 it.visibility = View.GONE
                 line.addView(it, gap(16))
             }
