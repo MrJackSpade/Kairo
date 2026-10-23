@@ -576,8 +576,9 @@ class ImagePage(private val title: String, private val scope: String?, bitmap: B
 
 /** A page around a view the caller draws, such as the on-screen controls arrangement. */
 class ViewPage(private val build: (ViewPage) -> View, private val items: (ViewPage) -> List<NavItem> = { emptyList() },
-               private val removed: () -> Unit = {}) : Page() {
+               private val whenRemoved: () -> Unit = {}) : Page() {
     override fun createView(): View = build(this)
     override fun navItems(): List<NavItem> = items(this)
-    override fun onRemoved() = removed()
+    // Not named removed: removed() would call Page.removed, which calls this again.
+    override fun onRemoved() = whenRemoved()
 }
