@@ -12,7 +12,9 @@ see. They run on a real device, in a build that installs beside any other copy o
 | `uitest/` | The framework (`Driver`, `By`, `Element`, `Screens`, `Pictures`, `TestLog`, `Expect`, `Patience`, `TestDocuments`) and the shared suites (`suites/`). |
 | `uitest/provider/` | The document provider compiled into UI test builds only. |
 | `gradle/kairo-uitest.gradle` | The `uiTest` build type, the orchestrator, and the test resources. |
-| `tools/uitest.ps1` | Builds, installs, runs and pulls the logs. |
+| `tools/uitest.ps1` | Builds, installs and runs one app's tests and pulls their logs (see Running). |
+| `tools/uitest-all.ps1` | Runs every app's tests, one app after another. |
+| `docs/templates/blocks/ui-tests.md` | The UI tests section of every app's README, with that app's commands. |
 | `tools/test_resources.py` | Packs and unpacks the encrypted test resources. |
 | `<app>/src/androidTest/.../uitest/` | The app's descriptor (`AppUnderTest`), its shared suites, and its own tests. |
 | `<app repo>/uitest/` | `resources.json` (what the bundle holds) and `TestResources.part1.dat` (the bundle). |
@@ -133,7 +135,109 @@ page (Kairo98's Disks page has its own tests).
 
 ## Running
 
+### What you need
+
+- **A device on adb**, Android 10 or later (the framework inspects windows), such as the RG DS at
+  `192.168.1.118:5555`. `adb devices` must list it. Nothing of the app's needs to be on it already.
+- **The `LOCAL_BUILD_TOKEN` user environment variable** on this machine, which decrypts the test
+  resources during the build (see Test resources). The runner reads it from the user scope itself,
+  so a shell opened before it was set works too.
+- **The Android build toolchain** the apps already build with (`docs/android-build.md`), and Python
+  with the `cryptography` package for unpacking the resources.
+
+### One app
+
+Run the runner from that app's repository. It builds the UI test build and the test APK, installs
+both with the orchestrator and test services, runs the tests, and pulls their logs:
+
 ```
+cd <app repository>
 shared\tools\uitest.ps1 -Device <serial>
-shared\tools\uitest.ps1 -Device <serial> -Class com.mrjackspade.kairo88.uitest.Pc88Tests
 ```
+
+| Option | Does |
+| --- | --- |
+| `-Class <class>[,<class>…]` | Runs these test classes only; `Class#method` runs one test. Full names, as in the table below. |
+| `-Filter <regex>` | Runs the tests whose full name (`package.Class#method`) matches, such as `'MenuTests'`, `'ControllerTests|TouchTests'` or `'#aSavedState'`. Not with `-Class`. |
+| `-PatienceSeconds <n>` | Bounds every wait at *n* seconds instead of 30. |
+| `-SkipBuild` | Installs and runs the APKs from the last build. |
+| `-Uninstall` | Removes the UI test build and the test APK from the device afterwards. |
+| `-Flavor withImages` | Tests the artwork-bundling flavor instead of `withoutImages` (apps with flavors). |
+
+Examples:
+
+```
+shared\tools\uitest.ps1 -Device 192.168.1.118:5555 -Class com.mrjackspade.kairomsx.uitest.MsxTests
+shared\tools\uitest.ps1 -Device 192.168.1.118:5555 -Class com.mrjackspade.kairo88.uitest.Pc88Tests#aV1ModeGameStartsInV1Mode
+shared\tools\uitest.ps1 -Device 192.168.1.118:5555 -Filter 'MenuTests'
+```
+
+### Every app
+
+`uitest-all.ps1` runs each app checked out beside this one, one after another, each with its own
+runner (so with the shared commit it pins), and ends with a table of results. Apps without UI tests
+yet are listed and skipped. It exits with 0 only when every app passed.
+
+```
+shared\tools\uitest-all.ps1 -Device <serial>
+shared\tools\uitest-all.ps1 -Device <serial> -Apps Kairo88,KairoMSX -Filter 'StateTests'
+```
+
+It takes `-Filter`, `-PatienceSeconds`, `-SkipBuild` and `-Uninstall` as above, `-Apps` to choose apps
+by repository name, and `-Workspace` for a folder of repositories other than the one around this app.
+
+### The test classes
+
+Each app runs the shared suites as `<App><Suite>Tests` (for example `Kairo88MenuTests`) in its UI
+test package, plus its own class:
+
+| App | Package | Shared suites | Its own |
+| --- | --- | --- | --- |
+| Kairo98 | `com.mrjackspade.kairo98.uitest` | all but Media | `Pc98Tests` |
+| KairoDos | `com.mrjackspade.kairodos.uitest` | all but Media and State | `DosTests` |
+| Kairo88 | `com.mrjackspade.kairo88.uitest` | all thirteen | `Pc88Tests` |
+| Kairo68 | `com.mrjackspade.kairo68.uitest` | all thirteen | `X68000Tests` |
+| KairoTowns | `com.mrjackspade.kairotowns.uitest` | all thirteen | `FmTownsTests` |
+| KairoMSX | `com.mrjackspade.kairomsx.uitest` | all thirteen | `MsxTests` |
+
+The thirteen are FirstRun, Library, Search, Game, Wording, Menu, Controller, Touch, Launch, State,
+Media, LibraryManagement and Settings. KairoMSX's prefix is `KairoMsx` (`KairoMsxMenuTests`).
+
+### What it leaves on the device
+
+| Package | What |
+| --- | --- |
+| `<applicationId>.uitest` | The app's UI test build, labelled "<App> UI test", with its own data. |
+| `<applicationId>.uitest.test` | The tests. |
+| `androidx.test.orchestrator`, `androidx.test.services` | The runner's tools, shared by every app. |
+
+The installed app, its data and its games are never touched. `-Uninstall` removes the first two;
+`adb uninstall <package>` removes any of them by hand. The test documents live in the UI test
+build's own storage and go with it.
+
+### Reading the results
+
+The runner prints the instrumentation output as it runs and ends with a summary. It exits with 0
+only when every selected test passed, and with 1 when a test failed or the run did not finish.
+Each run's files land in `.build\uitest\<run id>\` of the app's repository:
+
+| File | Holds |
+| --- | --- |
+| `summary.txt` | Passed, failed and skipped counts, and whether the run finished. |
+| `instrument.txt` | The runner's raw output, with each failure's stack trace. |
+| `<run id>\<Class>\<test>\log.jsonl` | Every step of the test as a JSON line: `time`, `test`, `kind` (`launch`, `tap`, `key`, `drag`, `wait`, `waiting`, `probe`, `input`, `pass`, `fail`, `image`, `result`, …), `message`, and what it found. |
+| `<run id>\<Class>\<test>\NNN-*.png` | Screenshots of every window on every screen, game pictures, and a screenshot at a failure. |
+
+A failed assertion's `fail` line says what was checked and what was found; a wait that ran out says
+what it waited for ("Still waiting after 30 s for …"). A test the app cannot run, such as a touchpad
+test in an app without a touchpad, is skipped with its reason.
+
+### When a run will not start
+
+| Message | Cause |
+| --- | --- |
+| `LOCAL_BUILD_TOKEN is not set` | The key is missing on this machine, so the encrypted resources cannot be unpacked. |
+| `… runs Android API n; the UI tests need Android 10 (API 29) or later` | The device is too old for the framework. |
+| `Expected one UI test instrumentation …` | The test APK did not install; see the install lines above it. |
+| `The app's data was not cleared before this test` | The tests ran without the orchestrator's `clearPackageData`, not through the runner. |
+| `The test APK has no test resources` | The build did not unpack them; build again without `-SkipBuild`. |
