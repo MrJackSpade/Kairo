@@ -9,5 +9,5 @@ catalog/** -text
 *.md text eol=lf
 *.sh text eol=lf
 *.proftext text eol=lf
-.githooks/* text eol=lf
+
 .gitattributes text eol=lf

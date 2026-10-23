@@ -2,3 +2,4 @@ third_party/** -text
 *.md text eol=lf
 *.sh text eol=lf
 app/gitattributes text eol=lf
+githooks/* text eol=lf
