@@ -3,12 +3,16 @@ package com.mrjackspade.kairo.frontend
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.os.ParcelFileDescriptor
 import org.apache.commons.compress.archivers.sevenz.SevenZFile
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipFile
 import org.json.JSONObject
 import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
@@ -16,7 +20,6 @@ import java.util.Locale
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.CRC32
-import java.util.zip.ZipFile
 
 /**
  * A file of a program's folder ([DiskImageEntry.folder]): its path relative to the program's folder,
@@ -159,10 +162,13 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             { source, index, total -> "Scanning ${index + 1}/$total: ${source.path}" },
             displayOrder = { entries -> entries.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { it.path + (it.zipEntry ?: "") }) },
-            metadata = { JSONObject().put("mediaFormatsVersion", cache.mediaFormatsVersion) },
-            afterCommit = { plan -> pruneArchives(plan.work) })
+            metadata = { JSONObject().put("mediaFormatsVersion", cache.mediaFormatsVersion) })
     }
-    private val archiveCache = File(context.cacheDir, "rom-archives").apply { mkdirs() }
+
+    init {
+        // Archives are read in place; earlier releases kept a full copy of each one here.
+        File(context.cacheDir, "rom-archives").deleteRecursively()
+    }
     /** The working copies games play from, named by game key: an image, or a program's folder. */
     val workingDirectory = File(context.filesDir, "media").apply {
         mkdirs()
@@ -190,9 +196,6 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 "The document provider could not delete the track data of ${entry.displayName}"
             }
         }
-        val archiveKey = sha256(entry.uri.toByteArray()).take(32)
-        archiveCache.listFiles()?.filter { it.name.startsWith("$archiveKey-") || it.name == "$archiveKey.part" }
-            ?.forEach { it.delete() }
         entries.filter { it.uri == entry.uri }.forEach(::resetWorkingImage)
     }
 
@@ -239,7 +242,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             return listOf(candidate.copy(contentId = id, catalogId = id))
         }
         require(format.isArchive(file.name)) { "Unsupported ${format.guestName} game file: ${file.name}" }
-        return openArchive(cachedArchive(source, false, cancelled)).use { archive ->
+        return openArchive(source).use { archive ->
             val images = archive.images { checkCancelled(cancelled) }
             require(images.isNotEmpty()) { "No ${format.guestName} disk image in ${file.name}" }
             images.map { image ->
@@ -292,7 +295,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             val formatsCurrent = (scan.previous?.root?.optInt("mediaFormatsVersion", 1) ?: 0) >= cache.mediaFormatsVersion
             if (!scan.forceHash && formatsCurrent && trusted(source) && oldEntries.isNotEmpty() &&
                 oldEntries.all { sameSource(it, source) && it.error == null }) return oldEntries
-            return openArchive(cachedArchive(source, scan.forceHash, scan.cancelled)).use { archive ->
+            return openArchive(source).use { archive ->
                 val images = archive.images(scan::checkCancelled)
                 if (images.isEmpty()) return listOf(entry(source, null, source.size, -1, null).copy(holdsGame = false))
                 images.map { image ->
@@ -387,7 +390,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     partialDescriptor.outputStream().use { input.copyTo(it) }
                 } ?: error("Unable to open ${entry.displayName}")
             } else {
-                openArchive(archive(entry, cancelled)).use { archive ->
+                openArchive(sourceOf(entry)).use { archive ->
                     val image = archive.images { checkCancelled(cancelled) }.firstOrNull { it.name == entry.zipEntry }
                         ?: error("${entry.zipEntry} is missing from the archive")
                     val member = image.data ?: error(image.missing())
@@ -442,7 +445,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     } ?: error("Unable to open ${file.name}")
                 }
             } else {
-                openArchive(archive(entry, cancelled)).use { archive ->
+                openArchive(sourceOf(entry)).use { archive ->
                     val image = archive.images { checkCancelled(cancelled) }.firstOrNull { it.name == entry.zipEntry }
                         ?: error("${entry.zipEntry} is missing from the archive")
                     val member = image.data ?: error(image.missing())
@@ -471,11 +474,24 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
     }
 
-    /** The local copy of the archive that holds [entry]. */
-    fun archive(entry: DiskImageEntry, cancelled: AtomicBoolean): File {
+    /** Every file in an archive, by its path in it, and a way to read one; valid only inside [readArchive]. */
+    interface ArchiveFiles {
+        val files: Map<String, Long>
+        fun open(name: String): InputStream
+    }
+
+    /** Reads the archive that holds [entry] in place, through [read]. */
+    fun <T> readArchive(entry: DiskImageEntry, read: (ArchiveFiles) -> T): T =
+        openArchive(sourceOf(entry)).use { archive ->
+            read(object : ArchiveFiles {
+                override val files = archive.allFiles()
+                override fun open(name: String) = archive.openFile(name)
+            })
+        }
+
+    private fun sourceOf(entry: DiskImageEntry): Source {
         require(entry.zipEntry != null) { "${entry.displayName} is not in an archive" }
-        return cachedArchive(Source(Uri.parse(entry.uri), entry.path, entry.sourceSize, entry.sourceModified),
-            false, cancelled)
+        return Source(Uri.parse(entry.uri), entry.path, entry.sourceSize, entry.sourceModified)
     }
 
     /** A document to inspect; a descriptor also carries its track data, and a program its folder's files. */
@@ -502,10 +518,18 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         fun missing() = "The track data of $name is missing from the archive"
     }
 
-    /** A ZIP or 7z archive's members. */
-    private abstract inner class Archive : Closeable {
+    /** A ZIP or 7z archive's members, read in place from its document. */
+    private abstract inner class Archive(private val document: ParcelFileDescriptor) : Closeable {
         protected abstract fun members(checkCancelled: () -> Unit): List<Member>
         abstract fun open(member: Member): InputStream
+        /** Every file, of any kind, by its path in the archive, with its size. */
+        abstract fun allFiles(): Map<String, Long>
+        abstract fun openFile(name: String): InputStream
+        protected abstract fun closeReader()
+
+        override fun close() {
+            try { closeReader() } finally { document.close() }
+        }
 
         /**
          * The archive's images, none for an archive of other files; a descriptor whose track data
@@ -529,18 +553,38 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
     }
 
-    private fun openArchive(file: File): Archive =
-        if (file.name.endsWith(".7z")) SevenZArchive(file) else ZipArchive(file)
+    /**
+     * Opens [source]'s archive where it is: the document's file descriptor is seekable, so the
+     * readers fetch only the bytes they need and nothing is copied.
+     */
+    private fun openArchive(source: Source): Archive {
+        require(source.size <= MAX_ARCHIVE_BYTES) { "Archive exceeds size limit" }
+        val document = context.contentResolver.openFileDescriptor(source.uri, "r") ?: error("Unable to open archive")
+        try {
+            if (source.size >= 0) require(document.statSize == source.size) {
+                "Archive changed since scan; refresh the library"
+            }
+            val channel = FileInputStream(document.fileDescriptor).channel
+            // A provider that streams the document through a pipe cannot be read in place.
+            require(document.statSize >= 0 && runCatching { channel.position(0) }.isSuccess) {
+                "The games folder's storage cannot read archives in place"
+            }
+            return if (format.extension(source.path) == "7z") SevenZArchive(document, channel) else ZipArchive(document, channel)
+        } catch (error: Exception) {
+            document.close()
+            throw error
+        }
+    }
 
-    private inner class ZipArchive(file: File) : Archive() {
-        private val zip = ZipFile(file)
-        private val byName = HashMap<String, java.util.zip.ZipEntry>()
+    private inner class ZipArchive(document: ParcelFileDescriptor, channel: java.nio.channels.FileChannel) : Archive(document) {
+        private val zip = ZipFile.builder().setSeekableByteChannel(channel).get()
+        private val byName = HashMap<String, ZipArchiveEntry>()
 
         override fun members(checkCancelled: () -> Unit): List<Member> {
             val names = HashSet<String>()
             val members = ArrayList<Member>()
             var inspected = 0
-            for (item in zip.entries()) {
+            for (item in zip.entries.asSequence()) {
                 checkCancelled()
                 require(++inspected <= MAX_ARCHIVE_ENTRIES) { "Archive has too many entries" }
                 val name = safeEntryName(item.name)
@@ -559,11 +603,16 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         override fun open(member: Member): InputStream =
             zip.getInputStream(byName[member.name] ?: error("${member.name} is missing from the archive"))
 
-        override fun close() = zip.close()
+        override fun allFiles() = zip.entries.asSequence().filter { !it.isDirectory }.associate { it.name to it.size }
+
+        override fun openFile(name: String): InputStream =
+            zip.getInputStream(zip.getEntry(name) ?: error("$name is missing from the archive"))
+
+        override fun closeReader() = zip.close()
     }
 
-    private inner class SevenZArchive(file: File) : Archive() {
-        private val archive = SevenZFile.builder().setFile(file).get()
+    private inner class SevenZArchive(document: ParcelFileDescriptor, channel: java.nio.channels.FileChannel) : Archive(document) {
+        private val archive = SevenZFile.builder().setSeekableByteChannel(channel).get()
         private val byName = HashMap<String, org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry>()
 
         override fun members(checkCancelled: () -> Unit): List<Member> {
@@ -586,48 +635,12 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         override fun open(member: Member): InputStream =
             archive.getInputStream(byName[member.name] ?: error("${member.name} is missing from the archive"))
 
-        override fun close() = archive.close()
-    }
+        override fun allFiles() = archive.entries.filter { !it.isDirectory && it.hasStream() }.associate { it.name to it.size }
 
-    @Synchronized private fun cachedArchive(source: Source, force: Boolean, cancelled: AtomicBoolean): File {
-        val key = sha256(source.uri.toString().toByteArray()).take(32)
-        val file = File(archiveCache, "$key-${source.size}-${source.modified}.${format.extension(source.path)}")
-        if (!force && trusted(source) && file.isFile && file.length() == source.size) return file
-        require(source.size <= MAX_ARCHIVE_BYTES) { "Archive exceeds size limit" }
-        if (source.size >= 0) require(archiveCache.usableSpace > source.size + 16L * 1024 * 1024) {
-            "Not enough free space to inspect archive"
-        }
-        val partial = File(archiveCache, "$key.part")
-        partial.delete()
-        try {
-            context.contentResolver.openInputStream(source.uri)?.use { input ->
-                partial.outputStream().use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var count = 0L
-                    while (true) {
-                        checkCancelled(cancelled)
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        count += read
-                        require(count <= MAX_ARCHIVE_BYTES) { "Archive exceeds size limit" }
-                        output.write(buffer, 0, read)
-                    }
-                }
-            } ?: error("Unable to open archive")
-            if (source.size >= 0) require(partial.length() == source.size) { "Archive changed during read" }
-            if (file.exists()) file.delete()
-            require(partial.renameTo(file)) { "Unable to cache archive" }
-            return file
-        } finally { partial.delete() }
-    }
+        override fun openFile(name: String): InputStream =
+            archive.getInputStream(archive.entries.firstOrNull { it.name == name } ?: error("$name is missing from the archive"))
 
-    @Synchronized private fun pruneArchives(files: List<Source>) {
-        val active = files.filter { format.isArchive(it.path) }.map {
-            "${sha256(it.uri.toString().toByteArray()).take(32)}-${it.size}-${it.modified}.${format.extension(it.path)}"
-        }.toSet()
-        archiveCache.listFiles()?.forEach { file ->
-            if (file.name !in active) file.delete()
-        }
+        override fun closeReader() = archive.close()
     }
 
     /** The content ID of [name]'s bytes from [input]: its track data for a descriptor. */
