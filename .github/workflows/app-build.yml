@@ -87,6 +87,9 @@ jobs:
         env:
           KAIRO_RELEASE_PASSWORD: ${{ inputs.signed && secrets.KAIRO_RELEASE_PASSWORD || '' }}
         run: ./gradlew --no-daemon ":$MODULE:assembleWithoutImagesDebug" $VERSION_ARGS
+      # The app's unit tests, with the shared ones every app runs (such as the catalog settings rule).
+      - name: Unit tests
+        run: ./gradlew --no-daemon ":$MODULE:testWithoutImagesDebugUnitTest"
       - name: Test the app
         if: inputs.tests != ''
         shell: bash

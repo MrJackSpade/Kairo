@@ -56,7 +56,7 @@ class CatalogGame(
  * user's overrides. Catalog records are named by content ID; overrides belong to a game's key.
  * Nothing in a catalog is executed.
  */
-class LayeredGameCatalog(private val context: Context, private val schema: Schema) : LibraryCatalog {
+class LayeredGameCatalog(private val context: Context, val schema: Schema) : LibraryCatalog {
     /** What a product's catalog holds beyond the common fields, and where its updates come from. */
     interface Schema {
         /** The installed-catalog platform, such as "pc88". */
@@ -73,10 +73,15 @@ class LayeredGameCatalog(private val context: Context, private val schema: Schem
         val mediaExtensions: Regex
         /** Product fields; a field with subfields maps to them, a plain field to null. */
         val fields: Map<String, Set<String>?>
-        /** Media roles and whether [contentId] can fill [role]. */
+        /**
+         * The settings a record can give a game, each a row of the game's settings (AGENTS.md: a
+         * catalog setting is a per-game setting). Its drives are the media roles a game names, once each.
+         */
+        val settings: List<CatalogSetting>
+        /** Whether a game can choose touch that moves the guest mouse to the touched point (`input.touch`). */
+        val directTouch: Boolean get() = false
+        /** Whether [contentId] can fill the media [role]. */
         fun validMedia(role: String, contentId: String): Boolean
-        /** Roles a game names at most once. */
-        val singleMediaRoles: Set<String>
         fun validField(field: String, value: Any): Boolean
         fun validBindings(bindings: JSONArray): Boolean
         /** Subfields a layer's object replaces in lower layers when it sets one of them. */
@@ -128,8 +133,10 @@ class LayeredGameCatalog(private val context: Context, private val schema: Schem
     private val overrides = GameMetadataOverrides(overridesFile, MAX_LOCAL_JSON.toInt(),
         schemaEnvelope = true)
     private val objectFields: Map<String, Set<String>> = COMMON_OBJECT_FIELDS +
+        ("input" to (if (schema.directTouch) INPUT_FIELDS else INPUT_FIELDS - "touch")) +
         schema.fields.mapNotNull { (field, subfields) -> subfields?.let { field to it } }
     private val allFields: Set<String> = COMMON_FIELDS + schema.fields.keys
+    private val mediaRoles = CatalogSetting.roles(schema.settings)
 
     @Synchronized fun reloadAdditions() {
         additions = readLocal(additionsFile)
@@ -393,17 +400,17 @@ class LayeredGameCatalog(private val context: Context, private val schema: Schem
                 }
             } == true)
         "input" -> value is JSONObject && value.length() > 0 &&
-            value.keys().asSequence().all { it in INPUT_FIELDS } &&
+            value.keys().asSequence().all { it in objectFields.getValue("input") } &&
             (!value.has("mode") || value.optString("mode") in INPUT_MODES) &&
-            (!value.has("touch") || value.optString("touch") in INPUT_TOUCH) &&
+            (!value.has("touch") || schema.directTouch && value.optString("touch") in INPUT_TOUCH) &&
             (!value.has("secondary") || value.optString("secondary") in INPUT_SECONDARY)
         "media" -> value is JSONArray && value.length() <= 16 &&
             (0 until value.length()).all { index ->
                 value.optJSONObject(index)?.let { item ->
-                    MEDIA_ROLE.matches(item.optString("role")) && validId(item.optString("contentId")) &&
+                    item.optString("role") in mediaRoles && validId(item.optString("contentId")) &&
                         schema.validMedia(item.optString("role"), item.optString("contentId"))
                 } == true
-            } && schema.singleMediaRoles.all { role ->
+            } && mediaRoles.all { role ->
                 (0 until value.length()).count { value.optJSONObject(it)?.optString("role") == role } <= 1
             }
         else -> field in schema.fields && schema.validField(field, value)
@@ -512,7 +519,6 @@ class LayeredGameCatalog(private val context: Context, private val schema: Schem
             "input" to INPUT_FIELDS)
         private val COMMON_FIELDS = setOf("title", "description", "aliases", "heart", "hidden", "media") +
             COMMON_OBJECT_FIELDS.keys
-        private val MEDIA_ROLE = Regex("[A-Za-z0-9_-]{1,32}")
         private fun validTitle(value: String) = value.isNotBlank() && value.length <= 256
         private fun validDescription(value: String) = value.isNotBlank() && value.length <= 8000
         private fun empty() = JSONObject().put("schemaVersion", 1).put("games", JSONObject())

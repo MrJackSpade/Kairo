@@ -407,15 +407,106 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     protected fun optionValues(game: CatalogGame): Map<String, String> =
         machineOptions.associate { it.id to optionValue(game, it) }
 
+    /** Direct touch is a game setting where the catalog can choose it. */
+    override val directTouchAvailable: Boolean get() = catalog.schema.directTouch
+
+    /** A row for each setting the catalog can give a game ([CatalogSetting]) that matters to [entry]. */
     override fun machineGroup(entry: E, enabled: () -> Boolean): RowGroup? {
-        if (machineOptions.isEmpty()) return null
         val scope = { titleOf(entry) }
         val noHash = { GameSettingsRows.NO_HASH }
-        return RowGroup("MACHINE", machineOptions.map { option ->
-            GameSettingsRows.choice(option.id, option.label, scope, { option.choices },
-                machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) }, { optionDefault(option) },
-                    GameSource.ALL_GAMES, option::stored), enabled, noHash, actions = option.actions)
-        }, "Machine changes apply on the next launch or restart.")
+        val rows = catalog.schema.settings.filter { setting -> entry.contentId?.let(setting.appliesTo) ?: true }
+            .mapNotNull { setting ->
+                when (setting) {
+                    is CatalogSetting.Choice -> {
+                        // The app's own option, which may offer more than the catalog's (such as importing a file).
+                        val option = machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option
+                        GameSettingsRows.choice(option.id, option.label, scope, { option.choices },
+                            machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
+                                { optionDefault(option) }, GameSource.ALL_GAMES, option::stored),
+                            enabled, noHash, actions = option.actions)
+                    }
+                    is CatalogSetting.Drive -> driveRow(entry, setting, scope, enabled, noHash)
+                    is CatalogSetting.Lines -> linesRow(entry, setting, enabled, noHash)
+                    is CatalogSetting.Custom -> customSettingRow(entry, setting, enabled)
+                }
+            }
+        if (rows.isEmpty()) return null
+        return RowGroup("MACHINE", rows, "Machine changes apply on the next launch or restart.")
+    }
+
+    /**
+     * The row of a setting the product shows its own way, or null when [entry] has nothing to change
+     * there (the catalog gives the game none of it and the player has not set it).
+     */
+    protected open fun customSettingRow(entry: E, setting: CatalogSetting.Custom, enabled: () -> Boolean): SettingsRow? =
+        error("${identity.appName} has no row for its catalog setting ${setting.id}")
+
+    /**
+     * The disk in a drive beside [entry]'s own: Default (the catalog's), Empty, or another disk of
+     * the same archive or folder the drive takes.
+     */
+    private fun driveRow(entry: E, setting: CatalogSetting.Drive, scope: () -> String, enabled: () -> Boolean,
+                         noHash: () -> String): SettingsRow {
+        val id = entry.key.takeIf { entry.contentId != null }
+        val role = setting.role
+        fun custom() = id != null && catalog.sourceOf(entry, CatalogSetting.MEDIA) == "User override"
+        fun name(contentId: String) = if (contentId == EMPTY_DRIVE) "Empty"
+            else libraryEntries.firstOrNull { it.contentId == contentId || it.catalogId == contentId }?.displayName
+                ?: "Not in library"
+        val value = GameValue({ if (custom()) catalog.resolve(entry).mediaId(role) ?: EMPTY_DRIVE else null },
+            { catalog.resolveDefault(entry).mediaId(role) ?: EMPTY_DRIVE },
+            { catalog.defaultSourceOf(entry, CatalogSetting.MEDIA).takeIf { it != "App default" }
+                ?.let(GameSource::label) ?: GameSource.BUILT_IN },
+            { picked -> saveGameSetting(entry) { setDrive(entry, id!!, role, picked) } })
+        val disks = {
+            listOf(ChoiceOption(EMPTY_DRIVE, "Empty")) + libraryEntries.filter { other ->
+                other.playable && other.id != entry.id && sameSource(entry, other) &&
+                    catalog.schema.validMedia(role, other.contentId!!)
+            }.map { ChoiceOption(it.contentId!!, it.displayName) }
+        }
+        return GameSettingsRows.choice("drive-$role", setting.label, scope, disks, value, enabled, noHash,
+            defaultLabel = { name(value.fallback()) })
+    }
+
+    /** [role]'s disk set to [picked] (null for the catalog's), keeping the game's other drives. */
+    private fun setDrive(entry: E, game: GameKey, role: String, picked: String?) {
+        fun drives(record: org.json.JSONObject) = record.optJSONArray(CatalogSetting.MEDIA)?.let { items ->
+            (0 until items.length()).mapNotNull(items::optJSONObject)
+                .associate { it.optString("role") to it.optString("contentId") }
+        } ?: emptyMap()
+        val defaults = drives(catalog.resolveDefault(entry).record)
+        val next = drives(catalog.resolve(entry).record).toMutableMap()
+        when (picked) {
+            null -> defaults[role]?.let { next[role] = it } ?: next.remove(role)
+            EMPTY_DRIVE -> next.remove(role)
+            else -> next[role] = picked
+        }
+        if (next == defaults) catalog.resetOverride(game, CatalogSetting.MEDIA)
+        else catalog.setOverride(game, CatalogSetting.MEDIA, org.json.JSONArray(next.map { (itemRole, contentId) ->
+            org.json.JSONObject().put("role", itemRole).put("contentId", contentId)
+        }))
+    }
+
+    /** Lines the machine types for [entry], edited as one line of text. */
+    private fun linesRow(entry: E, setting: CatalogSetting.Lines, enabled: () -> Boolean,
+                         noHash: () -> String): SettingsRow {
+        val id = entry.key.takeIf { entry.contentId != null }
+        val field = setting.field
+        val subfield = setting.subfield
+        fun custom() = id != null && catalog.sourceOf(entry, field, subfield) == "User override"
+        return GameSettingsRows.text("lines-$field-$subfield", setting.label, setting.hint,
+            { catalog.resolve(entry).let { game -> setting.text(setting.value(game, optionValues(game))) } }, ::custom,
+            { catalog.defaultSourceOf(entry, field, subfield).takeIf { it != "App default" }
+                ?.let(GameSource::label) ?: GameSource.BUILT_IN },
+            { text ->
+                saveGameSetting(entry) {
+                    val lines = setting.parse(text)
+                    if (lines.isEmpty()) catalog.resetOverrideSubfield(id!!, field, subfield)
+                    else catalog.setOverrideSubfield(id!!, field, subfield, org.json.JSONArray(lines))
+                }
+            },
+            { saveGameSetting(entry) { catalog.resetOverrideSubfield(id!!, field, subfield) } },
+            enabled = enabled, disabledReason = noHash)
     }
 
     /** Machine: the all-games defaults of the options, then firmware. */
@@ -631,6 +722,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."
         /** How often a loading session checks whether the machine shows a picture yet. */
         private const val PICTURE_POLL_MILLIS = 100L
+        /** The drive choice that leaves a drive empty. */
+        private const val EMPTY_DRIVE = "empty"
     }
 }
 

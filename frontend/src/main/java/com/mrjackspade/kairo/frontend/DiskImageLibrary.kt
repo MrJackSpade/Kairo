@@ -60,7 +60,7 @@ data class DiskImageEntry(
 }
 
 /** Entries from the same archive, or from the same folder for a loose image. */
-fun sameSource(entry: DiskImageEntry, other: DiskImageEntry): Boolean =
+fun sameSource(entry: LibraryItem, other: LibraryItem): Boolean =
     if (entry.zipEntry != null) other.zipEntry != null && other.uri == entry.uri
     else other.zipEntry == null &&
         other.path.substringBeforeLast('/', "") == entry.path.substringBeforeLast('/', "")
