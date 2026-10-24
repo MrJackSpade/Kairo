@@ -104,17 +104,13 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
 
     /**
      * Loads [slot] from the game menu, confirming as the player does, and waits for the app to say
-     * it loaded; then, unless [keepMenu], closes the menu and waits for the game to run again. With
-     * [keepMenu] the game stays paused on the loaded state, as the screen shows it.
+     * it loaded. The app then closes the menu and the game runs on from the loaded state at once.
      */
-    fun loadState(slot: Int, keepMenu: Boolean = false) {
+    fun loadState(slot: Int) {
         openGameMenu().find(By.item("f-load")).tap()
         driver.page("Load state").waitUntilShown().find(By.item("slot$slot")).tap()
         driver.find(By.id("confirm.go")).tap()
         awaitSlotMessage("Loaded slot $slot", "Load failed")
-        if (keepMenu) return
-        closeMenu()
-        driver.waitForGame("Running")
     }
 
     /** Waits for the app's message [done]; fails at once with its message when it starts [failed]. */
