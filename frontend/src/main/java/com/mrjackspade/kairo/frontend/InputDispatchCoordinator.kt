@@ -1,6 +1,7 @@
 package com.mrjackspade.kairo.frontend
 
 import android.view.InputDevice
+import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
 
@@ -49,6 +50,13 @@ class InputDispatchCoordinator(
     }
 
     fun dispatchKey(event: KeyEvent, android: (KeyEvent) -> Boolean): Boolean {
+        val handled = route(event, android)
+        if (event.repeatCount == 0) Log.i("Kairo", "key ${KeyEvent.keyCodeToString(event.keyCode)} " +
+            "${if (event.action == KeyEvent.ACTION_DOWN) "down" else "up"} on ${frontend.screen()}: handled $handled")
+        return handled
+    }
+
+    private fun route(event: KeyEvent, android: (KeyEvent) -> Boolean): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) leaveTouchMode()
         val screen = frontend.screen()
         // Listening captures every controller button, B and Back included. Keyboard keys
