@@ -92,8 +92,8 @@ class GameOverlay(context: Context) : FrameLayout(context) {
         background = Ui.rounded(context, 0xf71f2835.toInt(), Ui.RADIUS_LARGE, Ui.LINE)
         elevation = Ui.dp(context, 8).toFloat()
         setPadding(Ui.dp(context, 16), Ui.dp(context, 14), Ui.dp(context, 14), Ui.dp(context, 12))
-    }
-    private val noticeTitle = Ui.text(context, "", Ui.BODY, bold = true)
+    }.testId("notice")
+    private val noticeTitle = Ui.text(context, "", Ui.BODY, bold = true).testId("notice.title")
     private val noticeMessage = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_BODY)
     private val noticeButtons = WrapLayout(context, Ui.dp(context, 8))
     private val paused = PixelTextView(context).apply {
@@ -161,7 +161,7 @@ class GameOverlay(context: Context) : FrameLayout(context) {
         noticeButtons.removeAllViews()
         buttonViews.clear()
         value.buttons.forEach { button ->
-            val view = Ui.toneButton(context, button.label, button.tone) { press(button) }
+            val view = Ui.toneButton(context, button.label, button.tone) { press(button) }.testId("notice.button")
             buttonViews += view
             noticeButtons.addView(view, LayoutParams(-2, Ui.dp(context, 44)))
         }

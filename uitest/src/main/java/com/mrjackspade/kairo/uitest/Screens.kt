@@ -7,7 +7,7 @@ import android.view.KeyEvent
  * only selectors, touches and controller input (Driver), never the app's internals.
  */
 class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocuments) {
-    val library = Library(driver)
+    val library = Library(driver, app)
 
     /** The setup page on top, by its title, such as "Choose a games folder". */
     fun setupPage(title: String) = driver.page(title)
@@ -198,7 +198,7 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
 }
 
 /** The library: the header, search, the game list, and its menu. */
-class Library(private val driver: Driver) {
+class Library(private val driver: Driver, private val app: AppUnderTest) {
     val brand = driver.find(By.id("library.brand"))
     val list = driver.find(By.id("library.list"))
     private val scanning = driver.find(By.id("library.scanning"))
@@ -269,7 +269,7 @@ class Library(private val driver: Driver) {
     /** Opens the game page of [entry], such as [entryFrom]'s. */
     fun open(entry: Element): GamePage {
         entry.tap()
-        return GamePage(driver).also { it.page.waitUntilShown() }
+        return GamePage(driver, app).also { it.page.waitUntilShown() }
     }
 
     fun openMenu(): Element {
@@ -288,13 +288,22 @@ class Library(private val driver: Driver) {
 }
 
 /** A game's page: its picture and description, Play, and Game settings. */
-class GamePage(private val driver: Driver) {
+class GamePage(private val driver: Driver, private val app: AppUnderTest) {
     val page = driver.page("Game")
 
-    /** Starts the game and waits until it runs. */
+    /**
+     * Starts the game and waits until it runs, answering a notice the start shows as a player does
+     * ([AppUnderTest.launchNoticeAnswers]). The app shows such a notice before the game runs.
+     */
     fun play() {
         page.find(By.id("play")).tap()
         driver.waitForGame("Running")
+        val notice = driver.find(By.id("notice"))
+        if (!notice.exists()) return
+        val title = notice.find(By.id("notice.title")).text()
+        val answer = checkNotNull(app.launchNoticeAnswers[title]) { "Starting the game showed \"$title\", which the test has no answer for" }
+        notice.find(By.id("notice.button").withText(answer)).tap()
+        driver.waitUntil("the notice to close") { !notice.exists() }
     }
 
     fun openSettings(): Element {
