@@ -5,6 +5,15 @@
 include_guard(GLOBAL)
 include("${CMAKE_CURRENT_LIST_DIR}/KairoNativeDefaults.cmake")
 
+# Everything built into a machine app's library binds inside it: only the JNI entry points
+# (JNIEXPORT) leave it. With default visibility every core function was exported and interposable,
+# so calls between them went through the PLT (Kairo68#8: 24,858 jump slots in libkairo68.so, 382
+# with these; 2.9% more frames on the RG DS). Set before the app adds its core, so the core's
+# targets take them too.
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
 get_filename_component(KAIRO_SHARED_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 option(KAIRO_SHADERS "Present frames through the Slang shader runtime" ON)
 
