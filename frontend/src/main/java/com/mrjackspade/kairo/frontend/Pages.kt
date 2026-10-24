@@ -481,7 +481,8 @@ class DocumentPage(private val title: String, private val text: String,
             setBackgroundColor(Ui.BG)
         }
         page.addView(header(title, null), LinearLayout.LayoutParams(-1, dp(56)))
-        val card = Ui.text(context, text, textSize, Ui.TEXT_BODY).apply {
+        // id document: quoted text, such as a license, that the UI tests' wording checks leave alone.
+        val card = Ui.text(context, text, textSize, Ui.TEXT_BODY).testId("document").apply {
             background = Ui.rounded(context, Ui.SURFACE, Ui.RADIUS_LARGE)
             setPadding(dp(14), dp(14), dp(14), dp(14))
             setLineSpacing(dp(4).toFloat(), 1f)
