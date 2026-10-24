@@ -6,7 +6,7 @@ The tools in `tools/` gather and assemble catalog data for every Kairo app. Each
 | --- | --- |
 | `launchbox.py` | LaunchBox Games Database research. `snapshot` streams chosen platforms out of LaunchBox's `Metadata.zip`; `listing` caches a platform's public listing pages; `enrich` fills missing box art and screenshot URLs of match entries from their game pages. Also title matching (`key`, `candidates`), public page URLs, and the box art and screenshot choice for new match entries. |
 | `mobygames.py` | Dumps MobyGames records, cover and screenshot lists and images for chosen platforms. Game lists are saved as `<platform>-listing.json`: MobyPlus exports, or the `listing` pass's equivalent built from the API's game list. The API key comes from `MOBYGAMES_API_KEY`. |
-| `content_ids.py` | Hashes game media in a folder of files and ZIPs into content IDs (`sha256-<kind>-v1:<hex>`). The app describes its kinds, CD data files and size limits with a `Media`. |
+| `content_ids.py` | Hashes game media in a folder of files and ZIPs into content IDs (`sha256-<kind>-v1:<hex>`). The app describes its kinds, CD data files and size limits with a `Media`. `scan_media.py` writes an app's scan index with them; `--top-level` leaves out subfolders. |
 | `launchbox_artwork.py` | Compacts LaunchBox image URLs into catalog artwork references and expands them back to URLs and cache paths. Each app binds its platform codes and repository with `References`. |
 | `catalog_documents.py` | Assembles a reviewed catalog source into content-ID shards and the downloadable snapshot, using the app's record validator. |
 | `fetch_artwork.py` | Fills an app's `catalog/artwork` with every image its catalog parts reference, for the withImages build: WebP, shrunk to fit 960 by 360 pixels as Kairo98's bundled artwork is. Images already there are kept, so a stopped run continues. |
@@ -22,6 +22,7 @@ The tools in `tools/` gather and assemble catalog data for every Kairo app. Each
 | `x68000` | Kairo68 | Sharp X68000 | 106 | 68 |
 | `fmtowns` | KairoTowns | Fujitsu FM Towns Marty | 102 | 86 |
 | `msx`, `msx2`, `msx2plus` | KairoMSX | Microsoft MSX, MSX2, MSX2+ | 57 (all generations) | 80 |
+| `atarist` | KairoST | Atari ST | 24 | 83 |
 
 Artwork codes are permanent once a catalog using them is published, because installed apps derive cache paths from them.
 

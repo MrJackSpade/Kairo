@@ -113,15 +113,16 @@ def seven_zip_digest(path, name, kind):
     return content_id
 
 
-def scan(root, media, previous=None):
+def scan(root, media, previous=None, top_level=False):
     """Scan direct media files and ordinary ZIPs; nested ZIPs are queued for later. A previous
-    scan's IDs are reused for files whose size and modification time are unchanged."""
+    scan's IDs are reused for files whose size and modification time are unchanged. top_level
+    scans only the folder's own files, not its subfolders."""
     root = Path(root).resolve()
     old = {item["path"]: item for item in (previous or {}).get("archives", [])}
     formats_current = (previous or {}).get("mediaFormatsVersion", 1) >= media.version
     results = []
     archives = (".zip", ".7z") if media.seven_zip else (".zip",)
-    for path in sorted(root.rglob("*")):
+    for path in sorted(root.glob("*") if top_level else root.rglob("*")):
         if not path.is_file() or (path.suffix.lower() not in archives and not media.kind(path.name)):
             continue
         relative = path.relative_to(root).as_posix()

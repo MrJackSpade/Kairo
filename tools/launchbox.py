@@ -42,7 +42,8 @@ SITE_SLUGS = {
     "pc88": "192-nec-pc-8801",
     "pc98": "193-nec-pc-9801",
 }
-SNAPSHOT_FIELDS = ("Name", "Overview", "Developer", "Publisher", "ReleaseDate", "Platform")
+# Most records have only a ReleaseYear; a ReleaseDate is the exception.
+SNAPSHOT_FIELDS = ("Name", "Overview", "Developer", "Publisher", "ReleaseDate", "ReleaseYear", "Platform")
 IMAGE_BASE = "https://images.launchbox-app.com/"
 SITE = "https://gamesdb.launchbox-app.com"
 

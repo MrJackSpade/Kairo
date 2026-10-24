@@ -2,7 +2,8 @@
 """Write an app's original game descriptions in batches.
 
   descriptions.py worklist <app root> <out.jsonl> --mobygames <dump> [--limit N]
-      One line per game without a description, with the reference facts for writing one:
+      One line per game the library shows (one with media, not hidden) without a description,
+      with the reference facts for writing one:
       title, aliases, year, developer, publisher, MobyGames genres, and short excerpts of the
       LaunchBox and MobyGames descriptions. The excerpts are reference only; catalog
       descriptions are written fresh and never copy their wording.
@@ -49,7 +50,8 @@ def worklist(root, output, moby_root, limit):
             listings[game["id"]] = game
     lines = []
     for key, entry in sorted(games.items()):
-        if key in described or entry.get("description"):
+        # Only games the library can show: a game no medium identifies, or a hidden one, is never seen.
+        if key in described or entry.get("description") or not entry.get("contentIds") or entry.get("hidden"):
             continue
         item = {"key": key, "title": entry["title"]}
         for field in ("aliases", "year", "developer", "publisher", "adult"):

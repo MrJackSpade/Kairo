@@ -35,7 +35,8 @@ maps the disk to them.
 
 An archive matches a LaunchBox game when its file name's title equals the game's name or an
 alias and the years agree within one, or when the closest fuzzy title scores at least 0.93 with
-agreeing years, the same sequel numbers and no tie. Failing that, it joins a MobyGames-only game of exactly its title. Anything else
+agreeing years, the same sequel numbers and no tie. Failing that, it joins the one game whose MobyGames title or
+alternate title it is, with agreeing years. Anything else
 becomes a "local" game titled from its group.
 """
 
@@ -54,6 +55,8 @@ from launchbox_artwork import URL
 
 YEAR = re.compile(r"(?:19|20)[0-9]{2}")
 FUZZY_MINIMUM = 0.93
+VERSION = re.compile(r"\s+[vV]\d[\w.-]*$")
+ARTICLE = re.compile(r"^(.*?),\s*(The|A|An|Der|Die|Das|Le|La|Les|L'|El|Il|Lo|Los|Las|De|Het)$")
 
 
 def load_config(root):
@@ -80,10 +83,13 @@ def parse_hint(name):
     stem = re.sub(r"\.[A-Za-z0-9]{1,4}$", "", stem)
     stem = re.sub(r"\[[^]]*]", "", stem).strip()
     title = re.split(r"\s*\(", stem, maxsplit=1)[0].strip(" -_") or stem
-    # TOSEC moves a leading article to the end: "New Zealand Story, The", or "Horde,The".
-    article = re.match(r"^(.*?),\s*(The|A|An)$", title)
+    # TOSEC ends a title with its version: "Dungeon Master v1.2", "Railroad Tycoon v755.01".
+    title = VERSION.sub("", title) or title
+    # TOSEC moves a leading article to the end: "New Zealand Story, The", "Horde,The",
+    # "Magazin, Das", "Avventura, L'".
+    article = ARTICLE.match(title)
     if article:
-        title = f"{article[2]} {article[1]}"
+        title = f"{article[2]}{article[1]}" if article[2].endswith("'") else f"{article[2]} {article[1]}"
     groups = [group.strip() for group in re.findall(r"\(([^)]*)\)", stem)]
     year = next((int(group[:4]) for group in groups if YEAR.match(group)), None)
     publisher = next((group for group in groups if not re.match(r"(?:19|20)[0-9x]{2}", group)), None)
@@ -91,8 +97,8 @@ def parse_hint(name):
 
 
 def year_of(game):
-    date = game.get("ReleaseDate") or ""
-    return int(date[:4]) if date[:4].isdigit() else None
+    year = (game.get("ReleaseDate") or game.get("ReleaseYear") or "")[:4]
+    return int(year) if year.isdigit() else None
 
 
 def years_agree(a, b):
@@ -136,6 +142,17 @@ def sequel_numbers(title):
     return {ROMAN.get(token, token.lstrip("0") or "0") for token in tokens} - {"1"}
 
 
+NUMERAL = re.compile(r"\b(II|III|IV|VI|VII|VIII|IX)\b")
+
+
+def spellings(title):
+    """A title as written, without "Part" before a sequel number, and with Roman numerals as
+    digits, so "Back To The Future III" is "Back to the Future Part III" and "Street Fighter 2"
+    is "Street Fighter II". Both sides of a comparison take every form."""
+    forms = {title, re.sub(r"\bPart\s+(?=\w)", "", title, flags=re.IGNORECASE)}
+    return forms | {NUMERAL.sub(lambda m: ROMAN[m[1]], form) for form in forms}
+
+
 def name_forms(name):
     """A name's comparison forms: as written, "&" read as "and", and without a subtitle after
     ":" or " - ", so "Sim Earth" finds "SimEarth: The Living Planet"."""
@@ -143,7 +160,7 @@ def name_forms(name):
     for separator in (":", " - "):
         if separator in name:
             forms.add(name.split(separator, 1)[0])
-    return {title_key(form) for form in forms if title_key(form)}
+    return {title_key(spelling) for form in forms for spelling in spellings(form) if title_key(spelling)}
 
 
 LONG_VOWELS = {"ō": ("ou", "o"), "ô": ("ou", "o"), "ū": ("uu", "u"), "ā": ("aa", "a"),
@@ -154,11 +171,11 @@ def romanizations(title):
     """A title's comparison forms with Hepburn long vowels written out or plain: MobyGames'
     "Kyōdan" is LaunchBox's "Kyoudan" or "Kyodan"."""
     forms = [title.replace("&", " and ")]
-    for vowel, spellings in LONG_VOWELS.items():
+    for vowel, written in LONG_VOWELS.items():
         if any(vowel in form.lower() for form in forms):
             forms = [form.replace(vowel, spelling).replace(vowel.upper(), spelling.capitalize())
-                     for form in forms for spelling in spellings]
-    return {title_key(form) for form in forms}
+                     for form in forms for spelling in written]
+    return {title_key(spelling) for form in forms for spelling in spellings(form)}
 
 
 def match_title(title, year, slugs, snapshots):
@@ -169,6 +186,12 @@ def match_title(title, year, slugs, snapshots):
         exact = [game_id for game_id, game in games.items()
                  if any(sought & name_forms(name) for name in (game["Name"], *game["aliases"]))
                  and years_agree(year, year_of(game))]
+        if len(exact) > 1:
+            # "Populous" names both Populous and, without its subtitle, Populous: The Promised
+            # Lands; the game whose whole name it is wins.
+            exact = [game_id for game_id in exact
+                     if any(sought & {title_key(spelling) for spelling in spellings(name.replace("&", " and "))}
+                            for name in (games[game_id]["Name"], *games[game_id]["aliases"]))] or exact
         if len(exact) == 1:
             return f"{slug}:{exact[0]}"
         if len(exact) > 1:
@@ -182,6 +205,39 @@ def match_title(title, year, slugs, snapshots):
     if ranked and ranked[0][0] >= FUZZY_MINIMUM and (len(ranked) == 1 or ranked[1][0] < ranked[0][0]):
         return f"{ranked[0][1]}:{ranked[0][2]}"
     return None
+
+
+def moby_titles(moby_root, game):
+    """A MobyGames game's title and its alternate titles, from its dumped record."""
+    record = json.loads((moby_root / "games" / f"{game['id']}.json").read_text(encoding="utf-8"))
+    return [game["title"], *(alternate["title"] for alternate in record.get("alternate_titles", []))]
+
+
+def moby_match(moby_names, title, year):
+    """The one game a title names among MobyGames titles and alternate titles ("Dragon Ninja" is
+    "Bad Dudes vs. Dragon Ninja") with agreeing years, or None: a MobyGames game linked to its
+    LaunchBox game resolves to that game."""
+    found = {key for form in romanizations(title) for key, moby_year in moby_names.get(form, ())
+             if years_agree(year, moby_year)}
+    return found.pop() if len(found) == 1 else None
+
+
+def relocate(path, field, moved, games):
+    """Move the records of local games that have since joined a matched game to that game's key,
+    in their file, so better matching never strands a description, override or exclusion. A game
+    that already has its own record is a conflict to settle by hand."""
+    document = read(path, None)
+    if document is None:
+        return
+    records = document[field]
+    stranded = sorted(key for key in records if key not in games and key in moved)
+    for key in stranded:
+        if moved[key] in records:
+            raise SystemExit(f"{path.name}: {key} joined {moved[key]}, which has its own record")
+        records[moved[key]] = records.pop(key)
+    if stranded:
+        write(path, document)
+        print(f"{path.name}: {len(stranded)} records of local games moved to the games they joined")
 
 
 def local_key(slug, archive):
@@ -202,12 +258,20 @@ def assemble(root, moby_root):
     # MobyGames: link each listed game to its LaunchBox game, or give it its own entry.
     moby_decisions = read(research / "moby-matches-v1.json", {"schemaVersion": 1, "games": {}})
     listing = json.loads((moby_root / f"{config.MOBYGAMES}-listing.json").read_text(encoding="utf-8"))
+    moby_names = {}  # each MobyGames name form: the (game key, year) of every game with that name
+    moby_own_title = {}  # whether a game's MobyGames record carries the game's own title
     for game in listing:
         moby_id = str(game["id"])
+        names = moby_titles(moby_root, game)
         decision = moby_decisions["games"].get(moby_id)
         if decision is None:
-            decision = match_title(game["title"], game.get("release_year"), config.PLATFORMS, snapshots) or "own"
+            decision = next(filter(None, (match_title(name, game.get("release_year"), config.PLATFORMS, snapshots)
+                                          for name in names)), None) or "own"
             moby_decisions["games"][moby_id] = decision
+        for name in names:
+            for form in name_forms(name):
+                moby_names.setdefault(form, set()).add(
+                    (f"{config.PLATFORMS[0]}:moby-{moby_id}" if decision == "own" else decision, game.get("release_year")))
         adult = "Adult" in game.get("genres", [])
         if decision == "own":
             key = f"{config.PLATFORMS[0]}:moby-{moby_id}"
@@ -218,7 +282,12 @@ def assemble(root, moby_root):
             key = decision
             if key not in games:
                 raise SystemExit(f"MobyGames {moby_id} names unknown game {key}")
-            games[key]["mobygames"] = game["id"]
+            # Several MobyGames records can name one game (a US title, a reissue); the one with the
+            # game's own title supplies its MobyGames data, else the first.
+            first = "mobygames" not in games[key]
+            if first or (title_key(game["title"]) == title_key(games[key]["title"]) and not moby_own_title.get(key)):
+                games[key]["mobygames"] = game["id"]
+                moby_own_title[key] = title_key(game["title"]) == title_key(games[key]["title"])
         if adult:
             games[key]["adult"] = True
 
@@ -226,13 +295,10 @@ def assemble(root, moby_root):
     media_decisions = read(research / "media-matches-v1.json", {"schemaVersion": 1, "archives": {}})
     relinked = {f"{config.PLATFORMS[0]}:moby-{moby_id}": decision
                 for moby_id, decision in moby_decisions["games"].items() if decision != "own"}
-    own = [(key, entry) for key, entry in games.items() if ":moby-" in key]
-    titles = [title_key(entry["title"]) for _, entry in own]
-    # A MobyGames-only game whose title no other MobyGames-only game shares.
-    own_moby = {title_key(entry["title"]): key for key, entry in own if titles.count(title_key(entry["title"])) == 1}
     group_of = getattr(config, "GROUP", disk_group)
     not_game = getattr(config, "NOT_GAME", lambda path: False)
     machine_of = getattr(config, "MACHINE", lambda name, set_name, content_id: {})
+    moved = {}  # the local key of each matched archive's group: the game it joined instead
     archive_counts = {}  # each game's (archives, archives that are not games)
     disks = {}  # each game's disks: archive, member and content ID (disk_sets.py)
     scanned = []  # every ready archive of the standard sets, for the grouping check
@@ -249,7 +315,7 @@ def assemble(root, moby_root):
             title, year, _ = parse_hint(group)
             decision = media_decisions["archives"].get(name)
             if decision is None:
-                decision = match_title(title, year, slugs, snapshots) or own_moby.get(title_key(title))
+                decision = match_title(title, year, slugs, snapshots) or moby_match(moby_names, title, year)
                 if decision is not None:
                     media_decisions["archives"][name] = decision
                 else:
@@ -260,6 +326,8 @@ def assemble(root, moby_root):
             # A MobyGames-only game linked to its LaunchBox game since this was decided.
             decision = relinked.get(decision, decision)
             key = local_key(slugs[0], f"{set_name}:{group}") if decision == "local" else decision
+            if decision != "local":
+                moved[local_key(slugs[0], f"{set_name}:{group}")] = key
             if key not in games:
                 if decision != "local":
                     raise SystemExit(f"{name} names unknown game {key}")
@@ -328,6 +396,12 @@ def assemble(root, moby_root):
         raise SystemExit(f"{len(ungrouped)} multi-disk sets are more than one library entry: " +
                          "; ".join(f"{name} ({len(shown)} entries)" for name, shown in ungrouped[:10]))
 
+    for name, field in (("descriptions-v1.json", "descriptions"), ("descriptions-adult-v1.json", "descriptions"),
+                        ("overrides-v1.json", "games")):
+        relocate(research / name, field, moved, games)
+    review_path = root / "catalog/core-review-v1.json"
+    relocate(review_path, "excluded", moved, games)
+
     descriptions = read(research / "descriptions-v1.json", {"schemaVersion": 1, "descriptions": {}})["descriptions"]
     unknown = descriptions.keys() - games.keys()
     if unknown:
@@ -391,7 +465,6 @@ def assemble(root, moby_root):
             games[key]["artwork"] = artwork
 
     # Adult games leave the core review; existing exclusions and their reasons are kept.
-    review_path = root / "catalog/core-review-v1.json"
     review = read(review_path, {"schemaVersion": 1, "excluded": {}, "adultArtwork": {}})
     for old_key in [key for key in review["excluded"] if key in relinked]:
         # The exclusion follows a MobyGames-only game to the LaunchBox game it was linked to.
