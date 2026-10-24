@@ -15,6 +15,11 @@ import android.window.OnBackInvokedDispatcher
 
 /** Hosts the secondary panel when Android identifies it as the default display. */
 class SecondaryDisplayActivity : Activity() {
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        TouchClock.noteDown(event)
+        return super.dispatchTouchEvent(event)
+    }
+
     private var owner: SecondaryDisplayCoordinator? = null
     private val backCallback = OnBackInvokedCallback { if (!finishSearch()) owner?.forwardBack() }
     private lateinit var content: SecondaryDisplayContent

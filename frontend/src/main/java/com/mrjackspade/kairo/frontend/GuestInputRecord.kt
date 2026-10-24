@@ -37,9 +37,6 @@ class GuestInputRecord {
 
     @Synchronized fun button(button: Int, down: Boolean) = add(Event(next++, "button", button, down))
 
-    /** When the latest touch on the game's window went down (MotionEvent.downTime), for input latency. */
-    @Volatile var lastTouchDown = 0L
-
     /** The sequence number of the newest event; 0 before any. */
     @get:Synchronized val latest: Long get() = next - 1
 
@@ -55,4 +52,17 @@ class GuestInputRecord {
     }
 
     private companion object { const val CAPACITY = 1024 }
+}
+
+/**
+ * When the latest touch on any of the app's screens went down (MotionEvent.downTime), for input
+ * latency: the game's screen and the second screen, with its keyboard, both note it.
+ */
+object TouchClock {
+    @Volatile var lastDown = 0L
+        private set
+
+    fun noteDown(event: android.view.MotionEvent) {
+        if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) lastDown = event.downTime
+    }
 }
