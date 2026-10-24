@@ -6,8 +6,12 @@ package com.mrjackspade.kairo.frontend
  * the last [CAPACITY] events; tests read what arrived after a sequence number they noted.
  */
 class GuestInputRecord {
-    /** One input: [kind] is "key", "joystick", "move" or "button"; [code] the key, control or button. */
-    class Event(val sequence: Long, val kind: String, val code: Int, val down: Boolean, val dx: Int = 0, val dy: Int = 0) {
+    /**
+     * One input: [kind] is "key", "joystick", "move" or "button"; [code] the key, control or button;
+     * [at] when it was sent to the guest (SystemClock.uptimeMillis).
+     */
+    class Event(val sequence: Long, val kind: String, val code: Int, val down: Boolean, val dx: Int = 0, val dy: Int = 0,
+                val at: Long = android.os.SystemClock.uptimeMillis()) {
         override fun toString() = when (kind) {
             "move" -> "#$sequence move $dx,$dy"
             else -> "#$sequence $kind $code ${if (down) "down" else "up"}"
@@ -32,6 +36,9 @@ class GuestInputRecord {
     @Synchronized fun move(dx: Int, dy: Int) = add(Event(next++, "move", 0, false, dx, dy))
 
     @Synchronized fun button(button: Int, down: Boolean) = add(Event(next++, "button", button, down))
+
+    /** When the latest touch on the game's window went down (MotionEvent.downTime), for input latency. */
+    @Volatile var lastTouchDown = 0L
 
     /** The sequence number of the newest event; 0 before any. */
     @get:Synchronized val latest: Long get() = next - 1

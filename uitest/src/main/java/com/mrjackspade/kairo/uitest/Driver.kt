@@ -227,6 +227,17 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
             log.step("input", "${events.size} events since #$mark", mapOf("events" to events.take(40).joinToString()))
         }
 
+    /**
+     * How long the guest's first input after [mark] that matches [which] took from the latest
+     * touch going down on the game's window, measured in the app (not counting how the test taps).
+     */
+    fun inputDelayAfterTouch(mark: Long, which: (com.mrjackspade.kairo.frontend.GuestInputRecord.Event) -> Boolean): Long =
+        onMain {
+            val record = activityNow().guestInput
+            val event = checkNotNull(record.since(mark).firstOrNull(which)) { "No matching input since #$mark" }
+            event.at - record.lastTouchDown
+        }
+
     /** Waits until the input the guest received after [mark] satisfies [holds]. */
     fun waitForInput(what: String, mark: Long, holds: (List<com.mrjackspade.kairo.frontend.GuestInputRecord.Event>) -> Boolean) =
         waitUntil("the guest to receive $what") { holds(onMain { activityNow().guestInput.since(mark) }) }

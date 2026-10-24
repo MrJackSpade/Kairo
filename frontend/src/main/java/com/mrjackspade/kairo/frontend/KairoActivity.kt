@@ -1316,6 +1316,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private fun dispatchGuestTouch(event: MotionEvent) = super.dispatchTouchEvent(event)
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) guestInput.lastTouchDown = event.downTime
         if (!::firstRunSetup.isInitialized || !::sessionFlow.isInitialized || !::keyboardPanel.isInitialized)
             return super.dispatchTouchEvent(event)
         return edgeSwipes.dispatch(event, root.width, pages, !libraryVisible, menuOpen,
