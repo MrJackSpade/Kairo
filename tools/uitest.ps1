@@ -58,7 +58,8 @@ if ($Class -and $Filter) { throw '-Class and -Filter cannot be combined' }
 
 # The adb program itself: inside this script the name adb would call the Adb function below.
 $adb = (Get-Command adb -CommandType Application | Select-Object -First 1).Source
-function Adb { $out = & $adb -s $Device @args; if ($LASTEXITCODE -ne 0) { throw "adb $args failed: $out" }; $out }
+# Its error output too, so a failure says why (adb prints install failures there).
+function Adb { $out = & $adb -s $Device @args 2>&1; if ($LASTEXITCODE -ne 0) { throw "adb $args failed: $out" }; $out }
 
 # The device must be there, and new enough for the framework's window inspection.
 $sdk = [int]((Adb shell getprop ro.build.version.sdk) | Select-Object -First 1)
@@ -86,7 +87,8 @@ if (@($tools).Count -ne 2) { throw "Missing the orchestrator and test services A
 
 foreach ($apk in @($tools) + $appApk + $testApk) {
     Write-Output "install $($apk.Name)"
-    Adb install -r -t -g $apk.FullName | Out-Null
+    # -d: the UI test build is its own package, so the build just made replaces any other, whatever its version.
+    Adb install -r -d -t -g $apk.FullName | Out-Null
 }
 
 # The test APK's instrumentation, by its target: this module's UI test build.
