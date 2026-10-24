@@ -134,6 +134,43 @@ class DiskSetsTest(unittest.TestCase):
                  disk("Game/Game [FD] [Set 2].7z", "Game (Disk B) [b].d88", FD + "b2")]
         self.assertEqual(disk_sets(disks, ["fd"], {}), {FD + "a": {"setDisks": [FD + "b", FD + "b2"]}})
 
+    def test_a_boot_disk_starts_before_the_tagged_disks_and_inserts_the_first(self):
+        disks = [disk("Ys II/Ys II [FD].7z", "Ys II (Disk A).d88", FD + "a"),
+                 disk("Ys II/Ys II [FD].7z", "Ys II (Disk B).d88", FD + "b"),
+                 disk("Ys II/Ys II [FD].7z", "Ys II (Program disk).d88", FD + "p"),
+                 disk("Ys II/Ys II [FD].7z", "Ys II (User disk).d88", FD + "u")]
+        self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B),
+                         {FD + "p": {"setDisks": [FD + "a", FD + "b", FD + "u"],
+                                     "media": [{"role": "floppyB", "contentId": FD + "a"}]}})
+
+    def test_a_damaged_or_altered_copy_never_starts_or_goes_in_drive_b_beside_the_clean_disk(self):
+        disks = [disk("Silpheed/Silpheed [FD].7z", "Silpheed (invincibility hack) (Disk A).d88", FD + "hack"),
+                 disk("Silpheed/Silpheed [FD].7z", "Silpheed (Disk A) [bad sectors].d88", FD + "bad"),
+                 disk("Silpheed/Silpheed [FD].7z", "Silpheed (Disk A).d88", FD + "a"),
+                 disk("Silpheed/Silpheed [FD].7z", "Silpheed (Disk B).d88", FD + "b")]
+        self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B)[FD + "a"]["media"],
+                         [{"role": "floppyB", "contentId": FD + "b"}])
+
+    def test_a_damaged_disk_the_set_has_no_clean_copy_of_still_goes_in_drive_b(self):
+        disks = [disk("Star Trap/Star Trap [FD].7z", "Star Trap (Disk 1).d88", FD + "1"),
+                 disk("Star Trap/Star Trap [FD].7z", "Star Trap (Disk 2) [bad sectors].d88", FD + "2")]
+        self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B)[FD + "1"]["media"],
+                         [{"role": "floppyB", "contentId": FD + "2"}])
+
+    def test_another_volume_version_or_demo_in_the_archive_never_goes_in_drive_b(self):
+        def media(*names):
+            disks = [disk("Set/Set [FD].7z", n, FD + str(i)) for i, n in enumerate(names)]
+            return disk_sets(disks, ["fd"], FLOPPY_B).get(FD + "0", {}).get("media")
+        self.assertIsNone(media("Music Disk Vol. 09 (Disk 1).d88", "Music Disk Vol. 08 (Disk 2).d88"))
+        self.assertIsNone(media("Lipstick (#1 - Lolita).d88", "Lipstick (#2 - Joshikousei).d88"))
+        self.assertIsNone(media("Dinosaur (Program disk).d88", "Dinosaur (Demo disk).d88"))
+        # Beside a boot disk, an untagged disk is the game it boots.
+        self.assertEqual(media("Ougon no Haka (Boot disk).d88", "Ougon no Haka.d88"),
+                         [{"role": "floppyB", "contentId": FD + "1"}])
+        # A tagged demo is one of the set's disks.
+        self.assertEqual(media("Xak (Disk 1 - Demo disk A).d88", "Xak (Disk 2 - Demo disk B).d88"),
+                         [{"role": "floppyB", "contentId": FD + "1"}])
+
     def test_a_single_disk_is_not_a_set(self):
         self.assertEqual(disk_sets([disk("Game.zip", "Game.d88", FD + "a")], ["fd"], FLOPPY_B), {})
 

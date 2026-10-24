@@ -25,6 +25,12 @@ ROLES = [re.compile(r"\b(?:boot|system|program|master|main|game|player)\b", re.I
          re.compile(r"\bscenario\b", re.I), re.compile(r"\bdata\b", re.I)]
 ALTERNATE = re.compile(r"(?:^|/)alts/|\[alt\b", re.I)
 UTILITY = re.compile(r"\(\s*utility\b", re.I)
+# A note that marks a disk as a damaged or altered copy: "(invincibility hack)", "[bad sectors]", "[b]".
+FLAW = re.compile(r"\s*[(\[][^)\]]*\b(?:hack|cheats?|invincib\w*|trainer|crack(?:ed)?|bad sectors)\b[^)\]]*[)\]]|"
+                  r"\s*\[b\d*\]", re.I)
+# A note that names a disk as one, as "(Map disk)" does.
+ROLE_DISK = re.compile(r"\([^)]*\bdisks?\b[^)]*\)", re.I)
+DEMO = re.compile(r"\([^)]*\b(?:demo|demonstration|trial|sample)\b[^)]*\)", re.I)
 # Neo Kobe's "[Set 2]" and TOSEC's dump flags: [a] alternate, [b] bad, [h] hack, [t] trainer,
 # [f] fix, [o] overdump, [cr] crack, each with an optional number or note.
 DUMP_SET = re.compile(r"\s*\[(set\s*\d+|(?:a|b|h|t|f|o|cr)(?:\d+|\s[^\]]*)?)\]", re.I)
@@ -43,12 +49,27 @@ def _role(name):
 
 
 def _order(name):
-    """Sorts by disk tag: numbers by value, letters by position; untagged names after, by role then name."""
+    """Sorts an untagged disk the game starts from (its boot, system or program disk) first, then by disk
+    tag: numbers by value, letters by position; other untagged names after, by role. A damaged or altered
+    copy follows the clean disk of its place, then names break ties."""
+    flawed = bool(FLAW.search(name))
     match = DISK_TAG.search(name)
     if not match:
-        return (1, _role(name), name.lower())
+        role = _role(name)
+        return (0 if role == 0 else 2, role, flawed, name.lower())
     token = match.group(1).lower()
-    return (0, int(token) if token.isdigit() else ord(token) - ord("a") + 1, name.lower())
+    return (1, int(token) if token.isdigit() else ord(token) - ord("a") + 1, flawed, name.lower())
+
+
+def _clean(name):
+    """A disk's name without its flaw notes, as a damaged or altered copy names the disk it copies."""
+    return FLAW.sub("", name)
+
+
+def _title(name):
+    """A tagged disk's name up to its disk tag, which every disk of one set shares."""
+    match = DISK_TAG.search(name)
+    return name[:match.start()].strip().lower() if match else None
 
 
 def _set_key(archive):
@@ -162,11 +183,23 @@ def disk_sets(disks, boot_kinds, companion):
         rule = companion.get(kind(entry))
         if rule and not record["media"]:
             other_kind, role, user_allowed = rule
-            # Another disk the game starts from is another version of it, never its second disk.
-            starts = lambda d: not DISK_TAG.search(name(d)) and _role(name(d)) == 0
+            # A second disk is named by its disk tag or as a disk, and belongs to the entry's set. Another
+            # disk the game starts from is another version of it; beside anything but a boot disk, an
+            # untagged disk not named as one is another game or version; a disk tagged under another title
+            # is another volume's; and an untagged demo, or a damaged or altered copy of a disk the set has
+            # clean, is never inserted.
+            untagged = lambda d: not DISK_TAG.search(name(d))
+            starts = lambda d: untagged(d) and _role(name(d)) == 0
+            clean_names = {_clean(name(d)) for d in members if not FLAW.search(name(d))}
+            entry_title = _title(name(mains[0]))
             candidates = [d for d in sorted(mains[1:], key=lambda d: _order(name(d)))
                           if kind(d["contentId"]) == other_kind and d["contentId"] != entry and
-                          not (starts(d) and starts(mains[0]))]
+                          not (starts(d) and starts(mains[0])) and
+                          not (untagged(d) and DEMO.search(name(d))) and
+                          not (untagged(d) and _role(name(d)) == 2 and not ROLE_DISK.search(name(d)) and
+                               not starts(mains[0])) and
+                          not (entry_title and not untagged(d) and _title(name(d)) != entry_title) and
+                          not (FLAW.search(name(d)) and _clean(name(d)) in clean_names)]
             if user_allowed:
                 candidates += [d for d in sorted(users, key=lambda d: _order(name(d)))
                                if kind(d["contentId"]) == other_kind]
