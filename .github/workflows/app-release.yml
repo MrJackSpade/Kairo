@@ -66,15 +66,7 @@ jobs:
           bash shared/tools/verify_checkout.sh "$(git rev-parse HEAD:shared)"
       - name: Require the release workflows pinned to the shared submodule's commit
         shell: bash
-        run: |
-          pinned="$(git rev-parse HEAD:shared)"
-          for file in .github/workflows/tag-builds.yml .github/workflows/play-release.yml .github/workflows/android.yml; do
-            if grep -q 'MrJackSpade/Kairo/.github/workflows/' "$file" &&
-               grep 'MrJackSpade/Kairo/.github/workflows/' "$file" | grep -vq "@$pinned\$"; then
-              echo "$file must call the shared workflows at the submodule's commit $pinned" >&2
-              exit 1
-            fi
-          done
+        run: sh shared/tools/check-workflow-pins.sh HEAD
       - uses: ./shared/.github/actions/setup-android
         id: android-toolchain
       - name: Validate tag and set app version

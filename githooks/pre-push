@@ -24,6 +24,8 @@ while read -r local_ref local_sha remote_ref remote_sha; do
                 echo "Tag $tag: shared/release-version is missing at the pinned shared commit $pin (fetch shared?)" >&2
                 status=1
             fi
+            # The tag build refuses workflows that call shared at another commit than the pin.
+            sh shared/tools/check-workflow-pins.sh "$local_sha" || status=1
             notes="docs/releases/$tag.md"
             if ! git cat-file -e "$local_sha^{commit}:$notes" 2>/dev/null ||
                 [ "$(git cat-file -s "$local_sha^{commit}:$notes")" -eq 0 ]; then

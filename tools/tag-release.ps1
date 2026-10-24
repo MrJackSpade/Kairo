@@ -25,6 +25,9 @@ $version = (Get-Content (Join-Path $shared 'release-version') -Raw).Trim()
 if (-not $version) { throw 'release-version is empty' }
 $tag = "v$version"
 $registry = Get-Content (Join-Path $shared 'docs\templates\apps.json') -Raw | ConvertFrom-Json
+# Git for Windows' sh runs the shared shell checks; PowerShell has no sh of its own.
+$sh = Join-Path (Split-Path (Split-Path (Get-Command git.exe).Source)) 'bin\sh.exe'
+if (-not (Test-Path $sh)) { throw "Git's sh.exe was not found at $sh" }
 
 function Invoke-Git([string]$repo) {
     $output = & git.exe -C $repo @args 2>&1
@@ -45,6 +48,12 @@ foreach ($app in $registry.apps) {
     elseif ($pinned.Trim() -ne $version) { $problems += "$($app.repo): its pinned shared $pin releases $($pinned.Trim()), not $version" }
     & git -C $repo cat-file -e "origin/main:docs/releases/$tag.md" 2>$null
     if ($LASTEXITCODE -ne 0) { $problems += "$($app.repo): origin/main has no docs/releases/$tag.md" }
+    # The tag build refuses workflows that call shared at another commit than the pin.
+    Push-Location $repo
+    $pins = & $sh shared/tools/check-workflow-pins.sh origin/main 2>&1
+    $pinsFailed = $LASTEXITCODE -ne 0
+    Pop-Location
+    if ($pinsFailed) { $problems += "$($app.repo): $($pins -join '; ')" }
     # An app tagged already (by an earlier run that stopped partway) keeps its tag.
     & git -C $repo rev-parse -q --verify "refs/tags/$tag" *> $null
     if ($LASTEXITCODE -eq 0) { Write-Output "$($app.repo): $tag already tagged"; continue }
