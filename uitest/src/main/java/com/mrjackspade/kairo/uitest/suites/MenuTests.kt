@@ -96,7 +96,8 @@ abstract class MenuTests : KairoUiTest() {
     /** Kairo#33: Download missing images answers the press on its row before anything downloads. */
     @Test
     fun downloadingImagesShowsItIsWorking() {
-        screens.completeFirstRun().openMenu().find(By.item("f-manage")).tap()
+        // Its games listed first: before then the app rightly answers "Add games to the library first".
+        screens.completeFirstRun().waitForGame(app.bootGame).openMenu().find(By.item("f-manage")).tap()
         val manage = driver.page("Manage library").waitUntilShown()
         val images = manage.find(By.item("images"))
         org.junit.Assume.assumeTrue("${app.name} downloads no artwork", images.exists())
