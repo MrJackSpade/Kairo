@@ -35,6 +35,7 @@ PLATFORMS = {
     "msx2": "Microsoft MSX2",
     "msx2plus": "Microsoft MSX2+",
     "atarist": "Atari ST",
+    "c64": "Commodore 64",
     "dos": "MS-DOS",
 }
 # Kairo platform slug -> public website listing slug, for the platforms whose listings are scraped.

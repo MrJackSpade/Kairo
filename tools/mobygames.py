@@ -34,7 +34,7 @@ from pathlib import Path
 API = "https://api.mobygames.com/v1"
 AGENT = {"User-Agent": "Kairo-catalog/1.0"}
 # Kairo platform slug -> MobyGames platform ID.
-PLATFORMS = {"pc98": 95, "pc88": 94, "pcfx": 59, "x68000": 106, "fmtowns": 102, "msx": 57, "atarist": 24}
+PLATFORMS = {"pc98": 95, "pc88": 94, "pcfx": 59, "x68000": 106, "fmtowns": 102, "msx": 57, "atarist": 24, "c64": 27}
 # Chosen by the user: a request with no response for this long counts as a dropped connection.
 REQUEST_LIMIT_SECONDS = 120
 OFFLINE_RECHECK_SECONDS = 30

@@ -13,7 +13,7 @@ object LaunchBoxArtworkReferences {
      * Platform code -> cache folder, as shared/tools/launchbox_artwork.py PLATFORM_FOLDERS has
      * them. Codes are permanent once published.
      */
-    private val PLATFORM_FOLDERS = mapOf(88 to "pc88", 98 to "pc98", 68 to "x68000", 86 to "fmtowns", 80 to "msx", 83 to "atarist")
+    private val PLATFORM_FOLDERS = mapOf(88 to "pc88", 98 to "pc98", 68 to "x68000", 86 to "fmtowns", 80 to "msx", 83 to "atarist", 64 to "c64")
 
     fun expand(art: JSONObject): JSONObject {
         if (!art.has("platform")) return art

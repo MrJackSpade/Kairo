@@ -23,6 +23,7 @@ The tools in `tools/` gather and assemble catalog data for every Kairo app. Each
 | `fmtowns` | KairoTowns | Fujitsu FM Towns Marty | 102 | 86 |
 | `msx`, `msx2`, `msx2plus` | KairoMSX | Microsoft MSX, MSX2, MSX2+ | 57 (all generations) | 80 |
 | `atarist` | KairoST | Atari ST | 24 | 83 |
+| `c64` | Kairo64 | Commodore 64 | 27 | 64 |
 
 Artwork codes are permanent once a catalog using them is published, because installed apps derive cache paths from them.
 

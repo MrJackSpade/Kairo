@@ -112,6 +112,18 @@
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": false,
    "problemDetail": "file format"
+  },
+  {
+   "repo": "Kairo64",
+   "system": "C64",
+   "module": "kairo64",
+   "package": "com.loxifi.kairo64",
+   "googlePlay": false,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
+   "privacyPage": false,
+   "problemDetail": "file format"
   }
  ]
 }
