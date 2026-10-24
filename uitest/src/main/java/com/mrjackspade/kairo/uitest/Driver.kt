@@ -3,6 +3,7 @@ package com.mrjackspade.kairo.uitest
 import android.app.Activity
 import android.app.Instrumentation
 import android.os.Build
+import android.os.Looper
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -121,22 +122,25 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
 
     // Touch -----------------------------------------------------------------------------------
 
+    /** Where a tap on [view] lands: its display and its centre on that display. Main thread only. */
+    internal class TapPoint(val display: Int, val x: Int, val y: Int)
+
+    internal fun tapPoint(view: View): TapPoint {
+        val origin = IntArray(2)
+        view.getLocationOnScreen(origin)
+        return TapPoint(checkNotNull(view.display) { "${Views.describe(view)} is on no display" }.displayId,
+            origin[0] + view.width / 2, origin[1] + view.height / 2)
+    }
+
     /**
-     * Touches [view] at its centre as it is now: a down and an up, dispatched to its window as
-     * the touch screen would. The position is read in the same main-thread turn that sends the
-     * events, so it cannot be out of date. Main thread only.
+     * Taps [point] through the system's input path, as a finger on the touch screen does (the
+     * window enters touch mode first, as with a player's touch): a tap handed straight to the view
+     * tree was sometimes lost after controller input. Not on the main thread, which receives it.
      */
-    internal fun tapNow(view: View) {
-        val bounds = Views.boundsInWindow(view)
-        val x = bounds.exactCenterX()
-        val y = bounds.exactCenterY()
-        val root = view.rootView
-        val time = SystemClock.uptimeMillis()
-        for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
-            val event = MotionEvent.obtain(time, time, action, x, y, 0)
-            event.source = InputDevice.SOURCE_TOUCHSCREEN
-            try { root.dispatchTouchEvent(event) } finally { event.recycle() }
-        }
+    internal fun tap(point: TapPoint) {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "A tap from the main thread would wait on itself" }
+        val output = instrumentation.uiAutomation.executeShellCommand("input -d ${point.display} tap ${point.x} ${point.y}")
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }
     }
 
     // Keys ------------------------------------------------------------------------------------

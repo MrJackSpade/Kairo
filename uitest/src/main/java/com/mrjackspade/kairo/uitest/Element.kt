@@ -86,11 +86,12 @@ class Element internal constructor(private val driver: Driver, private val path:
             driver.waitUntil("$description to be on screen") { driver.onMain { current()?.let(Views::tappable) == true } }
             waitUntilShown()
         }
-        driver.onMain {
+        val point = driver.onMain {
             val view = checkNotNull(current()) { "$description went away before the tap" }
             driver.log.step("tap", description, mapOf("view" to Views.describe(view), "bounds" to Views.boundsInWindow(view).toShortString()))
-            driver.tapNow(view)
+            driver.tapPoint(view)
         }
+        driver.tap(point)
         driver.idle()
         return this
     }
