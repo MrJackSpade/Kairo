@@ -16,7 +16,7 @@ import android.window.OnBackInvokedDispatcher
 /** Hosts the secondary panel when Android identifies it as the default display. */
 class SecondaryDisplayActivity : Activity() {
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        TouchClock.noteDown(event, "the second screen")
+        TouchClock.noteDown(event)
         return super.dispatchTouchEvent(event)
     }
 

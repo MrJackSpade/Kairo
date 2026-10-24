@@ -62,10 +62,7 @@ object TouchClock {
     @Volatile var lastDown = 0L
         private set
 
-    fun noteDown(event: android.view.MotionEvent, where: String) {
-        if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
-            lastDown = event.downTime
-            android.util.Log.i("Kairo", "touch down at ${event.x.toInt()},${event.y.toInt()} in $where")
-        }
+    fun noteDown(event: android.view.MotionEvent) {
+        if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) lastDown = event.downTime
     }
 }

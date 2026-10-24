@@ -1316,7 +1316,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private fun dispatchGuestTouch(event: MotionEvent) = super.dispatchTouchEvent(event)
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        TouchClock.noteDown(event, "the game screen" + if (::pages.isInitialized) " over page ${pages.top?.testName} (active ${pages.isActive})" else "")
+        TouchClock.noteDown(event)
         if (!::firstRunSetup.isInitialized || !::sessionFlow.isInitialized || !::keyboardPanel.isInitialized)
             return super.dispatchTouchEvent(event)
         return edgeSwipes.dispatch(event, root.width, pages, !libraryVisible, menuOpen,

@@ -28,8 +28,7 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
             if (counts[scan]++ == 0) {
                 send(scan, true)
                 if (scan in lockCodes && !locks.remove(scan)) locks.add(scan)
-            } else android.util.Log.i("Kairo", "key $scan for $owner is already held by " +
-                owners.filter { scan in it.value && it.key != owner }.keys)
+            }
         }
         listeners.toList().forEach { it() }
     }

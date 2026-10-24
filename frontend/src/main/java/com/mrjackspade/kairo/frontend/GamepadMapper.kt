@@ -112,13 +112,9 @@ class GamepadMapper(private val router: InputRouter,
     fun key(event: KeyEvent): Boolean {
         if (!KeyEvent.isGamepadButton(event.keyCode) &&
             !event.isFromSource(InputDevice.SOURCE_GAMEPAD) &&
-            !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) { android.util.Log.i("Kairo", "mapper: not a gamepad event"); return false }
+            !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return false
         val input = "button:${event.keyCode}"
-        val binding = resolve(input) ?: run {
-            android.util.Log.i("Kairo", "no binding for $input: control ${physicalBindings.firstOrNull { it.input == input }?.control}, " +
-                "${physicalBindings.size} physical, bindings ${bindings.map { it.input }}")
-            return false
-        }
+        val binding = resolve(input) ?: return false
         val owner = "gamepad:${event.deviceId}:$input"
         when (event.action) {
             KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) activate(owner, binding)
@@ -191,7 +187,6 @@ class GamepadMapper(private val router: InputRouter,
     }
 
     private fun activate(owner: String, binding: ControllerBinding, strength: Float = 1f) {
-        android.util.Log.i("Kairo", "activate $owner: $binding, already active ${owner in active}")
         if (!active.add(owner)) {
             if (binding.mouse?.startsWith("move") == true)
                 mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)
