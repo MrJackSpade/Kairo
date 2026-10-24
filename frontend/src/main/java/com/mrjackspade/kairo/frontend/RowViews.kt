@@ -156,10 +156,27 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }.testId("value")
+        val text = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         val line = object : LinearLayout(context) {
             override fun onMeasure(widthSpec: Int, heightSpec: Int) {
+                // The label keeps its whole width; the value gets what is left, at most 60% of the
+                // row and at least a quarter, and shortens with an ellipsis.
+                val width = MeasureSpec.getSize(widthSpec)
+                val labelWidth = label?.let { kotlin.math.ceil(it.paint.measureText(it.text.toString())).toInt() } ?: 0
+                val unspecified = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+                val others = (0 until childCount).map(::getChildAt)
+                    .filter { it !== text && it.visibility != View.GONE }
+                    .sumOf { child ->
+                        val params = child.layoutParams as LayoutParams
+                        val own = if (child === valueView) 0 else {
+                            child.measure(unspecified, unspecified)
+                            if (params.width > 0) params.width else child.measuredWidth
+                        }
+                        own + params.marginStart + params.marginEnd
+                    }
+                val room = width - paddingLeft - paddingRight - labelWidth - others
+                val cap = room.coerceIn((width * 0.25f).toInt(), (width * 0.6f).toInt())
                 // setMaxWidth always asks for another layout, so it is set only when it changes.
-                val cap = (MeasureSpec.getSize(widthSpec) * 0.6f).toInt()
                 if (valueView.maxWidth != cap) valueView.maxWidth = cap
                 super.onMeasure(widthSpec, heightSpec)
             }
@@ -172,7 +189,6 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             isClickable = true
             setOnClickListener { row?.let(host::activate) }
         }
-        val text = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         label = Ui.text(context, "", Ui.BODY).apply {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
