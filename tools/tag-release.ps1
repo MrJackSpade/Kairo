@@ -54,6 +54,13 @@ foreach ($app in $registry.apps) {
     $pinsFailed = $LASTEXITCODE -ne 0
     Pop-Location
     if ($pinsFailed) { $problems += "$($app.repo): $($pins -join '; ')" }
+    # The tag build also refuses a README whose shared blocks are stale (check-app.sh). This checks
+    # the working tree, so it must match origin/main, as the pull before tagging leaves it.
+    Push-Location $repo
+    $docs = & python shared/tools/docs.py . --check 2>&1
+    $docsFailed = $LASTEXITCODE -ne 0
+    Pop-Location
+    if ($docsFailed) { $problems += "$($app.repo): $($docs -join '; ')" }
     # An app tagged already (by an earlier run that stopped partway) keeps its tag.
     & git -C $repo rev-parse -q --verify "refs/tags/$tag" *> $null
     if ($LASTEXITCODE -eq 0) { Write-Output "$($app.repo): $tag already tagged"; continue }
