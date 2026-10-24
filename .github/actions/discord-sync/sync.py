@@ -4,19 +4,23 @@ Every Kairo app mirrors into the one Kairo forum: each issue becomes a forum pos
 "<repository> #<number> <title>"; each comment, close and reopen becomes a
 message in that post, sent under the GitHub user's name and avatar. Images and
 videos uploaded to GitHub are attached to the message instead of linked.
-An issue opened before the sync existed is mirrored in full the first time
-anything happens to it. A closed issue's post is archived, which a webhook cannot do, so the
-Kairo Discord bot does it (DISCORD_BOT_TOKEN, with Manage Threads in the forum). The Discord IDs are recorded in the calling repository, in the folder
-DISCORD_SYNC_STATE names, so later events can edit or delete the right messages:
 
-  <number>/thread.json           {"thread_id": ..., "message_id": ...}
-  <number>/comments/<id>.json    {"message_id": ...}
+A run does not replay its event: it reconciles the whole issue with GitHub as it is now,
+posting, editing and deleting whatever differs, so events that arrive together, out of order
+or superseded still end in the right post. A closed issue's post is archived and the post is
+renamed after the title, which a webhook cannot do, so the Kairo Discord bot does it
+(DISCORD_BOT_TOKEN, with Manage Threads in the forum). The calling workflow runs one sync per
+issue at a time. The Discord IDs, with a digest of the GitHub text each message was made from
+and the issue state last posted, are recorded in the calling repository, in the folder
+DISCORD_SYNC_STATE names:
 
-Every event writes or removes its own file, so concurrent runs never touch the
-same path and their commits always rebase cleanly.
+  <number>/thread.json           {"thread_id": ..., "message_id": ..., "digest": ..., "state": ...}
+  <number>/comments/<id>.json    {"message_id": ..., "digest": ...}
+
+A run only writes its own issue's folder, so runs for different issues always rebase cleanly.
 """
 
-import contextlib
+import hashlib
 import json
 import os
 import re
@@ -95,23 +99,12 @@ def discord(method, suffix, query, payload=None, files=()):
     return request(method, WEBHOOK + suffix + query, f"Discord webhook{suffix}", headers, data)
 
 
-def set_archived(thread_id, archived):
-    """Archive or unarchive a forum post through the bot; webhooks cannot change threads."""
+def change_thread(thread_id, **fields):
+    """Change a forum post through the bot; webhooks cannot change threads."""
     headers = {"Authorization": f"Bot {BOT_TOKEN}", "Content-Type": "application/json",
                "User-Agent": f"{REPO} discord-sync"}
     request("PATCH", f"https://discord.com/api/v10/channels/{thread_id}", f"Discord thread {thread_id}",
-            headers, json.dumps({"archived": archived}).encode())
-
-
-@contextlib.contextmanager
-def thread_of(issue):
-    """The issue's thread, open while the body of the with-block posts or edits in it: an archived
-    thread refuses edits, and a message posted to it unarchives it. Afterwards the thread is
-    archived when the issue is closed and left open when it is open."""
-    thread = read(thread_path(issue))
-    set_archived(thread["thread_id"], False)
-    yield thread
-    set_archived(thread["thread_id"], issue["state"] == "closed")
+            headers, json.dumps(fields).encode())
 
 
 def multipart(boundary, payload, files):
@@ -199,16 +192,26 @@ def status(issue):
     return f"Closed as {reason}" if reason else "Closed"
 
 
+
+
 def thread_path(issue):
     return STATE / str(issue["number"]) / "thread.json"
 
 
-def comment_path(issue, comment):
-    return STATE / str(issue["number"]) / "comments" / f"{comment['id']}.json"
+def comment_path(issue, comment_id):
+    return STATE / str(issue["number"]) / "comments" / f"{comment_id}.json"
+
+
+def digest(text):
+    return hashlib.sha256((text or "").encode()).hexdigest()
 
 
 def read(path):
     return json.loads(path.read_text())
+
+
+def write(path, data):
+    path.write_text(json.dumps(data, indent=2) + "\n")
 
 
 def write_new(path, data):
@@ -218,141 +221,110 @@ def write_new(path, data):
         file.write("\n")
 
 
-def open_issue(issue):
-    path = thread_path(issue)
-    if path.exists():
-        raise RuntimeError(f"Issue #{issue['number']} already has a Discord thread: {path}")
+def thread_name(issue):
+    return clip(f"{REPO_NAME} #{issue['number']} {issue['title']}", 100)
+
+
+def create_thread(issue):
+    """A new post for the issue's body. Its recorded state starts open, so a closed issue
+    gets its closing message after its comments."""
     content, files = render(issue["body"], issue["html_url"])
-    payload = {
-        "thread_name": clip(f"{REPO_NAME} #{issue['number']} {issue['title']}", 100),
-        **new_message(issue["user"], content),
-    }
+    payload = {"thread_name": thread_name(issue), **new_message(issue["user"], content)}
     message = discord("POST", "", "?wait=true", payload, files)
-    write_new(path, {"thread_id": message["channel_id"], "message_id": message["id"]})
+    thread = {"thread_id": message["channel_id"], "message_id": message["id"],
+              "digest": digest(issue["body"]), "state": "open"}
+    write_new(thread_path(issue), thread)
     print(f"Issue #{issue['number']} -> thread {message['channel_id']}")
+    return thread
 
 
-def ensure_thread(issue):
-    """Mirror an issue that predates the sync, with its comments and closure, the first time
-    anything happens to it. Returns True when it did, since that covers the triggering event."""
-    if thread_path(issue).exists():
-        return False
-    issue = github(f"/issues/{issue['number']}")
-    open_issue(issue)
-    for comment in paged(f"/issues/{issue['number']}/comments?sort=created"):
-        add_comment(issue, comment)
+def state_actor(issue):
+    """Who last closed or reopened the issue."""
     if issue["state"] == "closed":
-        post_state(issue, issue.get("closed_by"))
-    return True
+        return issue.get("closed_by")
+    reopens = [event for event in paged(f"/issues/{issue['number']}/events") if event["event"] == "reopened"]
+    return reopens[-1]["actor"] if reopens else None
 
 
-def edit_issue(issue):
-    if ensure_thread(issue):
-        return
-    content, files = render(issue["body"], issue["html_url"])
-    with thread_of(issue) as thread:
-        discord("PATCH", f"/messages/{thread['message_id']}", f"?thread_id={thread['thread_id']}",
-                changed_message(content), files)
-    print(f"Issue #{issue['number']} edited in thread {thread['thread_id']}")
+def reconcile(number):
+    """Bring the issue's post in line with GitHub: the body, every comment, the state message,
+    the archive and the name. Each Discord change is recorded as soon as it is made, so IDs of
+    messages already posted survive a later failure."""
+    issue = github(f"/issues/{number}")
+    comments = list(paged(f"/issues/{number}/comments?sort=created"))
+    path = thread_path(issue)
+    thread = read(path) if path.exists() else create_thread(issue)
+    in_thread = f"?thread_id={thread['thread_id']}"
+    # An archived post refuses edits, and the final change below must unarchive in the same request
+    # it renames in, so the post stays open while the run works on it.
+    change_thread(thread["thread_id"], archived=False)
 
+    if thread["digest"] != digest(issue["body"]):
+        content, files = render(issue["body"], issue["html_url"])
+        discord("PATCH", f"/messages/{thread['message_id']}", in_thread, changed_message(content), files)
+        thread["digest"] = digest(issue["body"])
+        write(path, thread)
+        print(f"Issue #{number} edited in thread {thread['thread_id']}")
 
-def post_state(issue, actor):
-    payload = new_message(actor, with_footer(status(issue), issue["html_url"]))
-    with thread_of(issue) as thread:
+    for comment in comments:
+        cpath = comment_path(issue, comment["id"])
+        if not cpath.exists():
+            content, files = render(comment["body"], comment["html_url"])
+            message = discord("POST", "", f"?wait=true&thread_id={thread['thread_id']}",
+                              new_message(comment["user"], content), files)
+            write_new(cpath, {"message_id": message["id"], "digest": digest(comment["body"])})
+            print(f"Comment {comment['id']} -> message {message['id']}")
+            continue
+        record = read(cpath)
+        if record["digest"] != digest(comment["body"]):
+            content, files = render(comment["body"], comment["html_url"])
+            discord("PATCH", f"/messages/{record['message_id']}", in_thread, changed_message(content), files)
+            record["digest"] = digest(comment["body"])
+            write(cpath, record)
+            print(f"Comment {comment['id']} edited in message {record['message_id']}")
+
+    current = {str(comment["id"]) for comment in comments}
+    for cpath in sorted((path.parent / "comments").glob("*.json")):
+        if cpath.stem not in current:
+            message_id = read(cpath)["message_id"]
+            discord("DELETE", f"/messages/{message_id}", in_thread)
+            cpath.unlink()
+            print(f"Comment {cpath.stem} deleted message {message_id}")
+
+    if thread["state"] != issue["state"]:
+        payload = new_message(state_actor(issue), with_footer(status(issue), issue["html_url"]))
         discord("POST", "", f"?wait=true&thread_id={thread['thread_id']}", payload)
-    print(f"Issue #{issue['number']} {status(issue)} in thread {thread['thread_id']}")
+        thread["state"] = issue["state"]
+        write(path, thread)
+        print(f"Issue #{number} {status(issue)} in thread {thread['thread_id']}")
 
-
-def change_state(issue, actor):
-    if ensure_thread(issue):
-        return
-    post_state(issue, actor)
-
-
-def add_comment(issue, comment):
-    path = comment_path(issue, comment)
-    if path.exists():
-        raise RuntimeError(f"Comment {comment['id']} is already in Discord: {path}")
-    content, files = render(comment["body"], comment["html_url"])
-    with thread_of(issue) as thread:
-        message = discord("POST", "", f"?wait=true&thread_id={thread['thread_id']}",
-                          new_message(comment["user"], content), files)
-        write_new(path, {"message_id": message["id"]})
-    print(f"Comment {comment['id']} -> message {message['id']}")
-
-
-def edit_comment(issue, comment):
-    message_id = read(comment_path(issue, comment))["message_id"]
-    content, files = render(comment["body"], comment["html_url"])
-    with thread_of(issue) as thread:
-        discord("PATCH", f"/messages/{message_id}", f"?thread_id={thread['thread_id']}",
-                changed_message(content), files)
-    print(f"Comment {comment['id']} edited in message {message_id}")
-
-
-def delete_comment(issue, comment):
-    path = comment_path(issue, comment)
-    message_id = read(path)["message_id"]
-    with thread_of(issue) as thread:
-        discord("DELETE", f"/messages/{message_id}", f"?thread_id={thread['thread_id']}")
-        path.unlink()
-    print(f"Comment {comment['id']} deleted message {message_id}")
+    change_thread(thread["thread_id"], archived=issue["state"] == "closed", name=thread_name(issue))
 
 
 def paged(path):
+    separator = "&" if "?" in path else "?"
     page = 1
     while True:
-        items = github(f"{path}&per_page=100&page={page}")
+        items = github(f"{path}{separator}per_page=100&page={page}")
         if not items:
             return
         yield from items
         page += 1
 
 
-def backfill():
-    """Create threads for every issue that does not have one yet, oldest first."""
-    for issue in paged("/issues?state=all&sort=created&direction=asc"):
-        if "pull_request" not in issue:
-            ensure_thread(issue)
-
-
-def refresh(number):
-    """Mirror one issue, or rewrite its mirrored messages from GitHub's current text."""
-    issue = github(f"/issues/{number}")
-    if ensure_thread(issue):
-        return
-    edit_issue(issue)
-    for comment in paged(f"/issues/{number}/comments?sort=created"):
-        if comment_path(issue, comment).exists():
-            edit_comment(issue, comment)
-
-
-def on_comment(handler):
-    return lambda event: ensure_thread(event["issue"]) or handler(event["issue"], event["comment"])
-
-
-HANDLERS = {
-    ("issues", "opened"): lambda event: open_issue(event["issue"]),
-    ("issues", "edited"): lambda event: edit_issue(event["issue"]),
-    ("issues", "closed"): lambda event: change_state(event["issue"], event["sender"]),
-    ("issues", "reopened"): lambda event: change_state(event["issue"], event["sender"]),
-    ("issue_comment", "created"): on_comment(add_comment),
-    ("issue_comment", "edited"): on_comment(edit_comment),
-    ("issue_comment", "deleted"): on_comment(delete_comment),
-}
-
-
 def main():
-    name = os.environ["GITHUB_EVENT_NAME"]
-    if name == "workflow_dispatch":
+    if os.environ["GITHUB_EVENT_NAME"] == "workflow_dispatch":
         number = os.environ["SYNC_ISSUE"]
         if number:
-            refresh(int(number))
-        else:
-            backfill()
+            reconcile(int(number))
+            return
+        # Every issue, oldest first; one without a post gets one.
+        for issue in paged("/issues?state=all&sort=created&direction=asc"):
+            if "pull_request" not in issue:
+                reconcile(issue["number"])
         return
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-    HANDLERS[(name, event["action"])](event)
+    reconcile(event["issue"]["number"])
 
 
 if __name__ == "__main__":

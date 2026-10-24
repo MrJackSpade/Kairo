@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       issue:
-        description: 'Issue number to mirror, or to rewrite from GitHub if already mirrored; leave empty to mirror every issue without a thread'
+        description: 'Issue number to reconcile with its Discord post; leave empty to reconcile every issue'
         required: false
 
 permissions:
@@ -17,16 +17,9 @@ permissions:
 
 jobs:
   sync:
-    # issue_comment also fires for pull request comments; only issues are mirrored.
-    if: ${{ !github.event.issue.pull_request }}
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-      - uses: ./.github/actions/discord-sync
-        with:
-          webhook: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
-          bot-token: ${{ secrets.KAIRO_DISCORD_BOT_TOKEN }}
-          state: .github/discord-sync/issues
-          issue: ${{ inputs.issue }}
+    uses: ./.github/workflows/discord-sync-run.yml
+    with:
+      issue: ${{ inputs.issue }}
+    secrets:
+      webhook: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
+      bot-token: ${{ secrets.KAIRO_DISCORD_BOT_TOKEN }}

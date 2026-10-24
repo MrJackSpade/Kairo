@@ -1,23 +1,24 @@
 name: Kairo Discord issue sync
-description: Mirror the calling repository's issue event into the Kairo Discord forum and commit the sync state
+description: Reconcile the calling repository's issue with its post in the Kairo Discord forum and commit the sync state
 inputs:
   webhook:
     description: The Kairo Discord forum webhook (a secret)
     required: true
   bot-token:
-    description: The Kairo Discord bot's token (a secret), which archives closed issues' posts
+    description: The Kairo Discord bot's token (a secret), which archives and renames posts
     required: true
   state:
     description: The calling repository's folder for its Discord message IDs, such as .github/discord-sync/issues
     required: true
   issue:
-    description: For a manual run, the issue to mirror or rewrite; empty mirrors every issue without a thread
+    description: For a manual run, the issue to reconcile; empty reconciles every issue
     required: false
     default: ''
 runs:
   using: composite
   steps:
-    # The caller checks out its own repository's main branch first; the state is committed there.
+    # Called from discord-sync-run.yml, which checks out the caller's main branch, where the state is committed,
+    # and runs one sync per issue at a time.
     - name: Mirror to Discord
       shell: bash
       env:
@@ -43,9 +44,10 @@ runs:
         git add -A "$STATE"
         if git diff --cached --quiet; then exit 0; fi
         git commit -q -m "Discord sync: $GITHUB_EVENT_NAME $ACTION #$ISSUE_NUMBER"
-        # Another sync run may have pushed first. Each run only touches its own files, so rebase and resend.
+        # Another issue's sync may have pushed first, or be pushing right now. Each run only touches its own
+        # issue's files, so rebase and resend.
         until git push origin HEAD:main 2> push.err; do
           cat push.err
-          grep -qE 'fetch first|non-fast-forward' push.err || exit 1
+          grep -qE 'fetch first|non-fast-forward|cannot lock ref' push.err || exit 1
           git pull -q --rebase origin main
         done

@@ -1,0 +1,46 @@
+name: Discord sync run
+
+# Every Kairo repository's Discord sync job, called from its discord-sync.yml with the issue
+# events. Runs for one issue wait for each other; a queued run that a newer one replaces is not
+# lost, since every run reconciles the whole issue.
+on:
+  workflow_call:
+    inputs:
+      issue:
+        description: For a manual run, the issue to reconcile; empty reconciles every issue
+        type: string
+        required: false
+        default: ''
+    secrets:
+      webhook:
+        description: The Kairo Discord forum webhook
+        required: true
+      bot-token:
+        description: The Kairo Discord bot's token, which archives and renames posts
+        required: true
+
+jobs:
+  sync:
+    # issue_comment also fires for pull request comments; only issues are mirrored.
+    if: ${{ !github.event.issue.pull_request }}
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: discord-sync-${{ github.repository }}-${{ github.event.issue.number || inputs.issue || 'all' }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      # The action from this workflow's own commit, so a caller pins both with one ref.
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .kairo-discord-sync
+          sparse-checkout: .github/actions/discord-sync
+      - uses: ./.kairo-discord-sync/.github/actions/discord-sync
+        with:
+          webhook: ${{ secrets.webhook }}
+          bot-token: ${{ secrets.bot-token }}
+          state: .github/discord-sync/issues
+          issue: ${{ inputs.issue }}
