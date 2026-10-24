@@ -24,7 +24,9 @@ enum class ButtonTone { SECONDARY, PRIMARY, DANGER }
 class TrayButton(val label: String, val tone: ButtonTone = ButtonTone.SECONDARY,
                  val keepOpen: Boolean = false, val run: (String) -> Unit = {})
 
-class TrayInput(val hint: String, val initial: String = "", val numeric: Boolean = false)
+/** A tray's text field; [multiline] takes several lines, each kept as typed, and Return starts a new one. */
+class TrayInput(val hint: String, val initial: String = "", val numeric: Boolean = false,
+                val multiline: Boolean = false)
 
 /** Raw controller input for a tray that is listening for a button, stick, or trigger. */
 interface InputCapture {

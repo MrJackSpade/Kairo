@@ -76,8 +76,9 @@ object GameSettingsRows {
     fun text(id: String, label: String, hint: String, current: () -> String?, custom: () -> Boolean,
              source: () -> String?, save: (String) -> Unit, reset: () -> Unit,
              empty: String = "None", enabled: () -> Boolean = { true },
-             disabledReason: () -> String? = { null }) = SettingsRow.action(id, label,
-        value = { current() ?: empty },
+             disabledReason: () -> String? = { null }, multiline: Boolean = false) = SettingsRow.action(id, label,
+        // Several lines show on the row as one, each separated by a slash.
+        value = { current()?.lines()?.filter(String::isNotBlank)?.joinToString(" / ") ?: empty },
         tone = { when {
             custom() -> ValueTone.CUSTOM
             current() == null -> ValueTone.EMPTY
@@ -86,7 +87,7 @@ object GameSettingsRows {
         tag = { if (custom()) GameSource.CUSTOM else source() },
         enabled = enabled, disabledReason = disabledReason,
         tray = {
-            TraySpec(input = TrayInput(hint, current() ?: ""), buttons = listOfNotNull(
+            TraySpec(input = TrayInput(hint, current() ?: "", multiline = multiline), buttons = listOfNotNull(
                 if (custom()) TrayButton("Reset") { reset() } else null,
                 TrayButton("Cancel"),
                 TrayButton("Save", ButtonTone.PRIMARY) { save(it) }))

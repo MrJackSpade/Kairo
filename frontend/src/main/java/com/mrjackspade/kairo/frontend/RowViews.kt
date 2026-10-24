@@ -263,19 +263,28 @@ internal class TrayView(context: Context, val spec: TraySpec, flat: Boolean,
             setSelection(text.length)
             hint = input.hint
             textSize = Ui.BODY
-            isSingleLine = true
+            isSingleLine = !input.multiline
             setTextColor(Ui.TEXT)
             setHintTextColor(Ui.TEXT_FAINT)
-            inputType = if (input.numeric) InputType.TYPE_CLASS_NUMBER else InputType.TYPE_CLASS_TEXT
-            imeOptions = EditorInfo.IME_ACTION_DONE
+            inputType = when {
+                input.numeric -> InputType.TYPE_CLASS_NUMBER
+                input.multiline -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                else -> InputType.TYPE_CLASS_TEXT
+            }
+            if (input.multiline) {
+                minLines = 4
+                maxLines = 10
+                gravity = Gravity.TOP or Gravity.START
+                setPadding(Ui.dp(context, 12), Ui.dp(context, 8), Ui.dp(context, 12), Ui.dp(context, 8))
+            } else imeOptions = EditorInfo.IME_ACTION_DONE
             background = Ui.rounded(context, Ui.BG, Ui.RADIUS_SMALL, Ui.ACCENT)
-            setPadding(Ui.dp(context, 12), 0, Ui.dp(context, 12), 0)
+            if (!input.multiline) setPadding(Ui.dp(context, 12), 0, Ui.dp(context, 12), 0)
             setOnEditorActionListener { _, action, _ ->
                 if (action == EditorInfo.IME_ACTION_DONE) { pressPrimary(); true } else false
             }
         }
     }
-    val text: String get() = entry?.text?.toString()?.trim() ?: ""
+    val text: String get() = entry?.text?.toString()?.let { if (spec.input?.multiline == true) it.trimEnd() else it.trim() } ?: ""
 
     init {
         orientation = VERTICAL
@@ -292,7 +301,8 @@ internal class TrayView(context: Context, val spec: TraySpec, flat: Boolean,
             line.addView(Ui.text(context, message, Ui.SECONDARY, Ui.TEXT_BODY), LayoutParams(0, -2, 1f))
             addView(line, LayoutParams(-1, -2).apply { bottomMargin = Ui.dp(context, 10) })
         }
-        entry?.let { addView(it, LayoutParams(-1, Ui.dp(context, 44)).apply { bottomMargin = Ui.dp(context, 10) }) }
+        entry?.let { addView(it, LayoutParams(-1, if (spec.input?.multiline == true) -2 else Ui.dp(context, 44))
+            .apply { bottomMargin = Ui.dp(context, 10) }) }
         val row = WrapLayout(context, Ui.dp(context, 8))
         spec.buttons.forEach { button ->
             val view = Ui.choiceButton(context, button.label, button.tone) { press(button, text) }
