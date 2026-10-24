@@ -4,6 +4,7 @@
 #pragma once
 
 #include <android/log.h>
+#include <pthread.h>
 #include <sys/resource.h>
 
 namespace kairo {
@@ -15,5 +16,9 @@ inline void raise_emulation_priority(const char *which) {
         __android_log_print(ANDROID_LOG_INFO, "KairoMachine", "%s priority unchanged", which);
     }
 }
+
+// Names the calling thread (at most 15 characters), so per-thread CPU in /proc and profiles tells
+// the emulation, frame, presenter and worker threads apart.
+inline void name_thread(const char *name) { pthread_setname_np(pthread_self(), name); }
 
 } // namespace kairo

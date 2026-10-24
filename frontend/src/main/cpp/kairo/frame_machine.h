@@ -221,6 +221,7 @@ private:
             return;
         }
         report("Running");
+        name_thread("kairo-frames");
         raise_emulation_priority("worker");
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
@@ -393,6 +394,7 @@ private:
     // preset the frame goes through the GPU filter; when the preset cannot run,
     // the frame is copied to the window as it is.
     void present_loop() {
+        name_thread("kairo-present");
         SurfacePresenter shader;
         std::vector<uint8_t> frame;
         uint32_t width = 0, height = 0;

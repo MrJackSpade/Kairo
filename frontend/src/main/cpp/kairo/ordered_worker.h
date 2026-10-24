@@ -7,6 +7,9 @@
 #include <exception>
 #include <functional>
 #include <mutex>
+#if defined(__ANDROID__) || defined(__linux__)
+#include <pthread.h>
+#endif
 #include <stdexcept>
 #include <thread>
 #include <utility>
@@ -35,9 +38,15 @@ public:
         result.currentResults = resultCount_;
         return result;
     }
-    explicit OrderedWorker(std::function<Result(const Command&)> process)
+    // name, when given, names the worker's thread (at most 15 characters).
+    explicit OrderedWorker(std::function<Result(const Command&)> process, const char *name = nullptr)
         : process_(std::move(process)) {
-        thread_ = std::thread([this] { run(); });
+        thread_ = std::thread([this, name] {
+#if defined(__ANDROID__) || defined(__linux__)
+            if (name) pthread_setname_np(pthread_self(), name);
+#endif
+            run();
+        });
     }
     ~OrderedWorker() {
         {
