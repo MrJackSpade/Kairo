@@ -3,7 +3,6 @@
 
 #include <android/log.h>
 #include <android/native_window.h>
-#include <sys/resource.h>
 
 #include <algorithm>
 #include <atomic>
@@ -22,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "thread_priority.h"
 #include "audio_output.h"
 #include "surface_presenter.h"
 
@@ -220,11 +220,7 @@ private:
             return;
         }
         report("Running");
-        // Emulation competes with the UI and compositor for a few small cores;
-        // give it the same standing Android gives urgent display work.
-        if (setpriority(PRIO_PROCESS, 0, -16) != 0) {
-            __android_log_print(ANDROID_LOG_INFO, "KairoMachine", "worker priority unchanged");
-        }
+        raise_emulation_priority("worker");
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
             present_stop_ = false;
