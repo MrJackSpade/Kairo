@@ -140,6 +140,7 @@ class StateSlotPage(
     private fun activate(slot: Slot) {
         if (confirm != null) closeConfirm()
         focus("slot${slot.index}", reveal = false)
+        android.util.Log.i("Kairo", "slot ${slot.index} chosen: busy ${busy()}, saved ${slot.savedAt}")
         if (busy()) return
         val savedAt = slot.savedAt
         when {
