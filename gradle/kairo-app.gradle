@@ -47,6 +47,9 @@ android {
                 arguments += '-DANDROID_STL=c++_shared'
                 // kairoShaders=false: no shader presenter (see frontend/build.gradle.kts).
                 if (providers.gradleProperty('kairoShaders').orNull == 'false') arguments += '-DKAIRO_SHADERS=OFF'
+                // A core built with its recorded profile (shared/cmake/KairoPgo.cmake); pgo=false for
+                // the unprofiled build to compare against.
+                arguments += '-DKAIRO_PGO=' + (providers.gradleProperty('pgo').orElse('true').get() == 'true' ? 'ON' : 'OFF')
                 targets += product
             }
         }
