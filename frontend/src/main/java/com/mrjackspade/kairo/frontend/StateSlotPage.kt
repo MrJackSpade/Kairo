@@ -60,12 +60,12 @@ class StateSlotPage(
         return page
     }
 
-    private fun render() {
+    private fun render(next: List<Slot> = load()) {
         confirm = null
         grid.removeAllViews()
         cards.clear()
         recycle()
-        slots = load()
+        slots = next
         slots.chunked(2).forEachIndexed { rowIndex, pair ->
             val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
             pair.forEachIndexed { column, slot ->
@@ -167,8 +167,16 @@ class StateSlotPage(
     /** The save or load finished; show the new thumbnail and date. */
     override fun refresh() {
         if (busy()) return
+        val next = load()
+        // A refresh for something else (a setting, the game's state) leaves the cards, and a
+        // confirmation the player has open on one, as they are: rebuilding them lost both.
+        if (running == null && next.map { it.index to it.savedAt } == slots.map { it.index to it.savedAt }) {
+            next.forEach { it.thumbnail?.recycle() }
+            return
+        }
+        android.util.Log.i("Kairo", "save state page shows changed slots")
         running = null
-        render()
+        render(next)
         renav()
     }
 
