@@ -123,6 +123,8 @@ android {
     testOptions.unitTests.all {
         systemProperty 'kairo.catalogRules', project.ext.kairoCatalogRules as String
         systemProperty 'kairo.root', rootProject.projectDir.absolutePath
+        // The rule reads the catalog, so a changed catalog runs the tests again.
+        inputs.dir(rootProject.file('catalog'))
     }
 }
 

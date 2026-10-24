@@ -14,8 +14,8 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "artwork": {...},                                         or a reviewed compact pick
       "contentIds": [...], "sourceGroups": [...],               media this game is known by
       "diskSets": {"<entry>": {"setDisks": [...], "media": [...]}},   one library entry per disk set
-      "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk's name asks for, and for
-                                                                a tape its "loader": the lines typed to load it
+      "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk asks for, and its "commands":
+                                                                the lines typed at the machine's prompt to start it
       "diskHidden": [...],                                      disks behind a set entry other games share
       "adult": true,                                            heart marker, core-review exclusion
       "hidden": true,                                           not a game: never listed in the library
@@ -65,7 +65,7 @@ def lookup_name(value):
     return "".join(char.lower() for char in unicodedata.normalize("NFKC", value) if char.isalnum())
 
 
-TAPE_LINE = re.compile(r"[ -~]{1,40}")
+COMMAND_LINE = re.compile(r"[ -~]{1,40}")
 
 
 def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
@@ -74,7 +74,7 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
     def validate_record(record):
         require(isinstance(record, dict), "game must be an object")
         require(set(record) <= {"game", "title", "description", "aliases", "artwork", "heart",
-                                "hidden", "setDisks", "media", "machine", "tape", "controller", "contentIds"},
+                                "hidden", "setDisks", "media", "machine", "launch", "controller", "contentIds"},
                 "unknown game field")
         ids = record.get("contentIds")
         require(isinstance(ids, list) and 1 <= len(ids) <= MAX_IDS and len(ids) == len(set(ids)) and
@@ -109,13 +109,14 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
                     all(isinstance(bindings, list) and all(isinstance(b, dict) and isinstance(b.get("input"), str)
                                                            for b in bindings) for bindings in defaults.values()),
                     "invalid controller defaults")
-        if "tape" in record:
-            # The lines a tape's loader types at the machine's prompt, one command each.
-            tape = record["tape"]
-            loader = tape.get("loader") if isinstance(tape, dict) else None
-            require(isinstance(tape, dict) and set(tape) == {"loader"} and isinstance(loader, list) and
-                    1 <= len(loader) <= 8 and all(isinstance(line, str) and TAPE_LINE.fullmatch(line) for line in loader),
-                    "invalid tape loader")
+        if "launch" in record:
+            # The lines typed at the machine's prompt to start the game, one command each.
+            launch = record["launch"]
+            commands = launch.get("commands") if isinstance(launch, dict) else None
+            require(isinstance(launch, dict) and set(launch) == {"commands"} and isinstance(commands, list) and
+                    1 <= len(commands) <= 8 and
+                    all(isinstance(line, str) and COMMAND_LINE.fullmatch(line) for line in commands),
+                    "invalid startup commands")
         machine = record.get("machine", {})
         require(isinstance(machine, dict) and ("machine" not in record or machine_options) and
                 all(value in machine_options.get(option, ()) for option, value in machine.items()),
@@ -173,12 +174,12 @@ def generate(root, check=False):
             own.setdefault(disk, {})["hidden"] = True
         for disk, settings in entry.get("diskMachine", {}).items():
             settings = dict(settings)
-            # A tape's loader is its own field; the rest are machine settings.
-            loader = settings.pop("loader", None)
+            # The startup commands are their own field; the rest are machine settings.
+            commands = settings.pop("commands", None)
             if settings:
                 own.setdefault(disk, {})["machine"] = settings
-            if loader:
-                own.setdefault(disk, {})["tape"] = {"loader": loader}
+            if commands:
+                own.setdefault(disk, {})["launch"] = {"commands": commands}
         for disk, fields in sorted(own.items()):
             require(disk in entry.get("contentIds", []), f"{key}: {disk} is not one of its disks")
             source_games.append({"contentIds": [disk], "game": key, **fields})

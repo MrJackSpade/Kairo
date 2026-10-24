@@ -171,6 +171,15 @@ class DiskSetsTest(unittest.TestCase):
         self.assertEqual(media("Xak (Disk 1 - Demo disk A).d88", "Xak (Disk 2 - Demo disk B).d88"),
                          [{"role": "floppyB", "contentId": FD + "1"}])
 
+    def test_a_disk_kept_only_as_alternate_dumps_starts_from_its_first_one(self):
+        disks = [disk("Prajator/Prajator [FD].7z", "Prajator (Disk A).d88", FD + "a"),
+                 disk("Prajator/Prajator [FD].7z", "Prajator (Disk B).d88", FD + "b"),
+                 disk("Prajator/Prajator [FD].7z", "alts/Prajator (System disk) [Alt 2].d88", FD + "s2"),
+                 disk("Prajator/Prajator [FD].7z", "alts/Prajator (System disk) [Alt 1].d88", FD + "s1")]
+        self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B),
+                         {FD + "s1": {"setDisks": [FD + "a", FD + "b", FD + "s2"],
+                                      "media": [{"role": "floppyB", "contentId": FD + "a"}]}})
+
     def test_a_single_disk_is_not_a_set(self):
         self.assertEqual(disk_sets([disk("Game.zip", "Game.d88", FD + "a")], ["fd"], FLOPPY_B), {})
 

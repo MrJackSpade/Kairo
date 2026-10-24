@@ -28,10 +28,10 @@ sealed class CatalogSetting(val field: String, val subfield: String,
     /**
      * Lines the machine types when the game starts, such as a tape's loading commands: `[field].[subfield]`,
      * an array of 1 to [maxLines] strings matching [line]. [default] gives the lines a game types
-     * without any of its own, from the machine it boots (each option's value by option ID).
+     * without any of its own (none, or a tape's load) for the machine it boots (each option's value by ID).
      */
     class Lines(field: String, subfield: String, val label: String, val hint: String, val line: Regex,
-                val maxLines: Int, appliesTo: (String) -> Boolean = { true }, val default: (Map<String, String>) -> List<String>) :
+                val maxLines: Int, appliesTo: (String) -> Boolean = { true }, val default: (CatalogGame, Map<String, String>) -> List<String>) :
         CatalogSetting(field, subfield, appliesTo) {
         fun valid(lines: JSONArray?): Boolean = lines != null && lines.length() in 1..maxLines &&
             (0 until lines.length()).all { (lines.opt(it) as? String)?.matches(line) == true }
@@ -41,7 +41,7 @@ sealed class CatalogSetting(val field: String, val subfield: String,
             ?.let { lines -> (0 until lines.length()).map(lines::getString) }
 
         /** The lines the game types: its own, or its [default] for the machine [options] it boots. */
-        fun value(game: CatalogGame, options: Map<String, String>): List<String> = read(game) ?: default(options)
+        fun value(game: CatalogGame, options: Map<String, String>): List<String> = read(game) ?: default(game, options)
 
         /** The lines as one row's text, and back. */
         fun text(lines: List<String>) = lines.joinToString(SEPARATOR)

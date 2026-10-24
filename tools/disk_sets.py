@@ -167,6 +167,15 @@ def disk_sets(disks, boot_kinds, companion):
     for set_key, members in sets.items():
         name = lambda disk: disk["member"] or disk["archive"].rpartition("/")[2]
         alternates = [d for d in members if ALTERNATE.search(name(d))]
+        # A disk the set has only as alternate dumps (a game's system disk kept only in alts/) is
+        # still one of its disks: its first alternate stands in for the missing clean dump. A disk
+        # is its place in the set: its disk tag, or its role when it has none.
+        place = lambda d: _order(name(d))[:2]
+        clean = {place(d) for d in members if d not in alternates}
+        standing_in = {}
+        for disk in sorted(alternates, key=lambda d: _order(name(d))):
+            standing_in.setdefault(place(disk), disk)
+        alternates = [d for d in alternates if place(d) in clean or standing_in[place(d)] != d]
         users = [d for d in members if d not in alternates and USER_DISK.search(name(d))]
         mains = [d for d in members if d not in alternates and d not in users and not UTILITY.search(name(d)) and
                  kind(d["contentId"]) in boot_kinds]

@@ -495,7 +495,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val subfield = setting.subfield
         fun custom() = id != null && catalog.sourceOf(entry, field, subfield) == "User override"
         return GameSettingsRows.text("lines-$field-$subfield", setting.label, setting.hint,
-            { catalog.resolve(entry).let { game -> setting.text(setting.value(game, optionValues(game))) } }, ::custom,
+            { catalog.resolve(entry).let { game -> setting.value(game, optionValues(game)).takeIf { it.isNotEmpty() }?.let(setting::text) } }, ::custom,
             { catalog.defaultSourceOf(entry, field, subfield).takeIf { it != "App default" }
                 ?.let(GameSource::label) ?: GameSource.BUILT_IN },
             { text ->
