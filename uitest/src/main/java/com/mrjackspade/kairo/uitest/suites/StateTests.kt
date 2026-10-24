@@ -27,11 +27,13 @@ abstract class StateTests : KairoUiTest() {
 
     /** Loads [slot] from the game menu; returns the picture once loaded, with the menu still pausing it. */
     private fun load(slot: Int): Picture {
-        screens.loadState(slot)
-        screens.openGameMenu()
+        // Taken while the menu still pauses the game on the loaded state: a game that animates
+        // would move on from it as soon as it ran again.
+        screens.loadState(slot, keepMenu = true)
         driver.waitForGame("Paused")
         val picture = driver.pictures.game("loaded-slot$slot")
         screens.closeMenu()
+        driver.waitForGame("Running")
         return picture
     }
 
