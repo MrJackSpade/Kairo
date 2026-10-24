@@ -59,6 +59,7 @@ class InputDispatchCoordinator(
     private fun route(event: KeyEvent, android: (KeyEvent) -> Boolean): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN) leaveTouchMode()
         val screen = frontend.screen()
+        Log.i("Kairo", "route ${KeyEvent.keyCodeToString(event.keyCode)} on $screen")
         // Listening captures every controller button, B and Back included. Keyboard keys
         // still reach the tray's buttons below.
         if (screen == Screen.MENU && frontend.capturing() && frontend.captureKey(event)) return true
