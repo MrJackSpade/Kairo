@@ -78,10 +78,11 @@ if (-not $SkipBuild) {
 }
 
 $outputs = Join-Path $root "$module\build\outputs\apk"
-$appApk = Get-ChildItem -Recurse $outputs -Filter '*.apk' | Where-Object { $_.FullName -notmatch 'androidTest' -and $_.Name -match 'uiTest' } | Select-Object -First 1
-$testOutputs = Join-Path $outputs 'androidTest'
-$testApk = if (Test-Path $testOutputs) { Get-ChildItem -Recurse $testOutputs -Filter '*.apk' | Where-Object { $_.Name -match 'uiTest' } | Select-Object -First 1 }
-if (-not $appApk -or -not $testApk) { throw "Missing UI test APKs under $outputs; build them first (run without -SkipBuild)" }
+# The selected flavor's outputs exactly: an output folder left by an older layout of the build
+# (such as one without flavors) must never be installed instead.
+$appApk = Get-Item (Join-Path $outputs "$Flavor\uiTest\$module-$Flavor-uiTest.apk") -ErrorAction SilentlyContinue
+$testApk = Get-Item (Join-Path $outputs "androidTest\$Flavor\uiTest\$module-$Flavor-uiTest-androidTest.apk") -ErrorAction SilentlyContinue
+if (-not $appApk -or -not $testApk) { throw "Missing the $Flavor UI test APKs under $outputs; build them first (run without -SkipBuild)" }
 $tools = Get-ChildItem (Join-Path $root "$module\build\uitest-tools") -Filter '*.apk'
 if (@($tools).Count -ne 2) { throw "Missing the orchestrator and test services APKs; run without -SkipBuild" }
 
