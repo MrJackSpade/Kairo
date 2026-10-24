@@ -404,12 +404,14 @@ abstract class Page {
             // offsetDescendantRectToMyCoords leaves out the scroller's own scroll, so rect is
             // already in content coordinates.
             val y = rect.top
-            when {
-                rect.height() + margin * 2 > scroller.height || y - margin < top ->
-                    scroller.smoothScrollTo(0, (y - margin).coerceAtLeast(0))
-                y + rect.height() + margin > bottom ->
-                    scroller.smoothScrollTo(0, y + rect.height() + margin - scroller.height)
+            val to = when {
+                rect.height() + margin * 2 > scroller.height || y - margin < top -> (y - margin).coerceAtLeast(0)
+                y + rect.height() + margin > bottom -> y + rect.height() + margin - scroller.height
+                else -> top
             }
+            // Only a real move: a smooth scroll runs its full duration even when it goes nowhere,
+            // and the scroll view takes a tap made meanwhile for the start of a drag.
+            if (to != top) scroller.smoothScrollTo(0, to)
         }
     }
 
