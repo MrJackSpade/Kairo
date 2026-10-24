@@ -17,6 +17,10 @@ abstract class LaunchTests : KairoUiTest() {
         expect.equal("the game the frontend started", app.runningTitle, driver.probe().title)
     }
 
+    /**
+     * Before setup, a frontend launch starts the game when the app needs no BIOS files of the
+     * player's; an app that does says which firmware to import instead of starting nothing silently.
+     */
     @Test
     fun aFrontendLaunchWorksBeforeSetup() {
         driver.launchExternally(screens.documents.file(app.bootGameFile))
@@ -25,6 +29,12 @@ abstract class LaunchTests : KairoUiTest() {
             screens.controllerLayout.exists() || driver.probeNow().state == "Running"
         }
         if (screens.controllerLayout.exists()) screens.answerControllerLayout()
+        if (app.biosFiles.any { it.required }) {
+            driver.waitUntil("the app to ask for the firmware the game needs") {
+                driver.visibleTexts().any { it.startsWith("Launch failed: Import the") && "firmware" in it }
+            }
+            return
+        }
         driver.waitForGame("Running")
         driver.waitFrames(SETTLE_FRAMES)
         val picture = driver.pictures.game("before-setup")
