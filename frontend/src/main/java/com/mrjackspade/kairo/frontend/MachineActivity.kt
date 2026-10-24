@@ -489,9 +489,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** The machine reads its firmware when a game boots, so it changes only in the library. */
     private fun firmwareConfigurable() = currentEntry == null && !transitioning
 
-    /** Fails a launch whose required firmware is missing, naming what to import. */
-    protected fun requireFirmware() {
-        val missing = firmwareSets.map { it.second }.filter { it.missingRequirements.isNotEmpty() }
+    /** Fails a launch whose required firmware in [sets] is missing, naming what to import. */
+    protected fun requireFirmware(sets: List<FirmwareSet> = firmwareSets.map { it.second }) {
+        val missing = sets.filter { it.missingRequirements.isNotEmpty() }
         if (missing.isNotEmpty()) error("Import the ${identity.guestName} firmware in Menu › Machine first " +
             "(missing ${missing.joinToString(", ") { it.missingText }})")
     }
