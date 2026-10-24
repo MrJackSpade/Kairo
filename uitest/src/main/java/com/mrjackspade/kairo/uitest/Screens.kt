@@ -264,12 +264,12 @@ class Library(private val driver: Driver, private val app: AppUnderTest) {
     }
 
     /** Opens [title]'s game page. */
-    fun open(title: String): GamePage = open(entry(title))
+    fun open(title: String): GamePage = open(entry(title), title)
 
     /** Opens the game page of [entry], such as [entryFrom]'s. */
-    fun open(entry: Element): GamePage {
+    fun open(entry: Element, game: String? = null): GamePage {
         entry.tap()
-        return GamePage(driver, app).also { it.page.waitUntilShown() }
+        return GamePage(driver, app, game).also { it.page.waitUntilShown() }
     }
 
     fun openMenu(): Element {
@@ -288,26 +288,27 @@ class Library(private val driver: Driver, private val app: AppUnderTest) {
 }
 
 /** A game's page: its picture and description, Play, and Game settings. */
-class GamePage(private val driver: Driver, private val app: AppUnderTest) {
+class GamePage(private val driver: Driver, private val app: AppUnderTest, private val game: String?) {
     val page = driver.page("Game")
 
-    /**
-     * Starts the game and waits until it runs, answering a notice the start shows as a player does
-     * ([AppUnderTest.launchNoticeAnswers]). The app shows such a notice before the game runs.
-     */
+    /** Starts the game and waits until it runs, answering the notice its start shows as a player does. */
     fun play() {
         page.find(By.id("play")).tap()
         driver.waitForGame("Running")
-        val notice = driver.find(By.id("notice"))
-        if (!notice.exists()) return
-        val title = notice.find(By.id("notice.title")).text()
-        val answer = checkNotNull(app.launchNoticeAnswers[title]) { "Starting the game showed \"$title\", which the test has no answer for" }
-        notice.find(By.id("notice.button").withText(answer)).tap()
-        driver.waitUntil("the notice to close") { !notice.exists() }
+        answerLaunchNotice(driver, app, checkNotNull(game) { "Open the game by its title to play it" })
     }
 
     fun openSettings(): Element {
         page.find(By.id("settings")).tap()
         return driver.page("Game settings").waitUntilShown()
     }
+}
+
+/** Answers the notice starting [game] shows ([AppUnderTest.launchNotice]) as a player does; nothing when it shows none. */
+fun answerLaunchNotice(driver: Driver, app: AppUnderTest, game: String) {
+    val (title, answer) = app.launchNotice(game) ?: return
+    val notice = driver.find(By.id("notice"))
+    notice.find(By.id("notice.title").withText(title)).waitUntilShown()
+    notice.find(By.id("notice.button").withText(answer)).tap()
+    driver.waitUntil("the notice to close") { !notice.exists() }
 }

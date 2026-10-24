@@ -37,10 +37,11 @@ abstract class AppUnderTest {
     open val runningTitle: String get() = bootGame
 
     /**
-     * What a player answers each notice that starting a game from the library shows, by its
-     * title: KairoDos asks whether to remove an eXoDOS installer's ZIP once it installs.
+     * The notice starting [game] shows, from the library or a frontend, and the button a player
+     * answers it with, as (title, button); null when it shows none. KairoDos asks whether to
+     * remove an eXoDOS installer's ZIP each time an installer starts.
      */
-    open val launchNoticeAnswers: Map<String, String> = emptyMap()
+    open fun launchNotice(game: String): Pair<String, String>? = null
 
     /** [bootGame]'s file in the test resources, such as "games/Acrojet.zip", for launches from a frontend. */
     abstract val bootGameFile: String

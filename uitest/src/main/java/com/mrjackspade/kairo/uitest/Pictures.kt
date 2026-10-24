@@ -20,6 +20,12 @@ class Picture(val bitmap: Bitmap) {
     /** The share of sampled pixels that are not nearly black: 0 for a blank screen. */
     fun litFraction(): Double = sample().count { (Color.red(it) + Color.green(it) + Color.blue(it)) > 48 }.toDouble() / samples
 
+    /**
+     * Whether the game drew something: more lit than a line of text, about 0.005 of the screen. A
+     * cursor alone is far less; a game's own text prompt, such as Digger's, is more.
+     */
+    fun drawn(): Boolean = litFraction() > DRAWN
+
     /** How many colours the sampled pixels use: 1 for a blank screen, more for a picture. */
     fun distinctColors(): Int = sample().toSet().size
 
@@ -40,7 +46,10 @@ class Picture(val bitmap: Bitmap) {
         }
     }
 
-    private companion object { const val GRID = 64 }
+    private companion object {
+        const val GRID = 64
+        const val DRAWN = 0.005
+    }
 }
 
 /** Copies what the app shows: the game's picture, and screenshots of every window. */

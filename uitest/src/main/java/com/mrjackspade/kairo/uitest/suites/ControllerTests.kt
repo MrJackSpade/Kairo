@@ -97,7 +97,7 @@ abstract class ControllerTests : KairoUiTest() {
         val code = screens.mapToFirstKey(driver.page("Button mapping").waitUntilShown(), "a")
         driver.press(KeyEvent.KEYCODE_BUTTON_B)
         settings.waitUntilShown().find(By.id("page.back")).tap()
-        com.mrjackspade.kairo.uitest.GamePage(driver, app).play()
+        com.mrjackspade.kairo.uitest.GamePage(driver, app, app.bootGame).play()
         driver.waitFrames(SETTLE_FRAMES)
         expect.that("in ${app.bootGame}, A sends key $code", sends(KeyEvent.KEYCODE_BUTTON_A).contains("key $code down"))
         screens.endGame().open(app.otherGame).play()
