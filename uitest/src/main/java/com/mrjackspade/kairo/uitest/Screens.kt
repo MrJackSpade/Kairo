@@ -305,8 +305,8 @@ class GamePage(private val driver: Driver, private val app: AppUnderTest, privat
 }
 
 /** Answers the notice starting [game] shows ([AppUnderTest.launchNotice]) as a player does; nothing when it shows none. */
-fun answerLaunchNotice(driver: Driver, app: AppUnderTest, game: String) {
-    val (title, answer) = app.launchNotice(game) ?: return
+fun answerLaunchNotice(driver: Driver, app: AppUnderTest, game: String, inLibrary: Boolean = true) {
+    val (title, answer) = app.launchNotice(game, inLibrary) ?: return
     val notice = driver.find(By.id("notice"))
     notice.find(By.id("notice.title").withText(title)).waitUntilShown()
     notice.find(By.id("notice.button").withText(answer)).tap()
