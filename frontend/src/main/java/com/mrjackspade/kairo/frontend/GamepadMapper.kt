@@ -112,7 +112,7 @@ class GamepadMapper(private val router: InputRouter,
     fun key(event: KeyEvent): Boolean {
         if (!KeyEvent.isGamepadButton(event.keyCode) &&
             !event.isFromSource(InputDevice.SOURCE_GAMEPAD) &&
-            !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return false
+            !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) { android.util.Log.i("Kairo", "mapper: not a gamepad event"); return false }
         val input = "button:${event.keyCode}"
         val binding = resolve(input) ?: run {
             android.util.Log.i("Kairo", "no binding for $input: control ${physicalBindings.firstOrNull { it.input == input }?.control}, " +

@@ -63,7 +63,7 @@ class InputDispatchCoordinator(
         // still reach the tray's buttons below.
         if (screen == Screen.MENU && frontend.capturing() && frontend.captureKey(event)) return true
         if (screen == Screen.BUSY) return true
-        if ((screen == Screen.GUEST || screen == Screen.NOTICE) && guestCapture?.key(event) == true) return true
+        if ((screen == Screen.GUEST || screen == Screen.NOTICE) && guestCapture?.key(event) == true) { Log.i("Kairo", "route: guest capture"); return true }
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) back()
             return true
@@ -82,7 +82,9 @@ class InputDispatchCoordinator(
         }
         if (screen == Screen.MENU) return frontend.key(screen, control, event) || android(event)
         if (screen == Screen.NOTICE && frontend.key(screen, control, event)) return true
-        return mapper.key(event) || android(event)
+        val mapped = mapper.key(event)
+        Log.i("Kairo", "route: mapper $mapped")
+        return mapped || android(event)
     }
 
     fun dispatchMotion(event: MotionEvent, android: (MotionEvent) -> Boolean): Boolean {
