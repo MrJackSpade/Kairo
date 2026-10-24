@@ -187,6 +187,7 @@ class GamepadMapper(private val router: InputRouter,
     }
 
     private fun activate(owner: String, binding: ControllerBinding, strength: Float = 1f) {
+        android.util.Log.i("Kairo", "activate $owner: $binding, already active ${owner in active}")
         if (!active.add(owner)) {
             if (binding.mouse?.startsWith("move") == true)
                 mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)

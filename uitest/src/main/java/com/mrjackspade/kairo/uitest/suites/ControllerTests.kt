@@ -42,8 +42,10 @@ abstract class ControllerTests : KairoUiTest() {
     @Test
     fun aIsReturnAndBIsSpace() {
         play()
-        expect.that("A sends Return (key ${app.returnKey})", sends(KeyEvent.KEYCODE_BUTTON_A).contains("key ${app.returnKey} down"))
-        expect.that("B sends Space (key ${app.spaceKey})", sends(KeyEvent.KEYCODE_BUTTON_B).contains("key ${app.spaceKey} down"))
+        val a = sends(KeyEvent.KEYCODE_BUTTON_A)
+        expect.that("A sends Return (key ${app.returnKey})", a.contains("key ${app.returnKey} down")) { a.joinToString() }
+        val b = sends(KeyEvent.KEYCODE_BUTTON_B)
+        expect.that("B sends Space (key ${app.spaceKey})", b.contains("key ${app.spaceKey} down")) { b.joinToString() }
     }
 
     @Test
