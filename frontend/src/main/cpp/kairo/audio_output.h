@@ -52,6 +52,12 @@ public:
     // happens while frames run back to back, as in fast-forward.
     uint32_t write(const int16_t *frames, uint32_t count) { return ring_.write(frames, count); }
 
+    // When frames have run back to back and real time resumes: the device skips what is queued
+    // beyond the target, once. Frames that ran back to back fill the queue to capacity, and
+    // playing all of it put a third of a second of sound behind the picture for over a minute
+    // while pacing drained it (Kairo68#25).
+    void trim_to_target() { trim_.store(true, std::memory_order_release); }
+
     void pause() { AAudioStream_requestPause(stream_); }
     void resume() { AAudioStream_requestStart(stream_); }
 
@@ -105,6 +111,10 @@ private:
             }
             output->primed_.store(true, std::memory_order_relaxed);
         }
+        if (output->trim_.exchange(false, std::memory_order_acquire)) {
+            const uint32_t queued = output->ring_.size();
+            if (queued > output->queue_target_) output->ring_.skip(queued - output->queue_target_);
+        }
         const uint32_t got = output->ring_.read(samples, wanted);
         if (got < wanted) {
             std::memset(samples + got * 2, 0, (wanted - got) * 2 * sizeof(int16_t));
@@ -125,6 +135,7 @@ private:
     // again after it runs dry, so playback resumes with the full cushion rather
     // than crackling frame by frame at the edge of empty.
     std::atomic<bool> primed_{false};
+    std::atomic<bool> trim_{false}; // trim_to_target, for the callback
     std::atomic<int32_t> queue_underruns_{0};
     std::atomic<aaudio_result_t> lost_error_{AAUDIO_OK};
 };

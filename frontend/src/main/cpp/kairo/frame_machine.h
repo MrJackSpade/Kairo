@@ -23,6 +23,7 @@
 
 #include "thread_priority.h"
 #include "audio_output.h"
+#include "frame_report.h"
 #include "surface_presenter.h"
 
 namespace kairo {
@@ -166,7 +167,7 @@ public:
     void set_muted(bool muted) { muted_.store(muted); }
 
     // While set, frames run back to back instead of on the frame grid, and audio
-    // is written only as far as the output queue has room.
+    // fills the output queue; when it ends, what is queued beyond the target is skipped.
     void set_fast_forward(bool enabled) { fast_forward_.store(enabled); }
 
     // "<state>|<error>|<frames>|<audio>|<xruns>|<audio config>|<pictured>": state is
@@ -246,6 +247,8 @@ private:
         open_audio();
 
         std::vector<int16_t> samples(kAudioChunk * 2);
+        FrameReport pacing;
+        bool was_flat_out = false;
         paused_ = false;
         bool stop = false;
         auto next_frame = std::chrono::steady_clock::now();
@@ -287,18 +290,27 @@ private:
             // Running a frame for every input event would run the guest faster than
             // its refresh rate, overfill the audio stream, and push next_frame ahead
             // of real time so audio starves once the input stops.
-            if (std::chrono::steady_clock::now() < next_frame) continue;
+            const auto started = std::chrono::steady_clock::now();
+            if (started < next_frame) continue;
+            const bool flat_out = fast_forward_.load(std::memory_order_relaxed) || core->booting();
+            if (audio && was_flat_out && !flat_out) audio->trim_to_target();
+            was_flat_out = flat_out;
+            pacing.frame_started(started, started - next_frame);
             if (!core->run_frame()) {
                 report("Error", core->error());
                 break;
             }
-            publish(*core);
+            const auto ran = std::chrono::steady_clock::now();
+            if (publish(*core)) pacing.replaced();
+            const auto published = std::chrono::steady_clock::now();
             uint32_t got;
             while ((got = core->read_audio(samples.data(), kAudioChunk)) > 0) {
                 if (muted_.load(std::memory_order_relaxed))
                     std::memset(samples.data(), 0, got * 2 * sizeof(int16_t));
                 if (audio) audio->write(samples.data(), got);
             }
+            pacing.ran(ran - started, published - ran, std::chrono::steady_clock::now() - published);
+            if (audio) pacing.queued(audio->queued());
             {
                 std::string details = core->details();
                 std::lock_guard<std::mutex> guard(command_mutex_);
@@ -316,6 +328,8 @@ private:
             next_frame += std::chrono::nanoseconds(
                 static_cast<int64_t>(core->frame_seconds() * 1e9 * pace));
             const auto now = std::chrono::steady_clock::now();
+            pacing.frame_done(now, 1.0 / core->frame_seconds(), audio ? earlier_underruns + audio->underruns() : 0,
+                              fast_forward_.load(std::memory_order_relaxed) || core->booting());
             if (fast_forward_.load(std::memory_order_relaxed) || core->booting()) next_frame = now;
             else if (now - next_frame > kFrameStall) next_frame = now;
             if (audio && audio->lost_error() != AAUDIO_OK) {
@@ -341,24 +355,27 @@ private:
     }
 
     // Hands the core's current picture to the presenter, replacing one it has
-    // not shown yet.
-    void publish(Core &core) {
+    // not shown yet; true when it did replace one.
+    bool publish(Core &core) {
         uint32_t width = 0, height = 0;
         const uint8_t *pixels = core.frame(width, height);
-        if (!pixels || !width || !height) return;
+        if (!pixels || !width || !height) return false;
         if (!pictured_seen_ && !black(pixels, width, height)) {
             pictured_seen_ = true;
             std::lock_guard<std::mutex> guard(command_mutex_);
             pictured_ = true;
         }
+        bool replaced;
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
+            replaced = has_pending_;
             pending_.assign(pixels, pixels + static_cast<size_t>(width) * height * 4);
             pending_width_ = width;
             pending_height_ = height;
             has_pending_ = true;
         }
         present_ready_.notify_one();
+        return replaced;
     }
 
     // Whether every pixel's colour channels are at most 16 of 255, as a booting

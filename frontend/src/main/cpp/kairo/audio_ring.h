@@ -52,6 +52,13 @@ public:
         return count;
     }
 
+    // Drops up to count of the oldest frames; the reader's alone, like read().
+    void skip(uint32_t count) {
+        const uint64_t tail = tail_.load(std::memory_order_relaxed);
+        const uint64_t head = head_.load(std::memory_order_acquire);
+        tail_.store(tail + std::min<uint64_t>(count, head - tail), std::memory_order_release);
+    }
+
 private:
     static constexpr uint32_t kFrameBytes = 2 * sizeof(int16_t);
     std::vector<int16_t> samples_;
