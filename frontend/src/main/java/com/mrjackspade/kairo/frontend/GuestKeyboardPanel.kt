@@ -154,11 +154,11 @@ class GuestKeyboardPanel(
             })
         }
         if (joystickPage != null) {
-            val tab = TextView(context).apply {
-                text = "Joystick"
-                gravity = Gravity.CENTER
-                textSize = Ui.SECONDARY
-                setTextColor(keyText())
+            val tab = ImageView(context).apply {
+                setImageResource(R.drawable.ic_joystick)
+                imageTintList = keyText()
+                setPadding(dp(10), dp(7), dp(10), dp(7))
+                contentDescription = "Joystick"
                 background = keyBackground(action = true)
                 attachPageSwitch(this, JOYSTICK_PAGE)
             }
