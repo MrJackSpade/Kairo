@@ -99,6 +99,10 @@ def repository_name(root):
     return re.sub(r"\.git$", "", url).rstrip("/").rsplit("/", 1)[-1]
 
 
+# Every app keeps its icon art here (gradle/kairo-app.gradle).
+ICON_ART = "src/main/res/drawable-nodpi/product_icon_art.png"
+
+
 def contexts(registry):
     owner, frontend = registry["owner"], registry["frontend"]
     raw = f"https://raw.githubusercontent.com/{owner}"
@@ -111,7 +115,7 @@ def contexts(registry):
         url = f"https://github.com/{owner}/{app['repo']}"
         hosts = [f"`{host}`" for host in app["artworkHosts"]]
         apps.append({**app, "url": url, "releasesUrl": f"{url}/releases", "issuesUrl": f"{url}/issues",
-                     "iconUrl": f"{raw}/{app['repo']}/main/{app['icon']}", "emulatorId": app["repo"].upper(),
+                     "iconUrl": f"{raw}/{app['repo']}/main/{app['module']}/{ICON_ART}", "emulatorId": app["repo"].upper(),
                      # The Donate banner links every app's store page, published or not yet.
                      "donateUrl": f"https://play.google.com/store/apps/details?id={app['package']}",
                      "artworkHostList": hosts[0] if len(hosts) == 1 else ", ".join(hosts[:-1]) + f" or {hosts[-1]}",
