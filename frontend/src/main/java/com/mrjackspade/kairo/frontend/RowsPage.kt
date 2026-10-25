@@ -50,9 +50,6 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
         return rowsBody.view
     }
 
-    /** Whether the page shows its rows as a recycled list. */
-    protected val recycled: Boolean get() = body is RecycledRows
-
     private fun signatureOf(groups: List<RowGroup>) = groups.joinToString("|") { group ->
         "${group.label}/${group.foot != null}/" + group.rows.joinToString(",") {
             "${it.id}:${it.kind}:${it.description != null}"

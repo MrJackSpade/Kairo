@@ -25,6 +25,7 @@
 #include "audio_output.h"
 #include "frame_report.h"
 #include "surface_presenter.h"
+#include "gl_frame_presenter.h"
 
 namespace kairo {
 
@@ -416,16 +417,17 @@ private:
     // Presentation runs on its own thread: ANativeWindow_lock and eglSwapBuffers
     // wait on the compositor, which must not hold up guest time. It shows the
     // newest frame; one it could not show in time is replaced. With a shader
-    // preset the frame goes through the GPU filter; when the preset cannot run,
-    // the frame is copied to the window as it is.
+    // preset the frame goes through the GPU filter; without one, or when the preset
+    // cannot run, the GPU scales it to the window (GlFramePresenter). One of the two
+    // holds the window at a time.
     void present_loop() {
         name_thread("kairo-present");
         SurfacePresenter shader;
+        GlFramePresenter plain;
         std::vector<uint8_t> frame;
         uint32_t width = 0, height = 0;
         ANativeWindow *window = nullptr;
         unsigned window_generation = ~0u, shader_generation = ~0u;
-        int32_t geometry_width = 0, geometry_height = 0;
         for (;;) {
             {
                 std::unique_lock<std::mutex> guard(present_mutex_);
@@ -446,43 +448,27 @@ private:
                 std::lock_guard<std::mutex> guard(window_mutex_);
                 if (window_generation_.load(std::memory_order_relaxed) != window_generation) {
                     shader.destroy();
+                    plain.destroy();
                     if (window) ANativeWindow_release(window);
                     window = window_;
                     // Keep the window alive after the UI replaces its reference.
                     if (window) ANativeWindow_acquire(window);
                     window_generation = window_generation_.load(std::memory_order_relaxed);
-                    geometry_width = geometry_height = 0;
                 }
                 if (shader_generation_.load(std::memory_order_relaxed) != shader_generation) {
+                    // The window goes to whichever presenter draws the next frame.
+                    plain.destroy();
                     shader.setPreset(shader_preset_);
                     shader_generation = shader_generation_.load(std::memory_order_relaxed);
-                    geometry_width = geometry_height = 0;
                 }
             }
             if (!window || frame.empty()) continue;
             if (shader.render(window, frame.data(), width, height)) continue;
-            draw_software(window, frame, width, height, geometry_width, geometry_height);
+            plain.render(window, frame.data(), width, height);
         }
         shader.destroy();
+        plain.destroy();
         if (window) ANativeWindow_release(window);
-    }
-
-    static void draw_software(ANativeWindow *window, const std::vector<uint8_t> &frame, uint32_t width,
-                              uint32_t height, int32_t &geometry_width, int32_t &geometry_height) {
-        if (geometry_width != static_cast<int32_t>(width) || geometry_height != static_cast<int32_t>(height)) {
-            if (ANativeWindow_setBuffersGeometry(window, width, height, WINDOW_FORMAT_RGBA_8888) != 0) return;
-            geometry_width = width;
-            geometry_height = height;
-        }
-        ANativeWindow_Buffer buffer{};
-        if (ANativeWindow_lock(window, &buffer, nullptr) != 0) return;
-        const uint32_t rows = std::min(height, static_cast<uint32_t>(buffer.height));
-        const size_t row_bytes = static_cast<size_t>(std::min(width, static_cast<uint32_t>(buffer.width))) * 4;
-        for (uint32_t y = 0; y < rows; ++y) {
-            std::memcpy(static_cast<uint8_t *>(buffer.bits) + static_cast<size_t>(y) * buffer.stride * 4,
-                        frame.data() + static_cast<size_t>(y) * width * 4, row_bytes);
-        }
-        ANativeWindow_unlockAndPost(window);
     }
 
     std::mutex lifecycle_mutex_;
