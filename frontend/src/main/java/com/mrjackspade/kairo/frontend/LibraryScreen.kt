@@ -462,6 +462,16 @@ class LibraryScreen<T : LibraryItem>(
         searchIndex.replace(emptyList())
         val worker = visibilityExecutor ?: Executors.newSingleThreadExecutor().also { visibilityExecutor = it }
         worker.execute {
+            // Until the catalog has been read for these entries, a library with nothing on screen
+            // shows them with the entries the last pass hid left out, so a large library appears
+            // at once at startup, while its folder is checked (Kairo#46).
+            if (allEntries.isEmpty() && items.isNotEmpty()) {
+                val lastHidden = hiddenSnapshot.read()
+                if (lastHidden != null) {
+                    val quick = items.filter { it.holdsGame && it.id !in lastHidden }
+                    post { if (generation == entriesGeneration && allEntries.isEmpty()) publishEntries(quick) }
+                }
+            }
             // Records live in catalog shards named by their content ID's first two digits. Walking
             // the entries in that order reads each shard once; in library order, the shard cache
             // turned over for nearly every entry and a library of thousands showed nothing for
@@ -484,11 +494,15 @@ class LibraryScreen<T : LibraryItem>(
             val visible = items.filterNot { it.id in hidden }
             android.util.Log.i("KairoLibrary", "Shown: ${visible.size} of ${items.size} entries in " +
                 "${android.os.SystemClock.elapsedRealtime() - started} ms")
+            hiddenSnapshot.write(hidden)
             post {
                 if (generation == entriesGeneration) publishEntries(visible)
             }
         }
     }
+
+    /** The entries the last visibility pass hid, by id, kept for the next start. */
+    private val hiddenSnapshot = HiddenEntries(java.io.File(context.filesDir, "library-hidden-v1.txt"))
 
     private fun publishEntries(visible: List<T>) {
         val previous = allEntries.associateBy { it.id }
