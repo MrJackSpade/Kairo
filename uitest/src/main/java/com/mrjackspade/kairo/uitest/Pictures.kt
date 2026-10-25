@@ -79,23 +79,28 @@ class Pictures internal constructor(private val driver: Driver) {
         }
     }
 
-    /** An activity's window, with its surfaces (which a window copy leaves blank) drawn in place. */
+    /**
+     * An activity's window, with its surfaces (which a window copy leaves blank) drawn in place:
+     * under the window, as the screen shows them, so a page over the game covers the picture.
+     */
     private fun window(activity: Activity): Bitmap {
         val window: Window = activity.window
         val decor = driver.onMain { window.decorView }
         val (width, height) = driver.onMain { decor.width to decor.height }
-        val bitmap = Bitmap.createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val views = Bitmap.createBitmap(width.coerceAtLeast(1), height.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
         val latch = CountDownLatch(1)
         var result = PixelCopy.ERROR_UNKNOWN
-        PixelCopy.request(window, bitmap, { result = it; latch.countDown() }, handler)
+        PixelCopy.request(window, views, { result = it; latch.countDown() }, handler)
         latch.await()
         check(result == PixelCopy.SUCCESS) { "Copying the window of ${activity.localClassName} failed ($result)" }
         val surfaces = driver.onMain { Views.descendants(decor).filterIsInstance<SurfaceView>().filter(Views::onScreen).toList() }
+        val bitmap = Bitmap.createBitmap(views.width, views.height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         for (surface in surfaces) {
             val bounds = driver.onMain { Views.boundsInWindow(surface) }
             canvas.drawBitmap(copy(surface), null, bounds, null)
         }
+        canvas.drawBitmap(views, 0f, 0f, null)
         return bitmap
     }
 

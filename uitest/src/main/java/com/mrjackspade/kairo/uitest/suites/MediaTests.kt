@@ -35,25 +35,42 @@ abstract class MediaTests : KairoUiTest() {
     }
 
     /**
-     * Picks the disk named [name] from the drive's [choices]: among the game's own disks, or else
-     * on Other's page, scrolled to; returns once the choice has closed.
+     * Picks the [disk] option from the drive's [choices]: among the game's own disks, or else on
+     * Other's page, scrolled to; returns once the choice has closed.
      */
-    private fun pick(choices: Element, name: String) {
-        // Options only: the Other row shows the inserted disk's name as its value.
-        val own = choices.find(option().withTextContaining(name))
+    private fun pick(choices: Element, disk: By) {
+        val own = choices.find(disk)
         if (own.exists()) own.tap()
         else {
             choices.find(By.item("f:other")).tap()
             val other = driver.page("Other").waitUntilShown()
-            other.find(option().withTextContaining(name)).revealIn(other.find(By.id("page.list"))).tap()
+            other.find(disk).revealIn(rows(other)).tap()
         }
         driver.waitUntil("the disk choice to close") { !driver.page(swap.slot).exists() && !driver.page("Other").exists() }
     }
 
-    /** A disk option of a choice page (its rows are "o:<entry id>"). */
-    private fun option() = By.idMatching(Regex("o:.+"))
+    /** The rows of a choice [page]: a recycled list on a long page, a scroll view on a short one. */
+    private fun rows(page: Element): Element {
+        val list = page.find(By.id("page.list"))
+        val scroll = page.find(By.id("page.scroll"))
+        driver.waitUntil("the rows of ${page.description}") { list.exists() || scroll.exists() }
+        return if (list.exists()) list else scroll
+    }
+
+    /**
+     * Disk options of a choice page, by their ids ("o:<entry id>", the path below the games folder
+     * and inside an archive): a row's label names an archive of one disk by the archive alone.
+     */
+    private fun diskWith(part: String) = By.idMatching(Regex("o:.*${Regex.escape(part)}.*"))
+
+    /** The option of the disk image the machine reports as [file]. */
+    private fun disk(file: String) = By.idMatching(Regex("o:(.*/)?${Regex.escape(file)}"))
 
     private fun drive(): String = driver.probeNow().details["media.${swap.slot}"].orEmpty()
+
+    /** What every drive holds now, empty drives left out. */
+    private fun media(): List<String> =
+        driver.probeNow().details.filterKeys { it.startsWith("media.") }.values.filter { it.isNotEmpty() }
 
     private fun awaitDrive(what: String, holds: (String) -> Boolean) =
         driver.waitUntil("${swap.slot} to hold $what") { holds(drive()) }
@@ -67,7 +84,7 @@ abstract class MediaTests : KairoUiTest() {
     @Test
     fun insertingADiskPutsItInTheDrive() {
         requireMediaPage()
-        pick(startAndOpenChoice(), swap.insert)
+        pick(startAndOpenChoice(), diskWith(swap.insert))
         awaitDrive(swap.insert) { it.contains(swap.insert) }
         screens.closeMenu()
         driver.waitForGame("Running")
@@ -89,7 +106,9 @@ abstract class MediaTests : KairoUiTest() {
         requireMediaPage()
         val choices = startAndOpenChoice()
         val started = drive()
-        pick(choices, swap.insert)
+        // The first game's own disks, for a second game that already has the usual disk in a drive.
+        val firstDisks = media().filterNot { it.contains(swap.insert) }
+        pick(choices, diskWith(swap.insert))
         awaitDrive(swap.insert) { it.contains(swap.insert) }
         screens.closeMenu()
         expectRunning()
@@ -98,19 +117,27 @@ abstract class MediaTests : KairoUiTest() {
         if (started.isEmpty()) {
             back.find(By.item("o:empty")).tap()
             back.waitUntilGone()
-        } else pick(back, started.substringBeforeLast('.'))
+        } else pick(back, disk(started))
         awaitDrive("its first disk again") { it == started }
         screens.closeMenu()
         expectRunning()
-        pick(openChoice(), swap.insert)
+        pick(openChoice(), diskWith(swap.insert))
         awaitDrive(swap.insert) { it.contains(swap.insert) }
         screens.closeMenu()
         expectRunning()
         // A second game in the same session of the app.
         screens.endGame()
         val second = if (app.bootGame != swap.game) app.bootGame else app.otherGame
-        pick(startAndOpenChoice(second, fromLibrary = true), swap.insert)
-        awaitDrive(swap.insert) { it.contains(swap.insert) }
+        val secondChoices = startAndOpenChoice(second, fromLibrary = true)
+        // A disk the second game is not using: one image goes in one drive at a time.
+        if (media().any { it.contains(swap.insert) }) {
+            val insert = firstDisks.first()
+            pick(secondChoices, disk(insert))
+            awaitDrive(insert) { it == insert }
+        } else {
+            pick(secondChoices, diskWith(swap.insert))
+            awaitDrive(swap.insert) { it.contains(swap.insert) }
+        }
         screens.closeMenu()
         expectRunning()
     }
@@ -135,7 +162,7 @@ abstract class MediaTests : KairoUiTest() {
         driver.log.step("timing", "choice $choiceMillis ms, Other $otherMillis ms with $FILLER_DISKS filler disks")
         expect.that("the drive's choice opens promptly", choiceMillis < PROMPT_MILLIS) { "$choiceMillis ms" }
         expect.that("Other opens promptly with $FILLER_DISKS more disks", otherMillis < PROMPT_MILLIS) { "$otherMillis ms" }
-        other.find(option().withTextContaining(swap.insert)).revealIn(other.find(By.id("page.list"))).tap()
+        other.find(diskWith(swap.insert)).revealIn(rows(other)).tap()
         awaitDrive(swap.insert) { it.contains(swap.insert) }
         screens.closeMenu()
         expectRunning()

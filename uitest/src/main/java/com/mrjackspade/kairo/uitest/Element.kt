@@ -82,16 +82,30 @@ class Element internal constructor(private val driver: Driver, private val path:
         driver.waitUntil("the pages to settle") { !driver.find(By.id("pages").withKey("moving")).exists() }
         if (!driver.onMain { current()?.let(Views::tappable) == true }) {
             driver.log.step("scroll", "$description into view")
-            driver.onMain { current()?.let { it.requestRectangleOnScreen(android.graphics.Rect(0, 0, it.width, it.height), true) } }
-            driver.waitUntil("$description to be on screen") { driver.onMain { current()?.let(Views::tappable) == true } }
+            // Asked again until it is there: a page that has just opened may still be scrolling its
+            // focused row into view, and that scroll ends where it was going, over this one.
+            driver.waitUntil("$description to be on screen") {
+                driver.onMain {
+                    val view = current() ?: return@onMain false
+                    if (Views.tappable(view)) return@onMain true
+                    view.requestRectangleOnScreen(android.graphics.Rect(0, 0, view.width, view.height), true)
+                    false
+                }
+            }
             waitUntilShown()
         }
-        val point = driver.onMain {
-            val view = checkNotNull(current()) { "$description went away before the tap" }
-            driver.log.step("tap", description, mapOf("view" to Views.describe(view), "bounds" to Views.boundsInWindow(view).toShortString()))
-            driver.tapPoint(view)
+        // Found again at the moment of the tap: a list that refreshes its rows (the library after a
+        // scan) has none for a moment between the waits above and this.
+        var point: Driver.TapPoint? = null
+        driver.waitUntil("$description to take the tap") {
+            driver.onMain {
+                val view = current()?.takeIf(Views::tappable) ?: return@onMain false
+                driver.log.step("tap", description, mapOf("view" to Views.describe(view), "bounds" to Views.boundsInWindow(view).toShortString()))
+                point = driver.tapPoint(view)
+                true
+            }
         }
-        driver.tap(point)
+        driver.tap(checkNotNull(point))
         driver.idle()
         return this
     }
