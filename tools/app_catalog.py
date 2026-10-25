@@ -14,8 +14,9 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "artwork": {...},                                         or a reviewed compact pick
       "contentIds": [...], "sourceGroups": [...],               media this game is known by
       "diskSets": {"<entry>": {"setDisks": [...], "media": [...]}},   one library entry per disk set
-      "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk asks for, and its "commands":
-                                                                the lines typed at the machine's prompt to start it
+      "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk asks for, its "commands" (the
+                                                                lines typed at the machine's prompt to start it) and
+                                                                "launch" (other launch fields, LAUNCH_FIELDS)
       "diskHidden": [...],                                      disks behind a set entry other games share
       "adult": true,                                            heart marker, core-review exclusion
       "hidden": true,                                           not a game: never listed in the library
@@ -68,7 +69,9 @@ def lookup_name(value):
 COMMAND_LINE = re.compile(r"[ -~]{1,40}")
 
 
-def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
+def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, launch_fields=None):
+    """[launch_fields] maps each launch field an app has besides "commands" to the pattern its value matches."""
+    launch_fields = {name: re.compile(pattern) for name, pattern in (launch_fields or {}).items()}
     content_id = re.compile(r"sha256-(?:" + "|".join(sorted(kinds)) + r")-v1:[0-9a-f]{64}\Z")
 
     def validate_record(record):
@@ -111,12 +114,19 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None):
                     "invalid controller defaults")
         if "launch" in record:
             # The lines typed at the machine's prompt to start the game, one command each.
+            # The lines typed at the machine's prompt to start the game, one command each, and the
+            # app's other launch fields (LAUNCH_FIELDS), such as the program a desktop starts.
             launch = record["launch"]
-            commands = launch.get("commands") if isinstance(launch, dict) else None
-            require(isinstance(launch, dict) and set(launch) == {"commands"} and isinstance(commands, list) and
-                    1 <= len(commands) <= 8 and
-                    all(isinstance(line, str) and COMMAND_LINE.fullmatch(line) for line in commands),
-                    "invalid startup commands")
+            require(isinstance(launch, dict) and launch and set(launch) <= {"commands", *launch_fields},
+                    "unknown launch field")
+            if "commands" in launch:
+                commands = launch["commands"]
+                require(isinstance(commands, list) and 1 <= len(commands) <= 8 and
+                        all(isinstance(line, str) and COMMAND_LINE.fullmatch(line) for line in commands),
+                        "invalid startup commands")
+            for field, pattern in launch_fields.items():
+                require(field not in launch or (isinstance(launch[field], str) and pattern.fullmatch(launch[field])),
+                        f"invalid launch {field}")
         machine = record.get("machine", {})
         require(isinstance(machine, dict) and ("machine" not in record or machine_options) and
                 all(value in machine_options.get(option, ()) for option, value in machine.items()),
@@ -156,7 +166,7 @@ def metadata(key, entry, config):
 def generate(root, check=False):
     config = load_config(root)
     validate_record = validator(config.KINDS, config.ARTWORK, {role for _, role, _ in config.COMPANION.values()},
-                                getattr(config, "MACHINE_OPTIONS", None))
+                                getattr(config, "MACHINE_OPTIONS", None), getattr(config, "LAUNCH_FIELDS", None))
     research = json.loads((root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))
     require(research.get("schemaVersion") == 1, "unsupported research schema")
     policy = json.loads((root / "catalog/core-review-v1.json").read_text(encoding="utf-8"))
@@ -174,12 +184,15 @@ def generate(root, check=False):
             own.setdefault(disk, {})["hidden"] = True
         for disk, settings in entry.get("diskMachine", {}).items():
             settings = dict(settings)
-            # The startup commands are their own field; the rest are machine settings.
+            # The startup commands and other launch fields are the disk's launch; the rest are machine settings.
+            launch = dict(settings.pop("launch", {}))
             commands = settings.pop("commands", None)
+            if commands:
+                launch["commands"] = commands
             if settings:
                 own.setdefault(disk, {})["machine"] = settings
-            if commands:
-                own.setdefault(disk, {})["launch"] = {"commands": commands}
+            if launch:
+                own.setdefault(disk, {})["launch"] = launch
         for disk, fields in sorted(own.items()):
             require(disk in entry.get("contentIds", []), f"{key}: {disk} is not one of its disks")
             source_games.append({"contentIds": [disk], "game": key, **fields})

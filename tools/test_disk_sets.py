@@ -24,6 +24,22 @@ class DiskSetsTest(unittest.TestCase):
                  disk("Angelus/Angelus [FD].7z", "Angelus (User Disk).d88", FD + "user")]
         self.assertEqual(disk_sets(disks, ["fd"], FLOPPY_B), {FD + "a": {"setDisks": [FD + "alt", FD + "user"]}})
 
+    def test_a_data_disk_never_starts_a_set_and_hides_behind_the_folders_main_release(self):
+        # KairoST#36/#37: Astaroth's second disk, read sector by sector, has nothing that starts.
+        disks = [disk("ST/Astaroth (1989)(Hewson)[cr Delight].zip", None, FD + "crack"),
+                 disk("ST/Astaroth (1989)(Hewson)(Disk 2 of 2)[Disk 2 in Games STX].zip", None, FD + "d2"),
+                 disk("STX/Astaroth (1989)(Hewson)(Disk 1 of 2).zip", None, FD + "x1"),
+                 disk("STX/Astaroth (1989)(Hewson)(Disk 2 of 2).zip", None, FD + "x2")]
+        data = {FD + "d2", FD + "x2"}
+        self.assertEqual(disk_sets(disks, ["fd"], {}, lambda content_id: content_id in data),
+                         {FD + "crack": {"setDisks": [FD + "d2"]}, FD + "x1": {"setDisks": [FD + "x2"]}})
+
+    def test_a_set_of_only_data_disks_has_no_entry(self):
+        disks = [disk("Game/Game (Disk 1 of 2).zip", None, FD + "1"), disk("Game/Game (Disk 2 of 2).zip", None, FD + "2"),
+                 disk("Game/Other Game.zip", None, FD + "other")]
+        self.assertEqual(disk_sets(disks, ["fd"], {}, lambda content_id: content_id != FD + "other"),
+                         {FD + "other": {"setDisks": [FD + "1", FD + "2"]}})
+
     def test_tosec_archives_of_one_set_group_by_the_name_before_the_disk_tag(self):
         disks = [disk("Fray (1990)(Micro Cabin)(JP)(Disk 3 of 5)(Opening Disk 2).zip", None, FD + "3"),
                  disk("Fray (1990)(Micro Cabin)(JP)(Disk 1 of 5)(Program).zip", None, FD + "1"),

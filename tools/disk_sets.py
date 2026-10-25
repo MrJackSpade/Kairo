@@ -3,7 +3,8 @@
 A set is the disks of one archive, or archives that differ only from their disk tag on, as
 TOSEC names each disk "Title (Year)(Publisher)(Disk 2 of 3)(Side B).zip". In a set:
   - alternate dumps (in an `alts/` folder or tagged `[Alt N]`), user disks (the blank disk a
-    game saves to) and utility disks never start the game;
+    game saves to), utility disks and data disks (the app's [data_disk]: a disk nothing on it can
+    start, as a game's second disk read sector by sector) never start the game;
   - the entry disk is the set's first by its disk tag, preferring the kinds the app boots from
     first (a CD before a floppy);
   - every other disk is hidden behind the entry (`setDisks`), and one companion disk can be
@@ -155,10 +156,11 @@ def ungrouped_sets(archives, games):
     return result
 
 
-def disk_sets(disks, boot_kinds, companion):
+def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False):
     """The disk sets of one game's [disks], each {archive, member, contentId}. [boot_kinds] lists
     the kinds the app starts from, preferred first; [companion] maps an entry's kind to (the kind
-    of disk inserted beside it, its media role, whether a user disk may be that disk). Returns
+    of disk inserted beside it, its media role, whether a user disk may be that disk); [data_disk]
+    tells a disk that can never start a game, by content ID. Returns
     {entry content ID: {"setDisks": [...], "media": [...]}} for each entry that hides other disks."""
     sets = {}
     for disk in disks:
@@ -180,9 +182,9 @@ def disk_sets(disks, boot_kinds, companion):
         alternates = [d for d in alternates if place(d) in clean or standing_in[place(d)] != d]
         users = [d for d in members if d not in alternates and USER_DISK.search(name(d))]
         mains = [d for d in members if d not in alternates and d not in users and not UTILITY.search(name(d)) and
-                 kind(d["contentId"]) in boot_kinds]
+                 kind(d["contentId"]) in boot_kinds and not data_disk(d["contentId"])]
         if not mains:
-            # An archive of only a user, utility or alternate disk: it hides behind the folder's main release.
+            # An archive of only a user, utility, data or alternate disk: it hides behind the folder's main release.
             orphans.setdefault(set_key[0], set()).update(disk["contentId"] for disk in members)
             continue
         mains.sort(key=lambda d: (boot_kinds.index(kind(d["contentId"])), _order(name(d))))
