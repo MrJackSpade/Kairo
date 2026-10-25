@@ -336,7 +336,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     try {
                         requireNotNull(data) { image.missing() }
                         reuse(scan.prior[candidate.id], candidate, scan) ?: run {
-                            scan.hashStarted("${source.path}/${image.name}")
+                            // The member's name in the archive's folder: the archive's own name
+                            // mostly repeats it, and a shorter status keeps its count in view.
+                            val folder = source.path.substringBeforeLast('/', "")
+                            val member = image.name.substringAfterLast('/')
+                            scan.hashStarted(if (folder.isEmpty()) member else "$folder/$member")
                             candidate.copy(contentId = archive.open(data).use {
                                 contentId(it, data.size, data.crc, scan.cancelled, image.name, onRead = scan::hashRead)
                             })
