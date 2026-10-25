@@ -53,10 +53,7 @@ class ExternalGameDispatcher<T>(
                     return@runOnUiThread
                 cancellation = null
                 result.onSuccess { inspected ->
-                    val library = knownEntries()
-                    val entries = inspected.map { entry ->
-                        contentId(entry)?.let { id -> library.singleOrNull { contentId(it) == id } } ?: entry
-                    }
+                    val entries = ExternalGameIntent.libraryGames(inspected, knownEntries(), contentId)
                     onResolved(entries, entries.any { it in inspected })
                 }.onFailure { failure ->
                     showStatus("Could not open ${request.name}: ${failure.message}")

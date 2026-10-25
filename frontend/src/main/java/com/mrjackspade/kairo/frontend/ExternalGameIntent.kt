@@ -54,6 +54,17 @@ object ExternalGameIntent {
         return ExternalGameFile(uri, label, size, modified)
     }
 
+    /**
+     * The library's game for each entry read from an outside file whose content exactly one
+     * library game holds, else the entry itself: a frontend app hands over its own URI or a path
+     * for a file in the library folder, and the library's game keeps its saves and settings
+     * (Kairo98#63).
+     */
+    fun <T> libraryGames(inspected: List<T>, library: List<T>, contentId: (T) -> String?): List<T> =
+        inspected.map { entry ->
+            contentId(entry)?.let { id -> library.singleOrNull { contentId(it) == id } } ?: entry
+        }
+
     /** A tree URI and a document URI can name the same SAF file with different strings. */
     fun sameDocument(first: Uri, second: Uri): Boolean {
         if (first == second) return true
