@@ -462,16 +462,24 @@ class LibraryScreen<T : LibraryItem>(
         searchIndex.replace(emptyList())
         val worker = visibilityExecutor ?: Executors.newSingleThreadExecutor().also { visibilityExecutor = it }
         worker.execute {
+            // Records live in catalog shards named by their content ID's first two digits. Walking
+            // the entries in that order reads each shard once; in library order, the shard cache
+            // turned over for nearly every entry and a library of thousands showed nothing for
+            // seconds after its cache was read (Kairo#46).
+            val byShard = items.sortedBy { entry -> catalog.matchId(entry)?.substringAfter(':')?.take(2) ?: "" }
             // A set's entry point stands for its other disks only while it is in the library.
             val setDisks = HashSet<String>()
-            for (entry in items) {
+            for (entry in byShard) {
                 if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
                 if (entry.playable) setDisks.addAll(catalog.setDisks(entry))
             }
-            val visible = items.filterNot { entry ->
+            val hidden = HashSet<String>()
+            for (entry in byShard) {
                 if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
-                !entry.holdsGame || catalog.matchId(entry)?.let { it in setDisks } == true || catalog.hiddenFromLibrary(entry)
+                if (!entry.holdsGame || catalog.matchId(entry)?.let { it in setDisks } == true ||
+                    catalog.hiddenFromLibrary(entry)) hidden += entry.id
             }
+            val visible = items.filterNot { it.id in hidden }
             post {
                 if (generation == entriesGeneration) publishEntries(visible)
             }
