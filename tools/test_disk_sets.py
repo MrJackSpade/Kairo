@@ -34,6 +34,24 @@ class DiskSetsTest(unittest.TestCase):
         self.assertEqual(disk_sets(disks, ["fd"], {}, lambda content_id: content_id in data),
                          {FD + "crack": {"setDisks": [FD + "d2"]}, FD + "x1": {"setDisks": [FD + "x2"]}})
 
+    def test_a_broken_dump_hides_behind_one_that_plays(self):
+        # KairoST#38: 9 Lives halts on every TOS; its cracks play.
+        disks = [disk("ST/9 Lives (1990)(Frames).zip", None, FD + "clean"),
+                 disk("ST/9 Lives (1990)(Frames)[cr Empire].zip", None, FD + "empire"),
+                 disk("ST/9 Lives (1990)(Frames)[cr Atari Legend][t].zip", None, FD + "legend")]
+        broken = {FD + "clean"}
+        sets = disk_sets(disks, ["fd"], {}, broken_disk=lambda content_id: content_id in broken)
+        self.assertEqual(list(sets), [FD + "empire"])
+        self.assertEqual(set(sets[FD + "empire"]["setDisks"]), {FD + "clean", FD + "legend"})
+
+    def test_a_broken_disk_is_not_a_sets_entry_while_another_disk_works(self):
+        disks = [disk("Game/Game [FD].7z", "Game (Disk A).d88", FD + "a"),
+                 disk("Game/Game [FD].7z", "Game (Disk B).d88", FD + "b")]
+        self.assertEqual(disk_sets(disks, ["fd"], {}, broken_disk=lambda content_id: content_id == FD + "a"),
+                         {FD + "b": {"setDisks": [FD + "a"]}})
+        self.assertEqual(disk_sets(disks, ["fd"], {}, broken_disk=lambda content_id: True),
+                         {FD + "a": {"setDisks": [FD + "b"]}})
+
     def test_a_set_of_only_data_disks_has_no_entry(self):
         disks = [disk("Game/Game (Disk 1 of 2).zip", None, FD + "1"), disk("Game/Game (Disk 2 of 2).zip", None, FD + "2"),
                  disk("Game/Other Game.zip", None, FD + "other")]

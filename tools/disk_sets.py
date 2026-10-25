@@ -6,7 +6,8 @@ TOSEC names each disk "Title (Year)(Publisher)(Disk 2 of 3)(Side B).zip". In a s
     game saves to), utility disks and data disks (the app's [data_disk]: a disk nothing on it can
     start, as a game's second disk read sector by sector) never start the game;
   - the entry disk is the set's first by its disk tag, preferring the kinds the app boots from
-    first (a CD before a floppy);
+    first (a CD before a floppy), and a disk that works over one the app's [broken_disk] names
+    (a disk that stops on every system the app has); a set of only broken disks keeps its order;
   - every other disk is hidden behind the entry (`setDisks`), and one companion disk can be
     inserted beside it at launch (`media`), by the app's [companion] rule.
 Alternate dumps of a whole set ("Title [FD] [Set 2].7z") keep their own entries, but the first
@@ -156,11 +157,14 @@ def ungrouped_sets(archives, games):
     return result
 
 
-def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False):
+def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False,
+              broken_disk=lambda content_id: False):
     """The disk sets of one game's [disks], each {archive, member, contentId}. [boot_kinds] lists
     the kinds the app starts from, preferred first; [companion] maps an entry's kind to (the kind
     of disk inserted beside it, its media role, whether a user disk may be that disk); [data_disk]
-    tells a disk that can never start a game, by content ID. Returns
+    tells a disk that can never start a game, by content ID, and [broken_disk] one that stops on
+    every system the app has, which leads its set, its dump sets and its folder only when nothing
+    else can. Returns
     {entry content ID: {"setDisks": [...], "media": [...]}} for each entry that hides other disks."""
     sets = {}
     for disk in disks:
@@ -187,7 +191,7 @@ def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False):
             # An archive of only a user, utility, data or alternate disk: it hides behind the folder's main release.
             orphans.setdefault(set_key[0], set()).update(disk["contentId"] for disk in members)
             continue
-        mains.sort(key=lambda d: (boot_kinds.index(kind(d["contentId"])), _order(name(d))))
+        mains.sort(key=lambda d: (broken_disk(d["contentId"]), boot_kinds.index(kind(d["contentId"])), _order(name(d))))
         entry = mains[0]["contentId"]
         group, number = _dump_set(set_key)
         dump_sets.setdefault(group, []).append((number, entry))
@@ -221,7 +225,8 @@ def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False):
     # The first dump set's entry hides the other sets' entries.
     firsts = {}  # each release's first set entry, by (folder, release name)
     for group_key, group in dump_sets.items():
-        group.sort()
+        # A dump set whose entry works comes before one whose entry is broken.
+        group.sort(key=lambda item: (broken_disk(item[1]), item))
         firsts[group_key] = group[0][1]
         found[group[0][1]]["setDisks"] |= {entry for _, entry in group[1:]}
     # The main release in each folder hides the game's other releases there.
@@ -229,7 +234,8 @@ def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False):
     folders = {}
     for (folder, name), entry in firsts.items():
         # The kind the app starts from first wins, as a floppy release over a tape one.
-        folders.setdefault(folder, []).append(((boot_kinds.index(kind(entry)), *_release_rank(name)), entry))
+        folders.setdefault(folder, []).append(((broken_disk(entry), boot_kinds.index(kind(entry)), *_release_rank(name)),
+                                               entry))
     for folder, releases in folders.items():
         releases.sort()
         main = releases[0][1]

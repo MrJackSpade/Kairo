@@ -37,7 +37,9 @@ disks hidden on their own, behind a set entry shared with other games. An option
 MACHINE(disk name, scan set name, content ID) gives the machine settings a disk needs: "diskMachine"
 maps the disk to them. Its "commands" and "launch" (an object of launch fields, such as KairoST's
 "program") become the disk record's "launch". An optional DATA_DISK(content ID) names the disks that
-can never start a game (disk_sets.py): such a disk is never a set's entry.
+can never start a game (disk_sets.py): such a disk is never a set's entry. An optional
+BROKEN_DISK(content ID) names disks that stop on every system the app has: one leads its set, dump
+sets or folder only when every other candidate is broken too.
 
 An archive matches a LaunchBox game when its file name's title equals the game's name or an
 alias and the years agree within one, or when the closest fuzzy title scores at least 0.93 with
@@ -418,7 +420,8 @@ def assemble(root, moby_root):
     # starts a set, the set's other disks are hidden by records of their own ("diskHidden").
     # A shared disk that starts a set in one game stays listed: no other game's set hides it.
     data_disk = getattr(config, "DATA_DISK", lambda content_id: False)
-    all_sets = {key: disk_sets(game_disks, config.BOOT_KINDS, config.COMPANION, data_disk)
+    broken_disk = getattr(config, "BROKEN_DISK", lambda content_id: False)
+    all_sets = {key: disk_sets(game_disks, config.BOOT_KINDS, config.COMPANION, data_disk, broken_disk)
                 for key, game_disks in sorted(disks.items())}
     shared_entries = {entry for sets in all_sets.values() for entry in sets if entry in shared}
     for key, sets in all_sets.items():
