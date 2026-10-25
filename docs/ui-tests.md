@@ -129,6 +129,8 @@ Each app's own tests:
 | KairoMSX (`MsxTests`) | A turbo R game starts on the FS-A1GT; its kanji font is found by content; an MSX-BASIC cartridge starts on real firmware and draws; an MSX1 cartridge starts on C-BIOS MSX1; a game's own machine choice wins; The Dam Busters starts from the Start button. |
 | Kairo98 (`Pc98Tests`) | The Disks page shows each drive; ejecting a floppy empties it; the built-in font stands in until one is imported. |
 | KairoDos (`DosTests`) | An eXoDOS installer installs and runs on its first launch; the ARM64 dynamic core runs generated code; the video card choice is kept. |
+| KairoST (`StTests`) | A touch on the on-screen keyboard reaches the game within half a second. |
+| Kairo64 (`C64Tests`) | A game set to the player's C64 firmware starts on it and draws; a game set to the 1541 runs the drive and draws. |
 
 KairoDos has no saved states, so it runs no `StateTests`; Kairo98 and KairoDos have no shared media
 page (Kairo98's Disks page has its own tests).
@@ -199,9 +201,11 @@ test package, plus its own class:
 | Kairo68 | `com.mrjackspade.kairo68.uitest` | all thirteen | `X68000Tests` |
 | KairoTowns | `com.mrjackspade.kairotowns.uitest` | all thirteen | `FmTownsTests` |
 | KairoMSX | `com.mrjackspade.kairomsx.uitest` | all thirteen | `MsxTests` |
+| KairoST | `com.mrjackspade.kairost.uitest` | all thirteen | `StTests` |
+| Kairo64 | `com.mrjackspade.kairo64.uitest` | all thirteen | `C64Tests` |
 
 The thirteen are FirstRun, Library, Search, Game, Wording, Menu, Controller, Touch, Launch, State,
-Media, LibraryManagement and Settings. KairoMSX's prefix is `KairoMsx` (`KairoMsxMenuTests`).
+Media, LibraryManagement and Settings. KairoMSX's prefix is `KairoMsx` (`KairoMsxMenuTests`) and KairoST's `KairoSt` (`KairoStMenuTests`).
 
 ### What it leaves on the device
 
