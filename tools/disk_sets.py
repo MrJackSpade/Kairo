@@ -25,6 +25,8 @@ USER_DISK = re.compile(r"user\s*disk|\+\s*userdisk|save\s*disk", re.I)
 ROLES = [re.compile(r"\b(?:boot|system|program|master|main|game|player)\b", re.I),
          re.compile(r"\b(?:opening|title)\b", re.I), None,
          re.compile(r"\bscenario\b", re.I), re.compile(r"\bdata\b", re.I)]
+# A tagged disk named as the one the game starts from beside its number: "(Disk 3) (Boot)".
+BOOT_NOTE = re.compile(r"\(\s*(?:boot|system|program)(?:\s+disk)?\s*\)", re.I)
 ALTERNATE = re.compile(r"(?:^|/)alts/|\[alt\b", re.I)
 UTILITY = re.compile(r"\(\s*utility\b", re.I)
 # A note that marks a disk as a damaged or altered copy: "(invincibility hack)", "[bad sectors]", "[b]".
@@ -51,14 +53,17 @@ def _role(name):
 
 
 def _order(name):
-    """Sorts an untagged disk the game starts from (its boot, system or program disk) first, then by disk
-    tag: numbers by value, letters by position; other untagged names after, by role. A damaged or altered
-    copy follows the clean disk of its place, then names break ties."""
+    """Sorts a disk the game starts from first: an untagged boot, system or program disk, or a tagged one
+    whose name says so ("(Disk 3) (Boot)"); then by disk tag: numbers by value, letters by position;
+    other untagged names after, by role. A damaged or altered copy follows the clean disk of its place,
+    then names break ties."""
     flawed = bool(FLAW.search(name))
     match = DISK_TAG.search(name)
     if not match:
         role = _role(name)
         return (0 if role == 0 else 2, role, flawed, name.lower())
+    if BOOT_NOTE.search(name):
+        return (0, 0, flawed, name.lower())
     token = match.group(1).lower()
     return (1, int(token) if token.isdigit() else ord(token) - ord("a") + 1, flawed, name.lower())
 

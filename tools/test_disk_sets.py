@@ -205,6 +205,12 @@ class DiskSetsTest(unittest.TestCase):
         self.assertEqual(media("Xak (Disk 1 - Demo disk A).d88", "Xak (Disk 2 - Demo disk B).d88"),
                          [{"role": "floppyB", "contentId": FD + "1"}])
 
+    def test_a_tagged_disk_named_as_the_boot_disk_starts_the_set(self):
+        # Kairo64#6: Elvira II starts from its third disk, the one named (Boot).
+        disks = [disk(f"C64/Elvira II (Europe) ({tag}).D64", None, "sha256-disk-v1:" + key)
+                 for tag, key in (("Disk 1 Side A", "1a"), ("Disk 1 Side B", "1b"), ("Disk 3) (Boot", "3"))]
+        self.assertEqual(list(disk_sets(disks, ["disk"], {})), ["sha256-disk-v1:3"])
+
     def test_a_disk_kept_only_as_alternate_dumps_starts_from_its_first_one(self):
         disks = [disk("Prajator/Prajator [FD].7z", "Prajator (Disk A).d88", FD + "a"),
                  disk("Prajator/Prajator [FD].7z", "Prajator (Disk B).d88", FD + "b"),
