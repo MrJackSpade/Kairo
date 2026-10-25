@@ -307,6 +307,19 @@ class GamePage(private val driver: Driver, private val app: AppUnderTest, privat
         if (!settings.exists()) page.find(By.id("settings")).tap()
         return settings.waitUntilShown()
     }
+
+    /** Whether the game's settings are on a two-screen device's lower screen, beside its page. */
+    val settingsBeside: Boolean get() = driver.find(By.id("secondary.library")).find(By.page("Game settings")).exists()
+
+    /**
+     * Back from the game's settings to its page: Back on one screen. On two screens the settings
+     * stay on the lower screen while the page is open above (Kairo#43), so there is nothing to leave.
+     */
+    fun closeSettings() {
+        if (settingsBeside) return
+        driver.press(android.view.KeyEvent.KEYCODE_BUTTON_B)
+        page.find(By.id("play")).waitUntilShown()
+    }
 }
 
 /** Answers the notice starting [game] shows ([AppUnderTest.launchNotice]) as a player does; nothing when it shows none. */

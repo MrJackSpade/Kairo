@@ -329,6 +329,9 @@ private:
             if (audio) pacing.queued(audio->queued());
             {
                 std::string details = core->details();
+                // Whether the core still loads flat out (MachineCore::booting), as the UI tests
+                // read it ("core.booting") before timing the game.
+                if (core->booting()) details += details.empty() ? "booting=1" : ";booting=1";
                 std::lock_guard<std::mutex> guard(command_mutex_);
                 ++frames_;
                 details_.swap(details);

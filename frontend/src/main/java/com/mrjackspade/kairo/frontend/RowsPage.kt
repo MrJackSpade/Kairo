@@ -39,14 +39,15 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
     fun rowValue(id: String): String? = rows[id]?.value?.invoke()
 
     /** The rows of every view, for a page that builds them all. */
-    protected fun rowsView(): LinearLayout = install(StackedRows(context, this, flat, ::bindRow)) as LinearLayout
+    protected fun rowsView(groups: List<RowGroup> = groups()): LinearLayout =
+        install(StackedRows(context, this, flat, ::bindRow), groups) as LinearLayout
 
     /** The rows as a recycled list, which scrolls by itself, for a page with more rows than [LONG_PAGE_ROWS]. */
-    protected fun recycledRowsView(): View = install(RecycledRows(context, this, ::bindRow))
+    protected fun recycledRowsView(groups: List<RowGroup> = groups()): View = install(RecycledRows(context, this, ::bindRow), groups)
 
-    private fun install(rowsBody: RowsBody): View {
+    private fun install(rowsBody: RowsBody, groups: List<RowGroup>): View {
         body = rowsBody
-        render()
+        render(groups)
         return rowsBody.view
     }
 
@@ -62,8 +63,7 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
         view.showTray(if (row.id == trayRow) tray else null)
     }
 
-    private fun render() {
-        val groups = groups()
+    private fun render(groups: List<RowGroup> = groups()) {
         signature = signatureOf(groups)
         rows = LinkedHashMap<String, SettingsRow>().apply { groups.forEach { group -> group.rows.forEach { put(it.id, it) } } }
         body.render(groups)
@@ -74,7 +74,7 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
         val groups = groups()
         if (signatureOf(groups) != signature) {
             val position = body.position()
-            render()
+            render(groups)
             renav()
             body.restore(position)
             return

@@ -39,15 +39,19 @@ abstract class MediaTests : KairoUiTest() {
      * on Other's page, scrolled to; returns once the choice has closed.
      */
     private fun pick(choices: Element, name: String) {
-        val own = choices.find(By.anyItem().withTextContaining(name))
+        // Options only: the Other row shows the inserted disk's name as its value.
+        val own = choices.find(option().withTextContaining(name))
         if (own.exists()) own.tap()
         else {
             choices.find(By.item("f:other")).tap()
             val other = driver.page("Other").waitUntilShown()
-            other.find(By.anyItem().withTextContaining(name)).revealIn(other.find(By.id("page.list"))).tap()
+            other.find(option().withTextContaining(name)).revealIn(other.find(By.id("page.list"))).tap()
         }
         driver.waitUntil("the disk choice to close") { !driver.page(swap.slot).exists() && !driver.page("Other").exists() }
     }
+
+    /** A disk option of a choice page (its rows are "o:<entry id>"). */
+    private fun option() = By.idMatching(Regex("o:.+"))
 
     private fun drive(): String = driver.probeNow().details["media.${swap.slot}"].orEmpty()
 
@@ -131,7 +135,7 @@ abstract class MediaTests : KairoUiTest() {
         driver.log.step("timing", "choice $choiceMillis ms, Other $otherMillis ms with $FILLER_DISKS filler disks")
         expect.that("the drive's choice opens promptly", choiceMillis < PROMPT_MILLIS) { "$choiceMillis ms" }
         expect.that("Other opens promptly with $FILLER_DISKS more disks", otherMillis < PROMPT_MILLIS) { "$otherMillis ms" }
-        other.find(By.anyItem().withTextContaining(swap.insert)).revealIn(other.find(By.id("page.list"))).tap()
+        other.find(option().withTextContaining(swap.insert)).revealIn(other.find(By.id("page.list"))).tap()
         awaitDrive(swap.insert) { it.contains(swap.insert) }
         screens.closeMenu()
         expectRunning()

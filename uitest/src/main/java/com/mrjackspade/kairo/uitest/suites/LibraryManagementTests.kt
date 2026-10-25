@@ -87,9 +87,10 @@ abstract class SettingsTests : KairoUiTest() {
         val option = app.defaultOption
         org.junit.Assume.assumeTrue("${app.name} has no machine option to change", option != null)
         val library = screens.completeFirstRun().waitForGame(app.bootGame)
-        val picked = screens.choose(library.open(app.bootGame).openSettings(), option!!)
-        driver.press(android.view.KeyEvent.KEYCODE_BUTTON_B)
-        com.mrjackspade.kairo.uitest.GamePage(driver, app, app.bootGame).play()
+        val game = library.open(app.bootGame)
+        val picked = screens.choose(game.openSettings(), option!!)
+        game.closeSettings()
+        game.play()
         expect.equal("${app.bootGame}'s own $option", picked, driver.probe().details["option.$option"])
         // The picked value differs from the default (it was not the chosen one), so the other game,
         // which keeps the default, starts with something else.

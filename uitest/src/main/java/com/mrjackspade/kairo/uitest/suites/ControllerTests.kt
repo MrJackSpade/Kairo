@@ -92,12 +92,15 @@ abstract class ControllerTests : KairoUiTest() {
     @Test
     fun aGamesOwnMappingStaysWithThatGame() {
         val library = screens.completeFirstRun()
-        val settings = library.open(app.bootGame).openSettings()
+        val game = library.open(app.bootGame)
+        val settings = game.openSettings()
         settings.find(By.item("game-mapping")).tap()
         val code = screens.mapToFirstKey(driver.page("Button mapping").waitUntilShown(), "a")
+        // Back from the mapping to the settings, then from the settings to the game's page.
         driver.press(KeyEvent.KEYCODE_BUTTON_B)
-        settings.waitUntilShown().find(By.id("page.back")).tap()
-        com.mrjackspade.kairo.uitest.GamePage(driver, app, app.bootGame).play()
+        settings.waitUntilShown()
+        game.closeSettings()
+        game.play()
         driver.waitFrames(SETTLE_FRAMES)
         expect.that("in ${app.bootGame}, A sends key $code", sends(KeyEvent.KEYCODE_BUTTON_A).contains("key $code down"))
         screens.endGame().open(app.otherGame).play()
@@ -140,6 +143,9 @@ abstract class ControllerTests : KairoUiTest() {
         target.find(By.id("footer:save")).tap()
         target.waitUntilGone()
         screens.closeMenu()
+        // A game that still loads already runs flat out (MachineCore::booting), so fast-forward
+        // shows only once its load is done.
+        driver.waitUntil("the game to finish loading") { driver.probeNow().details["core.booting"] != "1" }
         val normal = frameRate(2000)
         val fast = frameRate(2000, KeyEvent.KEYCODE_BUTTON_R1)
         driver.log.step("measure", "%.1f frames a second normally, %.1f with R1 held".format(normal, fast))

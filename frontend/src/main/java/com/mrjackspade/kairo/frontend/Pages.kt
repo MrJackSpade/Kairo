@@ -120,8 +120,9 @@ open class GroupsPage(
         }
         page.addView(header(title, scope()), LinearLayout.LayoutParams(-1, dp(56)))
         // A long page, such as a library's disks, keeps views only for the rows on screen.
-        val body = if (RowsPage.isLong(groups())) recycledRowsView()
-            else PageParts.scroll(this, rowsView(), intArrayOf(dp(18), 0, dp(18), dp(24))).also { scrollView = it }
+        val groups = groups()
+        val body = if (RowsPage.isLong(groups)) recycledRowsView(groups)
+            else PageParts.scroll(this, rowsView(groups), intArrayOf(dp(18), 0, dp(18), dp(24))).also { scrollView = it }
         page.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         footerButtons?.let { buttons ->
             footer = Footer(this, buttons).also {
@@ -175,7 +176,10 @@ class ChoicePage private constructor(
 
     /** The current option, or the folder that holds it. */
     override fun initialFocus(items: List<NavItem>): String? {
-        val target = spec.selected()?.let { id ->
+        val selected = spec.selected()
+        // The option itself when this page lists it, without reading the choice's groups again.
+        if (selected != null && items.any { it.id == "o:$selected" }) return "o:$selected"
+        val target = selected?.let { id ->
             content().firstNotNullOfOrNull { group ->
                 group.options.firstOrNull { it.id == id }?.let { "o:$id" }
                     ?: group.folders.firstOrNull { it.find(id) != null }?.let { "f:${it.id}" }
