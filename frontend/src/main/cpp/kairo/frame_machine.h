@@ -387,7 +387,11 @@ private:
         uint32_t width = 0, height = 0;
         const uint8_t *pixels = core.frame(width, height);
         if (!pixels || !width || !height) return false;
-        if (!pictured_seen_ && !black(pixels, width, height)) {
+        const size_t row = static_cast<size_t>(width) * 4;
+        const size_t stride = core.frame_stride() ? core.frame_stride() : row;
+        if (stride < row)
+            __android_log_assert("stride", "KairoMachine", "A frame row of %zu bytes is shorter than its %u pixels", stride, width);
+        if (!pictured_seen_ && !black(pixels, width, height, stride)) {
             pictured_seen_ = true;
             std::lock_guard<std::mutex> guard(command_mutex_);
             pictured_ = true;
@@ -399,7 +403,12 @@ private:
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
             replaced = has_pending_;
-            pending_.assign(pixels, pixels + static_cast<size_t>(width) * height * 4);
+            if (stride == row) pending_.assign(pixels, pixels + row * height);
+            else {
+                pending_.resize(row * height);
+                for (uint32_t y = 0; y < height; ++y)
+                    std::memcpy(pending_.data() + y * row, pixels + y * stride, row);
+            }
             pending_shape_ = shape;
             has_pending_ = true;
         }
@@ -409,10 +418,12 @@ private:
 
     // Whether every pixel's colour channels are at most 16 of 255, as a booting
     // machine's screen is before it shows anything.
-    static bool black(const uint8_t *pixels, uint32_t width, uint32_t height) {
-        const size_t bytes = static_cast<size_t>(width) * height * 4;
-        for (size_t i = 0; i < bytes; i += 4)
-            if (pixels[i] > 16 || pixels[i + 1] > 16 || pixels[i + 2] > 16) return false;
+    static bool black(const uint8_t *pixels, uint32_t width, uint32_t height, size_t stride) {
+        for (uint32_t y = 0; y < height; ++y) {
+            const uint8_t *line = pixels + y * stride;
+            for (size_t i = 0; i < static_cast<size_t>(width) * 4; i += 4)
+                if (line[i] > 16 || line[i + 1] > 16 || line[i + 2] > 16) return false;
+        }
         return true;
     }
 

@@ -46,8 +46,12 @@ public:
     // have (Kairo#50). Read with each frame, so it may change with the guest's mode.
     virtual uint32_t line_repeat() { return 1; }
     // Whether frame()'s bytes are in B, G, R, A order (a core's native 0xAARRGGBB words), which the
-    // presenter reorders on the GPU instead of the core converting every pixel.
+    // presenter reorders on the GPU instead of the core converting every pixel. Its alpha byte is
+    // ignored: the picture is opaque.
     virtual bool frame_bgra() { return false; }
+    // Bytes from one row of frame() to the next, for a core whose bitmap is wider than its
+    // picture (the picture starting inside a row); 0 for rows of exactly width * 4 bytes.
+    virtual uint32_t frame_stride() { return 0; }
     // How long a guest frame lasts.
     virtual double frame_seconds() = 0;
     virtual int32_t audio_rate() = 0;

@@ -69,7 +69,7 @@ public:
                 target[i] = source[i + 2];
                 target[i + 1] = source[i + 1];
                 target[i + 2] = source[i];
-                target[i + 3] = source[i + 3];
+                target[i + 3] = 0xff;  // The picture is opaque (MachineCore::frame_bgra).
             }
         }
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
