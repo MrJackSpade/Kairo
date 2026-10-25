@@ -372,8 +372,8 @@ class LibraryScreen<T : LibraryItem>(
             visibility = View.GONE
         }
         emptyText.gravity = Gravity.CENTER
-        emptyText.setLineSpacing(dp(8).toFloat(), 1f)
-        emptyState.addView(emptyText, LinearLayout.LayoutParams(-2, -2))
+        Ui.oneLineKeepingEnd(emptyText)
+        emptyState.addView(emptyText, LinearLayout.LayoutParams(-1, -2))
         emptyState.addView(emptyButton, LinearLayout.LayoutParams(-2, dp(48)).apply { topMargin = dp(16) })
         emptyButton.setPadding(dp(20), 0, dp(20), 0)
         gameArea.addView(emptyState, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
@@ -845,7 +845,8 @@ class LibraryScreen<T : LibraryItem>(
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
     private companion object {
-        val BUSY = listOf("Loading", "Scanning", "Rehashing", "Hashing", "Found", "Skipping", "Preparing", "Opening")
+        val BUSY = listOf("Loading", "Scanning", "Rehashing", "Hashing", "Confirming", "Checking the games folder",
+            "Found", "Skipping", "Preparing", "Opening")
         /** Scan summaries such as "7 games ready" stay in the flyout, not the message bar. */
         val SUMMARY = Regex("^\\d+ games")
     }

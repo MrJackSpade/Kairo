@@ -9,7 +9,7 @@ Run it from the app's repository (it tests the app whose repository holds this s
     shared\tools\uitest.ps1 -Device <serial>
 
 The UI test build is its own package (<applicationId>.uitest), so it never replaces or reads the
-data of an installed release. The orchestrator clears its data before every test. Each test's
+data of an installed release. The run uninstalls it and its test APK when it ends, passed or not. The orchestrator clears its data before every test. Each test's
 log.jsonl, screenshots and game pictures land in .build\uitest\<run id>\ of the app's repository,
 with the runner's raw output (instrument.txt) and a summary (summary.txt). The script exits with 0
 only when every selected test passed.
@@ -43,8 +43,6 @@ param(
     [int]$PatienceSeconds,
     # Installs and runs the APKs from the last build instead of building first.
     [switch]$SkipBuild,
-    # Removes the UI test build and its test APK from the device afterwards.
-    [switch]$Uninstall,
     [ValidateSet('withImages', 'withoutImages')][string]$Flavor = 'withoutImages'
 )
 $ErrorActionPreference = 'Stop'
@@ -86,17 +84,29 @@ if (-not $appApk -or -not $testApk) { throw "Missing the $Flavor UI test APKs un
 $tools = Get-ChildItem (Join-Path $root "$module\build\uitest-tools") -Filter '*.apk'
 if (@($tools).Count -ne 2) { throw "Missing the orchestrator and test services APKs; run without -SkipBuild" }
 
-foreach ($apk in @($tools) + $appApk + $testApk) {
+foreach ($apk in @($tools)) {
+    Write-Output "install $($apk.Name)"
+    Adb install -r -d -t -g $apk.FullName | Out-Null
+}
+
+# The packages this run installs, which it removes when it ends, passed or failed (Kairo#45). The
+# player's own install (the applicationId without .uitest) is never among them.
+$packageOf = { param($apk) (Get-Content (Join-Path $apk.DirectoryName 'output-metadata.json') -Raw | ConvertFrom-Json).applicationId }
+$appPackage = & $packageOf $appApk
+$testPackage = & $packageOf $testApk
+if ($appPackage -notmatch '\.uitest$' -or $testPackage -ne "$appPackage.test") {
+    throw "Unexpected UI test packages '$appPackage' and '$testPackage'"
+}
+try {
+foreach ($apk in @($appApk, $testApk)) {
     Write-Output "install $($apk.Name)"
     # -d: the UI test build is its own package, so the build just made replaces any other, whatever its version.
     Adb install -r -d -t -g $apk.FullName | Out-Null
 }
 
 # The test APK's instrumentation, by its target: this module's UI test build.
-$instrumentation = (Adb shell pm list instrumentation) | Where-Object { $_ -match "^instrumentation:([^/]+)/androidx\.test\.runner\.AndroidJUnitRunner \(target=([^)]*\.$module\.uitest)\)" }
-if (@($instrumentation).Count -ne 1) { throw "Expected one UI test instrumentation for $module, found: $instrumentation" }
-$testPackage = [regex]::Match($instrumentation, '^instrumentation:([^/]+)/').Groups[1].Value
-$appPackage = [regex]::Match($instrumentation, '\(target=([^)]+)\)').Groups[1].Value
+$instrumentation = (Adb shell pm list instrumentation) | Where-Object { $_ -match "^instrumentation:$([regex]::Escape($testPackage))/androidx\.test\.runner\.AndroidJUnitRunner \(target=$([regex]::Escape($appPackage))\)" }
+if (@($instrumentation).Count -ne 1) { throw "Expected one UI test instrumentation for $appPackage, found: $instrumentation" }
 
 $runId = Get-Date -Format 'yyyyMMdd-HHmmss'
 $quote = { param($value) "'" + ($value -replace "'", "'\''") + "'" }
@@ -128,11 +138,12 @@ $summary = "$appPackage on $Device, run $runId`npassed $passed, failed $failed, 
 $summary | Set-Content -Encoding utf8 (Join-Path $local 'summary.txt')
 Write-Output $summary
 Write-Output "logs: $local"
-
-if ($Uninstall) {
-    Adb uninstall $testPackage | Out-Null
-    Adb uninstall $appPackage | Out-Null
-    Write-Output "uninstalled $appPackage and $testPackage"
+} finally {
+    # Whatever the run did, including a failed install or an interrupted run.
+    $installed = (& $adb -s $Device shell pm list packages) -replace '^package:', ''
+    foreach ($package in @($testPackage, $appPackage)) {
+        if ($installed -contains $package) { Adb uninstall $package | Out-Null; Write-Output "uninstalled $package" }
+    }
 }
 if ($crashed -or $failed -gt 0 -or $passed -eq 0) { exit 1 }
 exit 0

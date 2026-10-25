@@ -18,6 +18,9 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
         counts[it] > 0
     }
 
+    /** Each source's held keys, as it holds them together. */
+    @Synchronized fun holds(): List<List<Int>> = owners.values.map { it.toList() }
+
     @Synchronized fun hold(owner: String, scans: List<Int>) {
         require(owner.isNotBlank() && scans.isNotEmpty() && scans.size <= 8)
         require(scans.distinct().size == scans.size && scans.all { it in counts.indices })

@@ -287,17 +287,29 @@ class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLa
     private fun dp(value: Float) = value * resources.displayMetrics.density
 }
 
-/** A focusable item: rows, buttons, tabs, and keys. Up and Down move between [r] rows. */
+/**
+ * A focusable item: rows, buttons, tabs, and keys. Up and Down move between [r] rows. An item of a
+ * recycled list (RecycledRows) has a view only while it is on screen, and [reveal] brings it there.
+ */
 class NavItem(
     val id: String,
-    val view: View,
+    private val viewOf: () -> View?,
     val r: Int,
     val x: Float = 0.5f,
     val activate: () -> Unit,
     /** Left and Right when no neighbour sits in that direction. */
     val side: ((Int) -> Unit)? = null,
-    val show: (Boolean) -> Unit = { view.isSelected = it }
-)
+    val show: (Boolean) -> Unit = { viewOf()?.isSelected = it },
+    /** Scrolls the item into view; null for an item whose view always exists. */
+    val reveal: (() -> Unit)? = null
+) {
+    constructor(id: String, view: View, r: Int, x: Float = 0.5f, activate: () -> Unit,
+                side: ((Int) -> Unit)? = null, show: (Boolean) -> Unit = { view.isSelected = it }) :
+        this(id, { view }, r, x, activate, side, show)
+
+    /** The item's view, or null while a recycled list has none for it. */
+    val view: View? get() = viewOf()
+}
 
 /** One layer of the stack. Subclasses build the view and its navigation. */
 abstract class Page {
@@ -361,9 +373,10 @@ abstract class Page {
     protected fun renav(first: Boolean = false) {
         nav = navItems()
         // An item a builder named more precisely keeps that name, such as a modal button by its label.
-        nav.forEach {
-            if (TestAttributes.id(it.view) == null) TestAttributes.mark(it.view, it.id)
-            TestAttributes.markItem(it.view, it.id)
+        nav.forEach { item ->
+            val view = item.view ?: return@forEach
+            if (TestAttributes.id(view) == null) TestAttributes.mark(view, item.id)
+            TestAttributes.markItem(view, item.id)
         }
         if (first) focusId = initialFocus(nav)
         // Nothing focused stays that way until a direction key; a lost item moves focus to the start.
@@ -387,9 +400,9 @@ abstract class Page {
     private fun applyFocus(reveal: Boolean) {
         nav.forEach {
             it.show(it.id == focusId)
-            TestAttributes.markFocused(it.view, it.id == focusId)
+            it.view?.let { view -> TestAttributes.markFocused(view, it.id == focusId) }
         }
-        if (reveal) focused?.let { item -> reveal(item.view) }
+        if (reveal) focused?.let { item -> item.reveal?.invoke() ?: item.view?.let(::reveal) }
     }
 
     protected fun reveal(target: View) {
@@ -493,283 +506,5 @@ private class HeaderBar(context: Context, private val chip: android.widget.TextV
         val cap = (MeasureSpec.getSize(widthMeasureSpec) * 0.45f).toInt()
         if (chip.maxWidth != cap) chip.maxWidth = cap
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-    }
-}
-
-/**
- * A page of rows: groups with a pixel-font label, a Surface card, and an optional footnote, or
- * flat rows in the flyout. Opens trays under rows and keeps focus and scroll through refreshes.
- */
-abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
-    abstract fun groups(): List<RowGroup>
-
-    private val rowViews = LinkedHashMap<String, RowView>()
-    private val foots = HashMap<Int, android.widget.TextView>()
-    private var signature: String? = null
-    private lateinit var rowsBox: LinearLayout
-    private var tray: TrayView? = null
-    private var trayRow: String? = null
-    private var trayFocus = 0
-
-    override val capturing: Boolean get() = tray?.spec?.capture != null
-    /** The row whose tray is open, and the tray's button labels. */
-    val trayRowId: String? get() = trayRow
-    fun trayButtons(): List<String> = tray?.spec?.buttons?.map { it.label } ?: emptyList()
-    /** The selected tray button, or null when the field or nothing is selected. */
-    fun trayFocused(): String? = tray?.spec?.buttons?.getOrNull(trayFocus)?.label
-    fun trayMessage(): String? = tray?.spec?.message
-    /** The row's current value as shown, for hosts and fixtures. */
-    fun rowValue(id: String): String? = rowViews[id]?.row?.value?.invoke()
-
-    /** The rows container, placed by [createView]. */
-    protected fun rowsView(): LinearLayout {
-        rowsBox = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        render()
-        return rowsBox
-    }
-
-    private fun signatureOf(groups: List<RowGroup>) = groups.joinToString("|") { group ->
-        "${group.label}/${group.foot != null}/" + group.rows.joinToString(",") {
-            "${it.id}:${it.kind}:${it.description != null}"
-        }
-    }
-
-    private fun render() {
-        val groups = groups()
-        signature = signatureOf(groups)
-        rowsBox.removeAllViews()
-        rowViews.clear()
-        foots.clear()
-        groups.forEachIndexed { index, group ->
-            if (flat) {
-                if (group.label == null && index > 0) rowsBox.addView(android.view.View(context).apply {
-                    setBackgroundColor(Ui.LINE)
-                }, LinearLayout.LayoutParams(-1, dp(1)).apply { setMargins(dp(12), dp(12), dp(12), dp(8)) })
-                group.label?.let { rowsBox.addView(Ui.sectionLabel(context, it).apply {
-                    setPadding(dp(14), dp(16), dp(14), dp(6))
-                }) }
-            } else if (group.label != null) rowsBox.addView(Ui.sectionLabel(context, group.label).apply {
-                setPadding(dp(14), dp(18), dp(14), dp(8))
-            }) else rowsBox.addView(android.view.View(context), LinearLayout.LayoutParams(-1, dp(16)))
-            val card = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                if (!flat) {
-                    background = Ui.rounded(context, Ui.SURFACE, Ui.RADIUS_LARGE)
-                    clipToOutline = true
-                    dividerDrawable = android.graphics.drawable.GradientDrawable().apply {
-                        setColor(Ui.LINE)
-                        setSize(0, dp(1))
-                    }
-                    showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
-                }
-            }
-            group.rows.forEach { row ->
-                val view = RowView(context, this, flat)
-                rowViews[row.id] = view
-                view.bind(row, row.id == focusId, row.id == trayRow)
-                card.addView(view.root, LinearLayout.LayoutParams(-1, -2))
-                if (row.id == trayRow) tray?.let(view::showTray)
-            }
-            rowsBox.addView(card, LinearLayout.LayoutParams(-1, -2))
-            if (!flat) group.foot?.let { foot ->
-                val text = Ui.text(context, foot, Ui.SECONDARY, Ui.TEXT_MUTED).apply {
-                    setPadding(dp(14), dp(8), dp(14), 0)
-                }
-                foots[index] = text
-                rowsBox.addView(text)
-            }
-        }
-        if (trayRow != null && trayRow !in rowViews) dropTray()
-    }
-
-    override fun refresh() {
-        val groups = groups()
-        if (signatureOf(groups) != signature) {
-            val y = scroll?.scrollY
-            render()
-            renav()
-            y?.let { offset -> scroll?.post { scroll?.scrollTo(0, offset) } }
-            return
-        }
-        groups.forEachIndexed { index, group ->
-            group.rows.forEach { row -> rowViews[row.id]?.bind(row, row.id == focusId, row.id == trayRow) }
-            group.foot?.let { foots[index]?.text = it }
-        }
-    }
-
-    /** Rows in nav order, from row coordinate [start]. Info rows are skipped. */
-    protected fun rowNav(start: Int): List<NavItem> {
-        var r = start
-        return rowViews.values.mapNotNull { view ->
-            val row = view.row ?: return@mapNotNull null
-            if (row.kind == SettingsRow.Kind.INFO) return@mapNotNull null
-            NavItem(row.id, view.line, r++, 0.5f, { activate(row) }, { side(row, it) }) { selected ->
-                view.row?.let { view.bind(it, selected, it.id == trayRow) }
-            }
-        }
-    }
-
-    protected fun rowById(id: String): SettingsRow? = rowViews[id]?.row
-
-    fun flash(id: String) { rowViews[id]?.flash() }
-
-    override fun activate(row: SettingsRow) {
-        if (tray != null && trayRow != row.id) closeTray()
-        focus(row.id, reveal = false)
-        if (!row.enabled()) {
-            row.disabledReason()?.let { Ui.message(stack.activity, it) }
-            return
-        }
-        when (row.kind) {
-            SettingsRow.Kind.CHOICE -> row.choice?.let { stack.push(ChoicePage(it, row.id)) }
-            SettingsRow.Kind.SWITCH -> { row.setChecked?.invoke(!row.checked()); stack.refresh() }
-            SettingsRow.Kind.SLIDER, SettingsRow.Kind.INFO -> Unit
-            SettingsRow.Kind.ACTION -> when {
-                row.confirm?.title != null -> stack.push(ConfirmPage(row.confirm))
-                row.confirm != null -> openTray(row.id, row.confirm.tray())
-                row.tray != null -> openTray(row.id, row.tray.invoke())
-                else -> { row.run?.invoke(); stack.refresh() }
-            }
-            else -> row.run?.invoke()
-        }
-    }
-
-    override fun side(row: SettingsRow, direction: Int) {
-        if (!row.enabled() || tray != null) return
-        when (row.kind) {
-            SettingsRow.Kind.CHOICE -> {
-                val spec = row.choice ?: return
-                if (!spec.cycles) return
-                val options = spec.options
-                if (options.isEmpty()) return
-                val index = options.indexOfFirst { it.id == spec.selected() }.coerceAtLeast(0)
-                spec.select(options[(index + direction + options.size) % options.size].id)
-                stack.refresh()
-                flash(row.id)
-            }
-            SettingsRow.Kind.SLIDER -> row.slider?.let { slider ->
-                val next = (slider.get() + direction * slider.keyStep).coerceIn(slider.min, slider.max)
-                if (next != slider.get()) { slider.set(next); stack.refresh() }
-            }
-            SettingsRow.Kind.SWITCH -> if ((direction > 0) != row.checked()) {
-                row.setChecked?.invoke(direction > 0)
-                stack.refresh()
-            }
-            else -> Unit
-        }
-    }
-
-    override fun slide(row: SettingsRow, value: Int) {
-        focus(row.id, reveal = false)
-        val slider = row.slider ?: return
-        if (!row.enabled()) return
-        val snapped = (slider.min + Math.round((value - slider.min).toFloat() / slider.step) * slider.step)
-            .coerceIn(slider.min, slider.max)
-        if (snapped != slider.get()) { slider.set(snapped); stack.refresh() }
-    }
-
-    /** Open [spec] under the row. Listening and confirm trays start on their first button. */
-    fun openTray(rowId: String, spec: TraySpec) {
-        dropTray()
-        val view = rowViews[rowId] ?: return
-        val trayView = TrayView(context, spec, flat) { button, text -> press(button, text) }
-        tray = trayView
-        trayRow = rowId
-        view.showTray(trayView)
-        view.row?.let { view.bind(it, true, true) }
-        trayFocus = when {
-            trayView.entry != null -> -1
-            else -> spec.focus ?: if (spec.listening) 0 else spec.buttons.lastIndex
-        }
-        trayView.select(trayFocus)
-        trayView.entry?.let { field ->
-            field.requestFocus()
-            field.post {
-                (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-                    .showSoftInput(field, 0)
-            }
-        }
-        reveal(view.root)
-    }
-
-    fun replaceTray(spec: TraySpec) { trayRow?.let { openTray(it, spec) } }
-
-    fun closeTray() {
-        if (tray == null) return
-        dropTray()
-        refresh()
-    }
-
-    private fun dropTray() {
-        val row = trayRow
-        val hadField = tray?.entry != null
-        tray = null
-        trayRow = null
-        row?.let { id -> rowViews[id]?.let { view ->
-            view.showTray(null)
-            view.row?.let { view.bind(it, it.id == focusId, false) }
-        } }
-        if (hadField) {
-            stack.hideKeyboard()
-            stack.requestFocus()
-        }
-    }
-
-    private fun press(button: TrayButton, text: String) {
-        if (!button.keepOpen) closeTray()
-        button.run(text)
-        stack.refresh()
-    }
-
-    override fun back(): Boolean {
-        if (tray != null) { closeTray(); return true }
-        return false
-    }
-
-    override fun captureKey(event: KeyEvent): Boolean {
-        val capture = tray?.spec?.capture ?: return false
-        if (capture.key(event)) return true
-        // Only Android Back cancels listening; keyboard keys may still use the tray.
-        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) closeTray()
-            return true
-        }
-        if (KeyEvent.isGamepadButton(event.keyCode) || event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
-            event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return true
-        return false
-    }
-
-    override fun captureMotion(event: MotionEvent): Boolean = tray?.spec?.capture?.motion(event) ?: false
-
-    override fun handleKey(control: String?, event: KeyEvent): Boolean {
-        val open = tray ?: return super.handleKey(control, event)
-        val down = event.action == KeyEvent.ACTION_DOWN
-        val first = down && event.repeatCount == 0
-        if (trayFocus < 0) {
-            // The field has Android focus; text and cursor keys belong to it.
-            when (control) {
-                "b" -> { if (first) closeTray(); return true }
-                "a" -> { if (first) open.pressPrimary(); return true }
-                "down" -> { if (down) { trayFocus = open.buttons.lastIndex; open.select(trayFocus) }; return true }
-                "menu" -> { if (first) stack.menuKey(); return true }
-            }
-            return false
-        }
-        when (control) {
-            "left", "right" -> if (down) {
-                trayFocus = (trayFocus + if (control == "right") 1 else -1).coerceIn(0, open.buttons.lastIndex)
-                open.select(trayFocus)
-            }
-            "a" -> if (first) open.buttons.getOrNull(trayFocus)?.performClick()
-            "b" -> if (first) closeTray()
-            "up" -> if (down) {
-                if (open.entry != null) { trayFocus = -1; open.select(-1); open.entry.requestFocus() }
-                else closeTray()
-            }
-            "down" -> if (down) closeTray()
-            "menu" -> if (first) stack.menuKey()
-            else -> return false
-        }
-        return true
     }
 }

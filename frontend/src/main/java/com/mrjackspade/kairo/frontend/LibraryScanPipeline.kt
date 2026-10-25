@@ -13,7 +13,16 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
     private val enumerate: (Uri, ScanDepth, AtomicBoolean, (String) -> Unit) -> Plan<Work, Entry>,
     private val inspect: (Work, ScanContext<Entry>) -> List<Entry>,
     private val failed: (Work, ScanContext<Entry>, Exception) -> List<Entry>,
-    private val label: (Work, Int, Int) -> String? = { _, _, _ -> null },
+    /** The file a work item reads, as its status names it. */
+    private val describe: (Work) -> String,
+    /**
+     * Whether the library already knows a work item. A known item keeps the identity it was
+     * scanned with and is not read again unless the player rechecks every file: a known file does
+     * not turn into another game.
+     */
+    private val known: (Work, ScanContext<Entry>) -> Boolean,
+    /** The source document an entry was read from, for [ScanContext.priorFrom]; one archive has several entries. */
+    private val sourceOf: (Entry) -> String,
     private val cacheOrder: (List<Entry>) -> List<Entry> = { it },
     private val displayOrder: (List<Entry>) -> List<Entry> = { it },
     private val metadata: () -> JSONObject = { JSONObject() },
@@ -32,14 +41,30 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         val earlier: Map<String, Entry>,
         val forceHash: Boolean,
         val cancelled: AtomicBoolean,
-        val progress: (String) -> Unit,
+        private val sourceOf: (Entry) -> String,
         private val countHash: () -> Unit
     ) {
+        /** [prior]'s entries by the document they were read from, grouped once per scan. */
+        private val bySource: Map<String, List<Entry>> by lazy { prior.values.groupBy(sourceOf) }
+        internal var status: ScanProgress? = null
+
+        /** The entries [prior] holds from the document [source]: an archive's images. */
+        fun priorFrom(source: String): List<Entry> = bySource[source].orEmpty()
+
         fun checkCancelled() {
             if (cancelled.get()) throw CancellationException("Cancelled")
         }
 
-        fun hashStarted() = countHash()
+        /** The worker hashes [detail]: the file, or a member of the archive it reads. */
+        fun hashStarted(detail: String) {
+            countHash()
+            status?.hashing(detail)
+        }
+
+        /** [read] of [total] bytes of the current hash are done. */
+        fun hashRead(read: Long, total: Long) {
+            status?.read(read, total)
+        }
     }
 
     private val hashes = AtomicInteger()
@@ -78,16 +103,19 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         hashes.set(0)
         // Workers report concurrently, so [progress] must be thread-safe (LibraryFlow keeps only the newest).
         val report: (String) -> Unit = { message -> if (!cancelled.get()) progress(message) }
-        val context = ScanContext(previous, prior, earlier, forceHash, cancelled, report) { hashes.incrementAndGet(); Unit }
+        val context = ScanContext(previous, prior, earlier, forceHash, cancelled, sourceOf) { hashes.incrementAndGet(); Unit }
         val read = android.os.SystemClock.elapsedRealtime()
         val plan = enumerate(tree, depth, cancelled, progress)
         val walked = android.os.SystemClock.elapsedRealtime()
         context.checkCancelled()
         val entries = ArrayList<Entry>()
         entries.addAll(plan.initialEntries)
+        val hash = plan.work.map { forceHash || !known(it, context) }
+        val toHash = hash.count { it }
+        context.status = ScanProgress(toHash, hash.size - toHash, report)
         val inspected = ParallelScanWork.map(plan.work, cancelled) { index, work ->
             context.checkCancelled()
-            label(work, index, plan.work.size)?.let(report)
+            context.status!!.start(describe(work), hash[index])
             try {
                 inspect(work, context)
             } catch (cancel: CancellationException) {

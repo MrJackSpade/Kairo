@@ -10,6 +10,12 @@ import android.view.Surface
 interface MachineBridge {
     /** Ends the running machine, if any, and waits for its thread. */
     fun stop()
+    /**
+     * Blocks until the machine started last has ended, by [stop] or by itself, and returns how it
+     * ended (Stopped, or Error with the core's message); null for a machine that ends only when
+     * the frontend stops it.
+     */
+    fun awaitEnd(): MachineStatus? = null
     fun pause(paused: Boolean)
     fun reset()
     fun key(code: Int, down: Boolean)

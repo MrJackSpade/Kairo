@@ -113,6 +113,16 @@ object Ui {
         if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
 
+    /**
+     * One line that keeps its end: a status naming a file loses the start of its path, with an
+     * ellipsis in front, never the part that tells files apart. It never wraps, so a status that
+     * changes many times a second does not move the layout.
+     */
+    fun oneLineKeepingEnd(view: TextView) = view.apply {
+        isSingleLine = true
+        ellipsize = android.text.TextUtils.TruncateAt.START
+    }
+
     fun icon(context: Context, drawable: Int, tint: Int = TEXT, size: Int = 24) = ImageView(context).apply {
         setImageResource(drawable)
         imageTintList = ColorStateList.valueOf(tint)

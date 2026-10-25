@@ -350,10 +350,28 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     val blank = MachineStatus(bridge.status()).pictured == false
                     enterSession(entry, fromFrontend, if (blank) "Starting ${entry.displayName}…" else null)
                     if (blank) awaitPicture(generation)
+                    watchEnd(generation, game.title)
                     gameStarted(entry, game)
                 } else launchFailed(failure)
             }
         }.apply { name = "${identity.appName}-launch"; start() }
+    }
+
+    /**
+     * A machine that ends by itself, as a core whose CPU halted, returns to the library and says
+     * why, rather than leaving its last frame on screen. An end the frontend caused (stopping,
+     * restarting or replacing the game) has moved [sessionGeneration] on, and is not reported.
+     */
+    private fun watchEnd(generation: Int, title: String) {
+        Thread {
+            val end = bridge.awaitEnd() ?: return@Thread
+            runOnUiThread {
+                if (!current(generation) || currentEntry == null || isDestroyed) return@runOnUiThread
+                guestFinished(completed = false)
+                libraryScreen.showStatus(if (end.state == "Error" && end.error.isNotEmpty()) "$title stopped: ${end.error}"
+                    else "$title stopped")
+            }
+        }.apply { name = "${identity.appName}-session-end"; start() }
     }
 
     /** Ends the session's loading once the machine shows a picture, or stops without one. */
@@ -550,7 +568,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val folder = SettingsRow.action("firmware-folder", "Import all from a folder…",
             description = "Finds the files below in a folder you choose and imports every one it recognizes",
             busy = { firmwareImporting }, enabled = usable, disabledReason = reason) {
-            firmwareSets.first().second.chooseFolder(this, FIRMWARE_REQUEST, ::toast)
+            firmwareSets.first().second.chooseFolder(this, FIRMWARE_REQUEST, firmwareFolderStart(), ::toast)
         }
         val sets = firmwareSets.mapIndexed { index, (label, set) ->
             RowGroup(label.uppercase(), set.parts.map { part -> firmwareRow(index, set, part, usable, reason) }, set.note)
@@ -577,6 +595,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 }, choose) else listOf(choose))
             })
 
+    /** The firmware folder picker opens at the folder chosen last, or beside the games folder. */
+    private fun firmwareFolderStart(): Uri? =
+        preferences.getString(FIRMWARE_FOLDER, null)?.let { FolderStart.at(Uri.parse(it)) } ?: tree?.let(FolderStart::beside)
+
     /** The machine reads its firmware when a game boots, so it changes only in the library. */
     private fun firmwareConfigurable() = currentEntry == null && !transitioning
 
@@ -591,6 +613,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         when (requestCode) {
             FIRMWARE_REQUEST -> {
                 val tree = data?.data?.takeIf { resultCode == RESULT_OK } ?: return true
+                preferences.edit().putString(FIRMWARE_FOLDER, tree.toString()).apply()
                 importFirmware {
                     val cancelled = AtomicBoolean(false)
                     val imported = firmwareSets.flatMap { it.second.importFolder(contentResolver, tree, cancelled) }
@@ -665,8 +688,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     private fun mediaPage() = GroupsPage(mediaPageTitle, { currentGame?.title }, {
-        listOf(RowGroup("DRIVES", mediaSlots.indices.map(::mediaRow),
-            "Disks from the same archive or folder as the game. A disk keeps what the game writes to it."))
+        listOf(RowGroup("DRIVES", mediaSlots.indices.map(::mediaRow), "A disk keeps what the game writes to it."))
     })
 
     private fun mediaRow(slot: Int) = SettingsRow.choice("media$slot", mediaSlots[slot].label, mediaChoice(slot),
@@ -675,27 +697,56 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         enabled = { machineRunning && !mediaBusy },
         disabledReason = { if (mediaBusy) "Wait for the disk change to finish" else "Start a game before changing disks" })
 
-    /** Empty ejects; the others are the media from the game's own archive or folder that the slot takes. */
+    /**
+     * Empty ejects; then the running game's own disks ([ownMedia]); then Other, every disk of the
+     * library the slot takes, on a page of its own: a player rarely needs one, and a library can
+     * hold thousands.
+     */
     private fun mediaChoice(slot: Int): ChoiceSpec {
-        fun candidates(): List<E> {
-            val current = currentEntry ?: return emptyList()
-            return libraryEntries.filter { it.playable && mediaSlots[slot].accepts(it) && sameFolder(current, it) }
+        fun takes(entry: E) = entry.playable && mediaSlots[slot].accepts(entry)
+        fun own(): List<E> = currentEntry?.let { ownMedia(it, ::takes) }.orEmpty()
+        fun all(): List<E> = libraryEntries.filter(::takes)
+        val other = ChoiceFolder("other", "Other") {
+            listOf(ChoiceGroup(null, mediaOptions(all())))
         }
         return ChoiceSpec(mediaSlots[slot].label, { currentGame?.title }, {
-            val found = candidates()
-            listOfNotNull(ChoiceGroup(null, listOf(ChoiceOption("empty", "Empty"))),
-                found.takeIf { it.isNotEmpty() }?.let { items ->
-                    ChoiceGroup("IN THIS GAME’S FOLDER", items.map { ChoiceOption(it.id, it.displayName) })
-                })
-        }, { mounted[slot]?.id ?: "empty" }, { id ->
-            if (id == "empty") changeMedia(slot, null)
-            else candidates().firstOrNull { it.id == id }?.let { changeMedia(slot, it) }
+            val found = own()
+            listOfNotNull(ChoiceGroup(null, listOf(ChoiceOption(EMPTY_DRIVE, "Empty"))),
+                found.takeIf { it.isNotEmpty() }?.let { ChoiceGroup("THIS GAME", mediaOptions(it)) },
+                ChoiceGroup(null, emptyList(), folders = listOf(other)))
+        }, { mounted[slot]?.id ?: EMPTY_DRIVE }, { id ->
+            if (id == EMPTY_DRIVE) changeMedia(slot, null)
+            else (own().firstOrNull { it.id == id } ?: all().firstOrNull { it.id == id })?.let { changeMedia(slot, it) }
         }, cycles = false)
     }
 
-    /** Media from the same archive, or the same folder, as [current]. */
-    private fun sameFolder(current: E, other: E) = other.uri == current.uri ||
-        other.path.substringBeforeLast('/', "") == current.path.substringBeforeLast('/', "")
+    /**
+     * The disks of [current]'s game: itself, the other images of its archive, the disks of its
+     * catalog set, and the disks its drives hold now.
+     */
+    private fun ownMedia(current: E, takes: (E) -> Boolean): List<E> {
+        val set = catalog.setDisks(current).toSet()
+        return libraryEntries.filter { entry ->
+            takes(entry) && (entry.id == current.id || (entry.zipEntry != null && entry.uri == current.uri) ||
+                entry in mounted || (set.isNotEmpty() && catalog.matchId(entry) in set))
+        }
+    }
+
+    /**
+     * Options for [entries]: a loose disk by its file name, one in an archive by the archive's, and
+     * one of several images in an archive by both.
+     */
+    private fun mediaOptions(entries: List<E>): List<ChoiceOption> {
+        val images = entries.groupingBy { it.uri }.eachCount()
+        return entries.map { entry ->
+            val archive = entry.zipEntry?.let { entry.path.substringAfterLast('/') }
+            ChoiceOption(entry.id, when {
+                archive == null -> entry.displayName
+                images.getValue(entry.uri) > 1 -> "$archive: ${entry.displayName}"
+                else -> archive
+            })
+        }
+    }
 
     private fun changeMedia(slot: Int, entry: E?) {
         if (mediaBusy) return
@@ -720,6 +771,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
         private const val FIRMWARE_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 2
         private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."
+        /** The folder firmware was last imported from. */
+        private const val FIRMWARE_FOLDER = "firmware_folder_v1"
         /** How often a loading session checks whether the machine shows a picture yet. */
         private const val PICTURE_POLL_MILLIS = 100L
         /** The drive choice that leaves a drive empty. */

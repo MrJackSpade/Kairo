@@ -27,8 +27,7 @@ param(
     # A regular expression over full test names, passed to each app's run.
     [string]$Filter,
     [int]$PatienceSeconds,
-    [switch]$SkipBuild,
-    [switch]$Uninstall
+    [switch]$SkipBuild
 )
 $ErrorActionPreference = 'Stop'
 $shared = Split-Path -Parent $PSScriptRoot
@@ -53,7 +52,6 @@ foreach ($name in $names) {
     if ($Filter) { $arguments.Filter = $Filter }
     if ($PatienceSeconds) { $arguments.PatienceSeconds = $PatienceSeconds }
     if ($SkipBuild) { $arguments.SkipBuild = $true }
-    if ($Uninstall) { $arguments.Uninstall = $true }
     # Each app's own runner, in its own process, so one app's failure cannot stop the others.
     & pwsh -NoProfile -File (Join-Path $repo 'shared\tools\uitest.ps1') @arguments
     $results[$name] = if ($LASTEXITCODE -eq 0) { 'passed' } else { 'FAILED' }

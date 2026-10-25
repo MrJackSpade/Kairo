@@ -58,21 +58,22 @@ object JisMainBlock {
     )
 
     /** The symbol page: each symbol on its own key, Shift chorded where the symbol needs it. */
-    fun symbolRows(): List<List<KeyboardKey>> = listOf(
-        listOf(KeyboardKey("Esc", ESC, 1.3f)) + DIGITS.map { KeyboardKey("$it", digit(it)) } +
-            KeyboardKey("BS", BACKSPACE, 1.5f),
-        listOf("!", "\"", "#", "$", "%", "&", "'", "(", ")")
-            .mapIndexed { index, label -> KeyboardKey(label, digit(DIGITS[index]), chordShift = true) } +
-            KeyboardKey("Return", RETURN, 1.5f),
-        listOf("-" to MINUS, "^" to HAT, "¥" to YEN, "@" to AT, "[" to LEFT_BRACKET, "]" to RIGHT_BRACKET,
+    fun symbolRows(): List<List<KeyboardKey>> = SymbolPage.rows(
+        digits = DIGITS.map { KeyboardKey("$it", digit(it)) },
+        delete = KeyboardKey("BS", BACKSPACE, 1.5f),
+        shiftedDigits = listOf("!", "\"", "#", "$", "%", "&", "'", "(", ")")
+            .mapIndexed { index, label -> KeyboardKey(label, digit(DIGITS[index]), chordShift = true) },
+        symbols = listOf("-" to MINUS, "^" to HAT, "¥" to YEN, "@" to AT, "[" to LEFT_BRACKET, "]" to RIGHT_BRACKET,
             ";" to SEMICOLON, ":" to COLON, "," to COMMA, "." to DOT, "/" to SLASH)
             .map { (label, code) -> KeyboardKey(label, code) },
-        listOf("=" to MINUS, "~" to HAT, "|" to YEN, "`" to AT, "{" to LEFT_BRACKET, "}" to RIGHT_BRACKET,
+        shiftedSymbols = listOf("=" to MINUS, "~" to HAT, "|" to YEN, "`" to AT, "{" to LEFT_BRACKET, "}" to RIGHT_BRACKET,
             "+" to SEMICOLON, "*" to COLON, "<" to COMMA, ">" to DOT, "?" to SLASH)
             .map { (label, code) -> KeyboardKey(label, code, chordShift = true) } +
             KeyboardKey("_", UNDERSCORE),
-        listOf(KeyboardKey("Tab", TAB), KeyboardKey("Space", SPACE, 5f), KeyboardKey("Return", RETURN, 1.5f))
-    )
+        space = KeyboardKey("Space", SPACE, 5f),
+        enter = KeyboardKey("Return", RETURN, 1.5f),
+        escape = KeyboardKey("Esc", ESC, 1.3f),
+        tab = KeyboardKey("Tab", TAB))
 
     /** The name of a main-block key, or null for another code. */
     fun label(code: Int): String? = when (code) {

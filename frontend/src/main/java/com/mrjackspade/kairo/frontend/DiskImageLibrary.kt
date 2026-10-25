@@ -161,7 +161,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     private val folderListings = FolderListings(File(context.filesDir, "folder-listings-v1.json"))
     private val scanPipeline by lazy {
         LibraryScanPipeline(storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
-            { source, index, total -> "Checking ${index + 1} of $total for changes: ${source.path}" },
+            Source::path, ::known, DiskImageEntry::path,
             displayOrder = { entries -> entries.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { it.path + (it.zipEntry ?: "") }) },
             metadata = { JSONObject().put("mediaFormatsVersion", cache.mediaFormatsVersion) })
@@ -291,12 +291,40 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     private fun inspectSource(source: Source, scan: LibraryScanPipeline.ScanContext<DiskImageEntry>): List<DiskImageEntry> =
         inspectContent(source, scan).map { it.copy(catalogId = scan.earlier[it.id]?.catalogId ?: it.contentId) }
 
+    /** Whether the library has scanned [source] before: an archive by its path, any other file by its key. */
+    private fun known(source: Source, scan: LibraryScanPipeline.ScanContext<DiskImageEntry>): Boolean =
+        if (format.isArchive(source.path)) scan.priorFrom(source.path).isNotEmpty()
+        else scan.prior[keyOf(source.path, null).path] != null
+
+    /**
+     * A known image keeps the content ID it was scanned with, whatever its size and time now: a file
+     * does not turn into another game, and rehashing every file is the player's Recheck all files.
+     * An image that failed is read again once its file changes. A changed known file is logged, so
+     * a scan that finds many can be explained.
+     */
+    private fun reuse(old: DiskImageEntry?, candidate: DiskImageEntry,
+                      scan: LibraryScanPipeline.ScanContext<DiskImageEntry>): DiskImageEntry? {
+        if (scan.forceHash || old == null) return null
+        val unchanged = sameFingerprint(old, candidate)
+        if (!unchanged) changedKnownFile(old, candidate)
+        return when {
+            old.error == null && old.contentId?.let(format::validId) == true ->
+                candidate.copy(contentId = old.contentId)
+            old.error != null && unchanged -> candidate.copy(error = old.error)
+            else -> null
+        }
+    }
+
     private fun inspectContent(source: Source, scan: LibraryScanPipeline.ScanContext<DiskImageEntry>): List<DiskImageEntry> {
         if (format.isArchive(source.path)) {
-            val oldEntries = scan.prior.values.filter { it.uri == source.uri.toString() }
+            val oldEntries = scan.priorFrom(source.path)
             val formatsCurrent = (scan.previous?.root?.optInt("mediaFormatsVersion", 1) ?: 0) >= cache.mediaFormatsVersion
-            if (!scan.forceHash && formatsCurrent && trusted(source) && oldEntries.isNotEmpty() &&
-                oldEntries.all { sameSource(it, source) && it.error == null }) return oldEntries
+            // A known archive keeps its images; new formats read it again for images it may now hold.
+            if (!scan.forceHash && formatsCurrent && oldEntries.isNotEmpty() &&
+                oldEntries.all { it.error == null || sameSource(it, source) }) {
+                if (oldEntries.any { !sameSource(it, source) }) changedKnownFile(oldEntries.first(), entry(source, null, -1, -1, null))
+                return oldEntries.map { it.copy(uri = source.uri.toString(), sourceSize = source.size, sourceModified = source.newest) }
+            }
             return openArchive(source).use { archive ->
                 val images = archive.images(scan::checkCancelled)
                 if (images.isEmpty()) return listOf(entry(source, null, source.size, -1, null).copy(holdsGame = false))
@@ -305,17 +333,14 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     val data = image.data
                     val candidate = entry(source, image.name, data?.size ?: -1, data?.crc ?: -1, null,
                         companions = image.companions, folder = image.folderFiles)
-                    val old = scan.prior[candidate.id]
                     try {
                         requireNotNull(data) { image.missing() }
-                        val id = if (!scan.forceHash && trusted(source) && old != null &&
-                            sameFingerprint(old, candidate) && old.contentId?.let(format::validId) == true) old.contentId
-                        else {
-                            scan.progress("Hashing ${image.name}")
-                            scan.hashStarted()
-                            archive.open(data).use { contentId(it, data.size, data.crc, scan.cancelled, image.name) }
+                        reuse(scan.prior[candidate.id], candidate, scan) ?: run {
+                            scan.hashStarted("${source.path}/${image.name}")
+                            candidate.copy(contentId = archive.open(data).use {
+                                contentId(it, data.size, data.crc, scan.cancelled, image.name, onRead = scan::hashRead)
+                            })
                         }
-                        candidate.copy(contentId = id)
                     } catch (cancel: CancellationException) { throw cancel }
                     catch (error: Exception) {
                         scan.checkCancelled()
@@ -327,30 +352,30 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         if (format.isDescriptor(source.path)) {
             val data = source.data ?: error("The track data of ${source.path.substringAfterLast('/')} is missing")
             val candidate = entry(source, null, data.size, -1, null, companions = listOf(data.uri.toString()))
-            val old = scan.prior[candidate.id]
-            val id = if (!scan.forceHash && trusted(source) && trusted(data) && old != null &&
-                sameFingerprint(old, candidate) && old.contentId?.let(format::validId) == true) old.contentId
-            else {
-                scan.progress("Hashing ${data.path}")
-                scan.hashStarted()
-                context.contentResolver.openInputStream(data.uri)?.use {
-                    contentId(it, data.size, -1, scan.cancelled, source.path)
-                } ?: error("Unable to open ${data.path}")
-            }
+            reuse(scan.prior[candidate.id], candidate, scan)?.let { return listOf(it) }
+            scan.hashStarted(data.path)
+            val id = context.contentResolver.openInputStream(data.uri)?.use {
+                contentId(it, data.size, -1, scan.cancelled, source.path, onRead = scan::hashRead)
+            } ?: error("Unable to open ${data.path}")
             return listOf(candidate.copy(contentId = id))
         }
         val candidate = entry(source, null, source.size, -1, null)
-        val old = scan.prior[candidate.id]
-        val id = if (!scan.forceHash && trusted(source) && old != null &&
-            sameFingerprint(old, candidate) && old.contentId?.let(format::validId) == true) old.contentId
-        else {
-            scan.progress("Hashing ${source.path}")
-            scan.hashStarted()
-            context.contentResolver.openInputStream(source.uri)?.use {
-                contentId(it, source.size, -1, scan.cancelled, source.path)
-            } ?: error("Unable to open disk image")
-        }
+        reuse(scan.prior[candidate.id], candidate, scan)?.let { return listOf(it) }
+        scan.hashStarted(source.path)
+        val id = context.contentResolver.openInputStream(source.uri)?.use {
+            contentId(it, source.size, -1, scan.cancelled, source.path, onRead = scan::hashRead)
+        } ?: error("Unable to open disk image")
         return listOf(candidate.copy(contentId = id))
+    }
+
+    /**
+     * A known file whose size or time differs from its record. Rare by nature; logged with its
+     * values so a scan that finds many (Kairo#46: every archive after an update) shows why.
+     */
+    private fun changedKnownFile(old: DiskImageEntry, now: DiskImageEntry) {
+        android.util.Log.w("KairoLibrary", "Known file changed: ${now.path}${now.zipEntry?.let { "/$it" } ?: ""}: " +
+            "size ${old.sourceSize} -> ${now.sourceSize}, time ${old.sourceModified} -> ${now.sourceModified}, " +
+            "image ${old.imageSize}/${old.imageCrc} -> ${now.imageSize}/${now.imageCrc}")
     }
 
     private fun failedSource(source: Source, scan: LibraryScanPipeline.ScanContext<DiskImageEntry>,
@@ -472,7 +497,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     private fun copyVerified(entry: DiskImageEntry, input: InputStream, crc: Long, cancelled: AtomicBoolean,
                              output: OutputStream) {
         require(contentId(input, entry.imageSize, crc, cancelled, entry.displayName, output) == entry.contentId) {
-            "Disk image changed since scan; refresh the library"
+            "Disk image changed since it was scanned; use Recheck all files in Manage library"
         }
     }
 
@@ -564,7 +589,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         val document = context.contentResolver.openFileDescriptor(source.uri, "r") ?: error("Unable to open archive")
         try {
             if (source.size >= 0) require(document.statSize == source.size) {
-                "Archive changed since scan; refresh the library"
+                "Archive changed since it was scanned; use Recheck all files in Manage library"
             }
             val channel = FileInputStream(document.fileDescriptor).channel
             // A provider that streams the document through a pipe cannot be read in place.
@@ -647,7 +672,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     /** The content ID of [name]'s bytes from [input]: its track data for a descriptor. */
     private fun contentId(input: InputStream, expectedSize: Long, expectedCrc: Long, cancelled: AtomicBoolean,
-                          name: String, output: OutputStream? = null): String {
+                          name: String, output: OutputStream? = null, onRead: (Long, Long) -> Unit = { _, _ -> }): String {
         val limit = format.limit(name)
         val digest = MessageDigest.getInstance("SHA-256")
         val crc = CRC32()
@@ -662,6 +687,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             digest.update(buffer, 0, read)
             crc.update(buffer, 0, read)
             output?.write(buffer, 0, read)
+            onRead(count, expectedSize)
         }
         require(count > 0) { "Empty disk image" }
         if (expectedSize >= 0) require(count == expectedSize) { "Disk image size changed during read" }

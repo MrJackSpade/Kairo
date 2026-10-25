@@ -126,7 +126,10 @@ internal class RowView(private val context: Context, private val host: RowHost, 
     }
 
     fun showTray(tray: View?) {
+        if (tray == null && trayHolder.childCount == 0) return
+        if (tray != null && trayHolder.childCount == 1 && trayHolder.getChildAt(0) === tray) return
         trayHolder.removeAllViews()
+        (tray?.parent as? ViewGroup)?.removeView(tray)
         tray?.let { trayHolder.addView(it, FrameLayout.LayoutParams(-1, -2)) }
         trayHolder.visibility = if (tray == null) View.GONE else View.VISIBLE
     }

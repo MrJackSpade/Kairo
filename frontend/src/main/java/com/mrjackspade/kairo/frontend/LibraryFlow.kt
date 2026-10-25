@@ -145,6 +145,8 @@ class LibraryFlow<T : LibraryItem>(
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or
                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
                     Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                // Beside the current games folder, not inside it where the picker was left (Kairo#51).
+                tree?.let(FolderStart::beside)?.let { putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
             }, requestCode)
         } catch (error: Exception) {
             val message = error.message ?: "Could not open folder chooser"

@@ -85,7 +85,7 @@ class LibraryMenu<T : LibraryItem>(
                     busy = { flow.rehashing }) {
                     if (!flow.scanning) flow.refresh(ScanDepth.EVERY_FILE, announce = true)
                 }),
-                "Refresh finds added, changed, or removed games. Recheck all files verifies every file again."),
+                "Refresh finds added and removed games. Recheck all files identifies every file again."),
             RowGroup("CATALOGS", listOfNotNull(
                 SettingsRow.action("catalogs", "Update catalogs",
                     value = {

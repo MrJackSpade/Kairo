@@ -79,6 +79,7 @@ public:
             error_.clear();
             state_ = "Starting";
             active_ = true;
+            ++started_;
         }
         fast_forward_.store(false);
         worker_ = std::thread(&FrameMachine::run, this, std::move(factory));
@@ -170,6 +171,15 @@ public:
     // fills the output queue; when it ends, what is queued beyond the target is skipped.
     void set_fast_forward(bool enabled) { fast_forward_.store(enabled); }
 
+    // Blocks until the session started last has ended, however it ended, and returns
+    // "<state>|<error>" as it ended: Stopped, or Error with the core's message. Returns at
+    // once when no session has run since the last one ended.
+    std::string await_end() {
+        std::unique_lock<std::mutex> guard(command_mutex_);
+        ended_ready_.wait(guard, [this] { return ended_ == started_; });
+        return end_state_ + "|" + end_error_;
+    }
+
     // "<state>|<error>|<frames>|<audio>|<xruns>|<audio config>|<pictured>": state is
     // Stopped, Starting, Running, Paused or Error; pictured is 1 once a frame that is
     // not all black has been published.
@@ -212,12 +222,16 @@ private:
         std::string error;
         std::unique_ptr<Core> core = factory(error);
         if (!core) {
-            std::lock_guard<std::mutex> guard(command_mutex_);
-            state_ = "Error";
-            error_ = error;
-            active_ = false;
-            // Unanswered commands break their promises, so a caller waiting on one returns.
-            commands_.clear();
+            {
+                std::lock_guard<std::mutex> guard(command_mutex_);
+                state_ = "Error";
+                error_ = error;
+                active_ = false;
+                // Unanswered commands break their promises, so a caller waiting on one returns.
+                commands_.clear();
+                end_session();
+            }
+            ended_ready_.notify_all();
             return;
         }
         report("Running");
@@ -347,12 +361,23 @@ private:
         present_ready_.notify_one();
         presenter.join();
         core.reset();
-        std::lock_guard<std::mutex> guard(command_mutex_);
-        active_ = false;
-        // Unanswered commands break their promises, so a caller waiting on one returns.
-        commands_.clear();
-        audio_state_ = "off";
-        if (state_ != "Error") state_ = "Stopped";
+        {
+            std::lock_guard<std::mutex> guard(command_mutex_);
+            active_ = false;
+            // Unanswered commands break their promises, so a caller waiting on one returns.
+            commands_.clear();
+            audio_state_ = "off";
+            if (state_ != "Error") state_ = "Stopped";
+            end_session();
+        }
+        ended_ready_.notify_all();
+    }
+
+    // With command_mutex_ held: records how the session ended, for await_end.
+    void end_session() {
+        end_state_ = state_;
+        end_error_ = error_;
+        ended_ = started_;
     }
 
     // Hands the core's current picture to the presenter, replacing one it has
@@ -469,6 +494,12 @@ private:
     bool active_ = false;
     std::string state_ = "Stopped";
     std::string error_;
+    // Sessions started and ended, and how the last one ended, for await_end.
+    uint64_t started_ = 0;
+    uint64_t ended_ = 0;
+    std::string end_state_ = "Stopped";
+    std::string end_error_;
+    std::condition_variable ended_ready_;
     uint64_t frames_ = 0;
     // Whether a frame that is not all black has been published since the start;
     // pictured_seen_ is the worker's own copy, so later frames are not scanned.

@@ -163,7 +163,6 @@ shared\tools\uitest.ps1 -Device <serial>
 | `-Filter <regex>` | Runs the tests whose full name (`package.Class#method`) matches, such as `'MenuTests'`, `'ControllerTests|TouchTests'` or `'#aSavedState'`. Not with `-Class`. |
 | `-PatienceSeconds <n>` | Bounds every wait at *n* seconds instead of 30. |
 | `-SkipBuild` | Installs and runs the APKs from the last build. |
-| `-Uninstall` | Removes the UI test build and the test APK from the device afterwards. |
 | `-Flavor withImages` | Tests the artwork-bundling flavor instead of `withoutImages` (apps with flavors). |
 
 Examples:
@@ -185,7 +184,7 @@ shared\tools\uitest-all.ps1 -Device <serial>
 shared\tools\uitest-all.ps1 -Device <serial> -Apps Kairo88,KairoMSX -Filter 'StateTests'
 ```
 
-It takes `-Filter`, `-PatienceSeconds`, `-SkipBuild` and `-Uninstall` as above, `-Apps` to choose apps
+It takes `-Filter`, `-PatienceSeconds` and `-SkipBuild` as above, `-Apps` to choose apps
 by repository name, and `-Workspace` for a folder of repositories other than the one around this app.
 
 ### The test classes
@@ -211,13 +210,12 @@ Media, LibraryManagement and Settings. KairoMSX's prefix is `KairoMsx` (`KairoMs
 
 | Package | What |
 | --- | --- |
-| `<applicationId>.uitest` | The app's UI test build, labelled "<App> UI test", with its own data. |
-| `<applicationId>.uitest.test` | The tests. |
 | `androidx.test.orchestrator`, `androidx.test.services` | The runner's tools, shared by every app. |
 
-The installed app, its data and its games are never touched. `-Uninstall` removes the first two;
-`adb uninstall <package>` removes any of them by hand. The test documents live in the UI test
-build's own storage and go with it.
+A run installs the app's UI test build (`<applicationId>.uitest`, labelled "<App> UI test", with
+its own data) and its tests (`<applicationId>.uitest.test`), and uninstalls both when it ends,
+whether its tests passed, failed or did not finish. The installed app, its data and its games are
+never touched. The test documents live in the UI test build's own storage and go with it.
 
 ### Reading the results
 

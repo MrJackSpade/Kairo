@@ -17,10 +17,7 @@ import android.widget.TextView
 class TaskStrip(context: Context) : LinearLayout(context) {
     private class Task(val text: String, val priority: Int, val stop: (() -> Unit)?)
     private val tasks = HashMap<String, Task>()
-    private val label = Ui.text(context, "", Ui.SECONDARY).apply {
-        maxLines = 1
-        ellipsize = TextUtils.TruncateAt.END
-    }
+    private val label = Ui.oneLineKeepingEnd(Ui.text(context, "", Ui.SECONDARY))
     val stopButton: TextView = Ui.text(context, "Stop", Ui.SECONDARY, Ui.ACCENT, bold = true).apply {
         gravity = Gravity.CENTER
         setPadding(Ui.dp(context, 12), 0, Ui.dp(context, 12), 0)

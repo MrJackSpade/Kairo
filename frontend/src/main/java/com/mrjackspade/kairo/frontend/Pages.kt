@@ -106,9 +106,9 @@ open class GroupsPage(
     private val content: () -> List<RowGroup>,
     private val footerButtons: (() -> List<FooterButton>)? = null
 ) : RowsPage() {
-    private lateinit var scrollView: ScrollView
+    private var scrollView: ScrollView? = null
     private var footer: Footer? = null
-    override val scroll: ScrollView get() = scrollView
+    override val scroll: ScrollView? get() = scrollView
     override val testName: String get() = title
 
     override fun groups() = content()
@@ -119,8 +119,10 @@ open class GroupsPage(
             setBackgroundColor(Ui.BG)
         }
         page.addView(header(title, scope()), LinearLayout.LayoutParams(-1, dp(56)))
-        scrollView = PageParts.scroll(this, rowsView(), intArrayOf(dp(18), 0, dp(18), dp(24)))
-        page.addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
+        // A long page, such as a library's disks, keeps views only for the rows on screen.
+        val body = if (RowsPage.isLong(groups())) recycledRowsView()
+            else PageParts.scroll(this, rowsView(), intArrayOf(dp(18), 0, dp(18), dp(24))).also { scrollView = it }
+        page.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         footerButtons?.let { buttons ->
             footer = Footer(this, buttons).also {
                 it.render()
@@ -255,7 +257,7 @@ class FlyoutPage(private val model: FlyoutModel, private val start: String? = nu
         spinner = Ui.spinner(context, 14).also {
             statusLine.addView(it, LinearLayout.LayoutParams(dp(14), dp(14)).apply { marginEnd = dp(8) })
         }
-        status = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).apply { maxLines = 4 }
+        status = Ui.oneLineKeepingEnd(Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED))
         statusLine.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
         content.addView(statusLine)
         content.addView(rowsView(), LinearLayout.LayoutParams(-1, -2))

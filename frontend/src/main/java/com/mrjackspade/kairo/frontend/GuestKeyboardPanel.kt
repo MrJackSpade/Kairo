@@ -481,9 +481,11 @@ class GuestKeyboardPanel(
     }
 
     private fun updateHighlights() {
-        val pressed = input.pressedKeys()
+        val held = input.pressedKeys()
         val now = SystemClock.uptimeMillis()
-        val shifted = layout.shiftCodes.any { it in pressed }
+        // A chord's Shift picks the shifted legend but does not light Shift itself (Kairo64#3).
+        val shifted = layout.shiftCodes.any { it in held }
+        val pressed = GuestKeyboardHighlights.litKeys(held, input.holds(), layout.shiftCodes, layout.modifiers)
         for (scan in pressed - lastPressed)
             highlightUntil[scan] = Lit(now + 90, shifted)
         for (scan in lastPressed - pressed) {

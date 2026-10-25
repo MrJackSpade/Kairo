@@ -84,6 +84,10 @@ NATIVE_MACHINE(nativeStart)(JNIEnv *env, jobject, jstring firmware, jstring home
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStop)(JNIEnv *, jobject) { machine.stop(); }
 
+extern "C" JNIEXPORT jstring JNICALL NATIVE_MACHINE(nativeAwaitEnd)(JNIEnv *env, jobject) {
+    return env->NewStringUTF(machine.await_end().c_str());
+}
+
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativePause)(JNIEnv *, jobject, jboolean paused) {
     machine.pause(paused == JNI_TRUE);
 }

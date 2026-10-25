@@ -11,10 +11,10 @@ import java.io.File
  * added, removed or renamed.
  */
 enum class ScanDepth(val relist: Boolean, val rehash: Boolean) {
-    /** A launch: a folder whose time is unchanged keeps its remembered listing; unchanged files keep their hashes. */
+    /** A launch: a folder whose time is unchanged keeps its remembered listing; known files keep their identity. */
     CHANGED_FOLDERS(relist = false, rehash = false),
 
-    /** Refresh: every folder is listed again, which also finds a file overwritten in place. */
+    /** Refresh: every folder is listed again; only files the library has not seen are hashed. */
     EVERY_FOLDER(relist = true, rehash = false),
 
     /** Recheck all files: every folder is listed and every file hashed again. */

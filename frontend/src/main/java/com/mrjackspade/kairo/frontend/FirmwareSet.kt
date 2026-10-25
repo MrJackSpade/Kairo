@@ -85,11 +85,15 @@ class FirmwareSet(
             else part.missing
     }
 
-    /** Opens the system folder picker; the result goes to [importFolder]. */
-    fun chooseFolder(activity: Activity, requestCode: Int, failed: (String) -> Unit) = try {
+    /**
+     * Opens the system folder picker at [start] (FolderStart), not wherever it was last; the result
+     * goes to [importFolder].
+     */
+    fun chooseFolder(activity: Activity, requestCode: Int, start: Uri?, failed: (String) -> Unit) = try {
         @Suppress("DEPRECATION")
         activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), requestCode)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .apply { if (start != null) putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, start) }, requestCode)
     } catch (error: android.content.ActivityNotFoundException) {
         failed(error.message ?: "Could not open the folder chooser")
     }
