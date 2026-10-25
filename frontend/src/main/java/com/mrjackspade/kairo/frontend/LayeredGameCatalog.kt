@@ -128,7 +128,10 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         schema.updateUrl, schema.metadataUrl, MAX_LOCAL_JSON) { file ->
         requireUpdateFormat(JSONObject(file.readText()))
     }
-    private var update = readUpdate()
+    // The downloaded update is parsed when a game first needs it, on whichever thread asks (the
+    // library's workers at a start), not while the activity is created (Kairo#52).
+    private var updateRead: JSONObject? = null
+    private val update: JSONObject get() = synchronized(this) { updateRead ?: readUpdate().also { updateRead = it } }
     private var additions = readLocal(additionsFile)
     private val overrides = GameMetadataOverrides(overridesFile, MAX_LOCAL_JSON.toInt(),
         schemaEnvelope = true)
@@ -147,7 +150,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     fun downloadUpdate(task: CatalogUpdateTask = CatalogUpdateTask()): Boolean {
         if (!snapshot.download(task)) return false
         synchronized(this) {
-            update = readUpdate()
+            updateRead = readUpdate()
             fallbackRecords.clear()
             updatedFallbackIds.clear()
             invalidate()
