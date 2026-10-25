@@ -466,7 +466,9 @@ class LibraryScreen<T : LibraryItem>(
             // the entries in that order reads each shard once; in library order, the shard cache
             // turned over for nearly every entry and a library of thousands showed nothing for
             // seconds after its cache was read (Kairo#46).
-            val byShard = items.sortedBy { entry -> catalog.matchId(entry)?.substringAfter(':')?.take(2) ?: "" }
+            val started = android.os.SystemClock.elapsedRealtime()
+            val byShard = items.map { entry -> entry to (catalog.matchId(entry)?.substringAfter(':')?.take(2) ?: "") }
+                .sortedBy { it.second }.map { it.first }
             // A set's entry point stands for its other disks only while it is in the library.
             val setDisks = HashSet<String>()
             for (entry in byShard) {
@@ -480,6 +482,8 @@ class LibraryScreen<T : LibraryItem>(
                     catalog.hiddenFromLibrary(entry)) hidden += entry.id
             }
             val visible = items.filterNot { it.id in hidden }
+            android.util.Log.i("KairoLibrary", "Shown: ${visible.size} of ${items.size} entries in " +
+                "${android.os.SystemClock.elapsedRealtime() - started} ms")
             post {
                 if (generation == entriesGeneration) publishEntries(visible)
             }
