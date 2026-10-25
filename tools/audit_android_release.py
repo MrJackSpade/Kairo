@@ -14,10 +14,14 @@ from pathlib import Path
 # The adult catalog parts (art.nsfw, data.nsfw), which Play builds leave out.
 ADULT_PART = re.compile(r'assets/catalog/[^/]+\.nsfw\.')
 
-# Machine firmware and game disk images, which no Kairo app ships. Free system software an app
-# carries, such as KairoST's EmuTOS image, has its own names.
-FORBIDDEN = re.compile(r'(?i)(^|/)bios\d*\.(rom|bin)$|\.(hdi|fdi|d88|d77|nfd|hdm|xdf|dim|fdd|iso|chd|cue|'
-                       r'dsk|st|msa|stx|adf|ipf)$')
+# Machine firmware and game disk images, which no Kairo app ships: BIOS images; Commodore's
+# KERNAL, BASIC, character and drive ROMs under the names players and VICE give them; and every
+# system's disk, tape, cartridge and program images. Free system software an app carries, such as
+# KairoST's EmuTOS image or Kairo64's Open ROMs (kernal_generic.rom), has its own names.
+FORBIDDEN = re.compile(r'(?i)(^|/)bios\d*\.(rom|bin)$'
+                       r'|(^|/)(c64_?)?(kernal|basic|chargen|char|dos15\d\d|drive-15\d\d\w*)(\.bin)?$'
+                       r'|\.(hdi|fdi|d88|d77|nfd|hdm|xdf|dim|fdd|iso|chd|cue|dsk|st|msa|stx|adf|ipf'
+                       r'|d64|d71|d81|g64|g71|p64|x64|t64|tap|crt|prg|p00)$')
 
 # A bundle keeps the baseline profile as metadata; bundletool installs it as the APK's assets/dexopt/.
 BUNDLE_PROFILES = 'BUNDLE-METADATA/com.android.tools.build.profiles/'
