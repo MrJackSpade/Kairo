@@ -6,12 +6,18 @@ import android.content.Intent
 import android.net.Uri
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Resolves launcher game requests and prevents superseded inspections from opening. */
+/**
+ * Resolves launcher game requests and prevents superseded inspections from opening. A request
+ * names a library game when it is that game's document, or when the file it names holds the same
+ * content as exactly one library game: a frontend app hands over its own URI or a path for a file
+ * in the library folder, and the library's game keeps its saves and settings (Kairo98#63).
+ */
 class ExternalGameDispatcher<T>(
     private val activity: Activity,
     private val resolver: ContentResolver,
     private val knownEntries: () -> List<T>,
     private val sourceUri: (T) -> Uri,
+    private val contentId: (T) -> String?,
     private val inspect: (ExternalGameFile, AtomicBoolean) -> List<T>,
     private val onResolved: (List<T>, Boolean) -> Unit,
     private val showStatus: (String) -> Unit,
@@ -46,7 +52,13 @@ class ExternalGameDispatcher<T>(
                 if (requestGeneration != generation || cancelled.get() || activity.isDestroyed)
                     return@runOnUiThread
                 cancellation = null
-                result.onSuccess { onResolved(it, true) }.onFailure { failure ->
+                result.onSuccess { inspected ->
+                    val library = knownEntries()
+                    val entries = inspected.map { entry ->
+                        contentId(entry)?.let { id -> library.singleOrNull { contentId(it) == id } } ?: entry
+                    }
+                    onResolved(entries, entries.any { it in inspected })
+                }.onFailure { failure ->
                     showStatus("Could not open ${request.name}: ${failure.message}")
                 }
             }

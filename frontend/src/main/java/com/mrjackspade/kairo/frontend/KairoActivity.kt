@@ -407,7 +407,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private var externalFromFrontend = true
     private val externalDispatcher by lazy {
         ExternalGameDispatcher(this, contentResolver, { libraryEntries },
-            { entry: E -> Uri.parse(entry.uri) }, ::inspectExternal,
+            { entry: E -> Uri.parse(entry.uri) }, { entry: E -> entry.contentId }, ::inspectExternal,
             { entries, inspected ->
                 if (inspected) externalEntries = entries
                 chooseExternalGame(entries)
