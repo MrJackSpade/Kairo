@@ -22,6 +22,10 @@ android {
             // The emulator cores build as they ship (CMake's release configuration, not Debug's
             // -O2), so a UI test sees the speed a player gets.
             externalNativeBuild { cmake { arguments '-DCMAKE_BUILD_TYPE=Release' } }
+            // Not debuggable either: ART runs a debuggable app's code in its interpreter with the
+            // debugger's hooks, many times slower, so timings the tests check (a disk choice with
+            // thousands of disks) measured the debugger instead. Instrumentation needs no debugging.
+            debuggable false
             applicationIdSuffix '.uitest'
             versionNameSuffix '-uitest'
             matchingFallbacks += ['debug']

@@ -33,10 +33,10 @@ class TestDocumentsProvider : DocumentsProvider() {
 
     private fun id(file: File) = file.canonicalFile.relativeTo(root.canonicalFile).invariantSeparatorsPath
 
-    private fun add(cursor: MatrixCursor, file: File) {
+    private fun add(cursor: MatrixCursor, file: File, id: String = id(file)) {
         val directory = file.isDirectory
         cursor.newRow()
-            .add(Document.COLUMN_DOCUMENT_ID, id(file))
+            .add(Document.COLUMN_DOCUMENT_ID, id)
             .add(Document.COLUMN_DISPLAY_NAME, file.name)
             .add(Document.COLUMN_MIME_TYPE, if (directory) Document.MIME_TYPE_DIR else mime(file.name))
             .add(Document.COLUMN_SIZE, if (directory) null else file.length())
@@ -59,7 +59,11 @@ class TestDocumentsProvider : DocumentsProvider() {
 
     override fun queryChildDocuments(parentDocumentId: String, projection: Array<out String>?, sortOrder: String?): Cursor =
         MatrixCursor(projection ?: DOCUMENT_COLUMNS).apply {
-            file(parentDocumentId).listFiles().orEmpty().sortedBy { it.name }.forEach { add(this, it) }
+            // A child's ID is its parent's and its name: resolving each child's path again took
+            // most of a scan's time in a folder of thousands.
+            val parent = file(parentDocumentId)
+            val prefix = id(parent).let { if (it.isEmpty()) "" else "$it/" }
+            parent.listFiles().orEmpty().sortedBy { it.name }.forEach { add(this, it, prefix + it.name) }
         }
 
     override fun isChildDocument(parentDocumentId: String, documentId: String) =
