@@ -55,21 +55,22 @@ class MenuCrawler(
     }
 
     /** The name of the page on top (the last one drawn). */
-    private fun topPage(): String = checkNotNull(driver.find(By.id(TestAttributes.PAGE)).keyNow()) { "No page is open" }
+    private fun topPage(): String =
+        checkNotNull(driver.find(By.id(TestAttributes.PAGE).notInside(By.LOWER_SCREEN)).keyNow()) { "No page is open" }
 
     private fun visit(page: String, trail: List<String>) {
         if (!seen.add(page)) return
         report.pages += trail.joinToString(" › ")
-        driver.find(By.page(page)).waitUntilShown()
+        driver.find(By.mainPage(page)).waitUntilShown()
         checkPage(page)
         val items = driver.onMain {
-            driver.resolveSteps(listOf(Element.Step(By.page(page)), Element.Step(By.anyItem()))).mapNotNull(TestAttributes::item)
+            driver.resolveSteps(listOf(Element.Step(By.mainPage(page)), Element.Step(By.anyItem()))).mapNotNull(TestAttributes::item)
         }.distinct()
         for (item in items) {
             val where = "$page › $item"
             if (skip(item)) { report.skipped += where; continue }
             returnTo(page)
-            val element = driver.page(page).find(By.item(item))
+            val element = driver.find(By.mainPage(page)).find(By.item(item))
             if (!element.exists()) continue // Opening an earlier item can remove this one, as a confirm row does.
             val switched = element.keyNow()
             element.tap()
@@ -82,7 +83,7 @@ class MenuCrawler(
                     visit(top, trail + top)
                     returnTo(page)
                 }
-                driver.page(page).find(By.id("tray.button")).exists() -> closeTray(page)
+                driver.find(By.mainPage(page)).find(By.id("tray.button")).exists() -> closeTray(page)
                 switched == "true" || switched == "false" -> if (element.keyNow() != switched) element.tap()
             }
         }
@@ -107,9 +108,9 @@ class MenuCrawler(
     }
 
     private fun closeTray(page: String) {
-        val cancel = driver.page(page).find(By.id("tray.button").withKey("Cancel"))
+        val cancel = driver.find(By.mainPage(page)).find(By.id("tray.button").withKey("Cancel"))
         if (cancel.exists()) cancel.tap() else driver.press(KeyEvent.KEYCODE_BUTTON_B)
-        driver.page(page).find(By.id("tray.button")).waitUntilGone()
+        driver.find(By.mainPage(page)).find(By.id("tray.button")).waitUntilGone()
     }
 
     companion object {

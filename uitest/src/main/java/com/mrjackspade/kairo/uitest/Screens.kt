@@ -138,8 +138,15 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
         val title = page.find(By.item(row)).find(By.id("label")).text()
         page.find(By.item(row)).tap()
         val choices = driver.page(title).waitUntilShown()
+        // Without a named option: the first one not chosen now whose value differs from what Default
+        // gives ("All games: 512 KB"), so the pick changes what the game gets.
+        val defaultRow = choices.find(By.item("o:default"))
+        val defaultValue = if (defaultRow.exists()) defaultRow.find(By.id("description")).textNow()?.substringAfter(": ") else null
         val picked = option?.let { choices.find(By.item("o:$it")) }
-            ?: choices.find(By.anyItem()).all().first { it.key() == "false" && it.itemId().startsWith("o:") }
+            ?: choices.find(By.anyItem()).all().first {
+                it.key() == "false" && it.itemId().startsWith("o:") && it.itemId() != "o:default" &&
+                    it.find(By.id("label")).textNow() != defaultValue
+            }
         val id = picked.itemId().removePrefix("o:")
         picked.tap()
         choices.waitUntilGone()
@@ -306,6 +313,16 @@ class GamePage(private val driver: Driver, private val app: AppUnderTest, privat
         val settings = driver.page("Game settings")
         if (!settings.exists()) page.find(By.id("settings")).tap()
         return settings.waitUntilShown()
+    }
+
+    /**
+     * The game's settings on the game screen itself, as the controller's Menu opens them from the
+     * game's page: on a two-screen device too, where its Game settings button is on the lower screen.
+     */
+    fun openSettingsAbove(): Element {
+        if (!settingsBeside) return openSettings()
+        driver.press(android.view.KeyEvent.KEYCODE_BUTTON_MODE)
+        return driver.find(By.mainPage("Game settings")).waitUntilShown()
     }
 
     /** Whether the game's settings are on a two-screen device's lower screen, beside its page. */

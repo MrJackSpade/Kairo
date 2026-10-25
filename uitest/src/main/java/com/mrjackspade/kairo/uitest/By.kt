@@ -24,6 +24,11 @@ class By private constructor(val description: String, private val test: (View) -
         Views.texts(view).any { it.contains(part, ignoreCase = true) }
     })
 
+    /** Also requires that no ancestor has the test id [id], as for the pages of one screen. */
+    fun notInside(id: String) = and(By("not inside id=$id") { view ->
+        generateSequence(view.parent) { it.parent }.filterIsInstance<View>().none { TestAttributes.id(it) == id }
+    })
+
     override fun toString() = description
 
     companion object {
@@ -49,6 +54,15 @@ class By private constructor(val description: String, private val test: (View) -
 
         /** An id matching [pattern], for ids that carry an index, such as "firmware0-n88.rom". */
         fun idMatching(pattern: Regex) = By("id~/$pattern/") { TestAttributes.id(it)?.let(pattern::matches) == true }
+
+        /**
+         * A page of the game screen by its name, leaving out a two-screen device's lower screen,
+         * which shows pages of its own (the library's Game settings, Kairo#43).
+         */
+        fun mainPage(name: String) = page(name).notInside(LOWER_SCREEN)
+
+        /** The lower screen's library view (LowerLibraryController). */
+        const val LOWER_SCREEN = "secondary.library"
 
         /** A page by the name the app gives it: its title, or its kind, such as "flyout" or "modal". */
         fun page(name: String) = By("page \"$name\"") {

@@ -34,7 +34,7 @@ abstract class MenuTests : KairoUiTest() {
 
     @Test
     fun everyPageOfAGamesSettingsOpens() {
-        screens.completeFirstRun().open(app.bootGame).openSettings()
+        screens.completeFirstRun().open(app.bootGame).openSettingsAbove()
         crawl("game settings", minimumPages = 3, minimumItems = 8)
     }
 
