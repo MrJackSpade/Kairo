@@ -49,6 +49,7 @@ becomes a "local" game titled from its group.
 """
 
 import argparse
+import collections
 import hashlib
 import importlib.util
 import json
@@ -251,14 +252,16 @@ def moby_match(moby_names, title, year):
 def relocate(path, field, moved, games):
     """Move the records of local games that have since joined a matched game to that game's key,
     in their file, so better matching never strands a description, override or exclusion. A game
-    that already has its own record is a conflict to settle by hand; every conflict in the file is
-    listed at once, so they can all be settled before the next run."""
+    that already has its own record, or that more than one local game with a record joined, is a
+    conflict to settle by hand; every conflict in the file is listed at once, so they can all be
+    settled before the next run."""
     document = read(path, None)
     if document is None:
         return
     records = document[field]
     stranded = sorted(key for key in records if key not in games and key in moved)
-    conflicts = [key for key in stranded if moved[key] in records]
+    joining = collections.Counter(moved[key] for key in stranded)
+    conflicts = [key for key in stranded if moved[key] in records or joining[moved[key]] > 1]
     if conflicts:
         raise SystemExit(f"{path.name}: {len(conflicts)} local games joined games that have their own record:\n" +
                          "\n".join(f"{key} joined {moved[key]}" for key in conflicts))
