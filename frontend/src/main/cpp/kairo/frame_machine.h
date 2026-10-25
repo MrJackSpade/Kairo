@@ -392,13 +392,15 @@ private:
             std::lock_guard<std::mutex> guard(command_mutex_);
             pictured_ = true;
         }
+        const FrameShape shape{width, height, core.line_repeat(), core.frame_bgra()};
+        if (shape.repeat < 1 || shape.repeat > 4)
+            __android_log_assert("repeat", "KairoMachine", "A frame row cannot stand for %u rows", shape.repeat);
         bool replaced;
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
             replaced = has_pending_;
             pending_.assign(pixels, pixels + static_cast<size_t>(width) * height * 4);
-            pending_width_ = width;
-            pending_height_ = height;
+            pending_shape_ = shape;
             has_pending_ = true;
         }
         present_ready_.notify_one();
@@ -425,7 +427,7 @@ private:
         SurfacePresenter shader;
         GlFramePresenter plain;
         std::vector<uint8_t> frame;
-        uint32_t width = 0, height = 0;
+        FrameShape shape{};
         ANativeWindow *window = nullptr;
         unsigned window_generation = ~0u, shader_generation = ~0u;
         for (;;) {
@@ -439,8 +441,7 @@ private:
                 if (present_stop_) break;
                 if (has_pending_) {
                     frame.swap(pending_);
-                    width = pending_width_;
-                    height = pending_height_;
+                    shape = pending_shape_;
                     has_pending_ = false;
                 }
             }
@@ -463,8 +464,8 @@ private:
                 }
             }
             if (!window || frame.empty()) continue;
-            if (shader.render(window, frame.data(), width, height)) continue;
-            plain.render(window, frame.data(), width, height);
+            if (shader.render(window, frame.data(), shape)) continue;
+            plain.render(window, frame.data(), shape);
         }
         shader.destroy();
         plain.destroy();
@@ -510,7 +511,7 @@ private:
     std::condition_variable present_ready_;
     bool present_stop_ = false;
     std::vector<uint8_t> pending_;
-    uint32_t pending_width_ = 0, pending_height_ = 0;
+    FrameShape pending_shape_{};
     bool has_pending_ = false;
 };
 

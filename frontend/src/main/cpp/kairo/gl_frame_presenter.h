@@ -2,6 +2,7 @@
 #pragma once
 
 #include "egl_context.h"
+#include "frame_shape.h"
 #include <GLES3/gl3.h>
 #include <android/log.h>
 #include <android/native_window.h>
@@ -12,11 +13,12 @@ namespace kairo {
 // Draws a software-produced RGBA8 frame to the game's window on the GPU when no shader preset
 // is chosen (Kairo#50): the frame is uploaded as it is and scaled to the whole window by a
 // sharp-bilinear shader, which prescales by whole pixels and blends only across the edges of
-// each source pixel. A core may therefore hand over its picture at the machine's own resolution,
-// such as 640x200 for a 200-line mode the layout shows at 640x400: every source line becomes the
-// same rows as the core's own line doubling would give, without the CPU writing them twice.
-// Rows are flipped in the shader, not on the CPU. The window's layout, not the frame's size,
-// decides the shape, so a frame's size may change with the guest's mode.
+// each source pixel. A core may hand over its picture at the machine's own resolution, such as
+// 640x200 for a 200-line mode the layout shows at 640x400, with FrameShape::repeat 2: the shader
+// samples the 640x400 picture the core's line doubling would have drawn, fetching each of its
+// rows from the frame row it repeats, so the result is the same to the bit. A core's native
+// B, G, R, A bytes are reordered here too. The window's layout, not the frame's size, decides
+// the shape, so a frame's size may change with the guest's mode.
 class GlFramePresenter {
 public:
     GlFramePresenter() = default;
@@ -26,7 +28,8 @@ public:
 
     // Draws [rgba] (top row first) to [window]. Fails fast: a device without OpenGL ES 3 cannot
     // show games at all, so a failure here stops the app with its reason.
-    void render(ANativeWindow *window, const uint8_t *rgba, uint32_t width, uint32_t height) {
+    void render(ANativeWindow *window, const uint8_t *rgba, const FrameShape &shape) {
+        const uint32_t width = shape.width, height = shape.height;
         if (!egl_.ready()) {
             require(egl_.create(3, 0), "create an OpenGL ES 3 context");
             createProgram();
@@ -52,7 +55,9 @@ public:
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glViewport(0, 0, screenWidth, screenHeight);
         glUseProgram(program_);
-        glUniform2f(sourceSize_, static_cast<float>(width), static_cast<float>(height));
+        glUniform2f(sourceSize_, static_cast<float>(width), static_cast<float>(height * shape.repeat));
+        glUniform1i(repeat_, static_cast<GLint>(shape.repeat));
+        glUniform1i(bgra_, shape.bgra ? 1 : 0);
         glUniform2f(outputSize_, static_cast<float>(screenWidth), static_cast<float>(screenHeight));
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture_);
@@ -116,15 +121,29 @@ precision highp float;
 uniform sampler2D frame;
 uniform vec2 sourceSize;
 uniform vec2 outputSize;
+uniform int repeat;
+uniform bool bgra;
 in vec2 uv;
 out vec4 color;
+// A pixel of the picture: its row comes from the frame row it repeats.
+vec3 pixel(ivec2 at) {
+    ivec2 clamped = clamp(at, ivec2(0), ivec2(sourceSize) - 1);
+    vec4 value = texelFetch(frame, ivec2(clamped.x, clamped.y / repeat), 0);
+    return bgra ? value.bgr : value.rgb;
+}
 void main() {
     vec2 texel = uv * sourceSize;
     vec2 prescale = max(floor(outputSize / sourceSize), vec2(1.0));
     vec2 region = 0.5 - 0.5 / prescale;
     vec2 center = fract(texel) - 0.5;
     vec2 offset = (center - clamp(center, -region, region)) * prescale + 0.5;
-    color = vec4(texture(frame, (floor(texel) + offset) / sourceSize).rgb, 1.0);
+    // Bilinear between the four nearest picture pixels, fetched by hand so rows can repeat.
+    vec2 at = floor(texel) + offset - 0.5;
+    ivec2 base = ivec2(floor(at));
+    vec2 weight = at - floor(at);
+    vec3 top = mix(pixel(base), pixel(base + ivec2(1, 0)), weight.x);
+    vec3 bottom = mix(pixel(base + ivec2(0, 1)), pixel(base + ivec2(1, 1)), weight.x);
+    color = vec4(mix(top, bottom, weight.y), 1.0);
 })";
         program_ = glCreateProgram();
         const GLuint vertexShader = compile(GL_VERTEX_SHADER, vertex);
@@ -140,18 +159,20 @@ void main() {
         frame_ = glGetUniformLocation(program_, "frame");
         sourceSize_ = glGetUniformLocation(program_, "sourceSize");
         outputSize_ = glGetUniformLocation(program_, "outputSize");
+        repeat_ = glGetUniformLocation(program_, "repeat");
+        bgra_ = glGetUniformLocation(program_, "bgra");
         glGenVertexArrays(1, &vertexArray_);
         glGenTextures(1, &texture_);
         glBindTexture(GL_TEXTURE_2D, texture_);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     }
 
     EglContext egl_;
     GLuint program_ = 0, texture_ = 0, vertexArray_ = 0;
-    GLint frame_ = -1, sourceSize_ = -1, outputSize_ = -1;
+    GLint frame_ = -1, sourceSize_ = -1, outputSize_ = -1, repeat_ = -1, bgra_ = -1;
     uint32_t width_ = 0, height_ = 0;
 };
 

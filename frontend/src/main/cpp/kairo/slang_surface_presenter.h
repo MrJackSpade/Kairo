@@ -2,6 +2,7 @@
 #pragma once
 
 #include "egl_context.h"
+#include "frame_shape.h"
 #include "slang_filter.h"
 #include <android/native_window.h>
 #include <algorithm>
@@ -25,8 +26,9 @@ public:
         preset_failed_ = false;
     }
 
-    bool render(ANativeWindow* window, const uint8_t* rgba, uint32_t width,
-                uint32_t height) {
+    bool render(ANativeWindow* window, const uint8_t* rgba, const FrameShape& shape) {
+        // The preset sees the picture as the core would have drawn it: repeated rows and RGBA.
+        const uint32_t width = shape.width, height = shape.height * shape.repeat;
         if (path_.empty() || preset_failed_ || !window || !rgba || !width || !height)
             return false;
         if (!egl_.ready()) {
@@ -59,9 +61,17 @@ public:
         // Software frames are top-down; OpenGL texture rows begin at the bottom.
         flipped_.resize(static_cast<size_t>(width) * height * 4);
         const size_t rowBytes = static_cast<size_t>(width) * 4;
-        for (uint32_t row = 0; row < height; ++row)
-            std::memcpy(flipped_.data() + row * rowBytes,
-                        rgba + (height - 1 - row) * rowBytes, rowBytes);
+        for (uint32_t row = 0; row < height; ++row) {
+            uint8_t* target = flipped_.data() + row * rowBytes;
+            const uint8_t* source = rgba + ((height - 1 - row) / shape.repeat) * rowBytes;
+            if (!shape.bgra) { std::memcpy(target, source, rowBytes); continue; }
+            for (size_t i = 0; i < rowBytes; i += 4) {
+                target[i] = source[i + 2];
+                target[i + 1] = source[i + 1];
+                target[i + 2] = source[i];
+                target[i + 3] = source[i + 3];
+            }
+        }
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glBindTexture(GL_TEXTURE_2D, texture_);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,

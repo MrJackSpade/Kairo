@@ -41,6 +41,13 @@ public:
     virtual std::string error() = 0;
     // The last frame as RGBA8888 rows of width pixels; valid until the next run_frame().
     virtual const uint8_t *frame(uint32_t &width, uint32_t &height) = 0;
+    // How many picture rows each row of frame() stands for: 2 for a 200-line mode the core hands
+    // over without doubling its lines, which the presenter then repeats exactly as the core would
+    // have (Kairo#50). Read with each frame, so it may change with the guest's mode.
+    virtual uint32_t line_repeat() { return 1; }
+    // Whether frame()'s bytes are in B, G, R, A order (a core's native 0xAARRGGBB words), which the
+    // presenter reorders on the GPU instead of the core converting every pixel.
+    virtual bool frame_bgra() { return false; }
     // How long a guest frame lasts.
     virtual double frame_seconds() = 0;
     virtual int32_t audio_rate() = 0;

@@ -10,6 +10,7 @@
 #include <android/native_window.h>
 #include <cstdint>
 #include <string>
+#include "frame_shape.h"
 
 namespace kairo {
 
@@ -20,7 +21,7 @@ public:
         if (!path.empty())
             __android_log_assert("preset", "KairoShaders", "Shader preset %s in a build without shaders", path.c_str());
     }
-    bool render(ANativeWindow *, const uint8_t *, uint32_t, uint32_t) { return false; }
+    bool render(ANativeWindow *, const uint8_t *, const FrameShape &) { return false; }
     void destroy() {}
 };
 
