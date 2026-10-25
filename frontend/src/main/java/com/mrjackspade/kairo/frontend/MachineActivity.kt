@@ -445,6 +445,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     }
                     is CatalogSetting.Drive -> driveRow(entry, setting, scope, enabled, noHash)
                     is CatalogSetting.Lines -> linesRow(entry, setting, enabled, noHash)
+                    is CatalogSetting.Text -> textRow(entry, setting, enabled, noHash)
                     is CatalogSetting.Custom -> customSettingRow(entry, setting, enabled)
                 }
             }
@@ -525,6 +526,29 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             },
             { saveGameSetting(entry) { catalog.resetOverrideSubfield(id!!, field, subfield) } },
             enabled = enabled, disabledReason = noHash)
+    }
+
+    /**
+     * A [CatalogSetting.Text]: saving nothing chooses the machine's own even where the catalog names
+     * one; Reset returns to the catalog's.
+     */
+    private fun textRow(entry: E, setting: CatalogSetting.Text, enabled: () -> Boolean,
+                        noHash: () -> String): SettingsRow {
+        val id = entry.key.takeIf { entry.contentId != null }
+        val field = setting.field
+        val subfield = setting.subfield
+        fun custom() = id != null && catalog.sourceOf(entry, field, subfield) == "User override"
+        return GameSettingsRows.text("text-$field-$subfield", setting.label, setting.hint,
+            { setting.value(catalog.resolve(entry)).takeIf { it.isNotEmpty() } }, ::custom,
+            { catalog.defaultSourceOf(entry, field, subfield).takeIf { it != "App default" }
+                ?.let(GameSource::label) ?: GameSource.BUILT_IN },
+            { typed ->
+                val value = setting.normalize(typed)
+                if (!setting.valid(value)) toast("Not a valid ${setting.label.lowercase()}: $typed")
+                else saveGameSetting(entry) { catalog.setOverrideSubfield(id!!, field, subfield, value) }
+            },
+            { saveGameSetting(entry) { catalog.resetOverrideSubfield(id!!, field, subfield) } },
+            empty = setting.empty, enabled = enabled, disabledReason = noHash)
     }
 
     /** Machine: the all-games defaults of the options, then firmware. */

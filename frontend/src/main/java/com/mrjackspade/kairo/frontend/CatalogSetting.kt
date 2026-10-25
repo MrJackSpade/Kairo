@@ -49,6 +49,20 @@ sealed class CatalogSetting(val field: String, val subfield: String,
     }
 
     /**
+     * One string the game starts with, such as the program a disk starts: `[field].[subfield]`,
+     * matching [pattern], or "" for the machine's own choice, which the row calls [empty].
+     * [normalize] turns what the player types into the stored form.
+     */
+    class Text(field: String, subfield: String, val label: String, val hint: String, val pattern: Regex,
+               val empty: String, val normalize: (String) -> String = String::trim,
+               appliesTo: (String) -> Boolean = { true }) : CatalogSetting(field, subfield, appliesTo) {
+        fun valid(value: Any?): Boolean = value is String && (value.isEmpty() || pattern.matches(value))
+
+        /** The game's string, or "" for the machine's own choice. */
+        fun value(game: CatalogGame): String = game.section(field)?.optString(subfield, "") ?: ""
+    }
+
+    /**
      * A setting whose row the product builds itself ([MachineActivity.customSettingRow]), named by
      * [id]: it changes [subfields] of [field], or the whole field when null.
      */
@@ -77,6 +91,7 @@ sealed class CatalogSetting(val field: String, val subfield: String,
                 when (val setting = settings.firstOrNull { it.field == field && it.subfield == key }) {
                     is Choice -> setting.option.valid(value.opt(key))
                     is Lines -> setting.valid(value.optJSONArray(key))
+                    is Text -> setting.valid(value.opt(key))
                     else -> false
                 }
             }
