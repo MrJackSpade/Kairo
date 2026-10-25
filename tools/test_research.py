@@ -3,13 +3,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from research import match_title, moby_match, name_forms, parse_hint, relocate
+from research import index_snapshots, match_title, moby_match, name_forms, parse_hint, relocate
 
 
 def snapshot(*games):
-    return {"atarist": {str(i): {"DatabaseID": str(i), "Name": name, "aliases": aliases, "ReleaseYear": str(year),
+    return index_snapshots({"atarist": {str(i): {"DatabaseID": str(i), "Name": name, "aliases": aliases, "ReleaseYear": str(year),
                                  "imageCounts": {}}
-                        for i, (name, aliases, year) in enumerate(games, 1)}}
+                        for i, (name, aliases, year) in enumerate(games, 1)}})
 
 
 class ParseHintTest(unittest.TestCase):
@@ -21,6 +21,8 @@ class ParseHintTest(unittest.TestCase):
         self.assertEqual(parse_hint("Corporation, The (1990)(Core Design).zip")[0], "The Corporation")
         self.assertEqual(parse_hint("Magazin, Das (1989)(Ariolasoft)(de).zip")[0], "Das Magazin")
         self.assertEqual(parse_hint("Avventura, L' (1990)(-).zip")[0], "L'Avventura")
+        self.assertEqual(parse_hint("Games, The - Summer Edition (USA) (Disk 1 Side A).D64")[0],
+                         "The Games - Summer Edition")
 
     def test_a_title_ending_in_a_roman_numeral_keeps_it(self):
         self.assertEqual(parse_hint("Ultima V (1988)(Origin).zip")[0], "Ultima V")

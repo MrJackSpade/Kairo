@@ -1,6 +1,6 @@
 import unittest
 
-from disk_sets import disk_sets
+from disk_sets import disk_sets, ungrouped_sets
 
 FD = "sha256-fd-v1:"
 CD = "sha256-cd-v1:"
@@ -182,6 +182,19 @@ class DiskSetsTest(unittest.TestCase):
 
     def test_a_single_disk_is_not_a_set(self):
         self.assertEqual(disk_sets([disk("Game.zip", "Game.d88", FD + "a")], ["fd"], FLOPPY_B), {})
+
+
+
+class UngroupedSetsTest(unittest.TestCase):
+    def test_a_set_whose_disks_all_show_is_ungrouped(self):
+        archives = [{"path": "Game (Side A).d64", "disks": [{"contentId": FD + "a"}]},
+                    {"path": "Game (Side B).d64", "disks": [{"contentId": FD + "b"}]}]
+        self.assertEqual(ungrouped_sets(archives, {}), [("Game", ["Game (Side A).d64", "Game (Side B).d64"])])
+
+    def test_byte_identical_copies_of_one_disk_are_not_a_set(self):
+        archives = [{"path": "Game (Side A).d64", "disks": [{"contentId": FD + "a"}]},
+                    {"path": "Game (Side B).d64", "disks": [{"contentId": FD + "a"}]}]
+        self.assertEqual(ungrouped_sets(archives, {}), [])
 
 
 if __name__ == "__main__":

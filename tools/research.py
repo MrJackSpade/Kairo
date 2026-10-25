@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assemble an app's catalog research from LaunchBox, MobyGames, media scans and decisions.
 
-Usage: research.py <app root> --mobygames <dump directory>
+Usage: research.py <app root> [--mobygames <dump directory>]
 
 Writes catalog/research/games-v1.json for tools/app_catalog.py. The app's tools/catalog_config.py
 names its PLATFORMS (LaunchBox slugs), MOBYGAMES (its MobyGames listing slug) and SCANS:
@@ -23,6 +23,10 @@ and the decision is recorded so it can be reviewed and corrected:
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork"|"controller": ...}} applied last
 A game LaunchBox has no cover for takes its MobyGames cover and screenshot (moby_art.py), encoded
 into catalog/artwork; moby-artwork-v1.json records their sources.
+MobyGames fills the gaps LaunchBox leaves, so a first catalog can be built from LaunchBox alone,
+before its MobyGames dump is complete: without --mobygames, no MobyGames game is listed, matched
+or drawn from, and its decision files are left as they are. Archives only MobyGames would match
+stay local until a run with it. A catalog that has MobyGames decisions already needs the dump.
 Images the manual artwork review rejected (art-review-v1.json, art_verdicts.py) are never picked;
 the game takes its next candidate image instead.
 Every adult game is added to catalog/core-review-v1.json's exclusions if it is not there yet. A
@@ -47,7 +51,7 @@ import json
 import re
 from pathlib import Path
 
-from launchbox import BOX_TYPES, SCREENSHOT_TYPES, candidates, key as title_key
+from launchbox import BOX_TYPES, SCREENSHOT_TYPES, TitleIndex, key as title_key
 from moby_art import MobyArt
 from disk_sets import disk_sets, group as disk_group, ungrouped_sets
 import art_verdicts
@@ -56,7 +60,7 @@ from launchbox_artwork import URL
 YEAR = re.compile(r"(?:19|20)[0-9]{2}")
 FUZZY_MINIMUM = 0.93
 VERSION = re.compile(r"\s+[vV]\d[\w.-]*$")
-ARTICLE = re.compile(r"^(.*?),\s*(The|A|An|Der|Die|Das|Le|La|Les|L'|El|Il|Lo|Los|Las|De|Het)$")
+ARTICLE = re.compile(r"^(.*?),\s*(The|A|An|Der|Die|Das|Le|La|Les|L'|El|Il|Lo|Los|Las|De|Het)((?:\s+-\s+|:\s*).*)?$")
 
 
 def load_config(root):
@@ -86,10 +90,11 @@ def parse_hint(name):
     # TOSEC ends a title with its version: "Dungeon Master v1.2", "Railroad Tycoon v755.01".
     title = VERSION.sub("", title) or title
     # TOSEC moves a leading article to the end: "New Zealand Story, The", "Horde,The",
-    # "Magazin, Das", "Avventura, L'".
+    # "Magazin, Das", "Avventura, L'"; No-Intro to the end of the title before its subtitle:
+    # "Games, The - Summer Edition".
     article = ARTICLE.match(title)
     if article:
-        title = f"{article[2]}{article[1]}" if article[2].endswith("'") else f"{article[2]} {article[1]}"
+        title = (f"{article[2]}{article[1]}" if article[2].endswith("'") else f"{article[2]} {article[1]}") +             (article[3] or "")
     groups = [group.strip() for group in re.findall(r"\(([^)]*)\)", stem)]
     year = next((int(group[:4]) for group in groups if YEAR.match(group)), None)
     publisher = next((group for group in groups if not re.match(r"(?:19|20)[0-9x]{2}", group)), None)
@@ -178,14 +183,31 @@ def romanizations(title):
     return {title_key(spelling) for form in forms for spelling in spellings(form)}
 
 
-def match_title(title, year, slugs, snapshots):
+class SnapshotIndex:
+    """A LaunchBox snapshot made ready for matching many titles: its games by each of their names'
+    comparison forms (name_forms), and its names for the fuzzy search."""
+
+    def __init__(self, games):
+        self.games = games
+        self.titles = TitleIndex(games)
+        self.by_form = {}
+        for game_id, game in games.items():
+            for name in (game["Name"], *game["aliases"]):
+                for form in name_forms(name):
+                    self.by_form.setdefault(form, set()).add(game_id)
+
+
+def index_snapshots(snapshots):
+    return {slug: SnapshotIndex(games) for slug, games in snapshots.items()}
+
+
+def match_title(title, year, slugs, indexes):
     """The one LaunchBox game key a title names, searching platforms in order, or None."""
     sought = romanizations(title)
     for slug in slugs:
-        games = snapshots[slug]
-        exact = [game_id for game_id, game in games.items()
-                 if any(sought & name_forms(name) for name in (game["Name"], *game["aliases"]))
-                 and years_agree(year, year_of(game))]
+        games = indexes[slug].games
+        named = set().union(*(indexes[slug].by_form.get(form, ()) for form in sought))
+        exact = [game_id for game_id in named if years_agree(year, year_of(games[game_id]))]
         if len(exact) > 1:
             # "Populous" names both Populous and, without its subtitle, Populous: The Promised
             # Lands; the game whose whole name it is wins.
@@ -197,8 +219,8 @@ def match_title(title, year, slugs, snapshots):
         if len(exact) > 1:
             return None
     ranked = [(candidate["score"], slug, candidate["DatabaseID"]) for slug in slugs
-              for candidate in candidates(snapshots[slug], title, limit=3)
-              if years_agree(year, year_of(snapshots[slug][candidate["DatabaseID"]]))
+              for candidate in indexes[slug].titles.candidates(title, limit=3)
+              if years_agree(year, year_of(indexes[slug].games[candidate["DatabaseID"]]))
               and any(sequel_numbers(name) == sequel_numbers(title)
                       for name in (candidate["Name"], *candidate["aliases"]))]
     ranked.sort(key=lambda item: -item[0])
@@ -251,13 +273,29 @@ def assemble(root, moby_root):
     missing = [slug for slug, snapshot in snapshots.items() if snapshot is None]
     if missing:
         raise SystemExit(f"missing LaunchBox snapshots: {missing}")
+    indexes = index_snapshots(snapshots)
+    # Both collections of a platform often hold the same game under the same name.
+    matched = {}
+
+    def match(title, year, slugs):
+        found = (title, year, tuple(slugs))
+        if found not in matched:
+            matched[found] = match_title(title, year, slugs, indexes)
+        return matched[found]
+
     rejected = art_verdicts.rejected(root)
     games = {f"{slug}:{game_id}": launchbox_entry(slug, game, rejected)
              for slug, snapshot in snapshots.items() for game_id, game in snapshot.items()}
 
     # MobyGames: link each listed game to its LaunchBox game, or give it its own entry.
     moby_decisions = read(research / "moby-matches-v1.json", {"schemaVersion": 1, "games": {}})
-    listing = json.loads((moby_root / f"{config.MOBYGAMES}-listing.json").read_text(encoding="utf-8"))
+    if moby_root is None:
+        if moby_decisions["games"]:
+            raise SystemExit("moby-matches-v1.json has MobyGames decisions: pass --mobygames, or the "
+                             "games they made would leave the catalog")
+        listing = []
+    else:
+        listing = json.loads((moby_root / f"{config.MOBYGAMES}-listing.json").read_text(encoding="utf-8"))
     moby_names = {}  # each MobyGames name form: the (game key, year) of every game with that name
     moby_own_title = {}  # whether a game's MobyGames record carries the game's own title
     for game in listing:
@@ -265,7 +303,7 @@ def assemble(root, moby_root):
         names = moby_titles(moby_root, game)
         decision = moby_decisions["games"].get(moby_id)
         if decision is None:
-            decision = next(filter(None, (match_title(name, game.get("release_year"), config.PLATFORMS, snapshots)
+            decision = next(filter(None, (match(name, game.get("release_year"), config.PLATFORMS)
                                           for name in names)), None) or "own"
             moby_decisions["games"][moby_id] = decision
         for name in names:
@@ -315,7 +353,7 @@ def assemble(root, moby_root):
             title, year, _ = parse_hint(group)
             decision = media_decisions["archives"].get(name)
             if decision is None:
-                decision = match_title(title, year, slugs, snapshots) or moby_match(moby_names, title, year)
+                decision = match(title, year, slugs) or moby_match(moby_names, title, year)
                 if decision is not None:
                     media_decisions["archives"][name] = decision
                 else:
@@ -449,10 +487,12 @@ def assemble(root, moby_root):
 
     # MobyGames artwork for a game LaunchBox has no cover for and no reviewed
     # artwork pick names (moby_art.py).
-    moby_art = MobyArt(root, moby_root, config.MOBYGAMES, config.ARTWORK, rejected)
+    # Without MobyGames, no game has a MobyGames ID to draw from.
+    moby_art = None if moby_root is None else MobyArt(root, moby_root, config.MOBYGAMES, config.ARTWORK, rejected)
     uncovered = {key: entry["mobygames"] for key, entry in sorted(games.items())
                  if "mobygames" in entry and not entry.get("boxArtUrl") and "artwork" not in entry}
-    moby_art.require(uncovered.values())
+    if uncovered:
+        moby_art.require(uncovered.values())
     for key, game_id in uncovered.items():
         screenshot = games[key].get("screenshotUrl")
         artwork = moby_art.artwork(key, game_id, cover_only=bool(screenshot))
@@ -475,15 +515,17 @@ def assemble(root, moby_root):
             reason = ("MobyGames Adult genre" if "mobygames" in entry else "Adult-content review")
             review["excluded"][key] = {"title": entry["title"], "reason": reason}
     write(review_path, review)
-    write(research / "moby-matches-v1.json", moby_decisions)
-    write(research / "moby-artwork-v1.json", moby_art.provenance())
+    if moby_art is not None:
+        write(research / "moby-matches-v1.json", moby_decisions)
+        write(research / "moby-artwork-v1.json", moby_art.provenance())
     write(research / "media-matches-v1.json", media_decisions)
     write(research / "games-v1.json", {"schemaVersion": 1, "games": games, "sharedContentIds": shared})
     decided = media_decisions["archives"].values()
     print(f"{config.APP}: {len(games)} games; archives: {sum(v not in ('local', 'ignore') for v in decided)} matched, "
           f"{sum(':local-' in key for key in games)} local games, {sum(v == 'ignore' for v in decided)} ignored; "
-          f"MobyGames: {sum(v != 'own' for v in moby_decisions['games'].values())} linked, "
-          f"{sum(v == 'own' for v in moby_decisions['games'].values())} own; "
+          + ("MobyGames: not used; " if moby_root is None else
+             f"MobyGames: {sum(v != 'own' for v in moby_decisions['games'].values())} linked, "
+             f"{sum(v == 'own' for v in moby_decisions['games'].values())} own; ") +
           f"{len(shared)} shared media left out; {sum('description' in g for g in games.values())} described, "
           f"{sum('adultDescription' in g for g in games.values())} with adult descriptions")
 
@@ -491,7 +533,8 @@ def assemble(root, moby_root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", type=Path)
-    parser.add_argument("--mobygames", type=Path, required=True)
+    parser.add_argument("--mobygames", type=Path,
+                        help="the MobyGames dump; without it the catalog comes from LaunchBox alone")
     args = parser.parse_args()
     assemble(args.root.resolve(), args.mobygames)
 

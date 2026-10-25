@@ -137,20 +137,41 @@ def key(value):
     return NON_WORD.sub("", value)
 
 
+CANDIDATE_MINIMUM = 0.46
+
+
+class TitleIndex:
+    """A snapshot's names in comparison form, made once, for searching it for many titles."""
+
+    def __init__(self, games):
+        self.names = [(game, [key(name) for name in (game["Name"], *game["aliases"])]) for game in games.values()]
+
+    def candidates(self, title, limit=8):
+        """The snapshot records whose name or an alias best resembles a title."""
+        sought = key(title)
+        matcher = difflib.SequenceMatcher(None, sought)
+        ranked = []
+        for game, names in self.names:
+            score = 0.0
+            for name in names:
+                if name == sought:
+                    score = 1.0
+                    break
+                matcher.set_seq2(name)
+                # Both are upper bounds of ratio(): a name they rule out cannot reach the minimum.
+                if matcher.real_quick_ratio() >= CANDIDATE_MINIMUM and matcher.quick_ratio() >= CANDIDATE_MINIMUM:
+                    score = max(score, matcher.ratio())
+            if score >= CANDIDATE_MINIMUM:
+                ranked.append((score, game))
+        ranked.sort(key=lambda pair: (-pair[0], pair[1]["Name"], pair[1]["DatabaseID"]))
+        return [{"score": round(score, 3), "DatabaseID": game["DatabaseID"],
+                 "Name": game["Name"], "aliases": game["aliases"],
+                 "imageCounts": game["imageCounts"]} for score, game in ranked[:limit]]
+
+
 def candidates(games, title, limit=8):
     """The snapshot records whose name or an alias best resembles a title."""
-    sought = key(title)
-    ranked = []
-    for game in games.values():
-        names = [game["Name"], *game["aliases"]]
-        score = max((1.0 if key(name) == sought else
-                     difflib.SequenceMatcher(None, sought, key(name)).ratio()) for name in names)
-        if score >= 0.46:
-            ranked.append((score, game))
-    ranked.sort(key=lambda pair: (-pair[0], pair[1]["Name"], pair[1]["DatabaseID"]))
-    return [{"score": round(score, 3), "DatabaseID": game["DatabaseID"],
-             "Name": game["Name"], "aliases": game["aliases"],
-             "imageCounts": game["imageCounts"]} for score, game in ranked[:limit]]
+    return TitleIndex(games).candidates(title, limit)
 
 
 # --- Game identity and media -------------------------------------------------------------

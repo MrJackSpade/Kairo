@@ -144,7 +144,9 @@ def ungrouped_sets(archives, games):
             sets.setdefault(set_name(archive["path"]), []).append(archive)
     result = []
     for name, members in sorted(sets.items()):
-        if len(members) < 2:
+        # Archives that are byte-identical copies of one disk ("Side A" and "Side B" holding the
+        # same image) are one disk, not a set.
+        if len({disk["contentId"] for archive in members for disk in archive["disks"]}) < 2:
             continue
         shown = [archive["path"] for archive in members
                  if any(disk["contentId"] not in hidden for disk in archive["disks"])]
