@@ -91,7 +91,12 @@ abstract class AppUnderTest {
      */
     open val mediaSwap: MediaSwap? = null
 
-    class MediaSwap(val game: String, val slot: String, val insert: String)
+    /**
+     * [page] is the game menu's row that opens the media page ("f-media", Kairo98's "f-disks").
+     * [filler] is a file extension the slot takes, for filling the library with thousands of disks.
+     */
+    class MediaSwap(val game: String, val slot: String, val insert: String, val filler: String? = null,
+                    val page: String = "f-media")
 
     class BiosFile(val file: String, val required: Boolean)
 }

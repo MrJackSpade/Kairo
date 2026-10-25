@@ -54,6 +54,21 @@ class TestDocuments(private val instrumentation: Instrumentation, private val lo
 
     fun exists(path: String) = File(root, path).exists()
 
+    /**
+     * Adds [count] small files named "Filler N.<[extension]>" to [folder], each with its own bytes,
+     * so a library holds thousands of disks as a player's does. They are not real disks; nothing
+     * starts them.
+     */
+    fun addFiller(folder: String, extension: String, count: Int) {
+        val target = File(root, folder)
+        check(target.mkdirs() || target.isDirectory) { "Could not create $folder" }
+        for (index in 1..count) {
+            File(target, "Filler %05d.%s".format(index, extension)).writeBytes(ByteArray(256) { (index + it).toByte() } +
+                index.toString().toByteArray())
+        }
+        log.step("documents", "added $count filler .$extension files to $folder")
+    }
+
     /** The files under a folder of the test documents, as paths below the documents' root. */
     fun files(folder: String): List<String> =
         File(root, folder).walkTopDown().filter { it.isFile }.map { it.relativeTo(root).invariantSeparatorsPath }.toList()

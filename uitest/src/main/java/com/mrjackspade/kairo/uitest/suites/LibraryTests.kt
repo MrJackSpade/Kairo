@@ -143,4 +143,25 @@ abstract class SearchTests : KairoUiTest() {
         library.waitForGame(app.bootGame)
         expect.that("the library on the upper screen shows the results", library.entry(app.bootGame).exists())
     }
+
+    /**
+     * Kairo#43: on two screens the lower one shows the selected game's page while the player
+     * browses; once the game is open above, its settings are below and the page above has no
+     * Game settings button; Back on those settings closes the game above.
+     */
+    @Test
+    fun onTwoScreensTheLowerScreenShowsTheGameThenItsSettings() {
+        val library = screens.completeFirstRun().waitForGame(app.bootGame)
+        val lower = driver.find(By.id("secondary.library"))
+        org.junit.Assume.assumeTrue("this device has one screen", lower.exists())
+        library.entry(app.bootGame)
+        driver.waitUntil("the lower screen to show a game page") { lower.find(By.id("play")).exists() }
+        lower.find(By.id("settings")).tap()
+        val upper = driver.page("Game").waitUntilShown()
+        val settings = driver.page("Game settings").waitUntilShown()
+        expect.that("the upper game page has no Game settings button", !upper.find(By.id("settings")).exists())
+        settings.find(By.id("page.back")).tap()
+        upper.waitUntilGone()
+        driver.waitUntil("the lower screen to show the game page again") { lower.find(By.id("play")).exists() }
+    }
 }

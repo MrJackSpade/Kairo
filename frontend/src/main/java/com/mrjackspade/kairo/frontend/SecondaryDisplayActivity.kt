@@ -52,7 +52,7 @@ class SecondaryDisplayActivity : Activity() {
         if (::content.isInitialized) content.close()
         content = SecondaryDisplayContent(this, session.attachCompanion(this),
             session::forwardGameSurface, session::forwardGameTouch,
-            session::currentGameAspect)
+            session::currentGameAspect, session.lowerLibrary?.invoke(this))
         setContentView(content)
         session.updateCompanion(this)
     }
@@ -79,9 +79,8 @@ class SecondaryDisplayActivity : Activity() {
         } else Log.i(packageName, "Keyboard activity ready on display 0")
     }
 
-    internal fun setAppearance(showKeyboard: Boolean, color: Int, swapped: Boolean,
-                               info: SecondaryDisplayCoordinator.LibraryInfo?) {
-        if (::content.isInitialized) content.setAppearance(showKeyboard, color, swapped, info)
+    internal fun setAppearance(showKeyboard: Boolean, color: Int, swapped: Boolean, showLibrary: Boolean) {
+        if (::content.isInitialized) content.setAppearance(showKeyboard, color, swapped, showLibrary)
     }
 
     internal fun setInitialMode(touchpad: Boolean) {

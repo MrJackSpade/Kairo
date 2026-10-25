@@ -298,9 +298,14 @@ class GamePage(private val driver: Driver, private val app: AppUnderTest, privat
         answerLaunchNotice(driver, app, checkNotNull(game) { "Open the game by its title to play it" })
     }
 
+    /**
+     * The game's settings: from the page's Game settings, or, on a two-screen device, where the
+     * lower screen already shows them once the game is open (Kairo#43).
+     */
     fun openSettings(): Element {
-        page.find(By.id("settings")).tap()
-        return driver.page("Game settings").waitUntilShown()
+        val settings = driver.page("Game settings")
+        if (!settings.exists()) page.find(By.id("settings")).tap()
+        return settings.waitUntilShown()
     }
 }
 

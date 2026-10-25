@@ -61,6 +61,10 @@ class LibraryScreen<T : LibraryItem>(
     private val selectionChanged: (T?) -> Unit,
     private val commandLaunch: ((T) -> Unit)? = null
 ) : FrameLayout(context) {
+    /** The game whose page is open, or null once it closed: a lower screen shows its settings. */
+    var detailOpened: (T?) -> Unit = {}
+    /** Whether another screen shows the open game's settings, so its page has no Game settings. */
+    var settingsElsewhere: () -> Boolean = { false }
     private var reportedSelection: String? = "none"
     private var catalogEntries = emptyList<T>()
     /** The latest status, shown in the empty state and the library flyout. */
@@ -672,14 +676,21 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     fun openDetail(entry: T) {
-        detailPage?.let { if (it.inStack) { it.show(entry); return } }
-        val page = GameDetailPage(catalog, play, preview, details, ::metadata, commandLaunch) {
-            if (detailPage === it) detailPage = null
+        detailPage?.let { if (it.inStack) { it.show(entry); detailOpened(entry); return } }
+        val page = GameDetailPage(catalog, play, preview, details, ::metadata, commandLaunch, settingsElsewhere) {
+            if (detailPage === it) {
+                detailPage = null
+                detailOpened(null)
+            }
         }
         detailPage = page
         pages.push(page)
         page.show(entry)
+        detailOpened(entry)
     }
+
+    /** Another screen started or stopped showing game settings. */
+    fun settingsMoved() { detailPage?.takeIf { it.inStack }?.settingsMoved() }
 
     /** Close the game page and anything above it, as after deleting its file. */
     fun closeDetail(): Boolean {

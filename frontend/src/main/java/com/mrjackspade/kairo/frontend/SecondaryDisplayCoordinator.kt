@@ -71,7 +71,6 @@ class SecondaryDisplayCoordinator(
     fun start(handler: Handler) {
         if (started) return
         started = true
-        libraryArtwork.resume()
         stopObservingSetup = FirstRunVisibility.forActivity(activity).observe {
             setupVisible = it
             updateContent()
@@ -83,7 +82,6 @@ class SecondaryDisplayCoordinator(
     }
 
     fun stop() {
-        libraryArtwork.suspend()
         if (!started) return
         started = false
         stopObservingSetup?.invoke()
@@ -103,43 +101,25 @@ class SecondaryDisplayCoordinator(
         onSwapChanged(swapped)
     }
 
-    /** What the second screen shows about the selected game while the library is open. */
-    data class LibraryInfo(val title: String, val tags: List<String>, val description: String,
-                           val art: android.graphics.Bitmap?, val hasArtwork: Boolean = art != null)
-
-    private var libraryInfo: LibraryInfo? = null
-    private val libraryArtwork = LibraryArtworkLoader {
-        libraryInfo = it
-        updateContent()
-    }
+    /** Builds what the lower screen shows while the library is open (LowerLibraryController). */
+    var lowerLibrary: ((Context) -> LowerLibraryView)? = null
+    private var libraryShown = false
     private val visibleKeyboard get() = keyboardVisible && !setupVisible
     private val visibleBackground get() = if (setupVisible) Ui.BG else backgroundColor
-    private val visibleLibraryInfo get() = libraryInfo.takeUnless { setupVisible }
+    private val visibleLibrary get() = libraryShown && !setupVisible
 
     private fun updateContent() {
         presentation?.content?.setAppearance(visibleKeyboard, visibleBackground,
-            swapped && !setupVisible, visibleLibraryInfo)
+            swapped && !setupVisible, visibleLibrary)
         companion?.setAppearance(visibleKeyboard, visibleBackground,
-            swapped && !setupVisible, visibleLibraryInfo)
+            swapped && !setupVisible, visibleLibrary)
     }
 
-    fun setLibraryInfo(info: LibraryInfo?, artworkPath: String? = null,
-                       openArtwork: ((String) -> java.io.InputStream)? = null) {
-        libraryArtwork.show(info, artworkPath, openArtwork)
-    }
-
-    /** The library's selected game: title, file, media, revision tags, catalog tags and preview. */
-    fun showLibrarySelection(entry: LibraryItem?, game: LibraryGame?, catalog: LibraryCatalog) {
-        if (entry == null || game == null) {
-            setLibraryInfo(null)
-            return
-        }
-        val variants = variantTags(entry.path).ifEmpty { entry.zipEntry?.let(::variantTags).orEmpty() }
-        // A file name's (year) repeats the catalog's year tag; show each tag once.
-        val tags = (listOf(fileLabel(entry), entry.mediaLabel) + variants + game.tags).distinct()
-        setLibraryInfo(LibraryInfo(game.title, tags,
-            game.description ?: "No description available yet.", null, hasArtwork = game.preview != null),
-            game.preview, catalog::openArtwork)
+    /** Whether the lower screen shows the library (a game is selected and the library is open). */
+    fun showLibrary(shown: Boolean) {
+        if (libraryShown == shown) return
+        libraryShown = shown
+        updateContent()
     }
 
     fun setAppearance(showKeyboard: Boolean, color: Int) {
@@ -413,7 +393,7 @@ class SecondaryDisplayCoordinator(
             content = SecondaryDisplayContent(context,
                 GuestKeyboardPanel(context, inputs, keyboardLayout, {}, showClose = false,
                     onSwap = ::toggleSwap), ::forwardGameSurface, onGameTouch,
-                gameAspect)
+                gameAspect, lowerLibrary?.invoke(context))
             setContentView(content)
         }
 
@@ -443,7 +423,9 @@ internal class SecondaryDisplayContent(
     private val keyboard: GuestKeyboardPanel,
     private val onGameSurface: (Surface?, Int, Int) -> Unit,
     private val onGameTouch: (MotionEvent, Int, Int) -> Boolean,
-    private val gameAspect: () -> Double
+    private val gameAspect: () -> Double,
+    /** The library's view on this screen, or null for an app without one. */
+    private val library: LowerLibraryView?
 ) : FrameLayout(context), SurfaceHolder.Callback {
     fun setInitialMode(touchpad: Boolean) = keyboard.setInitialMode(touchpad)
     private val gameSurface = SurfaceView(context).apply {
@@ -467,10 +449,6 @@ internal class SecondaryDisplayContent(
 
     private fun layoutGameSurface(width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
-        val artWidth = minOf(dp(300), ((width - dp(48)).coerceAtLeast(0) * 0.46f).roundToInt())
-        if (libraryArt.layoutParams.width != artWidth) {
-            libraryArt.layoutParams = libraryArt.layoutParams.apply { this.width = artWidth }
-        }
         val aspect = gameAspect().takeIf { it in 0.5..3.0 } ?: 1.6
         val sourceHeight = 640.0 / aspect
         val scale = minOf(width / 640f, height / sourceHeight.toFloat())
@@ -484,30 +462,11 @@ internal class SecondaryDisplayContent(
         }
     }
 
-    private val libraryPanel = LinearLayout(context).testId("secondary.library").apply {
-        orientation = LinearLayout.HORIZONTAL
-        visibility = View.GONE
-        setPadding(dp(24), dp(24), dp(24), dp(24))
-    }
-    private val libraryArt = ImageView(context).apply {
-        scaleType = ImageView.ScaleType.FIT_START
-    }
-    private val libraryTitle = Ui.text(context, "", Ui.TITLE, bold = true).apply { maxLines = 3 }
-    private val libraryTags = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).apply { maxLines = 5 }
-    private val libraryDescription = LibraryDescriptionView(context)
-
     init {
-        libraryPanel.addView(libraryArt, LinearLayout.LayoutParams(dp(180), -1))
-        val text = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), 0, 0, 0)
+        library?.view?.let { view ->
+            view.visibility = View.GONE
+            addView(view, LayoutParams(-1, -1))
         }
-        text.addView(Ui.sectionLabel(context, "SELECTED").apply { setPadding(0, 0, 0, dp(8)) })
-        text.addView(libraryTitle)
-        text.addView(libraryTags, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
-        text.addView(libraryDescription, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(14) })
-        libraryPanel.addView(text, LinearLayout.LayoutParams(0, -1, 1f))
-        addView(libraryPanel, LayoutParams(-1, -1))
     }
 
     /** The library search typed on this screen, which filters the library on the other. */
@@ -564,28 +523,11 @@ internal class SecondaryDisplayContent(
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).roundToInt()
 
-    fun setAppearance(showKeyboard: Boolean, color: Int, swapped: Boolean,
-                      info: SecondaryDisplayCoordinator.LibraryInfo?) {
+    fun setAppearance(showKeyboard: Boolean, color: Int, swapped: Boolean, showLibrary: Boolean) {
         layoutGameSurface(width, height)
-        setBackgroundColor(if (!showKeyboard && info != null) Ui.BG else color)
-        libraryPanel.visibility = if (!showKeyboard && info != null) View.VISIBLE else View.GONE
-        if (info != null) {
-            // Artwork arrives separately. Reassigning unchanged text forces another
-            // text layout on that update, including the full catalog description.
-            val tags = info.tags.joinToString("\n")
-            if (libraryTitle.text.toString() != info.title) libraryTitle.text = info.title
-            if (libraryTags.text.toString() != tags) libraryTags.text = tags
-            if (libraryDescription.text.toString() != info.description) libraryDescription.text = info.description
-            libraryArt.setImageBitmap(info.art)
-            // Reserve catalog artwork space before decoding. Image arrival must not
-            // change the text width or lay out the entire description a second time.
-            libraryArt.visibility = when {
-                info.art != null -> View.VISIBLE
-                info.hasArtwork -> View.INVISIBLE
-                else -> View.GONE
-            }
-            libraryDescription.maxLines = if (info.hasArtwork || info.art != null) 9 else 12
-        }
+        val libraryVisible = !showKeyboard && showLibrary && library != null
+        setBackgroundColor(if (libraryVisible) Ui.BG else color)
+        library?.view?.visibility = if (libraryVisible) View.VISIBLE else View.GONE
         gameActive = showKeyboard && swapped
         gameSurface.visibility = if (gameActive) View.VISIBLE else View.GONE
         if (showKeyboard && !swapped) keyboard.visibility = View.VISIBLE
@@ -593,7 +535,10 @@ internal class SecondaryDisplayContent(
         if (!gameActive) onGameSurface(null, 0, 0)
     }
 
-    fun close() = keyboard.close()
+    fun close() {
+        keyboard.close()
+        library?.close()
+    }
 
     /** The surface showing the guest while the screens are swapped, else null. */
     val activeGameSurface: SurfaceView? get() = gameSurface.takeIf { gameActive }

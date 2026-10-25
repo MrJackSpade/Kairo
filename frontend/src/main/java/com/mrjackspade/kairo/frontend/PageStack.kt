@@ -25,7 +25,15 @@ import kotlin.math.abs
  * pages. Back pops one page; the host decides what Menu does. Pages slide in from +48 dp over
  * 220 ms; the page below moves to -48 dp and fades. The flyout slides 320 dp from the left.
  */
-class PageStack(val activity: Activity, private val host: FrameLayout) : FrameLayout(activity) {
+class PageStack(
+    val activity: Activity,
+    private val host: FrameLayout,
+    /**
+     * What pages build their views with: the activity, or another screen's context for a stack
+     * shown there (a two-screen device's lower screen), whose pages still act on [activity].
+     */
+    val viewContext: Context = activity
+) : FrameLayout(viewContext) {
     private val scrim = View(activity).apply {
         setBackgroundColor(Ui.SCRIM)
         alpha = 0f
@@ -317,7 +325,7 @@ abstract class Page {
         private set
     lateinit var view: View
         private set
-    val context: Context get() = stack.activity
+    val context: Context get() = stack.viewContext
     /** Whether the page is still in its stack, for work that finishes after the page closed. */
     val inStack: Boolean get() = ::stack.isInitialized && (0 until stack.size).any { stack.page(it) === this }
     open val isFlyout: Boolean get() = false

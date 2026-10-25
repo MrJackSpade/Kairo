@@ -704,48 +704,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     private fun mediaChoice(slot: Int): ChoiceSpec {
         fun takes(entry: E) = entry.playable && mediaSlots[slot].accepts(entry)
-        fun own(): List<E> = currentEntry?.let { ownMedia(it, ::takes) }.orEmpty()
-        fun all(): List<E> = libraryEntries.filter(::takes)
-        val other = ChoiceFolder("other", "Other") {
-            listOf(ChoiceGroup(null, mediaOptions(all())))
-        }
-        return ChoiceSpec(mediaSlots[slot].label, { currentGame?.title }, {
-            val found = own()
-            listOfNotNull(ChoiceGroup(null, listOf(ChoiceOption(EMPTY_DRIVE, "Empty"))),
-                found.takeIf { it.isNotEmpty() }?.let { ChoiceGroup("THIS GAME", mediaOptions(it)) },
-                ChoiceGroup(null, emptyList(), folders = listOf(other)))
-        }, { mounted[slot]?.id ?: EMPTY_DRIVE }, { id ->
-            if (id == EMPTY_DRIVE) changeMedia(slot, null)
-            else (own().firstOrNull { it.id == id } ?: all().firstOrNull { it.id == id })?.let { changeMedia(slot, it) }
-        }, cycles = false)
-    }
-
-    /**
-     * The disks of [current]'s game: itself, the other images of its archive, the disks of its
-     * catalog set, and the disks its drives hold now.
-     */
-    private fun ownMedia(current: E, takes: (E) -> Boolean): List<E> {
-        val set = catalog.setDisks(current).toSet()
-        return libraryEntries.filter { entry ->
-            takes(entry) && (entry.id == current.id || (entry.zipEntry != null && entry.uri == current.uri) ||
-                entry in mounted || (set.isNotEmpty() && catalog.matchId(entry) in set))
-        }
-    }
-
-    /**
-     * Options for [entries]: a loose disk by its file name, one in an archive by the archive's, and
-     * one of several images in an archive by both.
-     */
-    private fun mediaOptions(entries: List<E>): List<ChoiceOption> {
-        val images = entries.groupingBy { it.uri }.eachCount()
-        return entries.map { entry ->
-            val archive = entry.zipEntry?.let { entry.path.substringAfterLast('/') }
-            ChoiceOption(entry.id, when {
-                archive == null -> entry.displayName
-                images.getValue(entry.uri) > 1 -> "$archive: ${entry.displayName}"
-                else -> archive
-            })
-        }
+        return GameDisks.choice(mediaSlots[slot].label, { currentGame?.title }, {
+            val current = currentEntry ?: return@choice emptyList()
+            GameDisks.own(current, libraryEntries, mounted, catalog.setDisks(current).toSet(), catalog::matchId, ::takes)
+        }, { libraryEntries.filter(::takes) }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) })
     }
 
     private fun changeMedia(slot: Int, entry: E?) {
@@ -773,10 +735,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."
         /** The folder firmware was last imported from. */
         private const val FIRMWARE_FOLDER = "firmware_folder_v1"
+        /** The drive choice that leaves a drive empty. */
+        private const val EMPTY_DRIVE = GameDisks.EMPTY
         /** How often a loading session checks whether the machine shows a picture yet. */
         private const val PICTURE_POLL_MILLIS = 100L
-        /** The drive choice that leaves a drive empty. */
-        private const val EMPTY_DRIVE = "empty"
     }
 }
 

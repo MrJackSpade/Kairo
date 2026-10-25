@@ -362,6 +362,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }
     protected lateinit var controllerPages: ControllerPages<E>
         private set
+    private lateinit var lowerLibrary: LowerLibraryController<E>
     private val fullscreen by lazy { GameFullscreen(this) { !libraryVisible } }
     private val sessionState = SessionNavigationState()
     private val gameOrientation by lazy { GameOrientation(this, preferences) }
@@ -376,7 +377,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 swappedKeyboardPanel.close()
                 if (!keepScreenOnInLibrary) window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }, {
-                secondaryKeyboard.setLibraryInfo(null)
+                secondaryKeyboard.showLibrary(false)
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }, libraryFlow::show, ::applyPauseState, { screen.requestFocus() }, ::endSessionForLibrary,
             gameOrientation)
@@ -510,6 +511,13 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         // On a dual-screen device, search is typed on the lower screen so its keyboard leaves the results visible.
         libraryPage.searchElsewhere = { query, changed, done -> secondaryKeyboard.openSearch(query, changed, done) }
         libraryPage.endSearchElsewhere = secondaryKeyboard::closeSearch
+        // On a dual-screen device, the lower screen shows the selected game's page, then its settings once opened.
+        lowerLibrary = LowerLibraryController(this, catalog, libraryPage::metadata, { launchFromLibrary(it, false) },
+            ::showDetailPreview, commandLaunch, libraryPage::openDetail, { libraryPage.closeDetail() },
+            { entry -> gameSettingsPage({ titleOf(entry) }) { gameSettings(entry) } }, libraryPage::settingsMoved)
+        secondaryKeyboard.lowerLibrary = lowerLibrary::create
+        libraryPage.detailOpened = lowerLibrary::opened
+        libraryPage.settingsElsewhere = { lowerLibrary.showsSettings }
         // Pages and the game overlay sit above the library; pages come forward when they open.
         root.addView(libraryScreen, root.indexOfChild(overlay), FrameLayout.LayoutParams(-1, -1))
         touchUi.bind(keyboardPanel)
@@ -739,12 +747,13 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** Shows the selected library game on the second screen, if there is one. */
     private fun showLibrarySelection(entry: E?) {
         if (!::secondaryKeyboard.isInitialized) return
-        secondaryKeyboard.showLibrarySelection(entry, entry?.let(libraryScreen::metadata), catalog)
+        lowerLibrary.browse(entry)
+        secondaryKeyboard.showLibrary(entry != null)
     }
 
     protected fun applyPauseState() {
         if (relocating) return
-        if (!libraryVisible && ::secondaryKeyboard.isInitialized) secondaryKeyboard.setLibraryInfo(null)
+        if (!libraryVisible && ::secondaryKeyboard.isInitialized) secondaryKeyboard.showLibrary(false)
         val presentation = sessionState.presentation(activityVisible, menuOpen, false, transitioning)
         val showingGuest = presentation.showGuest
         if (::swappedKeyboardPanel.isInitialized) swappedKeyboardPanel.setShown(
@@ -1127,6 +1136,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             toast(failure ?: "Could not save: ${error.message ?: "Invalid value"}")
         }
         pages.refresh()
+        lowerLibrary.refresh()
     }
 
     /** A setting of [entry] changed; the product rereads what it keeps of it. */

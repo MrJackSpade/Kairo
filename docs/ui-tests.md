@@ -106,7 +106,7 @@ Shared suites run in every app through its descriptor:
 | Suite | Tests |
 | --- | --- |
 | `FirstRunTests` | The first step asks for the games folder; the controller step gives no instructions; choosing the folder lists its games; the BIOS step lists every file with Required or Optional and a description; importing the BIOS folder installs every file. |
-| `LibraryTests` | The header shows the product name; each game is one entry; different releases stay separate; non-games are never listed; no screen tells the player how to open a game. |
+| `LibraryTests` | The header shows the product name; each game is one entry; different releases stay separate; non-games are never listed; no screen tells the player how to open a game; on two screens, the lower one shows the selected game, then its settings once it is open. |
 | `SearchTests` | Search finds the game and only matching games; closing search brings back every game; a search with no match shows none; on two screens, search is typed on the lower screen. |
 | `GameTests` | The game starts, draws and is named; Return to library ends it; Exit closes the app; Restart boots it again; the menu pauses it. |
 | `WordingTests` | No screen says "ROM": the setup steps, the library, a game's page (the crawls check every other page). |
@@ -115,7 +115,7 @@ Shared suites run in every app through its descriptor:
 | `TouchTests` | On-screen buttons and the D-pad reach the game; hiding the on-screen controls removes them; the touch keyboard types its keys; the touchpad moves and clicks the mouse; a tap on the game in Mouse mode clicks. |
 | `LaunchTests` | A frontend launch starts the game, also before setup; returning from it closes the app; a second launch replaces the first. |
 | `StateTests` | A saved state loads back to where it was saved; each slot keeps its own; a state outlives the app; a game's states are its own. |
-| `MediaTests` | Inserting a disk puts it in the drive; ejecting empties it. |
+| `MediaTests` | Inserting a disk (the game's own, or one from Other) puts it in the drive; ejecting empties it; swapping back and again keeps the game running, and works in a second game; with 2,000 more disks in the library the drive's choice and Other open within 1.5 s. KairoDos has no media page. |
 | `LibraryManagementTests` | Refresh finds a game added to the folder; deleting a game removes its file; resetting a game's settings restores the defaults; saves go to a chosen folder. |
 | `SettingsTests` | A machine default applies to games; a game's own setting overrides it; a setting is kept when the app starts again; Sound switches off and on. |
 
@@ -194,7 +194,7 @@ test package, plus its own class:
 
 | App | Package | Shared suites | Its own |
 | --- | --- | --- | --- |
-| Kairo98 | `com.mrjackspade.kairo98.uitest` | all but Media | `Pc98Tests` |
+| Kairo98 | `com.mrjackspade.kairo98.uitest` | all thirteen (Media on its Disks page) | `Pc98Tests` |
 | KairoDos | `com.mrjackspade.kairodos.uitest` | all but Media and State | `DosTests` |
 | Kairo88 | `com.mrjackspade.kairo88.uitest` | all thirteen | `Pc88Tests` |
 | Kairo68 | `com.mrjackspade.kairo68.uitest` | all thirteen | `X68000Tests` |
