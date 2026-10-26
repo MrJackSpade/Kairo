@@ -45,6 +45,8 @@ interface LibraryCatalog {
      * shows the entry point alone while it is present; the disks stay available to disk swaps.
      */
     fun setDisks(item: LibraryItem): Collection<String> = emptyList()
+    /** Whether a catalog has a record for [item], so it is a game the catalog knows. */
+    fun knows(item: LibraryItem): Boolean = false
     fun openArtwork(path: String): InputStream
 }
 

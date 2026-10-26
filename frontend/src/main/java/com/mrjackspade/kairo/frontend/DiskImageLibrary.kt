@@ -77,6 +77,19 @@ fun mediaFor(contentId: String, source: DiskImageEntry, entries: List<DiskImageE
 }
 
 /**
+ * A disk a game uses beside the one it starts from, such as a hard disk game's CD: the one its
+ * catalog names by [catalogId], which the library must have, else the one disk of that [kind] in
+ * [source]'s archive or folder; null when there is none, or several to choose from.
+ */
+fun companionFor(catalogId: String?, source: DiskImageEntry, entries: List<DiskImageEntry>, label: String,
+                 kind: (DiskImageEntry) -> Boolean): DiskImageEntry? {
+    catalogId?.let { id ->
+        return mediaFor(id, source, entries, kind) ?: error("The $label this game needs is not in the library")
+    }
+    return entries.filter { it.playable && kind(it) && sameSource(source, it) }.singleOrNull()
+}
+
+/**
  * A product's disk images in its games folder: loose, or inside ZIP and 7z archives. Each image is
  * named by the SHA-256 of its bytes (`sha256-<kind>-v1:<hex>`, the catalog's content IDs; a
  * descriptor's ID hashes its track data), and a game plays from an app-private working copy that

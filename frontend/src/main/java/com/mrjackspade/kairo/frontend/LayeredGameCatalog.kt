@@ -242,6 +242,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         return if (current == first || known(current)) current else first
     }
 
+    @Synchronized override fun knows(item: LibraryItem): Boolean = matchId(item)?.let(::known) == true
+
     /** Whether any catalog has a record for [contentId]. */
     private fun known(contentId: String): Boolean {
         fun has(source: JSONObject?) = source?.optJSONObject("games")?.has(contentId) == true

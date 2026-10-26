@@ -234,6 +234,13 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** True while a session starts or stops. */
     @Volatile protected var transitioning = false
     protected val libraryEntries: List<E> get() = libraryFlow.entries
+    /**
+     * The disks a game being started can use beside its own: the library's, and those of a file
+     * opened from outside it, which a game in that file needs as much (its CD, its user disk).
+     */
+    protected val launchEntries: List<E> get() = libraryEntries.let { library ->
+        library + externalEntries.filter { external -> library.none { it.id == external.id } }
+    }
     protected val tree: Uri? get() = libraryFlow.tree
     protected val muted: Boolean get() = preferences.getBoolean("muted", false)
     /** Advances with each launch and each end of a session; work for an earlier one stops. */
@@ -585,8 +592,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         externalDispatcher.dispatch(Intent(Intent.ACTION_VIEW, uri))
     }
 
-    /** The game to start from a frontend's file: the product's preference, else the one playable entry. */
-    protected open fun preferredExternal(playable: List<E>): E? = playable.singleOrNull()
+    /**
+     * The product's pick among a file's disks when the catalog does not settle which one starts
+     * ([startDisk]); null asks the player.
+     */
+    protected open fun preferredExternal(playable: List<E>): E? = null
 
     private fun chooseExternalGame(entries: List<E>) {
         val playable = entries.filter { it.playable }
@@ -595,7 +605,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             return
         }
         val fromFrontend = externalFromFrontend
-        preferredExternal(playable)?.let { launchFromLibrary(it, fromFrontend); return }
+        // The disk the library would show for this file starts, as the catalog says; the player
+        // chooses only when nothing settles it.
+        startDisk(playable, catalog, ::preferredExternal)?.let { launchFromLibrary(it, fromFrontend); return }
         // Back cancels and leaves the app open.
         pages.push(ChoicePage(ChoiceSpec("Choose a disk to start", { null }, {
             listOf(ChoiceGroup(null, playable.map { ChoiceOption(it.id, it.displayName) }))

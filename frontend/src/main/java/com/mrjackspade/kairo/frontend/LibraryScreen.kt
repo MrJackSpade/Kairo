@@ -472,26 +472,12 @@ class LibraryScreen<T : LibraryItem>(
                     post { if (generation == entriesGeneration && allEntries.isEmpty()) publishEntries(quick) }
                 }
             }
-            // Records live in catalog shards named by their content ID's first two digits. Walking
-            // the entries in that order reads each shard once; in library order, the shard cache
-            // turned over for nearly every entry and a library of thousands showed nothing for
-            // seconds after its cache was read (Kairo#46).
             val started = android.os.SystemClock.elapsedRealtime()
-            val byShard = items.map { entry -> entry to (catalog.matchId(entry)?.substringAfter(':')?.take(2) ?: "") }
-                .sortedBy { it.second }.map { it.first }
-            // A set's entry point stands for its other disks only while it is in the library.
-            val setDisks = HashSet<String>()
-            for (entry in byShard) {
-                if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
-                if (entry.playable) setDisks.addAll(catalog.setDisks(entry))
-            }
-            val hidden = HashSet<String>()
-            for (entry in byShard) {
-                if (generation != entriesGeneration || Thread.currentThread().isInterrupted) return@execute
-                if (!entry.holdsGame || catalog.matchId(entry)?.let { it in setDisks } == true ||
-                    catalog.hiddenFromLibrary(entry)) hidden += entry.id
-            }
-            val visible = items.filterNot { it.id in hidden }
+            val shown = entryPoints(items, catalog) {
+                generation != entriesGeneration || Thread.currentThread().isInterrupted
+            } ?: return@execute
+            val hidden = items.filterNot { it.id in shown }.mapTo(HashSet()) { it.id }
+            val visible = items.filter { it.id in shown }
             android.util.Log.i("KairoLibrary", "Shown: ${visible.size} of ${items.size} entries in " +
                 "${android.os.SystemClock.elapsedRealtime() - started} ms")
             hiddenSnapshot.write(hidden)
