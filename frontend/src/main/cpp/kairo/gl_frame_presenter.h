@@ -64,7 +64,10 @@ public:
         glUniform1i(frame_, 0);
         glBindVertexArray(vertexArray_);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        require(glGetError() == GL_NO_ERROR, "draw the frame");
+        const GLenum drawError = glGetError();
+        if (drawError != GL_NO_ERROR)
+            __android_log_assert("present", "KairoPresent", "Could not draw the frame (GL 0x%x, EGL 0x%x)", drawError,
+                                 eglGetError());
         // A window Android is taking away refuses the swap before the UI thread hands over its
         // replacement (set_window); the presenter lets go of it and attaches again with the next frame.
         if (!eglSwapBuffers(egl_.display(), egl_.surface())) {

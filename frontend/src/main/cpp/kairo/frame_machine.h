@@ -142,17 +142,26 @@ public:
     }
 
     // The window frames are shown in, or null. The host takes over the caller's
-    // reference.
+    // reference. Returns once the presenter has let go of the window before it, as
+    // GLSurfaceView does: Android tears a surface down as soon as surfaceDestroyed
+    // returns, and a frame still drawing into it then fails (the screens' swap on the
+    // RG DS hands the game's window from one display to the other).
     void set_window(ANativeWindow *window) {
         ANativeWindow *previous = nullptr;
+        unsigned generation;
         {
             std::lock_guard<std::mutex> guard(window_mutex_);
             previous = window_;
             window_ = window;
-            window_generation_.fetch_add(1, std::memory_order_relaxed);
+            generation = window_generation_.fetch_add(1, std::memory_order_relaxed) + 1;
         }
         present_ready_.notify_one();
-        // The presenter holds its own reference while it draws to a window.
+        {
+            std::unique_lock<std::mutex> guard(window_mutex_);
+            window_taken_.wait(guard, [&] {
+                return !presenting_ || static_cast<int>(window_taken_generation_ - generation) >= 0;
+            });
+        }
         if (previous) ANativeWindow_release(previous);
     }
 
@@ -444,6 +453,10 @@ private:
         FrameShape shape{};
         ANativeWindow *window = nullptr;
         unsigned window_generation = ~0u, shader_generation = ~0u;
+        {
+            std::lock_guard<std::mutex> guard(window_mutex_);
+            presenting_ = true;
+        }
         for (;;) {
             {
                 std::unique_lock<std::mutex> guard(present_mutex_);
@@ -469,6 +482,9 @@ private:
                     // Keep the window alive after the UI replaces its reference.
                     if (window) ANativeWindow_acquire(window);
                     window_generation = window_generation_.load(std::memory_order_relaxed);
+                    // Nothing draws to the windows before this one any more (set_window).
+                    window_taken_generation_ = window_generation;
+                    window_taken_.notify_all();
                 }
                 if (shader_generation_.load(std::memory_order_relaxed) != shader_generation) {
                     // The window goes to whichever presenter draws the next frame.
@@ -484,6 +500,11 @@ private:
         shader.destroy();
         plain.destroy();
         if (window) ANativeWindow_release(window);
+        {
+            std::lock_guard<std::mutex> guard(window_mutex_);
+            presenting_ = false;
+        }
+        window_taken_.notify_all();
     }
 
     std::mutex lifecycle_mutex_;
@@ -519,6 +540,11 @@ private:
     ANativeWindow *window_ = nullptr;
     std::string shader_preset_;
     std::atomic<unsigned> window_generation_{0};
+    // With window_mutex_: whether present_loop runs, and the last window generation it took,
+    // having let go of every window before it (set_window waits for it).
+    bool presenting_ = false;
+    unsigned window_taken_generation_ = 0;
+    std::condition_variable window_taken_;
     std::atomic<unsigned> shader_generation_{0};
 
     std::mutex present_mutex_;

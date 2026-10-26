@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.ActivityManager
 import android.app.ActivityOptions
 import android.app.Presentation
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
@@ -87,18 +88,31 @@ class SecondaryDisplayCoordinator(
         stopObservingSetup?.invoke()
         stopObservingSetup = null
         displayManager.unregisterDisplayListener(this)
-        if (swapped) {
-            swapped = false
-            onSwapChanged(false)
-        }
+        if (swapped) leaveSwap()
         dismiss()
     }
 
     fun toggleSwap() {
         if (!isShowing || setupVisible) return
-        swapped = !swapped
+        if (swapped) {
+            leaveSwap()
+            return
+        }
+        swapped = true
         updateContent()
-        onSwapChanged(swapped)
+        onSwapChanged(true)
+    }
+
+    /*
+     * The game lets go of the lower screen's surface before it is hidden: hiding it while
+     * not swapped sends nothing on (forwardGameSurface), so the guest kept drawing into a
+     * surface Android had taken away and the presenter stopped the app.
+     */
+    private fun leaveSwap() {
+        onGameSurface(null, 0, 0)
+        swapped = false
+        updateContent()
+        onSwapChanged(false)
     }
 
     /** Builds what the lower screen shows while the library is open (LowerLibraryController). */
@@ -141,27 +155,36 @@ class SecondaryDisplayCoordinator(
 
     private fun refresh() {
         if (!started || activity.isFinishing) {
+            Log.i(logTag, "Second screen: not shown (started $started, finishing ${activity.isFinishing})")
             dismiss()
             return
         }
-        val primaryId = activity.window.decorView.display?.displayId ?: return
+        val primaryId = activity.window.decorView.display?.displayId
+        if (primaryId == null) {
+            Log.i(logTag, "Second screen: the game screen has no display yet")
+            return
+        }
         // The keyboard and game screens trade places only through the swap button.
-        if (RgDsDisplayRouter.returnToUpper(activity)) return
+        if (RgDsDisplayRouter.returnToUpper(activity)) {
+            Log.i(logTag, "Second screen: the game screen opened on display $primaryId; moving it back up")
+            return
+        }
         val presentationDisplays = displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION)
         val target = (presentationDisplays.asList() + displayManager.displays.asList())
             .firstOrNull { it.displayId != primaryId && it.isValid &&
                 it.state != Display.STATE_OFF }
         if (target == null) {
-            if (swapped) {
-                swapped = false
-                onSwapChanged(false)
-            }
+            if (swapped) leaveSwap()
             dismiss()
             return
         }
         if (target.displayId == Display.DEFAULT_DISPLAY) {
             dismissPresentation()
-            if (companion != null || companionStarting) return
+            if (companion != null || companionStarting) {
+                Log.i(logTag, "Second screen: keyboard already ${if (companion != null) "open" else "opening"} on display 0")
+                return
+            }
+            Log.i(logTag, "Second screen: opening the keyboard on display 0 beside display $primaryId")
             launchCompanion(target)
             return
         }
@@ -328,7 +351,9 @@ class SecondaryDisplayCoordinator(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
         val task = (activity.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).appTasks
             .map { it.taskInfo }.first { it.taskId == activity.taskId }
-        return task.topActivity != activity.componentName
+        // The task names its activities by class; the game may run under a launcher alias
+        // (an app's .Launch), which componentName would name instead.
+        return task.topActivity != ComponentName(activity, activity.javaClass)
     }
 
     private fun dismiss() {
