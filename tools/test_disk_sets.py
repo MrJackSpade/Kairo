@@ -161,6 +161,18 @@ class DiskSetsTest(unittest.TestCase):
         self.assertEqual(disk_sets(disks, ["cd", "fd"], {"cd": ("fd", "floppyA", True)}),
                          {CD + "cd": {"setDisks": [FD + "user"], "media": [{"role": "floppyA", "contentId": FD + "user"}]}})
 
+    def test_a_hard_disk_starts_with_its_sets_cd_beside_it(self):
+        # KairoTowns#40: a [+HDD] set's CD goes in beside its hard disk, though nothing names it a disk.
+        archive = "Strike Commander Plus (1994)(Origin)(Jp-En)[+HDD+CMOS].zip"
+        disks = [disk(archive, "Strike Commander Plus (1994)(Origin)(Jp-En).cue", CD + "cd"),
+                 disk(archive, "Strike Commander Plus (1994)(Origin)(Jp-En)[100MB HDD].h0", "sha256-hd-v1:hd")]
+        companion = {"cd": ("fd", "floppyA", True), "hd": ("cd", "cd", False, True)}
+        self.assertEqual(disk_sets(disks, ["hd", "cd", "fd"], companion),
+                         {"sha256-hd-v1:hd": {"setDisks": [CD + "cd"], "media": [{"role": "cd", "contentId": CD + "cd"}]}})
+        # Without the set-disk flag, an untagged disk beside a disk that does not say it starts is another game's.
+        self.assertEqual(disk_sets(disks, ["hd", "cd", "fd"], {"hd": ("cd", "cd", False)}),
+                         {"sha256-hd-v1:hd": {"setDisks": [CD + "cd"]}})
+
     def test_a_disk_that_starts_one_set_is_not_hidden_by_another(self):
         disks = [disk("Game/Game [FD].7z", "Game (Disk A).d88", FD + "a"),
                  disk("Game/Game [FD].7z", "Game (Disk B).d88", FD + "b"),

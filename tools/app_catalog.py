@@ -165,7 +165,7 @@ def metadata(key, entry, config):
 
 def generate(root, check=False):
     config = load_config(root)
-    validate_record = validator(config.KINDS, config.ARTWORK, {role for _, role, _ in config.COMPANION.values()},
+    validate_record = validator(config.KINDS, config.ARTWORK, {rule[1] for rule in config.COMPANION.values()},
                                 getattr(config, "MACHINE_OPTIONS", None), getattr(config, "LAUNCH_FIELDS", None))
     research = json.loads((root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))
     require(research.get("schemaVersion") == 1, "unsupported research schema")

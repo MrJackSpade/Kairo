@@ -166,7 +166,9 @@ def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False,
               broken_disk=lambda content_id: False):
     """The disk sets of one game's [disks], each {archive, member, contentId}. [boot_kinds] lists
     the kinds the app starts from, preferred first; [companion] maps an entry's kind to (the kind
-    of disk inserted beside it, its media role, whether a user disk may be that disk); [data_disk]
+    of disk inserted beside it, its media role, whether a user disk may be that disk, and optionally
+    whether the set's one disk of that kind is the companion whatever its name, as a hard disk's
+    set has its CD); [data_disk]
     tells a disk that can never start a game, by content ID, and [broken_disk] one that stops on
     every system the app has, which leads its set, its dump sets and its folder only when nothing
     else can. Returns
@@ -204,7 +206,8 @@ def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False,
         record["setDisks"] |= {disk["contentId"] for disk in members} - {entry}
         rule = companion.get(kind(entry))
         if rule and not record["media"]:
-            other_kind, role, user_allowed = rule
+            other_kind, role, user_allowed = rule[:3]
+            set_disk = len(rule) > 3 and rule[3]
             # A second disk is named by its disk tag or as a disk, and belongs to the entry's set. Another
             # disk the game starts from is another version of it; beside anything but a boot disk, an
             # untagged disk not named as one is another game or version; a disk tagged under another title
@@ -222,6 +225,9 @@ def disk_sets(disks, boot_kinds, companion, data_disk=lambda content_id: False,
                                not starts(mains[0])) and
                           not (entry_title and not untagged(d) and _title(name(d)) != entry_title) and
                           not (FLAW.search(name(d)) and _clean(name(d)) in clean_names)]
+            if set_disk:
+                of_kind = [d for d in mains[1:] if kind(d["contentId"]) == other_kind]
+                candidates = of_kind if len(of_kind) == 1 else []
             if user_allowed:
                 candidates += [d for d in sorted(users, key=lambda d: _order(name(d)))
                                if kind(d["contentId"]) == other_kind]
