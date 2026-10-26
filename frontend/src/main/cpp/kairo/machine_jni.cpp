@@ -19,6 +19,63 @@ namespace {
 
 kairo::FrameMachine<kairo::MachineCore> machine;
 
+// The launch setting with a game's startup commands, newline-separated (StartupCommands.SETTING).
+constexpr const char *kCommands = "commands";
+
+// A core whose launch has startup commands: the typer types them after each frame, and the machine
+// runs flat out while a line goes in (startup_typer.h). Every MachineCore member goes to the core.
+class TypingCore : public kairo::MachineCore {
+public:
+    TypingCore(std::unique_ptr<kairo::MachineCore> core, const std::string &commands) : core_(std::move(core)) {
+        typer_.start(commands);
+    }
+
+    bool run_frame() override {
+        if (!core_->run_frame()) return false;
+        if (!typer_.frame(*core_, error_)) return false;
+        return true;
+    }
+    std::string error() override { return error_.empty() ? core_->error() : error_; }
+    const uint8_t *frame(uint32_t &width, uint32_t &height) override { return core_->frame(width, height); }
+    uint32_t line_repeat() override { return core_->line_repeat(); }
+    bool frame_bgra() override { return core_->frame_bgra(); }
+    uint32_t frame_stride() override { return core_->frame_stride(); }
+    double frame_seconds() override { return core_->frame_seconds(); }
+    int32_t audio_rate() override { return core_->audio_rate(); }
+    uint32_t read_audio(int16_t *stereo, uint32_t max_frames) override { return core_->read_audio(stereo, max_frames); }
+    void release_inputs() override { core_->release_inputs(); }
+    void key(int code, bool down) override { core_->key(code, down); }
+    void joystick(int control, bool down) override { core_->joystick(control, down); }
+    void mouse_move(int dx, int dy) override { core_->mouse_move(dx, dy); }
+    void mouse_button(int button, bool down) override { core_->mouse_button(button, down); }
+    int locks() override { return core_->locks(); }
+    // While a line goes in, so typing does not take the guest's real time.
+    bool booting() override { return core_->booting() || typer_.typing(); }
+    std::string details() override { return core_->details(); }
+    void reset() override { core_->reset(); }
+    int save_state(const std::string &directory) override { return core_->save_state(directory); }
+    int load_state(const std::string &directory) override { return core_->load_state(directory); }
+    int media(int slot, const std::string &path) override { return core_->media(slot, path); }
+    std::vector<std::string> media_paths() override { return core_->media_paths(); }
+    kairo::Prompt prompt() override { return core_->prompt(); }
+    bool typed_key(char c, int &code, bool &shift) override { return core_->typed_key(c, code, shift); }
+    int special_key(kairo::SpecialKey key) override { return core_->special_key(key); }
+    bool expand_command(std::string &line) override { return core_->expand_command(line); }
+
+private:
+    std::unique_ptr<kairo::MachineCore> core_;
+    kairo::StartupTyper typer_;
+    std::string error_;
+};
+
+// The product's core for a launch, typing the game's startup commands when it has any.
+std::unique_ptr<kairo::MachineCore> launch_core(const kairo::Launch &launch, std::string &error) {
+    auto core = kairo::create_core(launch, error);
+    const auto commands = launch.settings.find(kCommands);
+    if (!core || commands == launch.settings.end() || commands->second.empty()) return core;
+    return std::make_unique<TypingCore>(std::move(core), commands->second);
+}
+
 std::string utf8(JNIEnv *env, jstring value) {
     if (!value) return "";
     const char *chars = env->GetStringUTFChars(value, nullptr);
@@ -78,8 +135,7 @@ NATIVE_MACHINE(nativeStart)(JNIEnv *env, jobject, jstring firmware, jstring home
     kairo::Launch launch{utf8(env, firmware), utf8(env, home), strings(env, media), {}};
     const std::vector<std::string> pairs = strings(env, settings);
     for (size_t i = 0; i + 1 < pairs.size(); i += 2) launch.settings[pairs[i]] = pairs[i + 1];
-    return machine.start([launch](std::string &error) { return kairo::create_core(launch, error); }) ? JNI_TRUE
-                                                                                                     : JNI_FALSE;
+    return machine.start([launch](std::string &error) { return launch_core(launch, error); }) ? JNI_TRUE : JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStop)(JNIEnv *, jobject) { machine.stop(); }

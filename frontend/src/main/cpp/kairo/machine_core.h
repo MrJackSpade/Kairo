@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include "startup_typer.h"
+
 namespace kairo {
 
 // What a game boots with, from NativeMachine.start.
@@ -84,6 +86,15 @@ public:
     virtual int media(int slot, const std::string &path) { (void) slot; (void) path; return kUnsupported; }
     // What each slot holds, "" for an empty one.
     virtual std::vector<std::string> media_paths() { return {}; }
+
+    // Startup commands (startup_typer.h), for a core whose games start from a prompt: what the
+    // guest waits for now, the key that types a character (and whether Shift goes with it), a
+    // special key's code (-1 for none), and a line changed before it is typed (false when it
+    // cannot be). A core without a prompt keeps these, and its games' commands are never typed.
+    virtual Prompt prompt() { return Prompt::None; }
+    virtual bool typed_key(char c, int &code, bool &shift) { (void) c; (void) code; (void) shift; return false; }
+    virtual int special_key(SpecialKey key) { (void) key; return -1; }
+    virtual bool expand_command(std::string &line) { (void) line; return true; }
 };
 
 // The product's machine for a launch; null with error set when it cannot start.
