@@ -24,6 +24,11 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "launchbox": "...", "mobygames": 0, "year": 0, ...         research only, never shipped
   }}}
 
+catalog/system-v1.json is the system's definition: its controller mapping,
+{"schemaVersion": 1, "controller": {"bindings": [...]}}, the lowest layer of every game's mapping
+(shared ControllerDefaults.cascade). It binds every control (the D-pad to the arrow keys) and holds
+no explicit null ("unbound"): what we ship leaves no control dead.
+
 catalog/core-review-v1.json lists excluded games and approved artwork. Outputs: catalog/source-v1.json,
 catalog/core-v3.json with its .meta.json, catalog/parts/, the artwork exclusion list and the
 importable artwork package. --check regenerates in memory and fails if a committed file differs.
@@ -112,6 +117,9 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
                     all(isinstance(bindings, list) and all(isinstance(b, dict) and isinstance(b.get("input"), str)
                                                            for b in bindings) for bindings in defaults.values()),
                     "invalid controller defaults")
+            # A game's layer replaces what it binds; it never ships an explicit null.
+            require(not any("unbound" in b or set(b) == {"input"} for bindings in defaults.values() for b in bindings),
+                    "controller defaults ship an explicit null")
         if "launch" in record:
             # The lines typed at the machine's prompt to start the game, one command each.
             # The lines typed at the machine's prompt to start the game, one command each, and the
@@ -135,6 +143,20 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
         return {key: value for key, value in record.items() if key != "contentIds"}
 
     return validate_record
+
+
+def validate_system(system):
+    """The system's definition: one controller mapping, every binding an input and what it sends."""
+    controller = system.get("controller") if isinstance(system, dict) else None
+    bindings = controller.get("bindings") if isinstance(controller, dict) else None
+    require(system.get("schemaVersion") == 1 and set(system) == {"schemaVersion", "controller"} and
+            set(controller) == {"bindings"} and isinstance(bindings, list) and bindings,
+            "invalid system definition")
+    inputs = [b.get("input") for b in bindings if isinstance(b, dict)]
+    require(len(inputs) == len(bindings) and all(isinstance(i, str) and i.startswith("virtual:") for i in inputs) and
+            len(set(inputs)) == len(inputs), "invalid system controller bindings")
+    require(not any("unbound" in b or set(b) == {"input"} for b in bindings),
+            "the system definition ships an explicit null")
 
 
 def artwork_group(entry):
@@ -213,8 +235,10 @@ def generate(root, check=False):
                        "attribution": "LaunchBox Games Database contributors; MobyGames contributors; original descriptions"},
         "games": source_games}]}
     manifest, shards = catalog_documents.build(source, validate_record)
+    system = json.loads((root / "catalog/system-v1.json").read_text(encoding="utf-8"))
+    validate_system(system)
     documents = {"base-v1.json": {"schemaVersion": 1, "games": {}}, "manifest-v1.json": manifest,
-                 "name-index-v1.json": name_index,
+                 "name-index-v1.json": name_index, "system-v1.json": system,
                  **{f"shards/{prefix}.json": {"schemaVersion": 1, "games": records}
                     for prefix, records in shards.items()}}
     placeholder = f"sha256-{sorted(config.KINDS)[0]}-v1:" + "0" * 64

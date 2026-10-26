@@ -121,19 +121,41 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override val installedCatalogs: InstalledCatalogs get() = catalog.installedCatalogs
     override fun titleOf(entry: E) = catalog.resolve(entry).title
 
-    override fun gameBindings(entry: E): List<ControllerBinding> = effectiveControllerBindings(catalog.resolve(entry))
-    override fun saveGameBindings(game: GameKey, bindings: List<ControllerBinding>) =
-        catalog.setOverrideSubfield(game, "controller", "bindings", bindingsCodec.toJson(bindings))
+    private val systemBindings by lazy { bindingsCodec.parse(catalog.systemControllerBindings().toString()) }
+    override fun systemControllerBindings() = systemBindings
+
+    override fun catalogControllerLayer(entry: E): List<ControllerBinding> {
+        if (entry.contentId == null) return emptyList()
+        val defaults = catalog.resolveDefault(entry).controllerDefaultBindings?.let { org.json.JSONObject(it) }
+            ?: return emptyList()
+        val bindings = defaults.optJSONArray(controllerProfiles.configuration.layout.key)
+            ?: defaults.optJSONArray("withoutSticks") ?: return emptyList()
+        return bindingsCodec.parse(bindings.toString())
+    }
+    override fun playerControllerLayer(entry: E): List<ControllerBinding> {
+        val own = playerController(entry) ?: return emptyList()
+        own.optJSONArray("layer")?.let { return bindingsCodec.parse(it.toString()) }
+        // Saved before mappings were layers: the whole mapping as it played.
+        return own.optJSONArray("bindings")?.let { ControllerDefaults.legacyLayer(bindingsCodec.parse(it.toString())) }
+            ?: emptyList()
+    }
+    private fun playerController(entry: E) = entry.takeIf { it.contentId != null }?.let { catalog.overrideOf(it.key, "controller") }
+    override fun savePlayerControllerLayer(game: GameKey, layer: List<ControllerBinding>) =
+        catalog.updateOverrideSubfields(game, "controller", mapOf("layer" to bindingsCodec.toJson(layer), "bindings" to null))
     override fun clearGameBindings(game: GameKey) =
-        catalog.updateOverrideSubfields(game, "controller", mapOf("bindings" to null, "profile" to null))
+        catalog.updateOverrideSubfields(game, "controller", mapOf("bindings" to null, "profile" to null, "layer" to null))
     override fun controllerRefreshed() { currentEntry?.let { currentGame = catalog.resolve(it) } }
     override fun touchChanged() { currentEntry?.let { currentGame = catalog.resolve(it) } }
     override fun controllerSource(entry: E): String {
-        val game = catalog.resolve(entry)
-        return if (game.controllerBindings == null ||
-            (game.controllerBindings == "[]" && !game.overriddenFields.contains("controller"))) GameSource.ALL_GAMES
-        else GameSource.label(entry.key.takeIf { entry.contentId != null }
-            ?.let { catalog.sourceOf(entry, "controller", "bindings") } ?: GameSource.ALL_GAMES)
+        val own = playerController(entry)
+        val subfield = when {
+            own?.has("layer") == true -> "layer"
+            own?.has("bindings") == true -> "bindings"
+            else -> null
+        }
+        if (subfield == null && catalogControllerLayer(entry).isEmpty()) return GameSource.ALL_GAMES
+        return GameSource.label(entry.key.takeIf { entry.contentId != null }
+            ?.let { catalog.sourceOf(entry, "controller", subfield ?: "bindings") } ?: GameSource.ALL_GAMES)
     }
     override fun controllerMappingStatus(entry: E?): String? {
         if (controllerProfiles.configuration.layout != ControllerLayout.WITH_STICKS) return null
@@ -142,25 +164,6 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         return if (game.controllerDefaultBindings != null &&
             org.json.JSONObject(game.controllerDefaultBindings).optJSONArray("withSticks") == null)
             "Using Without Sticks fallback" else null
-    }
-
-    /** A game's bindings: the catalog's defaults for the controller layout, its own, or all games'. */
-    private fun effectiveControllerBindings(game: CatalogGame?): List<ControllerBinding> {
-        val configured = game?.controllerBindings
-        if (game != null && !game.overriddenFields.contains("controller") && game.controllerDefaultBindings != null) {
-            val defaults = org.json.JSONObject(game.controllerDefaultBindings)
-            val bindings = defaults.optJSONArray(controllerProfiles.configuration.layout.key)
-                ?: defaults.optJSONArray("withoutSticks")
-            if (bindings != null)
-                return ControllerDefaults.layered(bindingsCodec.parse(bindings.toString()), controllerFlow.global())
-        }
-        return when {
-            // The player's own mapping, exactly as they set it.
-            game?.overriddenFields?.contains("controller") == true -> bindingsCodec.parse(configured)
-            configured != null && (configured != "[]" || game.controllerProfile == "custom-v1") ->
-                ControllerDefaults.layered(bindingsCodec.parse(configured), controllerFlow.global())
-            else -> controllerFlow.global()
-        }
     }
 
     override val touchModes get() = listOf(

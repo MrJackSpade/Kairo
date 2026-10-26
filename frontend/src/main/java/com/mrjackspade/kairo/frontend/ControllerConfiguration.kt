@@ -115,17 +115,47 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
 
 /** Missing variants fall back; an explicitly empty list is an intentional mapping. */
 object ControllerDefaults {
-    /** The buttons a game's profile never leaves dead: face, shoulder and system buttons. */
-    val BUTTONS = listOf("a", "b", "x", "y", "l1", "r1", "l2", "r2", "start", "select").map { "virtual:$it" }.toSet()
+    /**
+     * Mapping layers merged input by input, lowest first: the system's defaults (its catalog), the
+     * player's global layer, the game's catalog layer, the player's game layer. A layer's binding
+     * replaces the input's; an explicit null (ControllerBinding.unbound) removes it. What we ship
+     * holds no explicit null, so only a player's own choice leaves an input unbound.
+     */
+    fun cascade(vararg layers: List<ControllerBinding>): List<ControllerBinding> {
+        val merged = LinkedHashMap<String, ControllerBinding>()
+        for (layer in layers) for (binding in layer) {
+            if (binding.unbound) merged.remove(binding.input) else merged[binding.input] = binding
+        }
+        return merged.values.toList()
+    }
 
     /**
-     * A catalog profile over the all-games mapping: the profile's bindings, then every button it
-     * leaves unbound as [standard] binds it. Directions stay the profile's, so a steering profile's
-     * D-pad still drives the left stick too. A player's own mapping is never layered.
+     * The layer a player saves: over [inherited] (the layers below it), it gives [edited]. Bindings
+     * that differ from what they inherit, and an explicit null for each inherited input [edited]
+     * leaves unbound; inputs they did not change keep following the layers below.
      */
-    fun layered(profile: List<ControllerBinding>, standard: List<ControllerBinding>): List<ControllerBinding> {
-        val bound = profile.map { it.input }.toSet()
-        return profile + standard.filter { it.input in BUTTONS && it.input !in bound }
+    fun layerOver(inherited: List<ControllerBinding>, edited: List<ControllerBinding>): List<ControllerBinding> {
+        val below = inherited.associateBy { it.input }
+        val bound = edited.filterNot { it.unbound }
+        val inputs = bound.map { it.input }.toSet()
+        return bound.filter { below[it.input] != it } + below.keys.filter { it !in inputs }.map(::ControllerBinding)
+    }
+
+    /**
+     * A mapping the player saved before mappings were layers: the whole mapping, as it played. As a
+     * layer it binds what it bound and removes everything else, so it still plays the same. Its
+     * left stick did what its D-pad did, and Menu opened the menu, where it left them unbound; a
+     * D-pad key cycle stays on the D-pad (a stick cannot hold one).
+     */
+    fun legacyLayer(saved: List<ControllerBinding>): List<ControllerBinding> {
+        val bound = saved.filterNot { it.unbound }.associateBy { it.input }.toMutableMap()
+        for (direction in listOf("up", "down", "left", "right")) {
+            val dpad = bound["virtual:$direction"]?.takeIf { it.cycleKeys.isEmpty() } ?: continue
+            bound.putIfAbsent("virtual:ls$direction", dpad.copy(input = "virtual:ls$direction"))
+        }
+        bound.putIfAbsent("virtual:menu", ControllerBinding("virtual:menu", action = "menu"))
+        return bound.values.toList() + PhysicalControllerBindings.controls.map { "virtual:$it" }
+            .filter { it !in bound }.map(::ControllerBinding)
     }
 
     data class Resolution<T>(val bindings: List<T>, val fallback: Boolean)

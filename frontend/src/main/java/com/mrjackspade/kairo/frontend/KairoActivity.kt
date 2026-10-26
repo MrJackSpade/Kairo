@@ -69,7 +69,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun guestKey(androidKey: Int): Int?
     protected abstract val controllerSpec: ControllerGuestSpec
     protected abstract val bindingsCodec: ControllerBindingsCodec
-    protected abstract fun defaultBindings(layout: ControllerLayout): List<ControllerBinding>
+    /** The system's controller mapping, as its catalog defines it: the lowest layer of every mapping. */
+    protected abstract fun systemControllerBindings(): List<ControllerBinding>
     /** The guest's joystick controls, in the order [sendJoystick] numbers them. */
     protected open val joystickControls: List<String> get() = JoystickInputRouter.DEFAULT_CONTROLS
     protected abstract fun sendKey(code: Int, down: Boolean)
@@ -119,10 +120,19 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     // Controls a game has as its own -------------------------------------------------------------
 
-    /** The bindings [entry] plays with: its own, the catalog's, or all games'. */
-    protected abstract fun gameBindings(entry: E): List<ControllerBinding>
-    protected abstract fun saveGameBindings(game: GameKey, bindings: List<ControllerBinding>)
+    /**
+     * [entry]'s catalog layer for the controller layout: what its catalog entry binds over the
+     * system's mapping. What we ship holds no explicit null.
+     */
+    protected abstract fun catalogControllerLayer(entry: E): List<ControllerBinding>
+    /** The player's own layer for [entry]: what they changed for it, with explicit nulls. */
+    protected abstract fun playerControllerLayer(entry: E): List<ControllerBinding>
+    protected abstract fun savePlayerControllerLayer(game: GameKey, layer: List<ControllerBinding>)
     protected abstract fun clearGameBindings(game: GameKey)
+    /** What [entry] plays with: the system's mapping, the player's global layer, the catalog's, the player's. */
+    protected fun gameBindings(entry: E): List<ControllerBinding> = controllerFlow.gameBindings(entry)
+    private fun inheritedBindings(entry: E): List<ControllerBinding> =
+        ControllerDefaults.cascade(controllerFlow.global(), catalogControllerLayer(entry))
     /** Where [entry]'s bindings come from, as a source tag. */
     protected abstract fun controllerSource(entry: E): String
     /** A note on the Button mapping page, such as a fallback the catalog chose. */
@@ -258,7 +268,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected val mouseRouter by lazy { MouseInputRouter(::recordedMove, ::recordedButton) }
     protected val gamepadMapper by lazy {
         GamepadMapper(inputRouter, joystickRouter, mouseRouter, ::controllerAction, ::controllerActionReleased,
-            bindingsCodec.parse(null))
+            emptyList())
     }
     protected val inputModeDecider = InputModeDecider()
     private val inputDispatch: InputDispatchCoordinator by lazy {
@@ -315,12 +325,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }
     protected val controllerProfiles by lazy {
         ControllerProfileStore(preferences, bindingsCodec::parse,
-            { bindingsCodec.toJson(it).toString() }, ::defaultBindings)
+            { bindingsCodec.toJson(it).toString() }, ::systemControllerBindings)
     }
     protected val controllerFlow by lazy {
         ControllerProfileCoordinator(controllerProfiles, gamepadMapper,
             { entry: E -> entry.key.takeIf { entry.contentId != null } },
-            ::gameBindings, ::saveGameBindings, ::clearGameBindings,
+            ::inheritedBindings, ::playerControllerLayer, ::savePlayerControllerLayer, ::clearGameBindings,
             { currentEntry }, ::controllerRefreshed)
     }
     /** A game's bindings changed through the controller pages. */

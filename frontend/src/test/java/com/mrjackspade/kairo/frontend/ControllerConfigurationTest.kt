@@ -70,28 +70,65 @@ class ControllerConfigurationTest {
         val preferences = memoryPreferences(mapOf("controller_global_v1" to "legacy", "controller_physical_v1" to "physical"))
         val configuration = ControllerConfiguration(preferences) { ControllerCapabilities.detect(emptyList()) }
         val legacy = listOf(ControllerBinding("virtual:a", keys = listOf(13)))
-        val default = listOf(ControllerBinding("virtual:b", keys = listOf(27)))
-        fun store() = ControllerProfileStore(preferences, { if (it == "legacy") legacy else default },
-            { "edited" }, { default }, configuration)
+        val system = listOf(ControllerBinding("virtual:b", keys = listOf(27)))
+        fun store() = ControllerProfileStore(preferences, { if (it == "legacy") legacy else error("no layer saved") },
+            { "edited" }, { system }, configuration)
         val store = store()
+        // A whole mapping saved before layers still plays as it did: A, the menu, nothing else.
+        val asSaved = listOf(ControllerBinding("virtual:a", keys = listOf(13)), ControllerBinding("virtual:menu", action = "menu"))
         configuration.select(ControllerConfiguration.Choice.WITH_STICKS)
-        assertEquals(legacy, store.global())
+        assertEquals(asSaved, store.global())
         store.resetGlobal()
-        assertEquals(default, store.global())
-        assertEquals(default, store().global()) // Creating the store again must not repeat migration.
+        assertEquals(system, store.global())
+        assertEquals(system, store().global()) // Creating the store again must not repeat migration.
         configuration.select(ControllerConfiguration.Choice.WITHOUT_STICKS)
-        assertEquals(legacy, store.global())
+        assertEquals(asSaved, store.global())
         assertEquals("physical", preferences.getString("controller_physical_v1", null))
         assertEquals("legacy", preferences.getString("controller_global_v1", null))
     }
 
+    private val arrows = listOf(ControllerBinding("virtual:up", listOf(273), joystick = "joy1up"),
+        ControllerBinding("virtual:down", listOf(274), joystick = "joy1down"),
+        ControllerBinding("virtual:left", listOf(276), joystick = "joy1left"),
+        ControllerBinding("virtual:right", listOf(275), joystick = "joy1right"),
+        ControllerBinding("virtual:lsup", joystick = "joy1up"), ControllerBinding("virtual:a", listOf(13)))
+
     @Test
-    fun aProfileKeepsItsDirectionsAndLeavesNoButtonUnbound() {
-        val steering = listOf(ControllerBinding("virtual:up", listOf(273)), ControllerBinding("virtual:a", listOf(32)))
-        val standard = listOf(ControllerBinding("virtual:up", listOf(119)), ControllerBinding("virtual:lsup", joystick = "joy1up"),
-            ControllerBinding("virtual:a", listOf(13)), ControllerBinding("virtual:b", listOf(27)),
-            ControllerBinding("virtual:start", listOf(27)), ControllerBinding("virtual:menu", action = "menu"))
-        assertEquals(steering + listOf(ControllerBinding("virtual:b", listOf(27)), ControllerBinding("virtual:start", listOf(27))),
-            ControllerDefaults.layered(steering, standard))
+    fun layersReplaceInputByInputAndWhatTheyLeaveCascades() {
+        // A game that binds its D-pad plays with its own D-pad; its left stick and A come from below.
+        val game = listOf(ControllerBinding("virtual:up", joystick = "joy1up"), ControllerBinding("virtual:b", listOf(32)))
+        assertEquals(listOf(ControllerBinding("virtual:up", joystick = "joy1up")) + arrows.drop(1) +
+            ControllerBinding("virtual:b", listOf(32)), ControllerDefaults.cascade(arrows, game))
+        // A game that leaves its D-pad alone keeps the system's arrow keys.
+        assertEquals(arrows, ControllerDefaults.cascade(arrows, emptyList()))
+    }
+
+    @Test
+    fun anExplicitNullRemovesTheInputFromEveryLayerBelow() {
+        val player = listOf(ControllerBinding("virtual:up"), ControllerBinding("virtual:a", listOf(32)))
+        assertEquals(arrows.drop(1).dropLast(1) + ControllerBinding("virtual:a", listOf(32)),
+            ControllerDefaults.cascade(arrows, emptyList(), player))
+    }
+
+    @Test
+    fun aSavedLayerHoldsWhatChangedAndNullsWhatWasUnbound() {
+        val edited = arrows.filterNot { it.input == "virtual:lsup" }.map {
+            if (it.input == "virtual:a") ControllerBinding("virtual:a", listOf(32)) else it
+        } + ControllerBinding("virtual:x", listOf(120))
+        val layer = ControllerDefaults.layerOver(arrows, edited)
+        assertEquals(listOf(ControllerBinding("virtual:a", listOf(32)), ControllerBinding("virtual:x", listOf(120)),
+            ControllerBinding("virtual:lsup")), layer)
+        assertEquals(edited.toSet(), ControllerDefaults.cascade(arrows, layer).toSet())
+        // Unchanged: nothing saved, so later changes below still cascade through.
+        assertEquals(emptyList<ControllerBinding>(), ControllerDefaults.layerOver(arrows, arrows))
+    }
+
+    @Test
+    fun aMappingSavedBeforeLayersPlaysAsItDid() {
+        val saved = listOf(ControllerBinding("virtual:up", listOf(119)), ControllerBinding("virtual:a", listOf(13)))
+        val played = ControllerDefaults.cascade(arrows + ControllerBinding("virtual:rsup", joystick = "joy2up"),
+            ControllerDefaults.legacyLayer(saved))
+        assertEquals(setOf(ControllerBinding("virtual:up", listOf(119)), ControllerBinding("virtual:a", listOf(13)),
+            ControllerBinding("virtual:lsup", listOf(119)), ControllerBinding("virtual:menu", action = "menu")), played.toSet())
     }
 }

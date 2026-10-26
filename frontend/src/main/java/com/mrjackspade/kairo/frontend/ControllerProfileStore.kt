@@ -5,12 +5,15 @@ import android.content.SharedPreferences
 /** Persistence shared by every Kairo app's global and physical controller profiles. */
 class ControllerProfileStore(
     private val preferences: SharedPreferences,
-    private val parseGuest: (String?) -> List<ControllerBinding>,
+    private val parseGuest: (String) -> List<ControllerBinding>,
     private val encodeGuest: (List<ControllerBinding>) -> String,
-    private val defaults: ((ControllerLayout) -> List<ControllerBinding>)? = null,
+    /** The system's mapping, from its catalog. */
+    private val system: () -> List<ControllerBinding>,
     val configuration: ControllerConfiguration = ControllerConfiguration(preferences)
 ) {
-    private val globalKey get() = "controller_global_${configuration.layout.key}_v2"
+    // The player's global layer over the system's defaults; before layers, the whole mapping (v2).
+    private val globalKey get() = "controller_global_${configuration.layout.key}_layer_v3"
+    private val legacyGlobalKey get() = "controller_global_${configuration.layout.key}_v2"
 
     init {
         // Copy legacy overrides to both configurations once. Never infer intent from their contents.
@@ -26,17 +29,26 @@ class ControllerProfileStore(
         }
     }
 
-    fun global(): List<ControllerBinding> = preferences.getString(globalKey, null)?.let(parseGuest)
-        ?: defaults?.invoke(configuration.layout) ?: parseGuest(null)
+    /** The system's mapping, as its catalog defines it: the lowest layer of every mapping. */
+    fun system(): List<ControllerBinding> = system.invoke()
+
+    /** The player's own global layer: what they changed, with an explicit null for what they unbound. */
+    fun globalLayer(): List<ControllerBinding> =
+        preferences.getString(globalKey, null)?.let(parseGuest)
+            ?: preferences.getString(legacyGlobalKey, null)?.let { ControllerDefaults.legacyLayer(parseGuest(it)) }
+            ?: emptyList()
+
+    fun global(): List<ControllerBinding> = ControllerDefaults.cascade(system(), globalLayer())
 
     fun saveGlobal(bindings: List<ControllerBinding>) {
-        preferences.edit().putString(globalKey, encodeGuest(bindings)).apply()
+        preferences.edit().putString(globalKey, encodeGuest(ControllerDefaults.layerOver(system(), bindings)))
+            .remove(legacyGlobalKey).apply()
     }
 
-    fun resetGlobal() { preferences.edit().remove(globalKey).apply() }
+    fun resetGlobal() { preferences.edit().remove(globalKey).remove(legacyGlobalKey).apply() }
 
-    /** Whether the global mapping for the current layout differs from the built-in one. */
-    val globalCustom: Boolean get() = preferences.contains(globalKey)
+    /** Whether the player changed the global mapping for the current layout. */
+    val globalCustom: Boolean get() = preferences.contains(globalKey) || preferences.contains(legacyGlobalKey)
 
     val physicalCustom: Boolean get() = preferences.contains("controller_physical_v1")
 

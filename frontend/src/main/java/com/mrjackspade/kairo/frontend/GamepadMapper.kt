@@ -82,12 +82,8 @@ class GamepadMapper(private val router: InputRouter,
         }
     }
 
-    private fun resolveVirtual(control: String): ControllerBinding? {
-        bindings.firstOrNull { it.input == "virtual:$control" }?.let { return it }
-        if (control.startsWith("ls") && control.removePrefix("ls") in setOf("up", "down", "left", "right"))
-            bindings.firstOrNull { it.input == "virtual:${control.removePrefix("ls")}" }?.let { return it }
-        return if (control == "menu") ControllerBinding("virtual:menu", action = "menu") else null
-    }
+    private fun resolveVirtual(control: String): ControllerBinding? =
+        bindings.firstOrNull { it.input == "virtual:$control" }
 
     fun releaseVirtual(owner: String) {
         if (owner.startsWith("onscreen:")) deactivate(owner)
@@ -169,19 +165,8 @@ class GamepadMapper(private val router: InputRouter,
 
     private fun resolve(input: String): ControllerBinding? {
         val control = physicalBindings.firstOrNull { it.input == input }?.control
+        // Every control is bound by the mapping's own layers (ControllerDefaults.cascade).
         if (control != null) bindings.firstOrNull { it.input == "virtual:$control" }?.let { return it }
-        // Older profiles use the D-pad directions for both the D-pad and left stick.
-        // A game can now override the left stick without changing the D-pad.
-        val dpadControl = when (control) {
-            "lsup" -> "up"
-            "lsdown" -> "down"
-            "lsleft" -> "left"
-            "lsright" -> "right"
-            else -> null
-        }
-        if (dpadControl != null)
-            bindings.firstOrNull { it.input == "virtual:$dpadControl" }?.let { return it }
-        if (control == "menu") return ControllerBinding("virtual:menu", action = "menu")
         // Old saved profiles contain direct Android-to-guest bindings.
         return bindings.firstOrNull { it.input == input }
     }

@@ -3,9 +3,11 @@ package com.mrjackspade.kairo.frontend
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** The same stored physical and virtual controller profiles for every Kairo core. */
+/**
+ * The same stored physical and virtual controller profiles for every Kairo core. It holds no
+ * mapping of its own: every default is catalog data (ControllerDefaults.cascade).
+ */
 class ControllerBindingsCodec(
-    private val defaults: () -> List<ControllerBinding>,
     private val validKey: (Int) -> Boolean,
     private val joystickControls: Collection<String>,
     private val actions: Collection<String>
@@ -21,6 +23,11 @@ class ControllerBindingsCodec(
             if (!input.matches(source) || !inputs.add(source)) return false
             if (source.startsWith("virtual:") &&
                 source.removePrefix("virtual:") !in PhysicalControllerBindings.controls) return false
+            // An explicit null: the input and nothing else (ControllerBinding.unbound).
+            if (item.has(UNBOUND)) {
+                if (item.opt(UNBOUND) != true || item.length() != 2) return false
+                continue
+            }
             val keys = item.optJSONArray("keys")
             val action = item.optString("action").takeIf(String::isNotEmpty)
             val joystick = item.optString("joystick").takeIf(String::isNotEmpty)
@@ -65,29 +72,31 @@ class ControllerBindingsCodec(
         return true
     }
 
-    fun parse(text: String?): List<ControllerBinding> = try {
-        if (text == null) defaults() else {
-            val array = JSONArray(text)
-            if (!valid(array)) defaults() else (0 until array.length()).map { index ->
-                val item = array.getJSONObject(index)
-                val keys = item.optJSONArray("keys")
-                val cycleKeys = item.optJSONArray("cycleKeys")
-                ControllerBinding(item.getString("input"),
-                    if (keys == null) emptyList() else (0 until keys.length()).map(keys::getInt),
-                    item.optString("action").takeIf(String::isNotEmpty),
-                    item.optString("joystick").takeIf(String::isNotEmpty),
-                    item.optString("mouse").takeIf(String::isNotEmpty),
-                    if (cycleKeys == null) emptyList() else
-                        (0 until cycleKeys.length()).map(cycleKeys::getInt),
-                    item.optDouble("mouseSpeed", 1.0).toFloat())
-            }
+    /** [text]'s bindings; data that is not a mapping fails here, where it is read. */
+    fun parse(text: String): List<ControllerBinding> {
+        val array = JSONArray(text)
+        require(valid(array)) { "Invalid controller mapping: $text" }
+        return (0 until array.length()).map { index ->
+            val item = array.getJSONObject(index)
+            val keys = item.optJSONArray("keys")
+            val cycleKeys = item.optJSONArray("cycleKeys")
+            if (item.has(UNBOUND)) return@map ControllerBinding(item.getString("input"))
+            ControllerBinding(item.getString("input"),
+                if (keys == null) emptyList() else (0 until keys.length()).map(keys::getInt),
+                item.optString("action").takeIf(String::isNotEmpty),
+                item.optString("joystick").takeIf(String::isNotEmpty),
+                item.optString("mouse").takeIf(String::isNotEmpty),
+                if (cycleKeys == null) emptyList() else
+                    (0 until cycleKeys.length()).map(cycleKeys::getInt),
+                item.optDouble("mouseSpeed", 1.0).toFloat())
         }
-    } catch (_: Exception) { defaults() }
+    }
 
     fun toJson(bindings: List<ControllerBinding>): JSONArray = JSONArray().also { array ->
         bindings.forEach { binding ->
             val item = JSONObject().put("input", binding.input)
             when {
+                binding.unbound -> item.put(UNBOUND, true)
                 binding.action != null -> item.put("action", binding.action)
                 binding.mouse != null -> item.put("mouse", binding.mouse)
                 binding.cycleKeys.isNotEmpty() -> item.put("cycleKeys", JSONArray(binding.cycleKeys))
@@ -100,5 +109,9 @@ class ControllerBindingsCodec(
             array.put(item)
         }
         require(valid(array)) { "Invalid controller mapping" }
+    }
+
+    private companion object {
+        const val UNBOUND = "unbound"
     }
 }

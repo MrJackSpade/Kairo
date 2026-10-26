@@ -6,7 +6,10 @@ class ControllerProfileCoordinator<Game : Any>(
     private val mapper: GamepadMapper,
     /** The game whose own mapping applies, or null when [Game] uses the global one. */
     private val key: (Game) -> GameKey?,
-    private val gameBindings: (Game) -> List<ControllerBinding>,
+    /** What [Game] inherits: the global mapping with its catalog layer over it. */
+    private val inherited: (Game) -> List<ControllerBinding>,
+    /** The player's own layer for [Game]: what they changed, with explicit nulls for what they unbound. */
+    private val playerLayer: (Game) -> List<ControllerBinding>,
     private val saveGame: (GameKey, List<ControllerBinding>) -> Unit,
     private val resetGame: (GameKey) -> Unit,
     private val activeGame: () -> Game?,
@@ -42,9 +45,13 @@ class ControllerProfileCoordinator<Game : Any>(
     fun load(game: Game?): List<ControllerBinding> =
         if (game == null || key(game) == null) store.global() else gameBindings(game)
 
+    /** What [game] plays with: the layers it inherits with the player's own over them. */
+    fun gameBindings(game: Game): List<ControllerBinding> = ControllerDefaults.cascade(inherited(game), playerLayer(game))
+
+    /** Saves [bindings] as the player's layer: what differs from what the mapping inherits. */
     fun save(game: Game?, bindings: List<ControllerBinding>) {
         val id = game?.let(key)
-        if (id == null) store.saveGlobal(bindings) else saveGame(id, bindings)
+        if (id == null) store.saveGlobal(bindings) else saveGame(id, ControllerDefaults.layerOver(inherited(game), bindings))
         refresh(game)
     }
 

@@ -354,6 +354,9 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         invalidate(game)
     }
 
+    /** The player's own value of [field] for [game], or null when they have not changed it. */
+    @Synchronized fun overrideOf(game: GameKey, field: String): JSONObject? = overrides.record(game)?.optJSONObject(field)
+
     fun setOverrideSubfield(game: GameKey, field: String, subfield: String, value: Any) =
         updateOverrideSubfields(game, field, mapOf(subfield to value))
 
@@ -398,6 +401,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             (!value.has("profile") ||
                 (value.opt("profile") is String && value.optString("profile").length in 1..64)) &&
             (!value.has("bindings") || value.optJSONArray("bindings")?.let(schema::validBindings) == true) &&
+            (!value.has("layer") || value.optJSONArray("layer")?.let(schema::validBindings) == true) &&
             (!value.has("defaults") || value.optJSONObject("defaults")?.let { defaults ->
                 defaults.has("withoutSticks") && defaults.keys().asSequence().all {
                     it in setOf("withoutSticks", "withSticks") &&
@@ -422,6 +426,10 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     }
 
     private fun readAsset(path: String): JSONObject = parts.read(path.removePrefix("catalog/"))
+
+    /** The system's controller mapping from the catalog's system definition (system-v1.json). */
+    fun systemControllerBindings(): org.json.JSONArray =
+        readAsset("catalog/$SYSTEM_DOCUMENT").getJSONObject("controller").getJSONArray("bindings")
 
     private fun normalizedName(fileName: String): String {
         val simple = fileName.substringAfterLast('/').substringAfterLast('\\')
@@ -507,6 +515,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     } catch (_: java.net.URISyntaxException) { false }
 
     companion object {
+        /** The catalog's system definition: the system's controller mapping, below every game's. */
+        const val SYSTEM_DOCUMENT = "system-v1.json"
         private val BRACKETED = Regex("\\[[^]]*]")
         private val DISK_NUMBER = Regex("\\((?:disk|disc|fd)\\s*\\d+[^)]*\\)", RegexOption.IGNORE_CASE)
         private val SHARD_NAME = Regex("[0-9a-f]{2}")
@@ -520,7 +530,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         private val INPUT_FIELDS = setOf("mode", "touch", "secondary")
         private val COMMON_OBJECT_FIELDS = mapOf(
             "artwork" to ART_FIELDS,
-            "controller" to setOf("profile", "bindings", "defaults"),
+            // "layer" is the player's own mapping layer (ControllerDefaults.cascade); catalogs never hold one.
+            "controller" to setOf("profile", "bindings", "defaults", "layer"),
             "input" to INPUT_FIELDS)
         private val COMMON_FIELDS = setOf("title", "description", "aliases", "heart", "hidden", "media") +
             COMMON_OBJECT_FIELDS.keys

@@ -12,4 +12,10 @@ data class ControllerBinding(
     val cycleKeys: List<Int> = emptyList(),
     /** Relative mouse movement multiplier; touch/pointer input is unaffected. */
     val mouseSpeed: Float = 1f
-)
+) {
+    /**
+     * Sends nothing: an explicit null. In a player's saved layer it removes the input the layers
+     * below bind (ControllerDefaults.cascade); nothing we ship holds one.
+     */
+    val unbound: Boolean get() = keys.isEmpty() && cycleKeys.isEmpty() && action == null && joystick == null && mouse == null
+}
