@@ -8,12 +8,15 @@
 #include <unistd.h>
 
 #include <cstdio>
+#include <map>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "kairo/frame_machine.h"
+#include "kairo/jni_strings.h"
 #include "kairo/machine_core.h"
+#include "kairo/state_paths.h"
 
 namespace {
 
@@ -76,24 +79,7 @@ std::unique_ptr<kairo::MachineCore> launch_core(const kairo::Launch &launch, std
     return std::make_unique<TypingCore>(std::move(core), commands->second);
 }
 
-std::string utf8(JNIEnv *env, jstring value) {
-    if (!value) return "";
-    const char *chars = env->GetStringUTFChars(value, nullptr);
-    std::string result = chars ? chars : "";
-    if (chars) env->ReleaseStringUTFChars(value, chars);
-    return result;
-}
-
-std::vector<std::string> strings(JNIEnv *env, jobjectArray array) {
-    std::vector<std::string> result;
-    const jsize count = array ? env->GetArrayLength(array) : 0;
-    for (jsize i = 0; i < count; ++i) {
-        auto item = static_cast<jstring>(env->GetObjectArrayElement(array, i));
-        result.push_back(utf8(env, item));
-        env->DeleteLocalRef(item);
-    }
-    return result;
-}
+using kairo::utf8;
 
 // Cores report problems on stdout and stderr, which Android discards.
 void forward_output_to_log() {
@@ -132,8 +118,8 @@ extern "C" JNIEXPORT jint JNI_OnLoad(JavaVM *, void *) {
 extern "C" JNIEXPORT jboolean JNICALL
 NATIVE_MACHINE(nativeStart)(JNIEnv *env, jobject, jstring firmware, jstring home, jobjectArray media,
                             jobjectArray settings) {
-    kairo::Launch launch{utf8(env, firmware), utf8(env, home), strings(env, media), {}};
-    const std::vector<std::string> pairs = strings(env, settings);
+    kairo::Launch launch{utf8(env, firmware), utf8(env, home), kairo::utf8_strings(env, media), {}};
+    const std::vector<std::string> pairs = kairo::utf8_strings(env, settings);
     for (size_t i = 0; i + 1 < pairs.size(); i += 2) launch.settings[pairs[i]] = pairs[i + 1];
     return machine.start([launch](std::string &error) { return launch_core(launch, error); }) ? JNI_TRUE : JNI_FALSE;
 }
@@ -196,10 +182,16 @@ extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeSaveState)(JNIEnv *env, j
     return machine.call([path](kairo::MachineCore &core) { return core.save_state(path); });
 }
 
-extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLoadState)(JNIEnv *env, jobject, jstring directory) {
+// [from] and [to]: each disk path a state may name, and where that disk is now (kairo/state_paths.h).
+extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLoadState)(JNIEnv *env, jobject, jstring directory,
+                                                                  jobjectArray from, jobjectArray to) {
     std::string path = utf8(env, directory);
-    return machine.call([path](kairo::MachineCore &core) {
+    std::map<std::string, std::string> moved;
+    const auto earlier = kairo::utf8_strings(env, from), now = kairo::utf8_strings(env, to);
+    for (size_t i = 0; i < earlier.size(); ++i) moved[earlier[i]] = now.at(i);
+    return machine.call([path, moved](kairo::MachineCore &core) {
         core.release_inputs();
+        kairo::StatePaths paths(moved);
         const int result = core.load_state(path);
         if (result == 0) machine.redraw_paused(core);
         return result;

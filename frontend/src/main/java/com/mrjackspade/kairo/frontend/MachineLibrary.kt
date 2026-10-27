@@ -22,14 +22,14 @@ interface MachineLibrary<E : LibraryItem> {
     fun prepare(entry: E, cancelled: AtomicBoolean, progress: (String) -> Unit): java.io.File
     /** The entry whose working copy is [path], as a machine reports its media after a state loads. */
     fun entryForWorkingImage(path: String, entries: List<E>): E?
+    /**
+     * Each path a save state may name for a disk of [entries], to where that disk's working copy
+     * is now: the names working copies had before (their key's hash name, or the hash name of the
+     * URI key v1.4.0 gave a file a frontend sent). A machine reopens a state's disks through it.
+     */
+    fun statePaths(entries: List<E>): Map<String, String>
     /** [entry], unplayable for [message]. */
     fun withError(entry: E, message: String): E
-    /** The working copies of games whose key changed, which move to their new key (GamePathMigration). */
-    fun earlierWorkingCopies(): EarlierWorkingCopies<E>
-}
-
-/** Working copies that move with their game's key ([MachineLibrary.earlierWorkingCopies]). */
-interface EarlierWorkingCopies<E : LibraryItem> : GamePathMigration.Store<E> {
-    /** Where each earlier working copy of [claims] goes: earlier path to new. */
-    fun moves(claims: List<GamePathMigration.Claim<E>>): Map<java.io.File, java.io.File>
+    /** The working copies named by their game's hash name before v1.4.1, which move to its path (GamePathMigration). */
+    fun hashNamedWorkingCopies(): GamePathMigration.Store<E>
 }

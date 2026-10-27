@@ -66,6 +66,9 @@ class GameMetadataOverrides(
     @Synchronized fun v1Records(): Set<String> =
         games(values).keys().asSequence().filter { GameKey.HASH_NAME.matches(it) }.toSet()
 
+    /** True when v1.4.0 or earlier kept a record under [hashName]. */
+    @Synchronized fun hasV1Record(hashName: String): Boolean = games(values).optJSONObject(hashName) != null
+
     /**
      * Moves the record v1.4.0 and earlier kept under [hashName] to [to], in one write. A record [to]
      * already has is kept, and the earlier one is dropped.

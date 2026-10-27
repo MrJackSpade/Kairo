@@ -25,7 +25,11 @@ interface MachineBridge {
     fun mouseButton(button: Int, down: Boolean)
     /** Saves the machine into [directory]; 0, or a code [MachineActivity.stateError] explains. */
     fun saveState(directory: String): Int
-    fun loadState(directory: String): Int
+    /**
+     * Loads the machine from [directory]. [moved] maps each disk path a state may name to where
+     * that disk is now (MachineLibrary.statePaths); the machine reopens its disks through it.
+     */
+    fun loadState(directory: String, moved: Map<String, String>): Int
     /** The lock keys the machine has on, as after loading a state. */
     fun lockedKeys(): Set<Int>
     /** `<state>|<error>|<frames>|<audio>|<xruns>|<audio config>`, as [MachineStatus] reads it. */

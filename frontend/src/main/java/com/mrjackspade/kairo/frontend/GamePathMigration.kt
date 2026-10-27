@@ -1,9 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import android.content.SharedPreferences
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /**
  * Moves what v1.4.0 and earlier stored for each game under its [GameKey.hashName] (`k1-<hash>`) to
@@ -42,30 +39,31 @@ class GamePathMigration<T : LibraryItem>(
 
     interface Store<T : LibraryItem> {
         /**
-         * Reads what this store holds under hash names, for [claims] (every game of this load);
-         * [has] and [isEmpty] answer from that reading.
+         * Reads what this store holds under hash names: every name when [every] (a library load,
+         * whose [claims] are every game), else only [claims]' own names, looked up directly
+         * (a file a frontend opened, Kairo#74). [has] and [isEmpty] answer from that reading.
          */
-        fun refresh(claims: List<Claim<T>>)
+        fun refresh(claims: List<Claim<T>>, every: Boolean)
         fun has(hashName: String): Boolean
         /** The data [claim] would replace: what the game already has at its path. */
         fun conflicts(claim: Claim<T>): List<Conflict> = emptyList()
         /** Moves [claim]'s data, except where [keep] holds the game's current copy. */
         fun move(claim: Claim<T>, keep: Set<Conflict>)
-        /** True when nothing named the v1.4.0 way is left. */
+        /** True when nothing named the v1.4.0 way is left, as last read with every name. */
         fun isEmpty(): Boolean
     }
 
-    /** True until a claim finds nothing left to move. */
+    /** True until a library load finds nothing left to move. */
     val pending: Boolean get() = !preferences.getBoolean(DONE, false)
 
     /**
      * Moves everything held for [claims]. Returns an error message for each game whose data did
-     * not move. A library load claims only while [pending]; a game a frontend opened claims what
-     * the key v1.4.0 gave its URI holds every time, as its working copy moves with its key.
+     * not move. A library load claims [every] game while [pending]; a game a frontend opened
+     * claims only its own earlier names, every time, as nothing else knows them.
      */
-    @Synchronized fun claim(claims: List<Claim<T>>): Map<GameKey, String> {
+    @Synchronized fun claim(claims: List<Claim<T>>, every: Boolean): Map<GameKey, String> {
         val errors = LinkedHashMap<GameKey, String>()
-        stores.forEach { it.refresh(claims) }
+        stores.forEach { it.refresh(claims, every) }
         val work = stores.flatMap { store -> claims.filter { store.has(it.from) }.map { store to it } }
         val conflicts = LinkedHashMap<Pair<Store<T>, Claim<T>>, List<Conflict>>()
         for (pair in work) try { conflicts[pair] = pair.first.conflicts(pair.second) }
@@ -82,7 +80,7 @@ class GamePathMigration<T : LibraryItem>(
             try { store.move(claim, found.toSet() - replace.orEmpty()) }
             catch (error: Exception) { errors.putIfAbsent(claim.to, message(error)) }
         }
-        if (errors.isEmpty() && stores.all { it.isEmpty() } && !earlierPending())
+        if (every && errors.isEmpty() && stores.all { it.isEmpty() } && !earlierPending())
             check(preferences.edit().putBoolean(DONE, true).commit()) { "Could not record moved game data" }
         return errors
     }
@@ -93,23 +91,17 @@ class GamePathMigration<T : LibraryItem>(
     /**
      * Save units: `<hash name>/<v1 kind>` to `<savePath>.<kind>` in [location], for each of
      * [kinds] (kind to v1 kind). Each unit moves within the location ([SaveLocation.move]), so it
-     * keeps its files and their times and nothing is copied. A unit of a game whose key changed
-     * is copied instead, through [relink] with every claim of the load, so a save state finds the
-     * working copies that moved with their keys: it is stored at its path, then the earlier one
-     * is deleted, and [journal] lists the units whose copy began, so one cut short after storing
-     * finishes the next time instead of asking about its own copy.
+     * keeps its files and their times and nothing is copied.
      */
     class SaveUnitStore<T : LibraryItem>(private val location: () -> SaveLocation,
                                          private val kinds: Map<String, String>,
-                                         private val label: (String) -> String,
-                                         private val staging: File, private val journal: File,
-                                         private val relink: (File, List<Claim<T>>) -> Unit = { _, _ -> }) : Store<T> {
+                                         private val label: (String) -> String) : Store<T> {
         private var v1: Set<String> = emptySet()
-        private var claims: List<Claim<T>> = emptyList()
 
-        override fun refresh(claims: List<Claim<T>>) {
-            v1 = location().v1Games().filter { GameKey.HASH_NAME.matches(it) }.toSet()
-            this.claims = claims
+        override fun refresh(claims: List<Claim<T>>, every: Boolean) {
+            val saves = location()
+            v1 = if (every) saves.v1Games().filter { GameKey.HASH_NAME.matches(it) }.toSet()
+                else claims.map { it.from }.filter { saves.hasV1Game(it) }.toSet()
         }
 
         override fun has(hashName: String) = hashName in v1
@@ -122,9 +114,8 @@ class GamePathMigration<T : LibraryItem>(
 
         override fun conflicts(claim: Claim<T>): List<Conflict> {
             val saves = location()
-            val started = started()
             return moves(claim, saves).filter { move ->
-                move.from.path !in started && saves.exists(move.from) && saves.exists(move.to) && !saves.isEmpty(move.to)
+                saves.exists(move.from) && saves.exists(move.to) && !saves.isEmpty(move.to)
             }.map { move ->
                 Conflict(claim.to, move.kind, label(move.kind), saves.savedAt(move.from), saves.savedAt(move.to), claim.external)
             }
@@ -133,32 +124,12 @@ class GamePathMigration<T : LibraryItem>(
         override fun move(claim: Claim<T>, keep: Set<Conflict>) {
             val saves = location()
             for (move in moves(claim, saves)) {
-                val kept = keep.any { it.kind == move.kind }
-                if (!claim.external) {
-                    if (kept) saves.delete(move.from)
-                    else {
-                        // An empty unit, or the current copy the player chose to replace.
-                        if (saves.exists(move.to)) saves.delete(move.to)
-                        saves.move(move.from, move.to)
-                    }
-                    // A copy an earlier move stored and did not finish is replaced by this one.
-                    if (move.from.path in started()) record(started() - move.from.path)
-                    continue
+                if (keep.any { it.kind == move.kind }) saves.delete(move.from)
+                else {
+                    // An empty unit, or the current copy the player chose to replace.
+                    if (saves.exists(move.to)) saves.delete(move.to)
+                    saves.move(move.from, move.to)
                 }
-                record(started() + move.from.path)
-                if (!kept) {
-                    val copy = File(staging, "game-path-migration")
-                    check(!copy.exists() || copy.deleteRecursively()) { "Could not clear an earlier move" }
-                    try {
-                        saves.export(move.from, copy)
-                        relink(copy, claims)
-                        saves.import(move.to, copy)
-                    } finally {
-                        copy.deleteRecursively()
-                    }
-                }
-                saves.delete(move.from)
-                record(started() - move.from.path)
             }
             // What is left is a save's unfinished scratch, never read again.
             saves.deleteV1Game(claim.from)
@@ -166,17 +137,6 @@ class GamePathMigration<T : LibraryItem>(
         }
 
         override fun isEmpty() = v1.isEmpty()
-
-        /** Units whose move began, one path per line. Unit paths hold no line breaks. */
-        private fun started(): Set<String> =
-            if (journal.isFile) journal.readLines().filter { it.isNotEmpty() }.toSet() else emptySet()
-
-        private fun record(started: Set<String>) {
-            val pending = File(journal.path + ".part")
-            pending.writeText(started.joinToString("\n"))
-            Files.move(pending.toPath(), journal.toPath(), StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.ATOMIC_MOVE)
-        }
     }
 
     /**
@@ -192,14 +152,15 @@ class GamePathMigration<T : LibraryItem>(
         /** The v1.4.0 preferences, by v1 name. */
         private var v1: Map<String, List<Stored>> = emptyMap()
 
-        override fun refresh(claims: List<Claim<T>>) {
+        override fun refresh(claims: List<Claim<T>>, every: Boolean) {
+            val wanted = if (every) null else claims.map { it.from }.toSet()
             v1 = preferences.all.keys.mapNotNull { name ->
                 families.firstNotNullOfOrNull { family ->
                     if (!name.startsWith(family.v1Prefix)) return@firstNotNullOfOrNull null
                     val rest = name.removePrefix(family.v1Prefix)
                     val game = rest.take(V1_NAME_LENGTH)
                     when {
-                        !GameKey.HASH_NAME.matches(game) -> null
+                        !GameKey.HASH_NAME.matches(game) || wanted?.contains(game) == false -> null
                         !family.named && rest.length == V1_NAME_LENGTH -> game to Stored(family, name, null)
                         family.named && rest.length > V1_NAME_LENGTH + 1 && rest[V1_NAME_LENGTH] == '_' ->
                             game to Stored(family, name, rest.substring(V1_NAME_LENGTH + 1))
@@ -235,7 +196,9 @@ class GamePathMigration<T : LibraryItem>(
     class OverrideStore<T : LibraryItem>(private val overrides: GameMetadataOverrides,
                                          private val changed: () -> Unit) : Store<T> {
         private var v1: Set<String> = emptySet()
-        override fun refresh(claims: List<Claim<T>>) { v1 = overrides.v1Records() }
+        override fun refresh(claims: List<Claim<T>>, every: Boolean) {
+            v1 = if (every) overrides.v1Records() else claims.map { it.from }.filter(overrides::hasV1Record).toSet()
+        }
         override fun has(hashName: String) = hashName in v1
         override fun move(claim: Claim<T>, keep: Set<Conflict>) {
             overrides.moveV1Record(claim.from, claim.to)

@@ -35,7 +35,10 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     override fun mouseMove(dx: Int, dy: Int) = nativeMouseMove(dx, dy)
     override fun mouseButton(button: Int, down: Boolean) = nativeMouseButton(button, down)
     override fun saveState(directory: String) = nativeSaveState(directory)
-    override fun loadState(directory: String) = nativeLoadState(directory)
+    override fun loadState(directory: String, moved: Map<String, String>): Int {
+        val entries = moved.entries.toList()
+        return nativeLoadState(directory, entries.map { it.key }.toTypedArray(), entries.map { it.value }.toTypedArray())
+    }
     override fun lockedKeys(): Set<Int> {
         if (lockKeys.isEmpty()) return emptySet()
         val locks = nativeLocks()
@@ -61,7 +64,7 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeMedia(slot: Int, path: String?): Int
     private external fun nativeMediaPaths(): Array<String>?
     private external fun nativeSaveState(directory: String): Int
-    private external fun nativeLoadState(directory: String): Int
+    private external fun nativeLoadState(directory: String, from: Array<String>, to: Array<String>): Int
     private external fun nativeLocks(): Int
     private external fun nativeStatus(): String
     private external fun nativeSetSurface(surface: Surface?)

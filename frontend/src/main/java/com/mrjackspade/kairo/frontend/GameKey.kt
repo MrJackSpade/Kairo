@@ -18,9 +18,8 @@ import java.security.MessageDigest
 
     /**
      * A short ASCII name for the game, a hash of [path]: v1.4.0 and earlier stored all of a
-     * game's data under it, which [GamePathMigration] moves to [savePath]. Saves never use it
-     * now. Only app-private working files an emulator is given by path where the game's own path
-     * cannot go use it, as DOSBox's AUTOEXEC.BAT is read in a DOS code page.
+     * game's data under it, which [GamePathMigration] moves to [savePath]. Nothing is named by it
+     * since v1.4.1: it only finds what an earlier version left.
      */
     val hashName: String get() = HASH_PREFIX + MessageDigest.getInstance("SHA-256")
         .digest(path.toByteArray(Charsets.UTF_8)).copyOf(16).toHex()

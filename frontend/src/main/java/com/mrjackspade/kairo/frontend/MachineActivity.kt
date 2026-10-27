@@ -100,24 +100,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override val hashCount: Int get() = library.hashCount
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean) = library.inspectExternal(file, cancelled)
     override fun withError(entry: E, message: String) = library.withError(entry, message)
-    private val earlierWorkingCopies by lazy { library.earlierWorkingCopies() }
-    override fun v1DataStores(): List<GamePathMigration.Store<E>> = listOf(earlierWorkingCopies, catalog.v1Overrides())
-
-    /**
-     * A save state names its disks by path. One whose working copies moved with their game's key
-     * lists where each went in its moved.txt ("earlier\tnew" per line), which the machine reads as
-     * the state loads; an earlier list's paths follow on to the new ones.
-     */
-    override fun relinkSaveUnit(unit: File, claims: List<GamePathMigration.Claim<E>>) {
-        val moved = earlierWorkingCopies.moves(claims).entries.associate { (from, to) -> from.absolutePath to to.absolutePath }
-        if (moved.isEmpty()) return
-        val list = File(unit, MOVED_PATHS)
-        val earlier = if (list.isFile) list.readLines().filter { it.isNotEmpty() }.associate {
-            it.substringBefore('\t') to it.substringAfter('\t')
-        } else emptyMap()
-        val all = earlier.mapValues { (_, to) -> moved[to] ?: to } + moved.filterKeys { it !in earlier }
-        list.writeText(all.entries.joinToString("") { (from, to) -> "$from\t$to\n" })
-    }
+    override fun v1DataStores(): List<GamePathMigration.Store<E>> = listOf(library.hashNamedWorkingCopies(), catalog.v1Overrides())
 
     override val artworkStore: CatalogArtworkStore get() = catalog.artworkStore
     override fun artworkRecord(entry: E, kind: String): ArtworkCoordinator.Record {
@@ -335,7 +318,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     })
 
     /** A loaded state restores the lock keys it was saved with. */
-    private fun loadMachineState(directory: File): Int = bridge.loadState(directory.absolutePath).also { result ->
+    private fun loadMachineState(directory: File): Int =
+        bridge.loadState(directory.absolutePath, library.statePaths(launchEntries)).also { result ->
         if (result == 0) {
             inputRouter.syncLocks(bridge.lockedKeys())
             runOnUiThread {
@@ -802,8 +786,6 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     companion object {
-        /** A save state's list of the working copies that moved since it was saved (relinkSaveUnit). */
-        private const val MOVED_PATHS = "moved.txt"
         private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
         private const val FIRMWARE_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 2
         private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."

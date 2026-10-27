@@ -18,7 +18,8 @@ get_filename_component(KAIRO_SHARED_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE
 option(KAIRO_SHADERS "Present frames through the Slang shader runtime" ON)
 
 function(kairo_machine_library target)
-    add_library(${target} SHARED "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/machine_jni.cpp" ${ARGN})
+    add_library(${target} SHARED "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/machine_jni.cpp"
+        "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp" ${ARGN})
     target_compile_features(${target} PRIVATE cxx_std_17)
     kairo_native_debug_defaults(${target})
     target_include_directories(${target} PRIVATE "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp")

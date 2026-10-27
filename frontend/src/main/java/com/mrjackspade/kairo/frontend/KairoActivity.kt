@@ -111,12 +111,6 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected open fun v1DataStores(): List<GamePathMigration.Store<E>> = emptyList()
     /** True while the product's migration from before games had keys may still give a game data under its hash name. */
     protected open val keyMigrationPending: Boolean get() = false
-    /**
-     * A save unit of a game whose key changed, on its way to the game's new path, with every
-     * claim of the load (GamePathMigration.SaveUnitStore), such as for a save state to find
-     * working copies that moved with their keys.
-     */
-    protected open fun relinkSaveUnit(unit: File, claims: List<GamePathMigration.Claim<E>>) {}
     /** The library loaded or a scan finished. */
     protected open fun libraryLoaded(entries: List<E>) {}
     /** A launch that opens the guest's command line instead of starting the game, when the product has one. */
@@ -282,8 +276,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** Data v1.4.0 and earlier stored under games' v1 names moves to their paths as the library loads (Kairo#57). */
     private val pathMigration by lazy {
         GamePathMigration(preferences, listOf<GamePathMigration.Store<E>>(
-            GamePathMigration.SaveUnitStore({ saveFolder.location }, saveKinds, ::saveUnitLabel, cacheDir,
-                File(filesDir, "game-path-migration-v2.txt"), ::relinkSaveUnit)) + v1DataStores(), { keyMigrationPending }) { conflicts ->
+            GamePathMigration.SaveUnitStore({ saveFolder.location }, saveKinds, ::saveUnitLabel)) +
+            v1DataStores(), { keyMigrationPending }) { conflicts ->
             saveFolder.resolvePathConflicts(conflicts) { key ->
                 claimingPaths.firstOrNull { it.key == key }?.let(::titleOf) ?: key.path
             }
@@ -293,16 +287,16 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     @Volatile private var claimingPaths: List<E> = emptyList()
 
     /**
-     * Moves the data [entries] had under hash names to their paths; [from] is the hash name of
-     * the key v1.4.0 gave an entry. A library load does so while the migration is pending; a
-     * frontend's file every time ([external]), as its working copies move with its key. An entry
-     * whose data did not move shows why.
+     * Moves the data [entries] had under hash names to their paths while any is left; [from] is
+     * the hash name of the key v1.4.0 gave an entry. A library load reads what each store holds
+     * in one pass; a frontend's file ([external]) looks only for its own earlier names (Kairo#74).
+     * An entry whose data did not move shows why.
      */
     private fun movedToPaths(entries: List<E>, external: Boolean = false,
                              from: (E) -> String = { it.key.hashName }): List<E> {
         if (!external && !pathMigration.pending) return entries
         claimingPaths = entries
-        val errors = pathMigration.claim(entries.map { GamePathMigration.Claim(it, from(it)) })
+        val errors = pathMigration.claim(entries.map { GamePathMigration.Claim(it, from(it)) }, every = !external)
         return if (errors.isEmpty()) entries else entries.map { entry -> errors[entry.key]?.let { withError(entry, it) } ?: entry }
     }
     protected val muted: Boolean get() = preferences.getBoolean("muted", false)

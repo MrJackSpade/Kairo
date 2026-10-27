@@ -33,6 +33,8 @@ interface SaveLocation {
     fun units(kinds: Map<String, String>): List<SaveUnit>
     /** The games here as v1.4.0 and earlier named them: top-level `k1-` names and content IDs. */
     fun v1Games(): Set<String>
+    /** True when [game], a v1 name, has a folder here. */
+    fun hasV1Game(game: String): Boolean
     fun exists(unit: SaveUnit): Boolean
     /** True when the unit holds no files, so there is nothing saved in it. */
     fun isEmpty(unit: SaveUnit): Boolean
@@ -76,7 +78,7 @@ interface SaveLocation {
         }
 
         /** The segments of a path under a save root; none may step out of it. */
-        internal fun segments(path: String): List<String> = path.split('/').onEach(::requireSafe)
+        fun segments(path: String): List<String> = path.split('/').onEach(::requireSafe)
 
         internal fun requireSafe(name: String) =
             require(name.isNotEmpty() && name != "." && name != ".." && '/' !in name && '\u0000' !in name) {
@@ -120,6 +122,8 @@ class AppSaveLocation(val root: File) : SaveLocation {
         walk(root, "")
         return found.toList()
     }
+
+    override fun hasV1Game(game: String) = File(root, game).isDirectory
 
     override fun v1Games(): Set<String> =
         root.listFiles().orEmpty().filter { it.isDirectory && SaveLocation.isV1Game(it.name) }.map { it.name }.toSet()
@@ -223,6 +227,8 @@ class FolderSaveLocation(private val resolver: ContentResolver, val tree: Uri) :
         walk(root(), "")
         return found.toList()
     }
+
+    @Synchronized override fun hasV1Game(game: String) = children(root())[game]?.directory == true
 
     @Synchronized override fun v1Games(): Set<String> =
         children(root()).filter { (name, child) -> child.directory && SaveLocation.isV1Game(name) }.keys

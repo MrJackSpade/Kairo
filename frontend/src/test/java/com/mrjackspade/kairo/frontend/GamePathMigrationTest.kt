@@ -21,7 +21,6 @@ class GamePathMigrationTest {
 
     private val root: File = Files.createTempDirectory("game-paths").toFile()
     private val saves = AppSaveLocation(File(root, "states"))
-    private val journal = File(root, "journal.txt")
     private val preferences = memoryPreferences()
     private val star = Item("Adventure/Star Control 2.hdi")
     private val other = Item("Other.hdi")
@@ -37,9 +36,8 @@ class GamePathMigrationTest {
 
     private fun saveAt(item: Item, kind: String) = File(saves.directory(SaveUnit.of(item.key, kind)), "state")
 
-    private fun saveStore(relink: (File, List<GamePathMigration.Claim<Item>>) -> Unit = { _, _ -> }) =
-        GamePathMigration.SaveUnitStore<Item>({ saves }, StateSlotStore.KINDS,
-            { "Slot ${it.removePrefix("state")}" }, root, journal, relink)
+    private fun saveStore(location: SaveLocation = saves) =
+        GamePathMigration.SaveUnitStore<Item>({ location }, StateSlotStore.KINDS, { "Slot ${it.removePrefix("state")}" })
 
     private fun migration(stores: List<GamePathMigration.Store<Item>> = listOf(saveStore()), earlierPending: Boolean = false,
                           resolve: (List<GamePathMigration.Conflict>) -> Set<GamePathMigration.Conflict> = { error("Unexpected conflict") }) =
@@ -50,23 +48,23 @@ class GamePathMigrationTest {
         v1Save(star.key.hashName, "slot3", "three")
         File(saves.root, "${star.key.hashName}/slot2.part").mkdirs()
         val migration = migration()
-        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
         assertEquals("one", saveAt(star, "state1").readText())
         assertEquals("three", saveAt(star, "state3").readText())
         assertEquals(1_000_000L, saveAt(star, "state1").lastModified())
         assertFalse(File(saves.root, star.key.hashName).exists())
         assertFalse(migration.pending)
-        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
     }
 
     @Test fun savesOfGamesNotInTheLibraryWaitForThem() {
         v1Save(star.key.hashName, "slot1", "one")
         v1Save(other.key.hashName, "slot1", "other")
         val migration = migration()
-        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
         assertTrue(migration.pending)
         assertTrue(File(saves.root, other.key.hashName).isDirectory)
-        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star), GamePathMigration.Claim(other))).isEmpty())
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star), GamePathMigration.Claim(other)), every = true).isEmpty())
         assertEquals("other", saveAt(other, "state1").readText())
         assertFalse(migration.pending)
     }
@@ -75,38 +73,37 @@ class GamePathMigrationTest {
         v1Save(GameKey(frontendUri).hashName, "slot2", "from frontend")
         val claim = GamePathMigration.Claim(star, GameKey(frontendUri).hashName)
         assertTrue(claim.external)
-        assertTrue(migration().claim(listOf(claim)).isEmpty())
+        assertTrue(migration().claim(listOf(claim), every = false).isEmpty())
         assertEquals("from frontend", saveAt(star, "state2").readText())
     }
 
-    @Test fun aStateOfAGameWhoseKeyChangedIsRelinkedOnItsWay() {
+    @Test fun aFrontendsFileLooksOnlyForItsOwnEarlierNames() {
         v1Save(GameKey(frontendUri).hashName, "slot1", "from frontend")
-        v1Save(star.key.hashName, "slot2", "library")
-        val relinked = ArrayList<List<GamePathMigration.Claim<Item>>>()
-        val claims = listOf(GamePathMigration.Claim(star, GameKey(frontendUri).hashName), GamePathMigration.Claim(other))
-        val store = saveStore { unit, all ->
-            relinked += all
-            File(unit, "moved.txt").writeText("old\tnew\n")
+        v1Save(other.key.hashName, "slot1", "other")
+        var listed = 0
+        val counting = object : SaveLocation by saves {
+            override fun v1Games(): Set<String> { listed++; return saves.v1Games() }
         }
-        // The library loads first, then the frontend's file opens as the library game.
-        assertTrue(migration(listOf(store)).claim(listOf(GamePathMigration.Claim(star))).isEmpty())
-        assertTrue(relinked.isEmpty())
-        assertTrue(migration(listOf(store)).claim(claims).isEmpty())
-        assertEquals(listOf(claims), relinked)
-        assertEquals("old\tnew\n", File(saveAt(star, "state1").parentFile, "moved.txt").readText())
-        // The library's own save did not change its key, so it is not relinked.
-        assertEquals("library", saveAt(star, "state2").readText())
-        assertFalse(File(saveAt(star, "state2").parentFile, "moved.txt").exists())
+        val migration = migration(listOf(saveStore(counting)))
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star, GameKey(frontendUri).hashName)), every = false).isEmpty())
+        assertEquals("from frontend", saveAt(star, "state1").readText())
+        assertEquals(0, listed)
+        // Another game's earlier saves wait for the library, which is not done with them.
+        assertTrue(File(saves.root, other.key.hashName).isDirectory)
+        assertTrue(migration.pending)
+        // A file with nothing earlier finds nothing and changes nothing.
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star, GameKey("content://x/y.hdi").hashName)), every = false).isEmpty())
+        assertTrue(migration.pending)
     }
 
     @Test fun aSaveTheGameAlreadyHasIsAConflictThePlayerSettles() {
         v1Save(star.key.hashName, "slot1", "library", at = 2_000_000L)
         v1Save(GameKey(frontendUri).hashName, "slot1", "frontend", at = 1_000_000L)
         v1Save(GameKey(frontendUri).hashName, "slot2", "only frontend")
-        assertTrue(migration().claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration().claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
         var asked: List<GamePathMigration.Conflict> = emptyList()
         val errors = migration { conflicts -> asked = conflicts; emptySet() }
-            .claim(listOf(GamePathMigration.Claim(star, GameKey(frontendUri).hashName)))
+            .claim(listOf(GamePathMigration.Claim(star, GameKey(frontendUri).hashName)), every = false)
         assertTrue(errors.isEmpty())
         val conflict = asked.single()
         assertEquals("state1", conflict.kind)
@@ -123,7 +120,7 @@ class GamePathMigrationTest {
     @Test fun theEarlierCopyReplacesTheCurrentOneWhenChosen() {
         saves.import(SaveUnit.of(star.key, "state1"), File(root, "current").apply { mkdirs(); File(this, "state").writeText("current") })
         v1Save(star.key.hashName, "slot1", "earlier")
-        assertTrue(migration { it.toSet() }.claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration { it.toSet() }.claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
         assertEquals("earlier", saveAt(star, "state1").readText())
     }
 
@@ -132,7 +129,7 @@ class GamePathMigrationTest {
         v1Save(star.key.hashName, "slot1", "earlier")
         v1Save(other.key.hashName, "slot1", "other")
         val migration = migration { error("Saves were not moved; choose which to keep the next time the library opens") }
-        val errors = migration.claim(listOf(GamePathMigration.Claim(star), GamePathMigration.Claim(other)))
+        val errors = migration.claim(listOf(GamePathMigration.Claim(star), GamePathMigration.Claim(other)), every = true)
         assertEquals(setOf(star.key), errors.keys)
         assertTrue(errors.getValue(star.key).contains("choose which to keep"))
         assertEquals("current", saveAt(star, "state1").readText())
@@ -141,26 +138,16 @@ class GamePathMigrationTest {
         assertTrue(migration.pending)
     }
 
-    @Test fun aMoveCutShortAfterStoringItsCopyFinishesWithoutAsking() {
-        v1Save(star.key.hashName, "slot1", "moving")
-        saves.import(SaveUnit.of(star.key, "state1"), File(root, "copy").apply { mkdirs(); File(this, "state").writeText("moving") })
-        journal.writeText("${star.key.hashName}/slot1")
-        assertTrue(migration().claim(listOf(GamePathMigration.Claim(star))).isEmpty())
-        assertEquals("moving", saveAt(star, "state1").readText())
-        assertFalse(File(saves.root, star.key.hashName).exists())
-        assertEquals("", journal.readText())
-    }
-
     @Test fun aFailingStoreIsReportedForItsGameAndTheRestStillMove() {
         v1Save(star.key.hashName, "slot1", "one")
         val failing = object : GamePathMigration.Store<Item> {
-            override fun refresh(claims: List<GamePathMigration.Claim<Item>>) {}
+            override fun refresh(claims: List<GamePathMigration.Claim<Item>>, every: Boolean) {}
             override fun has(hashName: String) = hashName == star.key.hashName
             override fun move(claim: GamePathMigration.Claim<Item>, keep: Set<GamePathMigration.Conflict>) = error("storage full")
             override fun isEmpty() = false
         }
         val migration = migration(listOf(failing, saveStore()))
-        val errors = migration.claim(listOf(GamePathMigration.Claim(star)))
+        val errors = migration.claim(listOf(GamePathMigration.Claim(star)), every = true)
         assertEquals("Saved data from an earlier version did not move: storage full", errors[star.key])
         assertEquals("one", saveAt(star, "state1").readText())
         assertTrue(migration.pending)
@@ -183,7 +170,7 @@ class GamePathMigrationTest {
                 GamePathMigration.PreferenceFamily(prefix, false) { game, _ -> prefix + game.path }
             }
         val migration = migration(listOf(GamePathMigration.PreferenceStore(preferences, families)))
-        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
         val scope = GameSettingScope(preferences)
         assertEquals(2, scope.int(star.key, "cycles_mode", 0))
         assertEquals("bottom", scope.string(star.key, "landscape_anchor"))
@@ -193,22 +180,26 @@ class GamePathMigrationTest {
         assertEquals("kept", preferences.all["game_setting_v2_not-a-hash_cycles_mode"])
         assertEquals(5, preferences.all["game_setting_v2_${other.key.hashName}_cycles_mode"])
         assertTrue(migration.pending)
+        // A frontend's file reads only its own earlier name's settings.
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(other)), every = false).isEmpty())
+        assertEquals(5, scope.int(other.key, "cycles_mode", 0))
+        assertEquals("kept", preferences.all["game_setting_v2_not-a-hash_cycles_mode"])
     }
 
     @Test fun itIsNotDoneWhileTheKeyMigrationCanStillAddData() {
         v1Save(star.key.hashName, "slot1", "one")
         val migration = migration(earlierPending = true)
-        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
         assertEquals("one", saveAt(star, "state1").readText())
         assertTrue(migration.pending)
-        assertFalse(migration().also { it.claim(emptyList()) }.pending)
+        assertFalse(migration().also { it.claim(emptyList(), every = true) }.pending)
     }
 
     @Test fun aSecondDeviceThatMovedFirstLeavesNothingToAsk() {
         // The save folder is shared: the other device already moved the slot and removed its earlier copy.
         saves.import(SaveUnit.of(star.key, "state1"), File(root, "moved").apply { mkdirs(); File(this, "state").writeText("moved") })
         val migration = migration()
-        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(migration.claim(listOf(GamePathMigration.Claim(star)), every = true).isEmpty())
         assertEquals("moved", saveAt(star, "state1").readText())
         assertFalse(migration.pending)
     }
