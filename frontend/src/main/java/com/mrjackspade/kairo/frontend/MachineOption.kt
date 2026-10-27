@@ -12,6 +12,10 @@ import org.json.JSONObject
  * keeps ([accepts]): a kept value whose choice has since gone stays the game's setting, and the
  * launch reports it. [actions] are rows below the choices, such as importing a new one; they get
  * the function that picks a value for whoever opened the choices (a game, or all games).
+ *
+ * [ownFirmware] is the choice that starts on the player's own firmware, where the app also ships a
+ * free one ([default]): once the player has imported that firmware it is the default instead
+ * (MachineActivity.ownFirmwareInstalled), so firmware the player gave the app is what games use.
  */
 class MachineOption(
     val id: String,
@@ -20,10 +24,13 @@ class MachineOption(
     val default: String,
     val numeric: Boolean = false,
     private val accepts: ((String) -> Boolean)? = null,
-    val actions: (select: (String) -> Unit) -> List<SettingsRow> = { emptyList() }
+    val actions: (select: (String) -> Unit) -> List<SettingsRow> = { emptyList() },
+    val ownFirmware: String? = null
 ) {
-    constructor(id: String, label: String, choices: List<ChoiceOption>, default: String, numeric: Boolean = false) :
-        this(id, label, { choices }, default, numeric) {
+    constructor(id: String, label: String, choices: List<ChoiceOption>, default: String, numeric: Boolean = false,
+                ownFirmware: String? = null) :
+        this(id, label, { choices }, default, numeric, ownFirmware = ownFirmware) {
+        require(ownFirmware == null || choices.any { it.id == ownFirmware }) { "$id's own firmware $ownFirmware is not a choice" }
         require(choices.any { it.id == default }) { "$id defaults to $default, which is not a choice" }
     }
 
