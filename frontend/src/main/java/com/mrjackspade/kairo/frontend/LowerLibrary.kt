@@ -8,6 +8,8 @@ import android.widget.FrameLayout
 /** What a two-screen device's lower screen shows while the library is open, built for that screen. */
 interface LowerLibraryView {
     val view: View
+    /** Where the D-pad focus goes on this screen (DualScreenFocus). */
+    val focus: ForwardedFocusRegion
     fun close()
 }
 
@@ -61,63 +63,66 @@ class LowerLibraryController<T : LibraryItem>(
         settingsMoved()
     }
 
+    /** The newest lower screen's focus region, or null without a lower screen. */
+    val focus: ForwardedFocusRegion? get() = screens.lastOrNull()?.focus
+
     /** A setting changed somewhere: the lower settings show its new value. */
     fun refresh() = screens.forEach { it.refresh() }
 
     private inner class Screen(context: Context) : LowerLibraryView {
         override val view = FrameLayout(context).testId("secondary.library").apply { setBackgroundColor(Ui.BG) }
-        private val details = GameDetailView(context, catalog, play, viewScreenshot, { entry -> open(entry) }, metadata, commandLaunch)
-        private val settingsHost = FrameLayout(context)
-        private val settings = PageStack(activity, settingsHost, context)
+        /** The selected game's page while browsing, else the open game's settings. */
+        private val pages = PageStack(activity, view, context).apply { focusAway = true }
+        override val focus: ForwardedFocusRegion get() = pages
+        private var detail: GameDetailPage<T>? = null
         private var settingsFor: String? = null
         /** The stack closes because this screen changed what it shows, not by the player's Back. */
         private var replacing = false
 
         init {
-            view.addView(details, FrameLayout.LayoutParams(-1, -1))
-            view.addView(settingsHost, FrameLayout.LayoutParams(-1, -1))
-            settings.menuKey = {}
-            settings.onActiveChanged { active ->
+            pages.menuKey = {}
+            pages.onActiveChanged { active ->
                 if (!active && !replacing && opened != null) closeOpened()
             }
+        }
+
+        private fun clear() {
+            replacing = true
+            pages.closeAll()
+            replacing = false
+            detail = null
+            settingsFor = null
         }
 
         fun render() {
             val game = opened
             if (game != null) {
-                details.visibility = View.GONE
-                settingsHost.visibility = View.VISIBLE
                 if (settingsFor != game.id) {
-                    replacing = true
-                    settings.closeAll()
-                    replacing = false
+                    clear()
                     settingsFor = game.id
-                    settings.push(settingsPage(game))
+                    pages.push(settingsPage(game))
                 }
                 return
             }
-            if (settingsFor != null) {
-                replacing = true
-                settings.closeAll()
-                replacing = false
-                settingsFor = null
-            }
-            settingsHost.visibility = View.GONE
             val entry = browsing
-            details.visibility = if (entry == null) View.INVISIBLE else View.VISIBLE
-            if (entry != null) details.show(entry)
+            if (entry == null) { clear(); return }
+            val page = detail ?: GameDetailPage(catalog, play, viewScreenshot, { open(it) }, metadata, commandLaunch,
+                libraryButton = false, backElsewhere = { pages.crossEdge("up") }) {}.also {
+                clear()
+                detail = it
+                pages.push(it)
+            }
+            page.show(entry)
         }
 
         fun refresh() {
-            settings.refresh()
-            browsing?.takeIf { opened == null }?.let { if (details.current?.id == it.id) details.show(it) }
+            pages.refresh()
+            browsing?.takeIf { opened == null }?.let { entry -> detail?.takeIf { it.entryId == entry.id }?.show(entry) }
         }
 
         override fun close() {
             screens.remove(this)
-            replacing = true
-            settings.closeAll()
-            details.close()
+            clear()
             settingsMoved()
         }
     }

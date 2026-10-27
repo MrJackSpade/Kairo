@@ -15,7 +15,9 @@ class InputDispatchCoordinator(
     private val leaveTouchMode: () -> Unit,
     private val releaseTouch: () -> Unit,
     private val cancelAutomation: () -> Unit = {},
-    private val automationOwners: Set<String> = emptySet()
+    private val automationOwners: Set<String> = emptySet(),
+    /** The focus across a two-screen device's screens, or null on one screen. */
+    private val dualScreen: () -> DualScreenFocus? = { null }
 ) {
     private var motionScreen: Screen? = null
 
@@ -29,7 +31,13 @@ class InputDispatchCoordinator(
     private val menuMotion = DpadMotionNavigation { event ->
         val screen = frontend.screen()
         if (screen == motionScreen && screen != Screen.GUEST && screen != Screen.INACTIVE)
-            frontend.key(screen, FrontendNavigation.control(event, mapper), event)
+            frontendKey(screen, FrontendNavigation.control(event, mapper), event)
+    }
+
+    /** A menu control for the library or pages, which the lower screen takes while it holds the focus. */
+    private fun frontendKey(screen: Screen, control: String?, event: KeyEvent): Boolean {
+        if ((screen == Screen.LIBRARY || screen == Screen.MENU) && dualScreen()?.key(control, event) == true) return true
+        return frontend.key(screen, control, event)
     }
 
     /**
@@ -56,15 +64,20 @@ class InputDispatchCoordinator(
         if (screen == Screen.MENU && frontend.capturing() && frontend.captureKey(event)) return true
         if (screen == Screen.BUSY) return true
         if ((screen == Screen.GUEST || screen == Screen.NOTICE) && guestCapture?.key(event) == true) return true
+        val dual = dualScreen()
+        // A game or prompt took the D-pad: the focus is the upper screen's again.
+        if (screen != Screen.LIBRARY && screen != Screen.MENU) dual?.release()
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && dual?.onLower == true &&
+            frontendKey(screen, FrontendNavigation.control(event, mapper), event)) return true
         if (event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) back()
             return true
         }
         val control = FrontendNavigation.control(event, mapper)
         when (screen) {
-            Screen.LIBRARY -> return frontend.key(screen, control, event) || android(event)
+            Screen.LIBRARY -> return frontendKey(screen, control, event) || android(event)
             Screen.INACTIVE -> return android(event)
-            Screen.MENU -> if (!frontend.playing()) return frontend.key(screen, control, event) || android(event)
+            Screen.MENU -> if (!frontend.playing()) return frontendKey(screen, control, event) || android(event)
             else -> Unit
         }
         if (event.keyCode == KeyEvent.KEYCODE_MENU || event.keyCode == KeyEvent.KEYCODE_HOME ||
@@ -72,7 +85,7 @@ class InputDispatchCoordinator(
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) toggleMenu()
             return true
         }
-        if (screen == Screen.MENU) return frontend.key(screen, control, event) || android(event)
+        if (screen == Screen.MENU) return frontendKey(screen, control, event) || android(event)
         if (screen == Screen.NOTICE && frontend.key(screen, control, event)) return true
         return mapper.key(event) || android(event)
     }

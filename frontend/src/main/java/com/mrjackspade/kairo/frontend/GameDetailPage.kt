@@ -248,7 +248,10 @@ class GameDetailView<T : LibraryItem>(
     private fun dp(value: Int) = Ui.dp(context, value)
 }
 
-/** The game page over the library. */
+/**
+ * The game page over the library, or with no Library button the game page a two-screen device's
+ * lower screen shows for the library's selected game (LowerLibraryController).
+ */
 class GameDetailPage<T : LibraryItem>(
     private val catalog: LibraryCatalog,
     private val play: (T) -> Unit,
@@ -258,6 +261,10 @@ class GameDetailPage<T : LibraryItem>(
     private val commandLaunch: ((T) -> Unit)? = null,
     /** Whether the other screen shows the game's settings, so this page has no Game settings. */
     private val settingsElsewhere: () -> Boolean = { false },
+    /** Whether the page has a Library button; Back then leaves the page. */
+    private val libraryButton: Boolean = true,
+    /** Back on a page without a Library button. */
+    private val backElsewhere: () -> Unit = {},
     private val closed: (GameDetailPage<T>) -> Unit
 ) : Page() {
     override val testName: String get() = "Game"
@@ -267,7 +274,8 @@ class GameDetailPage<T : LibraryItem>(
     val entryId: String? get() = current?.id
 
     override fun createView(): View {
-        details = GameDetailView(context, catalog, play, viewScreenshot, settings, metadata, commandLaunch) { stack.back() }
+        details = GameDetailView(context, catalog, play, viewScreenshot, settings, metadata, commandLaunch,
+            if (libraryButton) { { stack.back() } } else null)
         details.shown = { refresh -> renav(first = !refresh) }
         return details
     }
@@ -306,6 +314,12 @@ class GameDetailPage<T : LibraryItem>(
         "right" -> "down"
         else -> direction
     })
+
+    override fun back(): Boolean {
+        if (libraryButton) return false
+        backElsewhere()
+        return true
+    }
 
     override fun onRemoved() {
         details.close()

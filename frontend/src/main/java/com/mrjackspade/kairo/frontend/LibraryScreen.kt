@@ -60,7 +60,7 @@ class LibraryScreen<T : LibraryItem>(
     private val details: (T) -> Unit,
     private val selectionChanged: (T?) -> Unit,
     private val commandLaunch: ((T) -> Unit)? = null
-) : FrameLayout(context) {
+) : FrameLayout(context), FocusRegion {
     /** The game whose page is open, or null once it closed: a lower screen shows its settings. */
     var detailOpened: (T?) -> Unit = {}
     /** Whether another screen shows the open game's settings, so its page has no Game settings. */
@@ -264,7 +264,7 @@ class LibraryScreen<T : LibraryItem>(
                 else Ui.rowBackground(context, activatedOnly = true)
             holder.pinned = pinned
         }
-        view.isActivated = headerSelection < 0 && index == selectedIndex
+        view.isActivated = headerSelection < 0 && index == selectedIndex && !focusAway
         view.alpha = if (entry.playable) 1f else 0.6f
         return view
     }
@@ -570,6 +570,7 @@ class LibraryScreen<T : LibraryItem>(
         val next = (selectedIndex + delta).coerceIn(0, entries.lastIndex)
         if (next == selectedIndex) {
             requestSelectionVisibility()
+            if (delta > 0) crossEdge("down")
             return
         }
         selectedIndex = next
@@ -628,11 +629,21 @@ class LibraryScreen<T : LibraryItem>(
 
     /** Selection only changes activation, not row data. Rebinding the whole viewport
      * performs catalog IO/text layout for every visible game on every repeat event. */
+    /** The other screen takes the focus only from the last game, so only the game list shows it away. */
+    override var focusAway = false
+        set(value) {
+            field = value
+            updateSelectionHighlight()
+        }
+    override var crossEdge: (String) -> Boolean = { false }
+    /** Back from the other screen: the game it left from. */
+    override fun enter(direction: String) = requestSelectionVisibility()
+
     private fun updateSelectionHighlight() {
         for (index in 0 until list.childCount) {
             val child = list.getChildAt(index)
             val row = child.tag as? Row ?: continue
-            child.isActivated = headerSelection < 0 && row.index == selectedIndex
+            child.isActivated = headerSelection < 0 && row.index == selectedIndex && !focusAway
         }
     }
 

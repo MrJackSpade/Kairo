@@ -33,7 +33,7 @@ class PageStack(
      * shown there (a two-screen device's lower screen), whose pages still act on [activity].
      */
     val viewContext: Context = activity
-) : FrameLayout(viewContext) {
+) : FrameLayout(viewContext), ForwardedFocusRegion {
     private val scrim = View(activity).apply {
         setBackgroundColor(Ui.SCRIM)
         alpha = 0f
@@ -214,6 +214,17 @@ class PageStack(
     fun tick() { top?.tick() }
 
     fun handleKey(control: String?, event: KeyEvent): Boolean = top?.handleKey(control, event) ?: false
+
+    override var focusAway = false
+        set(value) {
+            if (field == value) return
+            field = value
+            top?.refocus()
+        }
+    override var crossEdge: (String) -> Boolean = { false }
+    override val canFocus: Boolean get() = isShown && top?.itemIds()?.isNotEmpty() == true
+    override fun enter(direction: String) { top?.enter(direction) }
+    override fun key(control: String?, event: KeyEvent) = handleKey(control, event)
     fun captureKey(event: KeyEvent): Boolean = top?.captureKey(event) ?: false
     fun captureMotion(event: MotionEvent): Boolean = top?.captureMotion(event) ?: false
 
@@ -405,10 +416,21 @@ abstract class Page {
     fun itemIds(): List<String> = nav.map { it.id }
     fun itemView(id: String): View? = nav.firstOrNull { it.id == id }?.view
 
+    /** Shows the focus again after the other screen of a two-screen device held it (DualScreenFocus). */
+    internal fun refocus() = applyFocus(reveal = false)
+
+    /** Takes the focus from the other screen: moving down lands on the first row, up on the last. */
+    internal fun enter(direction: String) {
+        val rows = nav.map { it.r }
+        val row = (if (direction == "down") rows.minOrNull() else rows.maxOrNull()) ?: return
+        focus(nav.filter { it.r == row }.minByOrNull { abs(it.x - 0.5f) }?.id)
+    }
+
     private fun applyFocus(reveal: Boolean) {
         nav.forEach {
-            it.show(it.id == focusId)
-            it.view?.let { view -> TestAttributes.markFocused(view, it.id == focusId) }
+            val shown = it.id == focusId && !stack.focusAway
+            it.show(shown)
+            it.view?.let { view -> TestAttributes.markFocused(view, shown) }
         }
         if (reveal) focused?.let { item -> item.reveal?.invoke() ?: item.view?.let(::reveal) }
     }
@@ -467,10 +489,15 @@ abstract class Page {
         nav.filter { it.r == target }.minByOrNull { abs(it.x - current.x) }?.let { focus(it.id) }
     }
 
-    /** Up past the first row or Down past the last. */
+    /** Up past the first row or Down past the last: the page scrolls to its end, then the other screen takes the focus. */
     protected open fun edge(direction: String) {
-        if (direction == "down") scroll?.smoothScrollBy(0, Ui.dp(context, 96))
-        else if (direction == "up") scroll?.smoothScrollTo(0, 0)
+        val down = direction == "down"
+        val scroller = scroll
+        if (scroller != null && scroller.canScrollVertically(if (down) 1 else -1)) {
+            if (down) scroller.smoothScrollBy(0, Ui.dp(context, 96)) else scroller.smoothScrollTo(0, 0)
+            return
+        }
+        stack.crossEdge(direction)
     }
 
     protected fun dp(value: Int) = Ui.dp(context, value)

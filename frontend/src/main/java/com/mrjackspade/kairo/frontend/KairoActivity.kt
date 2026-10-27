@@ -282,7 +282,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             {
                 if (::root.isInitialized && root.isInTouchMode)
                     (currentFocus ?: screen).requestFocusFromTouch()
-            }, ::releaseTouchInputs, ::cancelAutomation, automationOwners)
+            }, ::releaseTouchInputs, ::cancelAutomation, automationOwners,
+            { if (::dualScreen.isInitialized) dualScreen else null })
     }
     /** Input owners of automation, such as typed startup commands, kept while a controller is released. */
     protected open val automationOwners: Set<String> = emptySet()
@@ -380,6 +381,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected lateinit var controllerPages: ControllerPages<E>
         private set
     private lateinit var lowerLibrary: LowerLibraryController<E>
+    private lateinit var dualScreen: DualScreenFocus
     private val fullscreen by lazy { GameFullscreen(this) { !libraryVisible } }
     private val sessionState = SessionNavigationState()
     private val gameOrientation by lazy { GameOrientation(this, preferences) }
@@ -535,6 +537,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         secondaryKeyboard.lowerLibrary = lowerLibrary::create
         libraryPage.detailOpened = lowerLibrary::opened
         libraryPage.settingsElsewhere = { lowerLibrary.showsSettings }
+        dualScreen = DualScreenFocus(listOf(pages, libraryScreen),
+            { if (pages.isActive) pages else if (libraryVisible) libraryScreen else null }, { lowerLibrary.focus })
         // Pages and the game overlay sit above the library; pages come forward when they open.
         root.addView(libraryScreen, root.indexOfChild(overlay), FrameLayout.LayoutParams(-1, -1))
         touchUi.bind(keyboardPanel)

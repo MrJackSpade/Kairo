@@ -153,8 +153,10 @@ internal class RecycledRows(private val context: Context, private val host: RowH
     private fun rowHeight(): Int = (0 until list.childCount).map(list::getChildAt)
         .firstOrNull { bound.containsKey(it) }?.height ?: dp(48)
 
+    /** Up shows the list's top; past it, and Down past the last row, the page decides. */
     override fun edge(direction: String): Boolean {
-        if (direction == "up") list.setSelection(0)
+        if (direction != "up" || !list.canScrollVertically(-1)) return false
+        list.setSelection(0)
         return true
     }
 
