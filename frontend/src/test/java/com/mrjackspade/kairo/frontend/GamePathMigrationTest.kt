@@ -37,8 +37,9 @@ class GamePathMigrationTest {
 
     private fun saveAt(item: Item, kind: String) = File(saves.directory(SaveUnit.of(item.key, kind)), "state")
 
-    private fun saveStore() = GamePathMigration.SaveUnitStore<Item>({ saves }, StateSlotStore.KINDS,
-        { "Slot ${it.removePrefix("state")}" }, root, journal)
+    private fun saveStore(relink: (File, List<GamePathMigration.Claim<Item>>) -> Unit = { _, _ -> }) =
+        GamePathMigration.SaveUnitStore<Item>({ saves }, StateSlotStore.KINDS,
+            { "Slot ${it.removePrefix("state")}" }, root, journal, relink)
 
     private fun migration(stores: List<GamePathMigration.Store<Item>> = listOf(saveStore()), earlierPending: Boolean = false,
                           resolve: (List<GamePathMigration.Conflict>) -> Set<GamePathMigration.Conflict> = { error("Unexpected conflict") }) =
@@ -76,6 +77,26 @@ class GamePathMigrationTest {
         assertTrue(claim.external)
         assertTrue(migration().claim(listOf(claim)).isEmpty())
         assertEquals("from frontend", saveAt(star, "state2").readText())
+    }
+
+    @Test fun aStateOfAGameWhoseKeyChangedIsRelinkedOnItsWay() {
+        v1Save(GameKey(frontendUri).hashName, "slot1", "from frontend")
+        v1Save(star.key.hashName, "slot2", "library")
+        val relinked = ArrayList<List<GamePathMigration.Claim<Item>>>()
+        val claims = listOf(GamePathMigration.Claim(star, GameKey(frontendUri).hashName), GamePathMigration.Claim(other))
+        val store = saveStore { unit, all ->
+            relinked += all
+            File(unit, "moved.txt").writeText("old\tnew\n")
+        }
+        // The library loads first, then the frontend's file opens as the library game.
+        assertTrue(migration(listOf(store)).claim(listOf(GamePathMigration.Claim(star))).isEmpty())
+        assertTrue(relinked.isEmpty())
+        assertTrue(migration(listOf(store)).claim(claims).isEmpty())
+        assertEquals(listOf(claims), relinked)
+        assertEquals("old\tnew\n", File(saveAt(star, "state1").parentFile, "moved.txt").readText())
+        // The library's own save did not change its key, so it is not relinked.
+        assertEquals("library", saveAt(star, "state2").readText())
+        assertFalse(File(saveAt(star, "state2").parentFile, "moved.txt").exists())
     }
 
     @Test fun aSaveTheGameAlreadyHasIsAConflictThePlayerSettles() {
@@ -133,7 +154,7 @@ class GamePathMigrationTest {
     @Test fun aFailingStoreIsReportedForItsGameAndTheRestStillMove() {
         v1Save(star.key.hashName, "slot1", "one")
         val failing = object : GamePathMigration.Store<Item> {
-            override fun refresh() {}
+            override fun refresh(claims: List<GamePathMigration.Claim<Item>>) {}
             override fun has(hashName: String) = hashName == star.key.hashName
             override fun move(claim: GamePathMigration.Claim<Item>, keep: Set<GamePathMigration.Conflict>) = error("storage full")
             override fun isEmpty() = false

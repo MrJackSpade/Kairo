@@ -46,6 +46,14 @@ interface SaveLocation {
     fun delete(unit: SaveUnit)
     /** Deletes what is left of a game v1.4.0 and earlier named [game] ([v1Games]), once its units have moved. */
     fun deleteV1Game(game: String)
+    /**
+     * Moves unit [from] to [to], which must not exist, here: its files stay as they are, with
+     * their times, and nothing is copied. A move cut short leaves [movePending] true, and moving
+     * again finishes it.
+     */
+    fun move(from: SaveUnit, to: SaveUnit)
+    /** True when a move of [from] to [to] began and did not finish. */
+    fun movePending(from: SaveUnit, to: SaveUnit): Boolean
 
     companion object {
         private val UNSAFE_CHAR = Regex("[^A-Za-z0-9._-]")
@@ -149,6 +157,19 @@ class AppSaveLocation(val root: File) : SaveLocation {
         }
         check(!backup.exists() || backup.deleteRecursively()) { "Could not remove the replaced save" }
     }
+
+    /** A rename, which is never half done. */
+    @Synchronized override fun move(from: SaveUnit, to: SaveUnit) {
+        val source = directory(from)
+        val target = directory(to)
+        check(source.isDirectory) { "Save ${from.path} is missing" }
+        check(!target.exists()) { "Save ${to.path} already exists" }
+        val parent = target.parentFile!!
+        check(parent.isDirectory || parent.mkdirs()) { "Could not create the folder for ${to.path}" }
+        check(source.renameTo(target)) { "Could not move ${from.path} to ${to.path}" }
+    }
+
+    override fun movePending(from: SaveUnit, to: SaveUnit) = false
 
     @Synchronized override fun deleteV1Game(game: String) {
         require(SaveLocation.isV1Game(game)) { "Not a v1 save name: $game" }
@@ -264,6 +285,38 @@ class FolderSaveLocation(private val resolver: ContentResolver, val tree: Uri) :
         require(SaveLocation.isV1Game(game)) { "Not a v1 save name: $game" }
         children(root())[game]?.let { check(delete(it.uri)) { "Could not remove the earlier save folder $game" } }
     }
+
+    /**
+     * Renames the unit to [to]'s name where it is, then moves it into [to]'s folder: each step
+     * is the provider's own, so the files keep their times. Cut short after the rename, the unit
+     * waits under its new name beside where it was ([movePending]).
+     */
+    @Synchronized override fun move(from: SaveUnit, to: SaveUnit) {
+        val source = SaveLocation.segments(from.path)
+        val target = SaveLocation.segments(to.path)
+        val sourceParent = directory(source.dropLast(1)) ?: error("Save ${from.path} is missing")
+        val name = target.last()
+        val renamed = children(sourceParent)[name]?.uri ?: run {
+            val unit = children(sourceParent)[source.last()]?.uri ?: error("Save ${from.path} is missing")
+            DocumentsContract.renameDocument(resolver, unit, name) ?: error("Could not move ${from.path}")
+        }
+        val targetParent = target.dropLast(1).fold(root()) { directory, segment ->
+            children(directory)[segment]?.uri ?: createDirectory(directory, segment)
+        }
+        check(children(targetParent)[name] == null) { "Save ${to.path} already exists" }
+        checkNotNull(DocumentsContract.moveDocument(resolver, renamed, sourceParent, targetParent)) {
+            "Could not move ${from.path} to ${to.path}"
+        }
+    }
+
+    @Synchronized override fun movePending(from: SaveUnit, to: SaveUnit): Boolean {
+        val sourceParent = directory(SaveLocation.segments(from.path).dropLast(1)) ?: return false
+        return children(sourceParent)[SaveLocation.segments(to.path).last()] != null
+    }
+
+    /** The folder at [segments] under the root, or null when it is not there. */
+    private fun directory(segments: List<String>): Uri? =
+        segments.fold(root() as Uri?) { directory, segment -> directory?.let { children(it)[segment]?.uri } }
 
     @Synchronized override fun delete(unit: SaveUnit) {
         val segments = SaveLocation.segments(unit.path)

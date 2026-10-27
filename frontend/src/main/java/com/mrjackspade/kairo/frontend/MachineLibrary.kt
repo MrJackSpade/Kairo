@@ -24,6 +24,12 @@ interface MachineLibrary<E : LibraryItem> {
     fun entryForWorkingImage(path: String, entries: List<E>): E?
     /** [entry], unplayable for [message]. */
     fun withError(entry: E, message: String): E
-    /** The working copies v1.4.0 and earlier named by games' v1 names (GamePathMigration). */
-    fun v1WorkingCopies(): GamePathMigration.Store<E>
+    /** The working copies of games whose key changed, which move to their new key (GamePathMigration). */
+    fun earlierWorkingCopies(): EarlierWorkingCopies<E>
+}
+
+/** Working copies that move with their game's key ([MachineLibrary.earlierWorkingCopies]). */
+interface EarlierWorkingCopies<E : LibraryItem> : GamePathMigration.Store<E> {
+    /** Where each earlier working copy of [claims] goes: earlier path to new. */
+    fun moves(claims: List<GamePathMigration.Claim<E>>): Map<java.io.File, java.io.File>
 }

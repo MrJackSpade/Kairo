@@ -185,12 +185,14 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         File(context.cacheDir, "rom-archives").deleteRecursively()
     }
     /**
-     * The working copies games play from, at each game's save path (Kairo#57): an image under the
-     * game's own name, which the core reads its format from, or a program's folder.
+     * The working copies games play from, named by the game's hash name (GameKey.hashName): an
+     * image, or a program's folder. A core records this path in its save states, in a field as
+     * short as 256 bytes, so it stays short and never changes; a game's saves are named by its
+     * path (Kairo#57), but this is the emulator's own file.
      */
     val workingDirectory = File(context.filesDir, "media").apply {
         mkdirs()
-        walkTopDown().filter { it.name.endsWith(".part") }.toList().forEach { it.deleteRecursively() }
+        listFiles()?.filter { it.name.endsWith(".part") }?.forEach { it.deleteRecursively() }
     }
 
     override val hashCount: Int get() = scanPipeline.hashCount
@@ -225,66 +227,71 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             return
         }
         val file = workingImage(entry)
-        for (copy in setOf(file) + format.dataNames(file.name).map { File(file.parentFile, it) })
+        for (copy in setOf(file) + format.dataNames(file.name).map { File(workingDirectory, it) })
             check(!copy.exists() || copy.delete()) { "Could not remove the working copy of ${entry.displayName}" }
     }
 
     override fun hasWorkingImage(entry: DiskImageEntry) = workingImage(entry).isFile
 
-    /**
-     * Working copies v1.4.0 and earlier named by a game's v1 name, for [GamePathMigration]:
-     * `<v1 name>.<extension>` with a descriptor's track data beside it, or a program's folder
-     * `<v1 name>`. Each moves to [workingImage]'s place by renaming, so it is never half moved.
-     */
     override fun withError(entry: DiskImageEntry, message: String) = entry.copy(error = message)
 
-    override fun v1WorkingCopies() = object : GamePathMigration.Store<DiskImageEntry> {
+    /**
+     * Working copies of games whose key changed (Kairo#56): a game a frontend opened kept its
+     * in-disk saves under the hash name of the key v1.4.0 gave its URI. Each moves to its key's
+     * name by renaming, its track data before the disk so a move cut short leaves the disk to
+     * show there is more. A game that already has a working copy is a conflict the player
+     * settles. It holds nothing a library load waits for, so it never keeps a migration pending.
+     */
+    override fun earlierWorkingCopies() = object : EarlierWorkingCopies<DiskImageEntry> {
+        /** The hash names working copies have here, as last read. */
         private var names = emptySet<String>()
 
-        override fun refresh() {
-            names = workingDirectory.list().orEmpty().filter { GameKey.HASH_NAME.matches(it.substringBefore('.')) }.toSet()
+        override fun refresh(claims: List<GamePathMigration.Claim<DiskImageEntry>>) {
+            names = workingDirectory.list().orEmpty().map { it.substringBefore('.') }.toSet()
         }
 
-        override fun has(hashName: String) = names.any { it.substringBefore('.') == hashName }
+        override fun has(hashName: String) = hashName in names
 
-        /**
-         * Each earlier file present, with where it goes. The disk itself is last, so a move cut
-         * short leaves it to show there is more to move.
-         */
-        private fun moves(claim: GamePathMigration.Claim<DiskImageEntry>): List<Pair<File, File>> {
+        /** Where each of the claim's earlier files goes, present or not; the disk itself is last. */
+        private fun paths(claim: GamePathMigration.Claim<DiskImageEntry>): List<Pair<File, File>> {
+            if (!claim.external) return emptyList()
             val entry = claim.item
-            if (format.isProgram(entry.displayName))
-                return listOf(File(workingDirectory, claim.from) to programFolder(entry)).filter { it.first.exists() }
+            if (format.isProgram(entry.displayName)) return listOf(File(workingDirectory, claim.from) to programFolder(entry))
             val image = workingImage(entry)
             val extension = format.extension(entry.displayName)
-            val disk = File(workingDirectory, "${claim.from}.$extension") to image
-            if (!disk.first.isFile) return emptyList()
             return format.data[extension].orEmpty().map { data ->
-                File(workingDirectory, "${claim.from}.$data") to File(image.parentFile, "${image.name.substringBeforeLast('.')}.$data")
-            }.filter { it.first.isFile } + disk
+                File(workingDirectory, "${claim.from}.$data") to File(workingDirectory, "${image.name.substringBeforeLast('.')}.$data")
+            } + (File(workingDirectory, "${claim.from}.$extension") to image)
         }
 
+        /** The earlier files present, while the disk is: once it has moved, everything has. */
+        private fun files(claim: GamePathMigration.Claim<DiskImageEntry>): List<Pair<File, File>> {
+            val paths = paths(claim)
+            if (paths.lastOrNull()?.first?.exists() != true) return emptyList()
+            return paths.filter { it.first.exists() }
+        }
+
+        override fun moves(claims: List<GamePathMigration.Claim<DiskImageEntry>>): Map<File, File> =
+            claims.flatMap(::paths).toMap()
+
         override fun conflicts(claim: GamePathMigration.Claim<DiskImageEntry>): List<GamePathMigration.Conflict> {
-            val (from, to) = moves(claim).lastOrNull() ?: return emptyList()
+            val (from, to) = files(claim).lastOrNull() ?: return emptyList()
             if (!to.exists()) return emptyList()
-            return listOf(GamePathMigration.Conflict(claim.to, KIND, "Disk", newest(from), newest(to), claim.external))
+            return listOf(GamePathMigration.Conflict(claim.to, WORKING_COPY, "Disk", newest(from), newest(to), claim.external))
         }
 
         override fun move(claim: GamePathMigration.Claim<DiskImageEntry>, keep: Set<GamePathMigration.Conflict>) {
-            val moves = moves(claim)
-            for ((from, to) in moves) {
+            for ((from, to) in files(claim)) {
                 if (keep.isNotEmpty()) {
                     check(from.deleteRecursively()) { "Could not remove the earlier working copy of ${claim.item.displayName}" }
                     continue
                 }
-                check(to.parentFile!!.isDirectory || to.parentFile!!.mkdirs()) { "Could not create the working copy's folder" }
                 check(!to.exists() || to.deleteRecursively()) { "Could not replace the working copy of ${claim.item.displayName}" }
                 check(from.renameTo(to)) { "Could not move the working copy of ${claim.item.displayName}" }
             }
-            names = names - moves.map { it.first.name }.toSet()
         }
 
-        override fun isEmpty() = names.isEmpty()
+        override fun isEmpty() = true
 
         private fun newest(file: File) = file.walkTopDown().filter { it.isFile }.maxOfOrNull { it.lastModified() } ?: file.lastModified()
     }
@@ -292,16 +299,10 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     /** The working copy of [entry], whether or not it exists yet: a program's is in its folder's copy. */
     fun workingImage(entry: DiskImageEntry) =
         if (format.isProgram(entry.displayName)) File(programFolder(entry), entry.displayName)
-        // The extension in lower case, as the cores have always been given it.
-        else workingFile(entry.key.savePath.let { path ->
-            path.substringBeforeLast('.') + "." + format.extension(entry.displayName)
-        })
+        else File(workingDirectory, "${entry.key.hashName}.${format.extension(entry.displayName)}")
 
-    /** The working copy of a program's folder, which the machine reads as a drive: `<savePath>.folder`. */
-    private fun programFolder(entry: DiskImageEntry) = workingFile("${entry.key.savePath}.folder")
-
-    private fun workingFile(path: String) =
-        File(workingDirectory, SaveLocation.segments(path).joinToString(File.separator))
+    /** The working copy of a program's folder, which the machine reads as a drive. */
+    private fun programFolder(entry: DiskImageEntry) = File(workingDirectory, entry.key.hashName)
 
     /** The library entry whose working copy is [path], for a disk the machine holds. */
     override fun entryForWorkingImage(path: String, entries: List<DiskImageEntry>): DiskImageEntry? =
@@ -480,15 +481,14 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         val file = workingImage(entry)
         val descriptor = format.isDescriptor(entry.displayName)
         // The track data keeps its extension beside the descriptor, where the core looks for it.
-        val data = if (descriptor) File(file.parentFile,
+        val data = if (descriptor) File(workingDirectory,
             "${file.name.substringBeforeLast('.')}.${format.extension(entry.companions.single())}") else file
         if (file.isFile && file.length() > 0 && data.isFile && data.length() > 0) return file
         if (entry.imageSize > 0) require(workingDirectory.usableSpace > entry.imageSize + 16L * 1024 * 1024) {
             "Not enough free space for this disk image"
         }
-        check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "Unable to create the working copy's folder" }
-        val partialData = File(file.parentFile, "${data.name}.part")
-        val partialDescriptor = File(file.parentFile, "${file.name}.part")
+        val partialData = File(workingDirectory, "${data.name}.part")
+        val partialDescriptor = File(workingDirectory, "${file.name}.part")
         partialData.delete()
         partialDescriptor.delete()
         try {
@@ -536,8 +536,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         require(workingDirectory.usableSpace > maxOf(entry.sourceSize, entry.imageSize) + 16L * 1024 * 1024) {
             "Not enough free space for this game's folder"
         }
-        check(folder.parentFile!!.isDirectory || folder.parentFile!!.mkdirs()) { "Unable to create the working copy's folder" }
-        val partial = File(folder.parentFile, "${folder.name}.part")
+        val partial = File(workingDirectory, "${folder.name}.part")
         partial.deleteRecursively()
         fun target(name: String): File {
             val file = File(partial, name)
@@ -855,7 +854,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         private const val MAX_EXPANSION_RATIO = 1000L
         private const val MAX_STORE_BYTES = 16 * 1024 * 1024
         /** A working copy's kind in a [GamePathMigration.Conflict]. */
-        const val KIND = "disk"
+        private const val WORKING_COPY = "disk"
         private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
             .digest(bytes).toHex()
         private fun checkCancelled(cancelled: AtomicBoolean) {

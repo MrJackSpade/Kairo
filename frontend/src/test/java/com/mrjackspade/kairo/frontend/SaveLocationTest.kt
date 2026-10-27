@@ -92,6 +92,21 @@ class SaveLocationTest {
         assertTrue(saves.directory(outside).canonicalPath.startsWith(saves.root.canonicalPath + File.separator))
     }
 
+    @Test fun aMoveKeepsEveryFileAndItsTime() {
+        val from = SaveUnit.v1(GameKey("Old.hdi").hashName, "slot1")
+        val to = SaveUnit.of(GameKey("Games/Old.hdi"), "state1")
+        saves.import(from, content("old"))
+        val state = File(saves.directory(from), "state").apply { setLastModified(1_234_567_000L) }
+        saves.move(from, to)
+        assertFalse(state.exists())
+        assertEquals("old", File(saves.directory(to), "state").readText())
+        assertEquals(1_234_567_000L, File(saves.directory(to), "state").lastModified())
+        assertFalse(saves.movePending(from, to))
+        assertThrows(IllegalStateException::class.java) { saves.move(from, to) }
+        saves.import(from, content("again"))
+        assertThrows(IllegalStateException::class.java) { saves.move(from, to) }
+    }
+
     @Test fun anEarlierGamesLeftoversGoWithIt() {
         val name = GameKey("Old.hdi").hashName
         File(saves.root, "$name/slot1.part").mkdirs()
