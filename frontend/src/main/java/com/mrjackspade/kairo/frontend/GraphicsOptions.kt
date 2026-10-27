@@ -11,9 +11,12 @@ import kotlin.math.roundToInt
 class GraphicsOptions(
     private val activity: Activity,
     private val preferences: SharedPreferences,
+    /** The pages the anchor picker opens on. */
+    private val pages: () -> PageStack,
     private val onChanged: () -> Unit
 ) {
-    data class Viewport(val width: Int, val height: Int, val topMargin: Int)
+    /** The picture's size and its offset from the screen's top left; an offset is negative where the picture is cut. */
+    data class Viewport(val width: Int, val height: Int, val leftMargin: Int, val topMargin: Int)
 
     private var integerScaling = true
     private var integerCrop = false
@@ -21,6 +24,24 @@ class GraphicsOptions(
 
     private fun isPortrait() = activity.resources.configuration.orientation ==
         Configuration.ORIENTATION_PORTRAIT
+
+    /** "portrait" or "landscape", as the scaling and anchor settings are kept. */
+    fun orientation() = if (isPortrait()) "portrait" else "landscape"
+
+    /** Where the picture sits for all games in [orientation] (Kairo#54). */
+    fun anchor(orientation: String): Anchor =
+        preferences.getString("scaling_anchor_$orientation", null)?.let(Anchor::of) ?: Anchor.default(orientation)
+
+    private fun anchorRow(orientation: String, label: String): SettingsRow {
+        val id = "anchor-$orientation"
+        return SettingsRow.action(id, label, { anchor(orientation).label }, { ValueTone.CURRENT }) {
+            pages().push(AnchorPage(label, { GameSource.ALL_GAMES }, { anchor(orientation).id },
+                { anchor(orientation).id }, null, { picked ->
+                    preferences.edit().putString("scaling_anchor_$orientation", requireNotNull(picked)).apply()
+                    onChanged()
+                }, id))
+        }
+    }
 
     fun load() {
         val (integer, crop) = scaling(if (isPortrait()) "portrait" else "landscape")
@@ -54,6 +75,8 @@ class GraphicsOptions(
     fun displayGroup() = RowGroup("DISPLAY", listOf(
         SettingsRow.choice("scale-landscape", "Landscape scaling", scalingChoice("landscape", "Landscape scaling")),
         SettingsRow.choice("scale-portrait", "Portrait scaling", scalingChoice("portrait", "Portrait scaling")),
+        anchorRow("landscape", "Landscape anchor"),
+        anchorRow("portrait", "Portrait anchor"),
         SettingsRow.slider("notch", "Portrait notch padding", { "$portraitNotchPadding dp" },
             SliderSpec(0, 240, 1, 4, { portraitNotchPadding }) { value ->
                 portraitNotchPadding = value
@@ -66,9 +89,12 @@ class GraphicsOptions(
     fun page(shader: ShaderOptions?, extra: () -> List<RowGroup> = { emptyList() }) =
         GroupsPage("Graphics", { "All games" }, { listOfNotNull(displayGroup(), shader?.group()) + extra() })
 
-    /** Kairo98's portrait policy pins the image below the notch; landscape centers it. */
+    /**
+     * The picture's size and place: [anchor] pins it within the screen above the keyboard, and in
+     * portrait below the notch padding.
+     */
     fun viewport(containerWidth: Int, containerHeight: Int, keyboardHeight: Int,
-                 sourceWidth: Int, sourceHeight: Int, sourceAspect: Double): Viewport? {
+                 sourceWidth: Int, sourceHeight: Int, sourceAspect: Double, anchor: Anchor): Viewport? {
         if (containerWidth <= 0 || containerHeight <= 0) return null
         val width = sourceWidth.coerceAtLeast(1)
         val height = sourceHeight.coerceAtLeast(1)
@@ -84,8 +110,7 @@ class GraphicsOptions(
         } else fit
         val outputWidth = (width * scale).roundToInt().coerceAtLeast(1)
         val outputHeight = (correctedHeight * scale).roundToInt().coerceAtLeast(1)
-        val top = if (portrait) topPadding
-            else ((availableHeight - outputHeight) / 2).coerceAtLeast(0)
-        return Viewport(outputWidth, outputHeight, top)
+        return Viewport(outputWidth, outputHeight, anchor.offset(containerWidth, outputWidth, row = false),
+            topPadding + anchor.offset(availableHeight, outputHeight, row = true))
     }
 }

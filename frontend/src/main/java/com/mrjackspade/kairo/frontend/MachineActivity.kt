@@ -220,6 +220,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun setTitle(game: GameKey, title: String?) =
         if (title == null) catalog.resetOverride(game, "title") else catalog.setOverride(game, "title", title)
     override fun resetGameSettings(game: GameKey) = catalog.resetOverride(game)
+    override fun gameAnchor(game: E, orientation: String, allGames: () -> Anchor) =
+        machineValue(game, "display", "${orientation}Anchor",
+            { it.section("display")?.optString("${orientation}Anchor")?.takeIf(String::isNotEmpty) },
+            { allGames().id }, GameSource.ALL_GAMES, saved = "Saved")
     override fun gameSettingChanged(entry: E) {
         if (currentEntry?.id == entry.id) currentGame = catalog.resolve(entry)
     }
@@ -255,14 +259,15 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     protected fun machineValue(entry: E, section: String, subfield: String, read: (CatalogGame) -> String?,
                                fallback: () -> String, appDefault: String,
-                               toStored: (String) -> Any = { it }): GameValue<String> {
+                               toStored: (String) -> Any = { it },
+                               saved: String = "Saved. Machine changes apply on next launch or restart."): GameValue<String> {
         val id = entry.key.takeIf { entry.contentId != null }
         fun custom() = id != null && catalog.sourceOf(entry, section, subfield) == "User override"
         return GameValue({ if (custom()) read(catalog.resolve(entry)) else null },
             { id?.let { read(catalog.resolveDefault(entry)) } ?: fallback() },
             { id?.let { catalog.defaultSourceOf(entry, section, subfield) }?.takeIf { it != "App default" }
                 ?.let(GameSource::label) ?: appDefault },
-            { value -> saveGameSetting(entry) {
+            { value -> saveGameSetting(entry, saved) {
                 if (value == null) catalog.resetOverrideSubfield(id!!, section, subfield)
                 else catalog.setOverrideSubfield(id!!, section, subfield, toStored(value))
             } })

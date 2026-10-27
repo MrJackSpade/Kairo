@@ -159,6 +159,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun deleteSource(entry: E)
     /** Resets every game setting of [game]. */
     protected abstract fun resetGameSettings(game: GameKey)
+    /**
+     * [game]'s own anchor in [orientation] (Kairo#54), an [Anchor] ID, over the all-games anchor
+     * ([allGames]), stored with the game's other settings.
+     */
+    protected abstract fun gameAnchor(game: E, orientation: String, allGames: () -> Anchor): GameValue<String>
     protected open val resetMessage: String = "Game settings reset. Machine changes apply on next launch or restart."
 
     // Pages and the session ---------------------------------------------------------------------
@@ -313,7 +318,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { if (currentEntry != null) "Return to the library to change the save folder." else null },
             ::prepareSaveMove)
     }
-    private val graphics by lazy { GraphicsOptions(this, preferences) { updateViewport(); refreshSettingValues() } }
+    private val graphics by lazy { GraphicsOptions(this, preferences, { pages }) { updateViewport(); refreshSettingValues() } }
     /** The shader settings; null in an app built without the shader runtime (BuildConfig.SHADERS). */
     private val shaderOptions by lazy {
         if (!BuildConfig.SHADERS) null
@@ -754,16 +759,46 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         val keyboardHeight = if (::keyboardPanel.isInitialized &&
             keyboardPanel.visibility == View.VISIBLE) keyboardPanel.layoutParams.height else 0
         val (width, height, aspect) = videoSize()
-        val viewport = graphics.viewport(root.width, root.height, keyboardHeight, width, height, aspect) ?: return
+        val viewport = graphics.viewport(root.width, root.height, keyboardHeight, width, height, aspect,
+            anchorFor(currentEntry)) ?: return
         val params = screen.layoutParams as FrameLayout.LayoutParams
         if (params.width != viewport.width || params.height != viewport.height ||
-            params.topMargin != viewport.topMargin ||
-            params.gravity != (Gravity.TOP or Gravity.CENTER_HORIZONTAL)) {
+            params.leftMargin != viewport.leftMargin || params.topMargin != viewport.topMargin ||
+            params.gravity != (Gravity.TOP or Gravity.START)) {
             screen.layoutParams = FrameLayout.LayoutParams(viewport.width, viewport.height,
-                Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                Gravity.TOP or Gravity.START).apply {
+                leftMargin = viewport.leftMargin
                 topMargin = viewport.topMargin
             }
         }
+    }
+
+    /** Where [entry]'s picture sits in the current orientation: its own anchor, else all games'. */
+    private fun anchorFor(entry: E?): Anchor {
+        val orientation = graphics.orientation()
+        val allGames = { graphics.anchor(orientation) }
+        val game = entry?.takeIf { it.contentId != null } ?: return allGames()
+        return Anchor.of(gameAnchor(game, orientation, allGames).effective)
+    }
+
+    /** Game settings › DISPLAY: the game's anchor in each orientation. */
+    private fun displayGroup(entry: E, hashed: () -> Boolean): RowGroup {
+        fun row(orientation: String, label: String): SettingsRow {
+            val id = "game-anchor-$orientation"
+            val value = { gameAnchor(entry, orientation) { graphics.anchor(orientation) } }
+            fun name(anchor: String) = Anchor.of(anchor).label
+            return SettingsRow.action(id, label, { name(value().effective) },
+                { if (value().custom() != null) ValueTone.CUSTOM else ValueTone.CURRENT },
+                { if (value().custom() != null) GameSource.CUSTOM else value().source() },
+                enabled = hashed, disabledReason = { GameSettingsRows.NO_HASH }) {
+                pages.push(AnchorPage(label, { titleOf(entry) }, { value().custom() }, { value().effective },
+                    { "${value().source()}: ${name(value().fallback())}" }, { picked ->
+                        value().set(picked)
+                        if (currentEntry?.id == entry.id) updateViewport()
+                    }, id))
+            }
+        }
+        return RowGroup("DISPLAY", listOf(row("landscape", "Landscape anchor"), row("portrait", "Portrait anchor")))
     }
 
     protected fun openMenu(start: String? = null, confirm: Boolean = false) = sessionFlow.open(start, confirm)
@@ -1121,6 +1156,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                     SettingsRow.choice("game-tap", "Screen tap", ChoiceSpec("Screen tap", scope, { emptyList() },
                         { null }, select = {}), enabled = { false }, disabledReason = noHash)))),
             machineGroup(entry, hashed),
+            displayGroup(entry, hashed),
             RowGroup("LIBRARY", listOf(
                 GameSettingsRows.text("title", "Title", "Game title", { titleOf(entry) }, { titleCustom(entry) },
                     { titleSource(entry) },
@@ -1141,6 +1177,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 saveGameSetting(entry, resetMessage, "Could not reset game settings") {
                     resetGameSettings(id!!)
                     if (currentEntry?.id == entry.id) {
+                        updateViewport()
                         touchStore.secondaryTouchpad(entry)?.let { setSecondaryInitialMode(it.custom() ?: it.fallback()) }
                         gamepadMapper.bindings = gameBindings(entry)
                         inputModeDecider.reset()

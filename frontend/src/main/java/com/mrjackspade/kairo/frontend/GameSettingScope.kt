@@ -15,6 +15,13 @@ class GameSettingScope(private val preferences: SharedPreferences) {
     fun boolean(game: GameKey?, name: String, global: Boolean): Boolean =
         if (game == null) global else preferences.getBoolean(key(game, name), global)
 
+    /** The game's own text value, or null when it has none. */
+    fun string(game: GameKey, name: String): String? = preferences.getString(key(game, name), null)
+
+    fun setString(game: GameKey, name: String, value: String) {
+        preferences.edit().putString(key(game, name), value).apply()
+    }
+
     fun setInt(game: GameKey, name: String, value: Int) {
         preferences.edit().putInt(key(game, name), value).apply()
     }

@@ -413,6 +413,9 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             (!value.has("mode") || value.optString("mode") in INPUT_MODES) &&
             (!value.has("touch") || schema.directTouch && value.optString("touch") in INPUT_TOUCH) &&
             (!value.has("secondary") || value.optString("secondary") in INPUT_SECONDARY)
+        // Where the picture sits in each orientation (Kairo#54).
+        "display" -> value is JSONObject && value.length() > 0 &&
+            value.keys().asSequence().all { it in DISPLAY_FIELDS && value.optString(it) in Anchor.IDS }
         "media" -> value is JSONArray && value.length() <= 16 &&
             (0 until value.length()).all { index ->
                 value.optJSONObject(index)?.let { item ->
@@ -528,11 +531,13 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         private val ART_URL_FIELDS = setOf("boxArtUrl", "previewUrl")
         private val ART_FIELDS = ART_PATH_FIELDS + ART_URL_FIELDS
         private val INPUT_FIELDS = setOf("mode", "touch", "secondary")
+        private val DISPLAY_FIELDS = setOf("landscapeAnchor", "portraitAnchor")
         private val COMMON_OBJECT_FIELDS = mapOf(
             "artwork" to ART_FIELDS,
             // "layer" is the player's own mapping layer (ControllerDefaults.cascade); catalogs never hold one.
             "controller" to setOf("profile", "bindings", "defaults", "layer"),
-            "input" to INPUT_FIELDS)
+            "input" to INPUT_FIELDS,
+            "display" to DISPLAY_FIELDS)
         private val COMMON_FIELDS = setOf("title", "description", "aliases", "heart", "hidden", "media") +
             COMMON_OBJECT_FIELDS.keys
         private fun validTitle(value: String) = value.isNotBlank() && value.length <= 256
