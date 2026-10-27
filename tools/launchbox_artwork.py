@@ -57,6 +57,8 @@ class References:
         result = {}
         for kind, label in KINDS.items():
             if kind not in art:
+                if kind + "Url" in art:
+                    raise ValueError("an image URL without its image")
                 continue
             ref = art[kind]
             if isinstance(ref, str):
