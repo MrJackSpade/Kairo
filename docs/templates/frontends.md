@@ -4,6 +4,10 @@
 
 {{frontends.intro}} Choosing **Library** from a frontend-launched game closes {{repo}} and returns to the frontend.
 
+## Saves across devices
+
+Point the frontend at the same folder as {{repo}}'s games folder, and keep your games inside it. A game the frontend sends from inside that folder opens as the library's game, with the same saves and settings, whether you start it from the frontend or from {{repo}}, and on every device that has the same folder, whatever its SD card is called. A game from outside the folder keeps saves of its own; they line up across devices only when the game sits on the same storage as the games folder.
+
 ## Setup guides
 
 - [LaunchBox for Android](#launchbox-for-android)
