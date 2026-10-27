@@ -259,8 +259,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     protected fun machineValue(entry: E, section: String, subfield: String, read: (CatalogGame) -> String?,
                                fallback: () -> String, appDefault: String,
-                               toStored: (String) -> Any = { it },
-                               saved: String = "Saved. Machine changes apply on next launch or restart."): GameValue<String> {
+                               saved: String = "Saved. Machine changes apply on next launch or restart.",
+                               toStored: (String) -> Any = { it }): GameValue<String> {
         val id = entry.key.takeIf { entry.contentId != null }
         fun custom() = id != null && catalog.sourceOf(entry, section, subfield) == "User override"
         return GameValue({ if (custom()) read(catalog.resolve(entry)) else null },
@@ -469,7 +469,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                         val option = machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option
                         GameSettingsRows.choice(option.id, option.label, scope, { option.choices },
                             machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
-                                { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES, option::stored),
+                                { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES, toStored = option::stored),
                             enabled, noHash, actions = option.actions)
                     }
                     is CatalogSetting.Drive -> driveRow(entry, setting, scope, enabled, noHash)
