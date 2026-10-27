@@ -14,8 +14,11 @@ archives are all not games is hidden from the library, so it never shows even in
 
 Decisions live beside the output and are kept across runs; new items are decided automatically
 and the decision is recorded so it can be reviewed and corrected:
-  media-matches-v1.json  {"<set>:<archive path>": "<game key>" | "local" | "ignore"}; an archive
-                         nothing matches is local without a recorded decision
+  media-matches-v1.json  {"<set>:<archive path>": "<game key>" | "local" | "ignore" |
+                         {"<disk in the archive>": "<game key>" | "local" | "ignore"}}; an archive
+                         nothing matches is local without a recorded decision. The object splits
+                         an archive that holds several games' disks (a "Title I + II" compilation)
+                         among them, naming every disk; its local disks form one local game
   moby-matches-v1.json   {"<MobyGames ID>": "<game key>" | "own"}
   descriptions-v1.json   {"<game key>": "original description"}
   descriptions-adult-v1.json  {"<game key>": "frank description"} of an adult game, which replaces
@@ -369,32 +372,43 @@ def assemble(root, moby_root):
                 else:
                     # Recomputed each run, so a later match replaces it; local keys are stable.
                     decision = "local"
-            if decision == "ignore":
-                continue
-            # A MobyGames-only game linked to its LaunchBox game since this was decided.
-            decision = relinked.get(decision, decision)
-            key = local_key(slugs[0], f"{set_name}:{group}") if decision == "local" else decision
-            if decision != "local":
-                moved[local_key(slugs[0], f"{set_name}:{group}")] = key
-            if key not in games:
+            # Each disk's decision: the archive's, or its own where the archive is split among games.
+            if isinstance(decision, dict):
+                members = {disk.get("entry") for disk in archive["disks"]}
+                if set(decision) != members:
+                    raise SystemExit(f"{name}: its split decision must name exactly its disks {sorted(members)}")
+                portions = {}
+                for disk in archive["disks"]:
+                    portions.setdefault(decision[disk.get("entry")], []).append(disk)
+            else:
+                portions = {decision: archive["disks"]}
+            for decision, archive_disks in portions.items():
+                if decision == "ignore":
+                    continue
+                # A MobyGames-only game linked to its LaunchBox game since this was decided.
+                decision = relinked.get(decision, decision)
+                key = local_key(slugs[0], f"{set_name}:{group}") if decision == "local" else decision
                 if decision != "local":
-                    raise SystemExit(f"{name} names unknown game {key}")
-                games[key] = {"title": title}
-                if year:
-                    games[key]["year"] = year
-            entry = games[key]
-            entry.setdefault("sourceGroups", []).append(name)
-            total, other = archive_counts.get(key, (0, 0))
-            archive_counts[key] = (total + 1, other + bool(not_game(archive["path"])))
-            disks.setdefault(key, []).extend({"archive": archive["path"], "member": disk.get("entry"),
-                                              "contentId": disk["contentId"]} for disk in archive["disks"])
-            for disk in archive["disks"]:
-                settings = machine_of(disk.get("entry") or archive["path"].rsplit("/", 1)[-1], set_name,
-                                      disk["contentId"])
-                if settings:
-                    entry.setdefault("diskMachine", {})[disk["contentId"]] = settings
-            entry["contentIds"] = sorted(set(entry.get("contentIds", [])) |
-                                         {disk["contentId"] for disk in archive["disks"]})
+                    moved[local_key(slugs[0], f"{set_name}:{group}")] = key
+                if key not in games:
+                    if decision != "local":
+                        raise SystemExit(f"{name} names unknown game {key}")
+                    games[key] = {"title": title}
+                    if year:
+                        games[key]["year"] = year
+                entry = games[key]
+                entry.setdefault("sourceGroups", []).append(name)
+                total, other = archive_counts.get(key, (0, 0))
+                archive_counts[key] = (total + 1, other + bool(not_game(archive["path"])))
+                disks.setdefault(key, []).extend({"archive": archive["path"], "member": disk.get("entry"),
+                                                  "contentId": disk["contentId"]} for disk in archive_disks)
+                for disk in archive_disks:
+                    settings = machine_of(disk.get("entry") or archive["path"].rsplit("/", 1)[-1], set_name,
+                                          disk["contentId"])
+                    if settings:
+                        entry.setdefault("diskMachine", {})[disk["contentId"]] = settings
+                entry["contentIds"] = sorted(set(entry.get("contentIds", [])) |
+                                             {disk["contentId"] for disk in archive_disks})
 
     # A medium found in several games' sets (a blank user disk, a series' shared data disk)
     # identifies none of them; it is left out and listed instead.
@@ -533,7 +547,9 @@ def assemble(root, moby_root):
         write(research / "moby-artwork-v1.json", moby_art.provenance())
     write(research / "media-matches-v1.json", media_decisions)
     write(research / "games-v1.json", {"schemaVersion": 1, "games": games, "sharedContentIds": shared})
-    decided = media_decisions["archives"].values()
+    # A split archive counts by each of its disks' decisions.
+    decided = [value for decision in media_decisions["archives"].values()
+               for value in (decision.values() if isinstance(decision, dict) else [decision])]
     print(f"{config.APP}: {len(games)} games; archives: {sum(v not in ('local', 'ignore') for v in decided)} matched, "
           f"{sum(':local-' in key for key in games)} local games, {sum(v == 'ignore' for v in decided)} ignored; "
           + ("MobyGames: not used; " if moby_root is None else

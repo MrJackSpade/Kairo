@@ -149,6 +149,14 @@ def ungrouped_sets(archives, games):
     for archive in archives:
         if DISK_TAG.search(archive["path"].rpartition("/")[2]):
             sets.setdefault(set_name(archive["path"]), []).append(archive)
+        # The disks of one archive that name their own sets, as a compilation's "Title (Disk 1 of 3)".
+        named = {}
+        for disk in archive["disks"]:
+            if disk.get("entry") and DISK_TAG.search(disk["entry"].rpartition("/")[2]):
+                named.setdefault(set_name(disk["entry"]), []).append(disk)
+        for name, disks in named.items():
+            sets.setdefault(f"{archive['path']}/{name}", []).extend(
+                {"path": f"{archive['path']}/{disk['entry']}", "disks": [disk]} for disk in disks)
     result = []
     for name, members in sorted(sets.items()):
         # Archives that are byte-identical copies of one disk ("Side A" and "Side B" holding the

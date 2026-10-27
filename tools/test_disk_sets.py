@@ -248,6 +248,16 @@ class UngroupedSetsTest(unittest.TestCase):
                     {"path": "Game (Side B).d64", "disks": [{"contentId": FD + "a"}]}]
         self.assertEqual(ungrouped_sets(archives, {}), [])
 
+    def test_a_set_inside_one_archive_whose_disks_all_show_is_ungrouped(self):
+        archives = [{"path": "Pair I + II.zip", "disks": [
+            {"entry": "Pair (Disk 1 of 2).dim", "contentId": FD + "a"},
+            {"entry": "Pair (Disk 2 of 2).dim", "contentId": FD + "b"},
+            {"entry": "Pair II (Disk 1 of 2).dim", "contentId": FD + "c"},
+            {"entry": "Pair II (Disk 2 of 2).dim", "contentId": FD + "d"}]}]
+        games = {"pair-2": {"diskSets": {FD + "c": {"setDisks": [FD + "d"]}}}}
+        self.assertEqual(ungrouped_sets(archives, games), [
+            ("Pair I + II.zip/Pair", ["Pair I + II.zip/Pair (Disk 1 of 2).dim", "Pair I + II.zip/Pair (Disk 2 of 2).dim"])])
+
 
 if __name__ == "__main__":
     unittest.main()
