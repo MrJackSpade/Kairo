@@ -317,6 +317,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
 
     /** Overrides from before games had keys, for [GameKeyMigration]. */
     fun legacyOverrides() = GameKeyMigration.OverrideStore(overrides) { synchronized(this) { invalidate() } }
+    /** Overrides v1.4.0 and earlier kept under games' v1 names, for [GamePathMigration]. */
+    fun <E : LibraryItem> v1Overrides() = GamePathMigration.OverrideStore<E>(overrides) { synchronized(this) { invalidate() } }
 
     /**
      * Hide a known support disk without removing it from media lookup or disk swaps. Read from the

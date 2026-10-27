@@ -13,6 +13,9 @@ import java.nio.file.StandardCopyOption
  *
  * Data that no game claims stays where it is, for a later scan that finds its game. A failure
  * leaves that data in place and is reported for the games it belongs to.
+ *
+ * It moves the data to where v1.4.0 kept it, under each game's [GameKey.hashName], so
+ * [GamePathMigration] then moves it on to the game's path like any other v1.4.0 data.
  */
 class GameKeyMigration<T : LibraryItem>(
     private val preferences: SharedPreferences,
@@ -103,7 +106,7 @@ class GameKeyMigration<T : LibraryItem>(
             for ((family, name) in legacy[contentId].orEmpty()) {
                 val suffix = if (family.named) "_" + name.removePrefix(family.legacyPrefix)
                     .substringAfter('_') else ""
-                for (game in games) put(editor, family.prefix + game.storageName + suffix, values[name])
+                for (game in games) Preferences.put(editor, family.prefix + game.hashName + suffix, values[name])
                 editor.remove(name)
             }
             check(editor.commit()) { "Could not store game settings" }
@@ -111,19 +114,6 @@ class GameKeyMigration<T : LibraryItem>(
         }
 
         override fun isEmpty() = legacy.isEmpty()
-
-        private fun put(editor: SharedPreferences.Editor, name: String, value: Any?) {
-            @Suppress("UNCHECKED_CAST")
-            when (value) {
-                is Int -> editor.putInt(name, value)
-                is Long -> editor.putLong(name, value)
-                is Float -> editor.putFloat(name, value)
-                is Boolean -> editor.putBoolean(name, value)
-                is String -> editor.putString(name, value)
-                is Set<*> -> editor.putStringSet(name, value as Set<String>)
-                else -> error("Unsupported setting $name")
-            }
-        }
     }
 
     class OverrideStore(private val overrides: GameMetadataOverrides,
@@ -152,7 +142,7 @@ class GameKeyMigration<T : LibraryItem>(
         private var legacy: Set<String> = emptySet()
 
         override fun refresh() {
-            legacy = location().games().filterNot { it.startsWith(GameKey.STORAGE_PREFIX) }.toSet()
+            legacy = location().v1Games().filterNot { GameKey.HASH_NAME.matches(it) }.toSet()
         }
 
         override fun has(contentId: String) = SaveLocation.contentIdName(contentId) in legacy
@@ -161,31 +151,31 @@ class GameKeyMigration<T : LibraryItem>(
             val saves = location()
             val from = SaveLocation.contentIdName(contentId)
             val started = started()
-            val units = names.map { SaveUnit(from, it) }.filter(saves::exists)
+            val units = names.map { SaveUnit.v1(from, it) }.filter(saves::exists)
             val conflicts = units.flatMap { unit ->
                 games.mapNotNull { game ->
-                    val target = SaveUnit(game.storageName, unit.name)
+                    val target = SaveUnit.v1(game.hashName, unit.kind)
                     // A move interrupted after copying left this target; it is not a newer save.
-                    if ("${unit.game}/${unit.name}" in started || !saves.exists(target) || saves.isEmpty(target)) null
-                    else Conflict(game, unit.name, saves.savedAt(unit), saves.savedAt(target))
+                    if (unit.path in started || !saves.exists(target) || saves.isEmpty(target)) null
+                    else Conflict(game, unit.kind, saves.savedAt(unit), saves.savedAt(target))
                 }
             }
             val keepNewer = conflicts.toSet() - (if (conflicts.isEmpty()) emptySet() else resolve(conflicts))
             for (unit in units) {
-                record(started() + "${unit.game}/${unit.name}")
+                record(started() + unit.path)
                 val copy = File(staging, "game-key-migration")
                 check(!copy.exists() || copy.deleteRecursively()) { "Could not clear an earlier move" }
                 try {
                     saves.export(unit, copy)
                     for (game in games) {
-                        if (keepNewer.any { it.game == game && it.unit == unit.name }) continue
-                        saves.import(SaveUnit(game.storageName, unit.name), copy)
+                        if (keepNewer.any { it.game == game && it.unit == unit.kind }) continue
+                        saves.import(SaveUnit.v1(game.hashName, unit.kind), copy)
                     }
                 } finally {
                     copy.deleteRecursively()
                 }
                 saves.delete(unit)
-                record(started() - "${unit.game}/${unit.name}")
+                record(started() - unit.path)
             }
             legacy = legacy - from
         }

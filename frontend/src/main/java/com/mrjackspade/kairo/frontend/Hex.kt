@@ -5,7 +5,7 @@ private val HEX_DIGITS = "0123456789abcdef".toCharArray()
 /**
  * The bytes as lower-case hex, two digits each: the same text as formatting each with "%02x",
  * without String.format, which costs a fraction of a millisecond per byte on Android and runs for
- * every game in a library walk (GameKey.storageName).
+ * every game in a library walk (GameKey.hashName).
  */
 fun ByteArray.toHex(): String {
     val text = CharArray(size * 2)

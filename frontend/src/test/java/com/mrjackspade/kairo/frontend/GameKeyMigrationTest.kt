@@ -34,16 +34,16 @@ class GameKeyMigrationTest {
         File(directory, "SAVE.DAT").writeText(text)
     }
 
-    private fun keyedSave(item: Item, unit: String) = File(saves.root, "${item.key.storageName}/$unit/SAVE.DAT")
+    private fun keyedSave(item: Item, unit: String) = File(saves.root, "${item.key.hashName}/$unit/SAVE.DAT")
 
     private fun saveStore(resolve: (List<GameKeyMigration.SaveStore.Conflict>) -> Set<GameKeyMigration.SaveStore.Conflict> =
                               { error("Unexpected conflict") }) =
         GameKeyMigration.SaveStore({ saves }, setOf("overlay"), root, journal, resolve)
 
     @Test fun keysKeepCaseAndStoreEveryPathAlike() {
-        assertNotEquals(GameKey("Doom.zip").storageName, GameKey("DOOM.zip").storageName)
-        assertEquals(GameKey("Doom.zip").storageName, GameKey("Doom.zip").storageName)
-        assertTrue(GameKey("Games/a b:c.zip").storageName.matches(Regex("k1-[0-9a-f]{32}")))
+        assertNotEquals(GameKey("Doom.zip").hashName, GameKey("DOOM.zip").hashName)
+        assertEquals(GameKey("Doom.zip").hashName, GameKey("Doom.zip").hashName)
+        assertTrue(GameKey("Games/a b:c.zip").hashName.matches(Regex("k1-[0-9a-f]{32}")))
         assertEquals("Games/set.zip/disk1.hdi", GameKey.inArchive("Games/set.zip", "disk1.hdi").path)
     }
 
@@ -53,15 +53,15 @@ class GameKeyMigrationTest {
             "controller_game_sha256-dos-manifest-v1:aa" to "[]",
             "game_setting_v1_sha256-dos-manifest-v1:cc_touch_mode" to 2))
         val migration = GameKeyMigration<Item>(preferences, listOf(GameKeyMigration.PreferenceStore(preferences, listOf(
-            GameKeyMigration.PreferenceFamily(GameSettingScope.CONTENT_ID_PREFIX, GameSettingScope.PREFIX, true),
+            GameKeyMigration.PreferenceFamily(GameSettingScope.CONTENT_ID_PREFIX, GameSettingScope.V1_PREFIX, true),
             GameKeyMigration.PreferenceFamily("controller_game_", "game_controller_v2_", false)))))
         assertTrue(migration.claim(claim(first, copy, other)).isEmpty())
         for (item in listOf(first, copy)) {
-            assertEquals(1, preferences.all["game_setting_v2_${item.key.storageName}_cycles_mode"])
-            assertEquals("[]", preferences.all["game_controller_v2_${item.key.storageName}"])
+            assertEquals(1, preferences.all["game_setting_v2_${item.key.hashName}_cycles_mode"])
+            assertEquals("[]", preferences.all["game_controller_v2_${item.key.hashName}"])
         }
         assertNull(preferences.all["game_setting_v1_sha256-dos-manifest-v1:aa_cycles_mode"])
-        assertFalse(preferences.all.keys.any { it.contains(other.key.storageName) })
+        assertFalse(preferences.all.keys.any { it.contains(other.key.hashName) })
         // A game not in the library keeps its settings until a scan finds it.
         assertEquals(2, preferences.all["game_setting_v1_sha256-dos-manifest-v1:cc_touch_mode"])
         assertTrue(migration.pending)

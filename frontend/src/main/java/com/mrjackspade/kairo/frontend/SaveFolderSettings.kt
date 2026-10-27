@@ -17,8 +17,10 @@ class SaveFolderSettings(
     private val pages: PageStack,
     private val preferences: SharedPreferences,
     val app: AppSaveLocation,
-    private val names: Set<String>,
-    private val gameTitle: (String) -> String,
+    /** The save kinds, each with the kind v1.4.0 and earlier gave it (SaveUnit). */
+    private val kinds: Map<String, String>,
+    private val gameTitle: (SaveUnit) -> String,
+    /** A kind's name for the player, such as "Slot 1". */
     private val unitLabel: (String) -> String,
     /** Why the folder cannot change now, such as a running game; null when it can. */
     private val blocked: () -> String?,
@@ -86,7 +88,7 @@ class SaveFolderSettings(
         Thread({
             val result = runCatching {
                 prepare(::show)
-                val migration = SaveMigration(location, target, names, activity.cacheDir)
+                val migration = SaveMigration(location, target, kinds, activity.cacheDir)
                 migration to migration.conflicts()
             }
             activity.runOnUiThread {
@@ -129,7 +131,7 @@ class SaveFolderSettings(
         val newName = if (toPrivate) "Private app storage" else "New folder"
         var moving = false
         return choicePage(conflicts.map { conflict ->
-            Choice(conflict.unit, "${gameTitle(conflict.unit.game)} · ${unitLabel(conflict.unit.name)}",
+            Choice(conflict.unit, "${gameTitle(conflict.unit)} · ${label(conflict.unit.kind)}",
                 "Current", conflict.currentSavedAt, newName, conflict.newSavedAt)
         }, "Move saves", { moving = true; move(migration, it, remember) }) {
             if (!moving) finish("Save folder not changed")
@@ -147,7 +149,7 @@ class SaveFolderSettings(
         var chosen: Set<GameKeyMigration.SaveStore.Conflict>? = null
         activity.runOnUiThread {
             pages.push(choicePage(conflicts.map { conflict ->
-                Choice(conflict, "${title(conflict.game)} · ${unitLabel(conflict.unit)}",
+                Choice(conflict, "${title(conflict.game)} · ${label(conflict.unit)}",
                     "Earlier version", conflict.earlierSavedAt, "This version", conflict.keyedSavedAt)
             }, "Keep saves", { keptNewer -> chosen = conflicts.toSet() - keptNewer; latch.countDown() }) {
                 latch.countDown()
@@ -156,6 +158,32 @@ class SaveFolderSettings(
         latch.await()
         return checkNotNull(chosen) { "Saves were not moved; choose which to keep the next time the library opens" }
     }
+
+    /**
+     * Asks which copy to keep of each save a game has both from v1.4.0 and at its path: from an
+     * earlier version, or from launches by another app before the game opened as the library's
+     * (Kairo#56). Blocks the calling worker until the user chooses; returns the conflicts whose
+     * earlier copy is kept.
+     */
+    fun resolvePathConflicts(conflicts: List<GamePathMigration.Conflict>,
+                             title: (GameKey) -> String): Set<GamePathMigration.Conflict> {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        var chosen: Set<GamePathMigration.Conflict>? = null
+        activity.runOnUiThread {
+            pages.push(choicePage(conflicts.map { conflict ->
+                Choice(conflict, "${title(conflict.game)} · ${conflict.label}",
+                    if (conflict.external) "From the library" else "This version", conflict.currentSavedAt,
+                    if (conflict.external) "Opened from another app" else "Earlier version", conflict.earlierSavedAt)
+            }, "Keep saves", { keptEarlier -> chosen = keptEarlier; latch.countDown() }) {
+                latch.countDown()
+            })
+        }
+        latch.await()
+        return checkNotNull(chosen) { "Saves were not moved; choose which to keep the next time the library opens" }
+    }
+
+    /** A kind's name for the player; a v1.4.0 kind is named as the kind it became. */
+    private fun label(kind: String) = unitLabel(kinds.entries.firstOrNull { it.value == kind }?.key ?: kind)
 
     private class Choice<K>(val id: K, val title: String, val currentName: String, val currentSavedAt: Long,
                             val otherName: String, val otherSavedAt: Long)

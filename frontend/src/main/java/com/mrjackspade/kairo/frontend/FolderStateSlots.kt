@@ -3,13 +3,12 @@ package com.mrjackspade.kairo.frontend
 import java.io.File
 
 /**
- * Save-state slots in the user's save folder: `<folder>/<game key's storage name>/slot<N>/`. The core writes
- * a save to [staging]; committing copies it into the folder and replaces the old slot.
+ * Save-state slots in the user's save folder: `<folder>/<savePath>.state<N>/` (Kairo#57). The core
+ * writes a save to [staging], which one running game uses at a time; committing copies it into the
+ * folder and replaces the old slot.
  */
-class FolderStateSlots(private val folder: FolderSaveLocation, key: GameKey,
-                       private val stateName: String, staging: File) : StateSlots {
-    private val game = key.storageName
-    private val local = File(staging, game)
+class FolderStateSlots(private val folder: FolderSaveLocation, private val game: GameKey,
+                       private val stateName: String, private val local: File) : StateSlots {
 
     override fun summaries(): List<StateSlots.Summary> = (1..StateSlotStore.SLOT_COUNT).map { index ->
         val unit = unit(index)
@@ -53,7 +52,7 @@ class FolderStateSlots(private val folder: FolderSaveLocation, key: GameKey,
 
     private fun unit(index: Int): SaveUnit {
         require(index in 1..StateSlotStore.SLOT_COUNT) { "Invalid save slot" }
-        return SaveUnit(game, "slot$index")
+        return SaveUnit.of(game, StateSlotStore.kind(index))
     }
 
     private fun requireScratch(index: Int, scratch: File) {
@@ -65,6 +64,5 @@ class FolderStateSlots(private val folder: FolderSaveLocation, key: GameKey,
 
     companion object {
         private const val THUMBNAIL_FILE = "thumbnail.png"
-        val UNITS = (1..StateSlotStore.SLOT_COUNT).map { "slot$it" }.toSet()
     }
 }

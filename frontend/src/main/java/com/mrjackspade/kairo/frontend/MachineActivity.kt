@@ -99,6 +99,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun storeLibrary(tree: Uri, entries: List<E>) = library.store(tree, entries)
     override val hashCount: Int get() = library.hashCount
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean) = library.inspectExternal(file, cancelled)
+    override fun withError(entry: E, message: String) = library.withError(entry, message)
+    override fun v1DataStores(): List<GamePathMigration.Store<E>> = listOf(library.v1WorkingCopies(), catalog.v1Overrides())
 
     override val artworkStore: CatalogArtworkStore get() = catalog.artworkStore
     override fun artworkRecord(entry: E, kind: String): ArtworkCoordinator.Record {
@@ -276,9 +278,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override var firstRunStep: Int
         get() = preferences.getInt("onboarding_step_v1", if (tree == null) 0 else 2)
         set(value) { preferences.edit().putInt("onboarding_step_v1", value).apply() }
-    override val saveUnits: Set<String> = FolderStateSlots.UNITS
+    override val saveKinds: Map<String, String> = StateSlotStore.KINDS
     override val appSaves: File get() = File(filesDir, "states")
-    override fun saveUnitLabel(unit: String) = "Slot ${unit.removePrefix("slot")}"
+    override fun saveUnitLabel(kind: String) = "Slot ${kind.removePrefix("state")}"
 
     override fun sessionStatus() = MachineStatus(bridge.status()).state
     override fun diagnosticsRows(running: Boolean): List<SettingsRow> {

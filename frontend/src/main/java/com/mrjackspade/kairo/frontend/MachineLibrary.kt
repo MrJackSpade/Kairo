@@ -22,4 +22,8 @@ interface MachineLibrary<E : LibraryItem> {
     fun prepare(entry: E, cancelled: AtomicBoolean, progress: (String) -> Unit): java.io.File
     /** The entry whose working copy is [path], as a machine reports its media after a state loads. */
     fun entryForWorkingImage(path: String, entries: List<E>): E?
+    /** [entry], unplayable for [message]. */
+    fun withError(entry: E, message: String): E
+    /** The working copies v1.4.0 and earlier named by games' v1 names (GamePathMigration). */
+    fun v1WorkingCopies(): GamePathMigration.Store<E>
 }

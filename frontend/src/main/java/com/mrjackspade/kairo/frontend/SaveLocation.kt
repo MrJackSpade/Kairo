@@ -6,18 +6,33 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import java.io.File
 
-/** One game's saved data of one kind, such as a save-state slot: `<game>/<name>/`. */
-data class SaveUnit(val game: String, val name: String)
+/**
+ * One game's saved data of one [kind], such as a save-state slot: a directory replaced as a
+ * whole, at [path] under the save root. A game's units sit beside one another as
+ * `<savePath>.<kind>` ([of], Kairo#57). v1.4.0 and earlier kept them at `<game>/<kind>`, the
+ * game named by its [GameKey.hashName] or, before games had keys, its content ID ([v1]).
+ */
+data class SaveUnit(val game: String, val kind: String, val v1: Boolean = false) {
+    val path: String get() = if (v1) "$game/$kind" else "$game.$kind"
+
+    companion object {
+        fun of(game: GameKey, kind: String) = SaveUnit(game.savePath, kind)
+        fun v1(game: String, kind: String) = SaveUnit(game, kind, v1 = true)
+    }
+}
 
 /**
  * Where an app keeps its saves: app storage or a folder the user chose. Each unit is a
  * directory replaced as a whole, so a reader never sees half of a save.
  */
 interface SaveLocation {
-    /** The units present here whose name is one of [names]. */
-    fun units(names: Set<String>): List<SaveUnit>
-    /** The names of the games with entries here, read in one listing; some may hold no units. */
-    fun games(): Set<String>
+    /**
+     * The units here of the kinds in [kinds]: its keys, as `<savePath>.<kind>` anywhere under the
+     * root, and its values, as v1.4.0 and earlier kept them (`<v1 game>/<kind>` at the top).
+     */
+    fun units(kinds: Map<String, String>): List<SaveUnit>
+    /** The games here as v1.4.0 and earlier named them: top-level `k1-` names and content IDs. */
+    fun v1Games(): Set<String>
     fun exists(unit: SaveUnit): Boolean
     /** True when the unit holds no files, so there is nothing saved in it. */
     fun isEmpty(unit: SaveUnit): Boolean
@@ -27,36 +42,79 @@ interface SaveLocation {
     fun export(unit: SaveUnit, into: File)
     /** Replaces the unit with the contents of local directory [from]. */
     fun import(unit: SaveUnit, from: File)
+    /** Deletes the unit, and the folders above it that it leaves empty. */
     fun delete(unit: SaveUnit)
+    /** Deletes what is left of a game v1.4.0 and earlier named [game] ([v1Games]), once its units have moved. */
+    fun deleteV1Game(game: String)
 
     companion object {
-        private val SAFE = Regex("[A-Za-z0-9._-]+")
         private val UNSAFE_CHAR = Regex("[^A-Za-z0-9._-]")
+        /** A content ID as [contentIdName] stored it. */
+        private val CONTENT_ID_NAME = Regex("sha256-[a-z0-9-]+-v1_[0-9a-f]+")
 
         /** The directory a content ID's saves used before games had keys. */
         fun contentIdName(id: String): String = id.replace(UNSAFE_CHAR, "_").also {
             require(id.isNotBlank() && it != "." && it != "..") { "Invalid content ID" }
         }
 
+        /** Whether a top-level directory is a game as v1.4.0 and earlier named it. */
+        fun isV1Game(name: String) = GameKey.HASH_NAME.matches(name) || CONTENT_ID_NAME.matches(name)
+
+        /** The unit a directory at [path] is, by its name: `<game>.<kind>`, or one an interrupted import left as `.old`. */
+        internal fun unitAt(path: String, kinds: Set<String>): SaveUnit? {
+            val name = path.removeSuffix(".old")
+            return kinds.firstOrNull { name.endsWith(".$it") && name.length > it.length + 1 }
+                ?.let { SaveUnit(name.removeSuffix(".$it"), it) }
+        }
+
+        /** The segments of a path under a save root; none may step out of it. */
+        internal fun segments(path: String): List<String> = path.split('/').onEach(::requireSafe)
+
         internal fun requireSafe(name: String) =
-            require(name.matches(SAFE) && name != "." && name != "..") { "Unsafe save name: $name" }
+            require(name.isNotEmpty() && name != "." && name != ".." && '/' !in name && '\u0000' !in name) {
+                "Unsafe save name: $name"
+            }
+    }
+}
+
+/** Copies [from] to [into], which must not exist, with each file's time: a save keeps when it was saved. */
+private fun copyKeepingTimes(from: File, into: File) {
+    check(!into.exists()) { "Could not copy ${from.name}: ${into.name} already exists" }
+    for (source in from.walkTopDown()) {
+        val target = File(into, source.relativeTo(from).path)
+        if (source.isDirectory) check(target.isDirectory || target.mkdirs()) { "Could not create ${target.name}" }
+        else {
+            source.copyTo(target)
+            check(target.setLastModified(source.lastModified())) { "Could not keep the time of ${target.name}" }
+        }
     }
 }
 
 /** Saves under [root] in app storage. */
 class AppSaveLocation(val root: File) : SaveLocation {
-    fun directory(unit: SaveUnit): File {
-        SaveLocation.requireSafe(unit.game)
-        SaveLocation.requireSafe(unit.name)
-        return File(File(root, unit.game), unit.name)
+    fun directory(unit: SaveUnit): File = File(root, SaveLocation.segments(unit.path).joinToString(File.separator))
+
+    @Synchronized override fun units(kinds: Map<String, String>): List<SaveUnit> {
+        val found = LinkedHashSet<SaveUnit>()
+        fun walk(directory: File, prefix: String) {
+            for (child in directory.listFiles().orEmpty().filter { it.isDirectory }.sortedBy { it.name }) {
+                if (prefix.isEmpty() && SaveLocation.isV1Game(child.name)) {
+                    kinds.values.map { SaveUnit.v1(child.name, it) }
+                        .filterTo(found) { unit -> recover(unit); directory(unit).isDirectory }
+                    continue
+                }
+                val path = if (prefix.isEmpty()) child.name else "$prefix/${child.name}"
+                val unit = SaveLocation.unitAt(path, kinds.keys)
+                if (unit == null) walk(child, path)
+                else { recover(unit); if (directory(unit).isDirectory) found += unit }
+            }
+        }
+        walk(root, "")
+        return found.toList()
     }
 
-    @Synchronized override fun units(names: Set<String>): List<SaveUnit> =
-        root.listFiles().orEmpty().filter { it.isDirectory }.flatMap { game ->
-            names.map { SaveUnit(game.name, it) }.filter { unit -> recover(unit); directory(unit).isDirectory }
-        }
-
-    override fun games(): Set<String> = root.listFiles().orEmpty().filter { it.isDirectory }.map { it.name }.toSet()
+    override fun v1Games(): Set<String> =
+        root.listFiles().orEmpty().filter { it.isDirectory && SaveLocation.isV1Game(it.name) }.map { it.name }.toSet()
 
     @Synchronized override fun exists(unit: SaveUnit): Boolean { recover(unit); return directory(unit).isDirectory }
 
@@ -69,37 +127,49 @@ class AppSaveLocation(val root: File) : SaveLocation {
     @Synchronized override fun export(unit: SaveUnit, into: File) {
         recover(unit)
         val source = directory(unit)
-        check(source.isDirectory) { "Save ${unit.game}/${unit.name} is missing" }
+        check(source.isDirectory) { "Save ${unit.path} is missing" }
         check(!into.exists()) { "Export target already exists" }
-        check(source.copyRecursively(into)) { "Could not copy ${unit.game}/${unit.name}" }
+        copyKeepingTimes(source, into)
     }
 
     @Synchronized override fun import(unit: SaveUnit, from: File) {
         val target = directory(unit)
         recover(unit)
-        val stage = File(target.parentFile, "${unit.name}.moving")
-        val backup = File(target.parentFile, "${unit.name}.old")
+        val parent = target.parentFile!!
+        check(parent.isDirectory || parent.mkdirs()) { "Could not create the folder for ${unit.path}" }
+        val stage = File(parent, "${target.name}.moving")
+        val backup = File(parent, "${target.name}.old")
         check(!stage.exists() || stage.deleteRecursively()) { "Could not clear an incomplete save" }
-        check(from.copyRecursively(stage)) { "Could not copy ${unit.game}/${unit.name}" }
-        if (target.exists()) check(target.renameTo(backup)) { "Could not replace ${unit.game}/${unit.name}" }
+        copyKeepingTimes(from, stage)
+        if (target.exists()) check(target.renameTo(backup)) { "Could not replace ${unit.path}" }
         if (!stage.renameTo(target)) {
             // Put the old save back. If that fails too, recover() restores it on the next access.
             if (backup.exists()) backup.renameTo(target)
-            error("Could not store ${unit.game}/${unit.name}")
+            error("Could not store ${unit.path}")
         }
         check(!backup.exists() || backup.deleteRecursively()) { "Could not remove the replaced save" }
     }
 
+    @Synchronized override fun deleteV1Game(game: String) {
+        require(SaveLocation.isV1Game(game)) { "Not a v1 save name: $game" }
+        val directory = File(root, game)
+        check(!directory.exists() || directory.deleteRecursively()) { "Could not remove the earlier save folder $game" }
+    }
+
     @Synchronized override fun delete(unit: SaveUnit) {
         val target = directory(unit)
-        check(!target.exists() || target.deleteRecursively()) { "Could not delete ${unit.game}/${unit.name}" }
-        target.parentFile?.takeIf { it.list()?.isEmpty() == true }?.delete()
+        check(!target.exists() || target.deleteRecursively()) { "Could not delete ${unit.path}" }
+        var parent = target.parentFile
+        while (parent != null && parent != root && parent.list()?.isEmpty() == true) {
+            check(parent.delete()) { "Could not remove the empty folder ${parent.name}" }
+            parent = parent.parentFile
+        }
     }
 
     /** An interrupted import leaves `<name>.old`. Keep the new save if it exists, else restore the old one. */
     private fun recover(unit: SaveUnit) {
         val target = directory(unit)
-        val backup = File(target.parentFile, "${unit.name}.old")
+        val backup = File(target.parentFile, "${target.name}.old")
         if (!backup.exists()) return
         if (target.exists()) check(backup.deleteRecursively()) { "Could not remove an old save" }
         else check(backup.renameTo(target)) { "Could not restore an old save" }
@@ -108,25 +178,44 @@ class AppSaveLocation(val root: File) : SaveLocation {
 
 /** Saves in a folder the user chose through the storage access framework. */
 class FolderSaveLocation(private val resolver: ContentResolver, val tree: Uri) : SaveLocation {
-    @Synchronized override fun units(names: Set<String>): List<SaveUnit> =
-        children(root()).filter { (_, uri) -> isDirectory(uri) }.flatMap { (game, uri) ->
-            names.mapNotNull { name ->
-                SaveUnit(game, name).takeIf { recover(uri, name); children(uri)[name] != null }
+    /** A document in the folder; [modified] is when it was written, where the provider says. */
+    private class Child(val uri: Uri, val directory: Boolean, val modified: Long?)
+
+    @Synchronized override fun units(kinds: Map<String, String>): List<SaveUnit> {
+        val found = LinkedHashSet<SaveUnit>()
+        fun walk(directory: Uri, prefix: String) {
+            for ((name, child) in children(directory).toSortedMap()) {
+                if (!child.directory) continue
+                if (prefix.isEmpty() && SaveLocation.isV1Game(name)) {
+                    for (kind in kinds.values) {
+                        recover(child.uri, kind)
+                        if (children(child.uri)[kind]?.directory == true) found += SaveUnit.v1(name, kind)
+                    }
+                    continue
+                }
+                val path = if (prefix.isEmpty()) name else "$prefix/$name"
+                val unit = SaveLocation.unitAt(path, kinds.keys)
+                if (unit == null) walk(child.uri, path)
+                else if (find(unit) != null) found += unit
             }
         }
+        walk(root(), "")
+        return found.toList()
+    }
 
-    @Synchronized override fun games(): Set<String> = children(root()).keys
+    @Synchronized override fun v1Games(): Set<String> =
+        children(root()).filter { (name, child) -> child.directory && SaveLocation.isV1Game(name) }.keys
 
     @Synchronized override fun exists(unit: SaveUnit): Boolean = find(unit) != null
 
     @Synchronized override fun isEmpty(unit: SaveUnit): Boolean =
-        !hasFiles(checkNotNull(find(unit)) { "Save ${unit.game}/${unit.name} is missing" })
+        !hasFiles(checkNotNull(find(unit)) { "Save ${unit.path} is missing" })
 
     private fun hasFiles(directory: Uri): Boolean =
-        children(directory).values.any { !isDirectory(it) || hasFiles(it) }
+        children(directory).values.any { !it.directory || hasFiles(it.uri) }
 
     override fun savedAt(unit: SaveUnit): Long =
-        newest(checkNotNull(find(unit)) { "Save ${unit.game}/${unit.name} is missing" }, unit)
+        newest(checkNotNull(find(unit)) { "Save ${unit.path} is missing" }, unit)
 
     /** True when the unit exists and holds [file]. */
     @Synchronized fun has(unit: SaveUnit, file: String): Boolean = find(unit)?.let { children(it)[file] } != null
@@ -134,60 +223,78 @@ class FolderSaveLocation(private val resolver: ContentResolver, val tree: Uri) :
     /** One file of a unit, or null when the unit or file is absent. */
     @Synchronized fun read(unit: SaveUnit, file: String): ByteArray? =
         find(unit)?.let { children(it)[file] }?.let { document ->
-            checkNotNull(resolver.openInputStream(document)) { "Could not read $file" }.use { it.readBytes() }
+            checkNotNull(resolver.openInputStream(document.uri)) { "Could not read $file" }.use { it.readBytes() }
         }
 
     @Synchronized override fun export(unit: SaveUnit, into: File) {
-        val source = checkNotNull(find(unit)) { "Save ${unit.game}/${unit.name} is missing" }
+        val source = checkNotNull(find(unit)) { "Save ${unit.path} is missing" }
         check(!into.exists()) { "Export target already exists" }
         download(source, into)
     }
 
     @Synchronized override fun import(unit: SaveUnit, from: File) {
-        SaveLocation.requireSafe(unit.game)
-        SaveLocation.requireSafe(unit.name)
-        check(from.isDirectory) { "Nothing to store for ${unit.game}/${unit.name}" }
-        val root = root()
-        val game = children(root)[unit.game] ?: createDirectory(root, unit.game)
-        recover(game, unit.name)
-        val stageName = "${unit.name}.moving"
-        children(game)[stageName]?.let { check(delete(it)) { "Could not clear an incomplete save" } }
-        upload(from, createDirectory(game, stageName))
-        val backup = children(game)[unit.name]?.let {
-            DocumentsContract.renameDocument(resolver, it, "${unit.name}.old")
-                ?: error("Could not replace ${unit.game}/${unit.name}")
+        val segments = SaveLocation.segments(unit.path)
+        check(from.isDirectory) { "Nothing to store for ${unit.path}" }
+        val name = segments.last()
+        val parent = segments.dropLast(1).fold(root()) { directory, segment ->
+            children(directory)[segment]?.uri ?: createDirectory(directory, segment)
         }
-        val stage = checkNotNull(children(game)[stageName]) { "The staged save disappeared" }
+        recover(parent, name)
+        val stageName = "$name.moving"
+        children(parent)[stageName]?.let { check(delete(it.uri)) { "Could not clear an incomplete save" } }
+        upload(from, createDirectory(parent, stageName))
+        val backup = children(parent)[name]?.let {
+            DocumentsContract.renameDocument(resolver, it.uri, "$name.old")
+                ?: error("Could not replace ${unit.path}")
+        }
+        val stage = checkNotNull(children(parent)[stageName]) { "The staged save disappeared" }
         try {
-            checkNotNull(DocumentsContract.renameDocument(resolver, stage, unit.name)) {
-                "Could not store ${unit.game}/${unit.name}"
+            checkNotNull(DocumentsContract.renameDocument(resolver, stage.uri, name)) {
+                "Could not store ${unit.path}"
             }
         } catch (error: Exception) {
             // Put the old save back. If that fails too, recover() restores it on the next access.
-            backup?.let { DocumentsContract.renameDocument(resolver, it, unit.name) }
+            backup?.let { DocumentsContract.renameDocument(resolver, it, name) }
             throw error
         }
         backup?.let { check(delete(it)) { "Saved, but could not remove the replaced save" } }
     }
 
+    @Synchronized override fun deleteV1Game(game: String) {
+        require(SaveLocation.isV1Game(game)) { "Not a v1 save name: $game" }
+        children(root())[game]?.let { check(delete(it.uri)) { "Could not remove the earlier save folder $game" } }
+    }
+
     @Synchronized override fun delete(unit: SaveUnit) {
-        val game = children(root())[unit.game] ?: return
-        children(game)[unit.name]?.let { check(delete(it)) { "Could not delete ${unit.game}/${unit.name}" } }
-        if (children(game).isEmpty()) check(delete(game)) { "Could not remove the empty folder ${unit.game}" }
+        val segments = SaveLocation.segments(unit.path)
+        // The folders down to the unit, each with its parent, so the emptied ones can go too.
+        val chain = ArrayList<Uri>()
+        var directory = root()
+        for (segment in segments.dropLast(1)) {
+            directory = children(directory)[segment]?.uri ?: return
+            chain += directory
+        }
+        children(directory)[segments.last()]?.let { check(delete(it.uri)) { "Could not delete ${unit.path}" } }
+        for ((index, folder) in chain.withIndex().reversed()) {
+            if (children(folder).isNotEmpty()) break
+            check(delete(folder)) { "Could not remove the empty folder ${segments[index]}" }
+        }
     }
 
     private fun find(unit: SaveUnit): Uri? {
-        val game = children(root())[unit.game] ?: return null
-        recover(game, unit.name)
-        return children(game)[unit.name]
+        val segments = SaveLocation.segments(unit.path)
+        var directory = root()
+        for (segment in segments.dropLast(1)) directory = children(directory)[segment]?.uri ?: return null
+        recover(directory, segments.last())
+        return children(directory)[segments.last()]?.uri
     }
 
     /** An interrupted import leaves `<name>.old`. Keep the new save if it exists, else restore the old one. */
-    private fun recover(game: Uri, name: String) {
-        val entries = children(game)
+    private fun recover(parent: Uri, name: String) {
+        val entries = children(parent)
         val backup = entries["$name.old"] ?: return
-        if (entries.containsKey(name)) check(delete(backup)) { "Could not remove an old save" }
-        else checkNotNull(DocumentsContract.renameDocument(resolver, backup, name)) { "Could not restore an old save" }
+        if (entries.containsKey(name)) check(delete(backup.uri)) { "Could not remove an old save" }
+        else checkNotNull(DocumentsContract.renameDocument(resolver, backup.uri, name)) { "Could not restore an old save" }
     }
 
     private fun upload(from: File, into: Uri) {
@@ -210,23 +317,27 @@ class FolderSaveLocation(private val resolver: ContentResolver, val tree: Uri) :
         children(from).forEach { (name, document) ->
             SaveLocation.requireSafe(name)
             val target = File(into, name)
-            if (isDirectory(document)) download(document, target)
-            else checkNotNull(resolver.openInputStream(document)) { "Could not read $name" }.use { input ->
-                target.outputStream().use { output -> input.copyTo(output) }
+            if (document.directory) download(document.uri, target)
+            else {
+                checkNotNull(resolver.openInputStream(document.uri)) { "Could not read $name" }.use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+                // A save's time is when it was saved, not when it was copied.
+                document.modified?.let(target::setLastModified)
             }
         }
     }
 
     private fun newest(directory: Uri, unit: SaveUnit): Long = children(directory).values.maxOfOrNull { child ->
-        if (isDirectory(child)) newest(child, unit) else lastModified(child, unit)
+        if (child.directory) newest(child.uri, unit) else lastModified(child.uri, unit)
     } ?: lastModified(directory, unit)
 
     private fun lastModified(document: Uri, unit: SaveUnit): Long =
         checkNotNull(resolver.query(document, arrayOf(Document.COLUMN_LAST_MODIFIED), null, null, null)) {
-            "Could not read ${unit.game}/${unit.name}"
+            "Could not read ${unit.path}"
         }.use { cursor ->
             check(cursor.moveToFirst() && !cursor.isNull(0) && cursor.getLong(0) > 0) {
-                "The save folder does not report when ${unit.game}/${unit.name} was saved"
+                "The save folder does not report when ${unit.path} was saved"
             }
             cursor.getLong(0)
         }
@@ -234,18 +345,18 @@ class FolderSaveLocation(private val resolver: ContentResolver, val tree: Uri) :
     private fun root(): Uri = DocumentsContract.buildDocumentUriUsingTree(tree,
         DocumentsContract.getTreeDocumentId(tree))
 
-    private fun children(parent: Uri): Map<String, Uri> {
+    private fun children(parent: Uri): Map<String, Child> {
         val query = DocumentsContract.buildChildDocumentsUriUsingTree(tree, DocumentsContract.getDocumentId(parent))
-        return checkNotNull(resolver.query(query, arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME),
-            null, null, null)) { "Could not read the save folder" }.use { cursor ->
+        return checkNotNull(resolver.query(query, arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME,
+            Document.COLUMN_MIME_TYPE, Document.COLUMN_LAST_MODIFIED), null, null, null)) { "Could not read the save folder" }.use { cursor ->
             buildMap {
-                while (cursor.moveToNext()) put(cursor.getString(1),
-                    DocumentsContract.buildDocumentUriUsingTree(tree, cursor.getString(0)))
+                while (cursor.moveToNext()) put(cursor.getString(1), Child(
+                    DocumentsContract.buildDocumentUriUsingTree(tree, cursor.getString(0)),
+                    cursor.getString(2) == Document.MIME_TYPE_DIR,
+                    cursor.takeIf { !it.isNull(3) }?.getLong(3)?.takeIf { it > 0 }))
             }
         }
     }
-
-    private fun isDirectory(document: Uri) = resolver.getType(document) == Document.MIME_TYPE_DIR
 
     private fun createDirectory(parent: Uri, name: String): Uri =
         DocumentsContract.createDocument(resolver, parent, Document.MIME_TYPE_DIR, name)

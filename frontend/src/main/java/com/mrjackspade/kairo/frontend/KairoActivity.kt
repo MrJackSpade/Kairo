@@ -97,8 +97,20 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract val hashCount: Int
     /** Whether the game folder must be writable, as for games that save into it. */
     protected open val writableFolder: Boolean = false
-    /** Reads a file a frontend app sent, which need not be in the game folder. */
+    /**
+     * Reads a file a frontend app sent, which need not be in the game folder; its games' keys are
+     * [ExternalGameFile.key] and members of it.
+     */
     protected abstract fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean): List<E>
+    /** [entry], shown as unplayable for [message]. */
+    protected abstract fun withError(entry: E, message: String): E
+    /**
+     * Where the product kept a game's data under its v1 name in v1.4.0 and earlier, beside the
+     * save folder's units, which move to the game's path as the library loads (GamePathMigration).
+     */
+    protected open fun v1DataStores(): List<GamePathMigration.Store<E>> = emptyList()
+    /** True while the product's migration from before games had keys may still give a game data under its hash name. */
+    protected open val keyMigrationPending: Boolean get() = false
     /** The library loaded or a scan finished. */
     protected open fun libraryLoaded(entries: List<E>) {}
     /** A launch that opens the guest's command line instead of starting the game, when the product has one. */
@@ -200,10 +212,13 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract val firmware: MachineFirstRun.Firmware?
     /** Where first-run setup stopped: 0 before the folder, 1 at firmware, 2 done. */
     protected abstract var firstRunStep: Int
-    /** The save folder's units, its game titles and unit labels, and any work before saves move. */
-    protected abstract val saveUnits: Set<String>
+    /**
+     * The save folder's kinds of save, each with the kind v1.4.0 and earlier gave it (SaveUnit);
+     * a kind's label; and any work before saves move.
+     */
+    protected abstract val saveKinds: Map<String, String>
     protected abstract val appSaves: File
-    protected abstract fun saveUnitLabel(unit: String): String
+    protected abstract fun saveUnitLabel(kind: String): String
     protected open fun prepareSaveMove(progress: (String) -> Unit) {}
 
     /**
@@ -257,6 +272,30 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         library + externalEntries.filter { external -> library.none { it.id == external.id } }
     }
     protected val tree: Uri? get() = libraryFlow.tree
+
+    /** Data v1.4.0 and earlier stored under games' v1 names moves to their paths as the library loads (Kairo#57). */
+    private val pathMigration by lazy {
+        GamePathMigration(preferences, listOf<GamePathMigration.Store<E>>(
+            GamePathMigration.SaveUnitStore({ saveFolder.location }, saveKinds, ::saveUnitLabel, cacheDir,
+                File(filesDir, "game-path-migration-v2.txt"))) + v1DataStores(), { keyMigrationPending }) { conflicts ->
+            saveFolder.resolvePathConflicts(conflicts) { key ->
+                claimingPaths.firstOrNull { it.key == key }?.let(::titleOf) ?: key.path
+            }
+        }
+    }
+    /** The games a path migration is moving data to; the list is not published until it ends. */
+    @Volatile private var claimingPaths: List<E> = emptyList()
+
+    /**
+     * Moves the data [entries] had under v1 names to their paths; [from] is the v1 name of the key
+     * v1.4.0 gave an entry. An entry whose data did not move shows why.
+     */
+    private fun movedToPaths(entries: List<E>, from: (E) -> String = { it.key.hashName }): List<E> {
+        if (!pathMigration.pending) return entries
+        claimingPaths = entries
+        val errors = pathMigration.claim(entries.map { GamePathMigration.Claim(it, from(it)) })
+        return if (errors.isEmpty()) entries else entries.map { entry -> errors[entry.key]?.let { withError(entry, it) } ?: entry }
+    }
     protected val muted: Boolean get() = preferences.getBoolean("muted", false)
     /** Advances with each launch and each end of a session; work for an earlier one stops. */
     @Volatile protected var sessionGeneration = 0
@@ -313,7 +352,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             releaseOnFocusLoss = { releaseInputs(preserveAutomation = true) })
     }
     protected val saveFolder by lazy {
-        SaveFolderSettings(this, pages, preferences, AppSaveLocation(appSaves), saveUnits,
+        SaveFolderSettings(this, pages, preferences, AppSaveLocation(appSaves), saveKinds,
             ::saveTitle, ::saveUnitLabel,
             { if (currentEntry != null) "Return to the library to change the save folder." else null },
             ::prepareSaveMove)
@@ -430,8 +469,14 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** Whether the external file being opened came from a frontend app, rather than the player's pick in this app. */
     private var externalFromFrontend = true
     private val externalDispatcher by lazy {
-        ExternalGameDispatcher(this, contentResolver, { libraryEntries },
-            { entry: E -> Uri.parse(entry.uri) }, { entry: E -> entry.contentId }, ::inspectExternal,
+        ExternalGameDispatcher(this, contentResolver, { libraryEntries }, { tree },
+            { entry: E -> Uri.parse(entry.uri) }, ::inspectExternal,
+            { file, entries ->
+                // v1.4.0 keyed a game a frontend opened by the URI it sent (Kairo#56).
+                movedToPaths(entries) { entry ->
+                    (entry.zipEntry?.let { GameKey.inArchive(file.uri.toString(), it) } ?: GameKey(file.uri.toString())).hashName
+                }.onEach { it.error?.let(::error) }
+            },
             { entries, inspected ->
                 if (inspected) externalEntries = entries
                 chooseExternalGame(entries)
@@ -519,7 +564,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { launchFromLibrary(it, false) }, ::showDetailPreview, ::showGameDetails, ::showLibrarySelection,
             commandLaunch)
         libraryFlow = LibraryFlow(this, preferences, libraryPage, FOLDER_REQUEST,
-            ::cachedLibrary, ::scanLibrary, identity.emptyStatus, identity.expiredStatus,
+            { folder -> movedToPaths(cachedLibrary(folder)) },
+            { folder, depth, cancelled, progress -> movedToPaths(scanLibrary(folder, depth, cancelled, progress)) },
+            identity.emptyStatus, identity.expiredStatus,
             { entries -> LibraryScanSummary.format(entries, hashCount) },
             ::libraryLoaded,
             { _ ->
@@ -721,9 +768,10 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         setSound = { on -> if (on == muted) toggleMute() },
         about = { pages.push(aboutPage()) }))
 
-    /** A save folder's game name, as a library title when the game is still in the library. */
-    private fun saveTitle(game: String): String = libraryEntries.firstOrNull { it.key.storageName == game }
-        ?.let(::titleOf) ?: game
+    /** A save's game, as a library title when the game is still in the library, else where the save is. */
+    private fun saveTitle(unit: SaveUnit): String = libraryEntries.firstOrNull {
+        if (unit.v1) it.key.hashName == unit.game else it.key.savePath == unit.game
+    }?.let(::titleOf) ?: unit.game
 
     /** The game flyout: the game's own pages, settings, then leaving. */
     private fun gameFlyout() = SessionMenus.gameFlyout(identity.brand, identity.appName,

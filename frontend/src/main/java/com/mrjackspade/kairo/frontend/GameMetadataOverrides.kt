@@ -5,8 +5,9 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Atomic local overrides; preserves either flat or schema-v1 games packaging. Records are not
- * checked on load: one bad record must not hide every other override.
+ * Atomic local overrides, one record per game by its [GameKey.path]; preserves either flat or
+ * schema-v1 games packaging. Records are not checked on load: one bad record must not hide every
+ * other override.
  */
 class GameMetadataOverrides(
     private val file: File,
@@ -18,11 +19,11 @@ class GameMetadataOverrides(
     private val unreadable = loaded == null && exists()
 
     @Synchronized fun record(game: GameKey): JSONObject? =
-        games(values).optJSONObject(game.storageName)?.let { JSONObject(it.toString()) }
+        games(values).optJSONObject(game.path)?.let { JSONObject(it.toString()) }
 
     @Synchronized fun set(game: GameKey, field: String, value: Any?) = change { root ->
         val entries = games(root)
-        val id = game.storageName
+        val id = game.path
         val record = entries.optJSONObject(id) ?: JSONObject()
         if (value == null) record.remove(field) else record.put(field, value)
         if (record.length() == 0) entries.remove(id) else entries.put(id, record)
@@ -36,7 +37,7 @@ class GameMetadataOverrides(
         if (changes.isEmpty()) return
         change { root ->
             val entries = games(root)
-            val id = game.storageName
+            val id = game.path
             val record = entries.optJSONObject(id) ?: JSONObject()
             val nested = record.optJSONObject(field) ?: JSONObject()
             for ((subfield, value) in changes) {
@@ -49,7 +50,7 @@ class GameMetadataOverrides(
 
     @Synchronized fun clear(game: GameKey, field: String? = null) = change { root ->
         val entries = games(root)
-        val id = game.storageName
+        val id = game.path
         if (field == null) entries.remove(id)
         else entries.optJSONObject(id)?.let { record ->
             record.remove(field)
@@ -59,22 +60,37 @@ class GameMetadataOverrides(
 
     /** Records from before games had keys, named by content ID. */
     @Synchronized fun contentIdRecords(): Set<String> =
-        games(values).keys().asSequence().filterNot { it.startsWith(GameKey.STORAGE_PREFIX) }.toSet()
+        games(values).keys().asSequence().filter { CONTENT_ID.matches(it) }.toSet()
+
+    /** Records v1.4.0 and earlier named by a game's [GameKey.hashName]. */
+    @Synchronized fun v1Records(): Set<String> =
+        games(values).keys().asSequence().filter { GameKey.HASH_NAME.matches(it) }.toSet()
+
+    /**
+     * Moves the record v1.4.0 and earlier kept under [hashName] to [to], in one write. A record [to]
+     * already has is kept, and the earlier one is dropped.
+     */
+    @Synchronized fun moveV1Record(hashName: String, to: GameKey) = change { root ->
+        val entries = games(root)
+        val record = entries.optJSONObject(hashName) ?: return@change
+        if (entries.optJSONObject(to.path) == null) entries.put(to.path, record)
+        entries.remove(hashName)
+    }
 
     /** Gives each of [games] a copy of [contentId]'s record, then removes that record, in one write. */
     @Synchronized fun moveContentIdRecord(contentId: String, games: Collection<GameKey>) = change { root ->
         val entries = games(root)
         val record = entries.optJSONObject(contentId) ?: return@change
-        for (game in games) entries.put(game.storageName, JSONObject(record.toString()))
+        for (game in games) entries.put(game.path, JSONObject(record.toString()))
         entries.remove(contentId)
     }
 
     /** Moves a game's record to another key, as when an installer becomes its installed game. */
     @Synchronized fun move(from: GameKey, to: GameKey) = change { root ->
         val entries = games(root)
-        val record = entries.optJSONObject(from.storageName) ?: return@change
-        entries.put(to.storageName, record)
-        entries.remove(from.storageName)
+        val record = entries.optJSONObject(from.path) ?: return@change
+        entries.put(to.path, record)
+        entries.remove(from.path)
     }
 
     private fun change(update: (JSONObject) -> Unit) {
@@ -99,6 +115,10 @@ class GameMetadataOverrides(
             atomic.failWrite(stream)
             throw failure
         }
+    }
+
+    private companion object {
+        val CONTENT_ID = Regex("sha256-[a-z0-9-]+-v1:[0-9a-f]+")
     }
 
     private fun games(root: JSONObject): JSONObject =

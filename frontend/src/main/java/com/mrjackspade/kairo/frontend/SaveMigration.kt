@@ -7,10 +7,10 @@ import java.io.File
  * conflict the user resolves before anything moves.
  */
 class SaveMigration(private val from: SaveLocation, private val to: SaveLocation,
-                    private val names: Set<String>, private val staging: File) {
+                    private val kinds: Map<String, String>, private val staging: File) {
     class Conflict(val unit: SaveUnit, val currentSavedAt: Long, val newSavedAt: Long)
 
-    private fun saves() = from.units(names).filter { !from.isEmpty(it) }
+    private fun saves() = from.units(kinds).filter { !from.isEmpty(it) }
     private fun inDestination(unit: SaveUnit) = to.exists(unit) && !to.isEmpty(unit)
 
     fun conflicts(): List<Conflict> = saves().filter(::inDestination).map {
@@ -40,8 +40,8 @@ class SaveMigration(private val from: SaveLocation, private val to: SaveLocation
             throw error
         }
         switch()
-        for (unit in from.units(names)) try { from.delete(unit) } catch (error: Exception) {
-            throw IllegalStateException("Saves moved, but the old copy of ${unit.game}/${unit.name} " +
+        for (unit in from.units(kinds)) try { from.delete(unit) } catch (error: Exception) {
+            throw IllegalStateException("Saves moved, but the old copy of ${unit.path} " +
                 "could not be removed: ${error.message}", error)
         }
     }

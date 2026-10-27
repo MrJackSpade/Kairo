@@ -10,12 +10,12 @@ class HexTest {
         assertEquals(bytes.joinToString("") { "%02x".format(it) }, bytes.toHex())
     }
 
-    /** Saves, settings and working copies are named by storageName: it must not change. */
-    @Test fun storageNameIsUnchanged() {
+    /** v1.4.0 named saves, settings and working copies by hashName, and DOS working files still are: it must not change. */
+    @Test fun hashNameIsUnchanged() {
         for (path in listOf("MSAFILES/OOZE.MSA", "Games/Gauntlet II (1987)(U.S. Gold)(Disk 1 of 2).zip/GAUNT.ST", "", "ä/ü.st")) {
-            val before = GameKey.STORAGE_PREFIX + MessageDigest.getInstance("SHA-256")
+            val before = GameKey.HASH_PREFIX + MessageDigest.getInstance("SHA-256")
                 .digest(path.toByteArray(Charsets.UTF_8)).take(16).joinToString("") { "%02x".format(it) }
-            assertEquals(before, GameKey(path).storageName)
+            assertEquals(before, GameKey(path).hashName)
         }
     }
 }
