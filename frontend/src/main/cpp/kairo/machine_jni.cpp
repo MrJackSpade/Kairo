@@ -54,7 +54,7 @@ public:
     void mouse_button(int button, bool down) override { core_->mouse_button(button, down); }
     int locks() override { return core_->locks(); }
     // While a line goes in, so typing does not take the guest's real time.
-    bool booting() override { return core_->booting() || typer_.typing(); }
+    bool loading() override { return core_->loading() || typer_.typing(); }
     std::string details() override { return core_->details(); }
     void reset() override { core_->reset(); }
     int save_state(const std::string &directory) override { return core_->save_state(directory); }

@@ -317,7 +317,7 @@ private:
             // of real time so audio starves once the input stops.
             const auto started = std::chrono::steady_clock::now();
             if (started < next_frame) continue;
-            const bool flat_out = fast_forward_.load(std::memory_order_relaxed) || core->booting();
+            const bool flat_out = fast_forward_.load(std::memory_order_relaxed) || core->loading();
             if (audio && was_flat_out && !flat_out) audio->trim_to_target();
             was_flat_out = flat_out;
             pacing.frame_started(started, started - next_frame);
@@ -338,9 +338,9 @@ private:
             if (audio) pacing.queued(audio->queued());
             {
                 std::string details = core->details();
-                // Whether the core still loads flat out (MachineCore::booting), as the UI tests
-                // read it ("core.booting") before timing the game.
-                if (core->booting()) details += details.empty() ? "booting=1" : ";booting=1";
+                // Whether the core still loads flat out (MachineCore::loading), as the UI tests
+                // read it ("core.loading") before timing the game.
+                if (core->loading()) details += details.empty() ? "loading=1" : ";loading=1";
                 std::lock_guard<std::mutex> guard(command_mutex_);
                 ++frames_;
                 details_.swap(details);
@@ -357,8 +357,8 @@ private:
                 static_cast<int64_t>(core->frame_seconds() * 1e9 * pace));
             const auto now = std::chrono::steady_clock::now();
             pacing.frame_done(now, 1.0 / core->frame_seconds(), audio ? earlier_underruns + audio->underruns() : 0,
-                              fast_forward_.load(std::memory_order_relaxed) || core->booting());
-            if (fast_forward_.load(std::memory_order_relaxed) || core->booting()) next_frame = now;
+                              fast_forward_.load(std::memory_order_relaxed) || core->loading());
+            if (fast_forward_.load(std::memory_order_relaxed) || core->loading()) next_frame = now;
             else if (now - next_frame > kFrameStall) next_frame = now;
             if (audio && audio->lost_error() != AAUDIO_OK) {
                 __android_log_print(ANDROID_LOG_ERROR, "KairoMachine", "audio stream stopped with %s; reopening",

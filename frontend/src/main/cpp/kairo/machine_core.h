@@ -72,8 +72,9 @@ public:
     virtual void mouse_button(int button, bool down) = 0;
     // The lock keys the guest has on, one bit each in the order the product's NativeMachine lists them.
     virtual int locks() { return 0; }
-    // True while the guest boots, which then runs as fast as the host can, as in fast-forward.
-    virtual bool booting() { return false; }
+    // True while the guest boots or loads from its media (a drive or tape motor running, a CD
+    // read), which then runs as fast as the host can, as in fast-forward (Kairo#82).
+    virtual bool loading() { return false; }
     // What the core reports of itself for tests and diagnostics, as name=value pairs separated by
     // ';', such as "tape=1200/25650"; names and values hold neither ';', '=' nor '|'. Read after
     // every frame on the emulation thread, so keep it cheap.

@@ -145,7 +145,7 @@ abstract class ControllerTests : KairoUiTest() {
         screens.closeMenu()
         // A game that still loads already runs flat out (MachineCore::booting), so fast-forward
         // shows only once its load is done.
-        driver.waitUntil("the game to finish loading") { driver.probeNow().details["core.booting"] != "1" }
+        driver.waitUntil("the game to finish loading") { driver.probeNow().details["core.loading"] != "1" }
         val normal = frameRate(2000)
         val fast = frameRate(2000, KeyEvent.KEYCODE_BUTTON_R1)
         driver.log.step("measure", "%.1f frames a second normally, %.1f with R1 held".format(normal, fast))
