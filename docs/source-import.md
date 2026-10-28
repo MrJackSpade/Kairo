@@ -2,7 +2,7 @@
 
 The frontend code originated in the first-party [Kairo98](https://github.com/MrJackSpade/Kairo98) project. Kairo98 and [KairoDos](https://github.com/MrJackSpade/KairoDos) consume pinned commits of this repository. No emulator core is vendored here.
 
-The Spleen 8x16 BDF and BSD-2-Clause license in `third_party/spleen/` come from upstream commit `57f9219328c9f5873085320fe8bc8f7dd34b8791`. `tools/generate_ui_pixel_font.py` produces the UI font asset from the pinned ASCII table.
+The Spleen 8x16 BDF and BSD-2-Clause license in `third_party/spleen/` come from upstream commit `57f9219328c9f5873085320fe8bc8f7dd34b8791`. `third_party/unifont/unifont_all-17.0.05.hex.gz` is GNU Unifont 17.0.05 from https://ftp.gnu.org/gnu/unifont/unifont-17.0.05/ (SHA-256 `7b182454966046d35482469b979edce7d262fab5c53c2180e9b1fbb5d0b5e574`), with the `OFL-1.1.txt` from that release's source archive. `tools/generate_ui_pixel_font.py` produces the UI font asset from Spleen's BDF and, for the blocks Spleen lacks (kana, CJK, Hangul, full-width forms), Unifont.
 
 The Gradle 8.13 wrapper JAR has SHA-256 `81a82aaea5abcc8ff68b3dfcb58b3c3c429378efd98e7433460610fecd7ae45f`, matching [Gradle's checksum list](https://gradle.org/release-checksums/). The Apache-2.0 license and notices are preserved in `third_party/gradle-wrapper/LICENSE`.
 

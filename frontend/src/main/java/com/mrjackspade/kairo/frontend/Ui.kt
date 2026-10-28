@@ -334,18 +334,25 @@ class SpinnerView(context: Context, private val stroke: Int) : View(context) {
 }
 
 /**
- * Draws ASCII text in the pinned Spleen 8x16 bitmap font at a whole-pixel scale.
+ * Draws text in the UI's bitmap font ([PixelFont]) at a whole-pixel scale. Right-to-left text,
+ * such as Arabic, whose letters join and run from the right, is drawn in the system font instead,
+ * at the same height.
  */
 class PixelTextView(context: Context) : View(context) {
     var text: String = ""
         set(value) {
-            // The font covers printable ASCII; spell out the few symbols labels use.
+            // Labels spell these symbols the way they always have in this font.
             field = value.replace("→", "->").replace("·", "-").replace("…", "...")
+            rightToLeft = field.any {
+                val direction = Character.getDirectionality(it)
+                direction == Character.DIRECTIONALITY_RIGHT_TO_LEFT || direction == Character.DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC
+            }
             requestLayout()
             invalidate()
         }
+    private var rightToLeft = false
     var color: Int = Ui.TEXT
-        set(value) { field = value; paint.color = value; invalidate() }
+        set(value) { field = value; paint.color = value; systemPaint.color = value; invalidate() }
     /** A product name such as KAIRO88: "KAIRO" in [color], the rest in the app's [Ui.brandAccent]. */
     var brand: Boolean = false
         set(value) {
@@ -359,43 +366,52 @@ class PixelTextView(context: Context) : View(context) {
 
     private val paint = Paint().apply { color = Ui.TEXT }
     private val accentPaint = Paint()
+    private val font = PixelFont.of(context)
+    /** The system font, for right-to-left text: its letters stand as tall as the bitmap font's capitals. */
+    private val systemPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Ui.TEXT
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+    }
     private val pixel: Int get() = max(1, (scale * resources.displayMetrics.density).roundToInt())
 
+    private fun textWidth(): Float = if (rightToLeft) {
+        systemPaint.textSize = SYSTEM_TEXT_SIZE * pixel
+        systemPaint.measureText(text)
+    } else text.codePoints().toArray().sumOf { font.glyph(it).width }.toFloat() * pixel
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val width = paddingLeft + paddingRight + text.length * GLYPH_WIDTH * pixel
-        val height = paddingTop + paddingBottom + GLYPH_HEIGHT * pixel
+        val width = paddingLeft + paddingRight + kotlin.math.ceil(textWidth()).toInt()
+        val height = paddingTop + paddingBottom + PixelFont.HEIGHT * pixel
         setMeasuredDimension(resolveSize(width, widthMeasureSpec), resolveSize(height, heightMeasureSpec))
     }
 
     override fun onDraw(canvas: Canvas) {
-        val glyphs = glyphs(context) ?: return
         val size = pixel.toFloat()
-        text.forEachIndexed { index, character ->
-            val code = character.code.takeIf { it in 32..126 } ?: '?'.code
+        if (rightToLeft) {
+            systemPaint.textSize = SYSTEM_TEXT_SIZE * size
+            canvas.drawText(text, paddingLeft.toFloat(), paddingTop + BASELINE * size, systemPaint)
+            return
+        }
+        var originX = paddingLeft.toFloat()
+        text.codePoints().toArray().forEachIndexed { index, code ->
+            val glyph = font.glyph(code)
             val glyphPaint = if (brand && index >= BRAND_PREFIX.length) accentPaint else paint
-            val originX = paddingLeft + index * GLYPH_WIDTH * size
-            for (row in 0 until GLYPH_HEIGHT) {
-                val bits = glyphs[(code - 32) * GLYPH_HEIGHT + row].toInt() and 0xff
-                if (bits == 0) continue
+            for (row in 0 until PixelFont.HEIGHT) {
                 val top = paddingTop + row * size
-                for (column in 0 until GLYPH_WIDTH) {
-                    if (bits and (0x80 shr column) != 0)
+                for (column in 0 until glyph.width) {
+                    if (glyph.bits(row, column))
                         canvas.drawRect(originX + column * size, top, originX + (column + 1) * size, top + size, glyphPaint)
                 }
             }
+            originX += glyph.width * size
         }
     }
 
     companion object {
         /** The part of every product name drawn in [color]; the rest is the app's accent. */
         private const val BRAND_PREFIX = "KAIRO"
-        private const val GLYPH_WIDTH = 8
-        private const val GLYPH_HEIGHT = 16
-        @Volatile private var table: ByteArray? = null
-
-        private fun glyphs(context: Context): ByteArray? = table ?: try {
-            context.assets.open("ui/spleen-8x16-ascii.bin").use { it.readBytes() }
-                .takeIf { it.size == 95 * GLYPH_HEIGHT }?.also { table = it }
-        } catch (_: Exception) { null }
+        /** The system font's size and baseline, in font pixels, matching Spleen's 12-pixel ascent. */
+        private const val SYSTEM_TEXT_SIZE = 13f
+        private const val BASELINE = 12f
     }
 }
