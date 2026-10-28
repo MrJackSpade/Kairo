@@ -134,8 +134,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override val installedCatalogs: InstalledCatalogs get() = catalog.installedCatalogs
     override fun titleOf(entry: E) = catalog.resolve(entry).title
 
-    private val systemBindings by lazy { bindingsCodec.parse(catalog.systemControllerBindings().toString()) }
-    override fun systemControllerBindings() = systemBindings
+    // Read each time: a catalog update can bring a new system mapping while the app runs.
+    override fun systemControllerBindings() = bindingsCodec.parse(catalog.systemControllerBindings().toString())
 
     override fun catalogControllerLayer(entry: E): List<ControllerBinding> {
         if (entry.contentId == null) return emptyList()

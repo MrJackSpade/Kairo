@@ -500,9 +500,13 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
 
     private fun readAsset(path: String): JSONObject = parts.read(path.removePrefix("catalog/"))
 
-    /** The system's controller mapping from the catalog's system definition (system-v1.json). */
-    fun systemControllerBindings(): org.json.JSONArray =
-        readAsset("catalog/$SYSTEM_DOCUMENT").getJSONObject("controller").getJSONArray("bindings")
+    /**
+     * The system's controller mapping from the catalog's system definition (system-v1.json): the
+     * downloaded update's when it has one, so a corrected mapping reaches players without a new
+     * build (Kairo#55), else the shipped one. Games' own mappings layer over it as their records do.
+     */
+    @Synchronized fun systemControllerBindings(): org.json.JSONArray =
+        (updated(SYSTEM_DOCUMENT) ?: readAsset("catalog/$SYSTEM_DOCUMENT")).getJSONObject("controller").getJSONArray("bindings")
 
     private fun normalizedName(fileName: String): String {
         val simple = fileName.substringAfterLast('/').substringAfterLast('\\')
