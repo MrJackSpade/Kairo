@@ -90,6 +90,8 @@
     <string name="kairo_help_physical_keyboard">Physical keyboard</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <string name="kairo_help_physical_keyboard_how">Types into the %1$s while the menu is closed</string>
+    <string name="kairo_help_second_screen">Second screen</string>
+    <string name="kairo_help_second_screen_how">On dual-screen devices, the keyboard appears on the other screen</string>
     <string name="kairo_help_home_key">Android reserves the system Home key.</string>
 
     <string name="kairo_diagnostics">Diagnostics</string>

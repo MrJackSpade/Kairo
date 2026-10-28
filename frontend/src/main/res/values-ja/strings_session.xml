@@ -158,6 +158,10 @@
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: Types into the %1$s while the menu is closed -->
     <string name="kairo_help_physical_keyboard_how">メニューを閉じている間は %1$s に入力されます</string>
+    <!-- EN: Second screen -->
+    <string name="kairo_help_second_screen">セカンド画面</string>
+    <!-- EN: On dual-screen devices, the keyboard appears on the other screen -->
+    <string name="kairo_help_second_screen_how">2画面のデバイスでは、もう一方の画面にキーボードが表示されます</string>
     <!-- EN: Android reserves the system Home key. -->
     <string name="kairo_help_home_key">システムのホームキーは Android が使用します。</string>
     <!-- EN: Diagnostics -->

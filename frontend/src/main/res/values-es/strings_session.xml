@@ -158,6 +158,10 @@
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: Types into the %1$s while the menu is closed -->
     <string name="kairo_help_physical_keyboard_how">Escribe en el %1$s mientras el menú está cerrado</string>
+    <!-- EN: Second screen -->
+    <string name="kairo_help_second_screen">Segunda pantalla</string>
+    <!-- EN: On dual-screen devices, the keyboard appears on the other screen -->
+    <string name="kairo_help_second_screen_how">En dispositivos con dos pantallas, el teclado aparece en la otra pantalla</string>
     <!-- EN: Android reserves the system Home key. -->
     <string name="kairo_help_home_key">Android reserva la tecla Inicio del sistema.</string>
     <!-- EN: Diagnostics -->

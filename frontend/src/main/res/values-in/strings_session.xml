@@ -158,6 +158,10 @@
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: Types into the %1$s while the menu is closed -->
     <string name="kairo_help_physical_keyboard_how">Mengetik ke %1$s saat menu ditutup</string>
+    <!-- EN: Second screen -->
+    <string name="kairo_help_second_screen">Layar kedua</string>
+    <!-- EN: On dual-screen devices, the keyboard appears on the other screen -->
+    <string name="kairo_help_second_screen_how">Pada perangkat dua layar, keyboard muncul di layar lainnya</string>
     <!-- EN: Android reserves the system Home key. -->
     <string name="kairo_help_home_key">Android mencadangkan tombol Beranda sistem.</string>
     <!-- EN: Diagnostics -->

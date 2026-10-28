@@ -204,10 +204,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** More of the flyout's status line after the state, such as the media in the machine. */
     protected open fun sessionDetails(): List<String> = emptyList()
     protected open fun diagnosticsRows(running: Boolean): List<SettingsRow> = emptyList()
-    protected open val aboutHelp: List<Pair<String, String>> get() = listOf(
+    private val aboutHelp: List<Pair<String, String>> get() = listOf(
         getString(R.string.kairo_help_open_menu) to getString(R.string.kairo_help_open_menu_how),
         getString(R.string.kairo_help_open_keyboard) to getString(R.string.kairo_help_open_keyboard_how),
-        getString(R.string.kairo_help_physical_keyboard) to getString(R.string.kairo_help_physical_keyboard_how, identity.guestName))
+        getString(R.string.kairo_help_physical_keyboard) to getString(R.string.kairo_help_physical_keyboard_how, identity.guestName),
+        getString(R.string.kairo_help_second_screen) to getString(R.string.kairo_help_second_screen_how))
     /** First-run step 2, or null for an app with no firmware to import. */
     protected abstract val firmware: MachineFirstRun.Firmware?
     /** Where first-run setup stopped: 0 before the folder, 1 at firmware, 2 done. */
