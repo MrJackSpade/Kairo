@@ -70,6 +70,8 @@ android {
     buildTypes {
         debug {
             if (signed) signingConfig signingConfigs.kairo
+            // en-XA and ar-XB on a test device show which text is not yet read from string resources.
+            pseudoLocalesEnabled true
         }
         release {
             minifyEnabled false
