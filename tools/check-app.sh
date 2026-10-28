@@ -3,7 +3,8 @@
 # shared build and release workflows (app-build.yml, app-release.yml): the shared .gitattributes,
 # the README's shared blocks, the catalog and artwork of an app on the shared catalog
 # (tools/catalog_config.py), the published catalog's audit (adult artwork and descriptions kept out
-# of the main catalog), and the app's own checks and build preparation, tools/checks.sh.
+# of the main catalog), the third-party notices (tools/notices_sources.py), and the app's own checks
+# and build preparation, tools/checks.sh.
 set -e
 if ! cmp -s shared/app/gitattributes .gitattributes; then
     echo '.gitattributes differs from shared/app/gitattributes; copy it' >&2
@@ -15,6 +16,7 @@ if [ -f tools/catalog_config.py ]; then
     python3 shared/tools/fetch_artwork.py . --check
 fi
 python3 shared/tools/audit_core_catalog.py
+python3 shared/tools/notices.py . --check
 if [ -f tools/checks.sh ]; then
     sh tools/checks.sh
 fi
