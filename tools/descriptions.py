@@ -17,6 +17,11 @@
   descriptions.py translate <app root> <language> <batch.json> [--adult]
       Merge {"<game key>": "translation"} into catalog/research/descriptions[-adult]-<language>-v1.json.
       Each key must have that English description and no translation yet.
+  descriptions.py revise <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
+      Up to N translations, after game key KEY, that still write words in Latin letters, as
+      {"<game key>": {"en": "English", "current": "translation"}}, for a pass that rewrites them.
+  descriptions.py translate <app root> <language> <batch.json> --replace [--adult]
+      Replace existing translations with {"<game key>": "translation"}; each key must be translated.
 
 Run research.py afterwards to carry the descriptions into games-v1.json.
 """
@@ -121,7 +126,18 @@ def pending(root, language, output, adult, limit):
     print(f"{len(batch)} of {len(left)} untranslated ({len(done)} of {len(english)} done) -> {output}")
 
 
-def translate(root, language, batch_path, adult):
+def revise(root, language, output, adult, limit, after):
+    source, target = translation_paths(root, language, adult)
+    english = read(source, {"descriptions": {}})["descriptions"]
+    done = read(target, {"descriptions": {}})["descriptions"]
+    latin = {key: text for key, text in sorted(done.items()) if re.search(r"[A-Za-z]", text)}
+    left = [key for key in latin if after is None or key > after]
+    batch = {key: {"en": english[key], "current": latin[key]} for key in (left[:limit] if limit else left)}
+    output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(f"{len(batch)} of {len(left)} left after {after} ({len(latin)} of {len(done)} use Latin letters) -> {output}")
+
+
+def translate(root, language, batch_path, adult, replace=False):
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
     document = read(target, {"schemaVersion": 1, "descriptions": {}})
@@ -129,14 +145,17 @@ def translate(root, language, batch_path, adult):
     for key, text in batch.items():
         if key not in english:
             raise SystemExit(f"{key} has no English description in {source.name}")
-        if key in document["descriptions"]:
+        if replace and key not in document["descriptions"]:
+            raise SystemExit(f"{key} has no translation in {target.name} to replace")
+        if not replace and key in document["descriptions"]:
             raise SystemExit(f"{key} is already translated in {target.name}")
         if not isinstance(text, str) or not 0 < len(text.strip()) <= MAX_TRANSLATION or text != text.strip():
             raise SystemExit(f"{key}: a translation must be 1-{MAX_TRANSLATION} characters without outer spaces")
     document["descriptions"].update(batch)
     document["descriptions"] = dict(sorted(document["descriptions"].items()))
     target.write_text(json.dumps(document, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    print(f"{len(batch)} added; {len(document['descriptions'])} of {len(english)} translated into {language}")
+    print(f"{len(batch)} {'replaced' if replace else 'added'}; "
+          f"{len(document['descriptions'])} of {len(english)} translated into {language}")
 
 
 def main():
@@ -161,6 +180,14 @@ def main():
     done.add_argument("language")
     done.add_argument("batch", type=Path)
     done.add_argument("--adult", action="store_true")
+    done.add_argument("--replace", action="store_true")
+    redo = commands.add_parser("revise")
+    redo.add_argument("root", type=Path)
+    redo.add_argument("language")
+    redo.add_argument("output", type=Path)
+    redo.add_argument("--adult", action="store_true")
+    redo.add_argument("--limit", type=int)
+    redo.add_argument("--after")
     args = parser.parse_args()
     if args.command == "worklist":
         worklist(args.root.resolve(), args.output, args.mobygames, args.limit)
@@ -168,8 +195,10 @@ def main():
         add(args.root.resolve(), args.batch)
     elif args.command == "pending":
         pending(args.root.resolve(), args.language, args.output, args.adult, args.limit)
+    elif args.command == "revise":
+        revise(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.after)
     else:
-        translate(args.root.resolve(), args.language, args.batch, args.adult)
+        translate(args.root.resolve(), args.language, args.batch, args.adult, args.replace)
 
 
 if __name__ == "__main__":
