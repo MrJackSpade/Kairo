@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Japanese (ja): the translation of values/strings_saves.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
+<resources>
+    <!-- EN: Save folder -->
+    <string name="kairo_saves_folder">Save folder</string>
+    <!-- EN: Private app storage -->
+    <string name="kairo_saves_private">Private app storage</string>
+    <!-- EN: Custom folder -->
+    <string name="kairo_saves_custom_folder">Custom folder</string>
+    <!-- EN: Access to the save folder was lost. Choose it again in Configurations › Save folder. -->
+    <string name="kairo_saves_access_lost">Access to the save folder was lost. Choose it again in Configurations › Save folder.</string>
+    <!-- EN: Could not remember the save folder -->
+    <string name="kairo_saves_remember_failed">Could not remember the save folder</string>
+    <!-- EN: Checking saves… -->
+    <string name="kairo_saves_checking">Checking saves…</string>
+    <!-- Why the save folder could not change (or kairo_saves_storage_error). -->
+    <!-- EN: Could not change the save folder: %1$s -->
+    <string name="kairo_saves_change_failed">Could not change the save folder: %1$s</string>
+    <!-- EN: storage error -->
+    <string name="kairo_saves_storage_error">storage error</string>
+    <!-- EN: Moving saves… -->
+    <string name="kairo_saves_moving">Moving saves…</string>
+    <!-- Saves moved, then saves to move. -->
+    <!-- EN: Moving %1$d of %2$d… -->
+    <string name="kairo_saves_moving_count">Moving %1$d of %2$d…</string>
+    <!-- EN: Save folder changed -->
+    <string name="kairo_saves_folder_changed">Save folder changed</string>
+    <!-- Why the saves could not move (or kairo_saves_storage_error). -->
+    <!-- EN: Could not move saves: %1$s -->
+    <string name="kairo_saves_move_failed">Could not move saves: %1$s</string>
+    <!-- EN: Save folder not changed -->
+    <string name="kairo_saves_folder_unchanged">Save folder not changed</string>
+    <!-- Saves in two places: the player keeps one copy of each. -->
+    <!-- EN: New folder -->
+    <string name="kairo_saves_new_folder">New folder</string>
+    <!-- EN: Current -->
+    <string name="kairo_saves_current">Current</string>
+    <!-- The game's title, then which save it is, such as Slot 1. -->
+    <!-- EN: %1$s · %2$s -->
+    <string name="kairo_saves_conflict_title">%1$s · %2$s</string>
+    <!-- EN: Move saves -->
+    <string name="kairo_saves_move">Move saves</string>
+    <!-- EN: Keep saves -->
+    <string name="kairo_saves_keep">Keep saves</string>
+    <!-- EN: Earlier version -->
+    <string name="kairo_saves_earlier_version">Earlier version</string>
+    <!-- EN: This version -->
+    <string name="kairo_saves_this_version">This version</string>
+    <!-- EN: From the library -->
+    <string name="kairo_saves_from_library">From the library</string>
+    <!-- EN: Opened from another app -->
+    <string name="kairo_saves_from_other_app">Opened from another app</string>
+    <!-- EN: Saves were not moved; choose which to keep the next time the library opens -->
+    <string name="kairo_saves_not_moved">Saves were not moved; choose which to keep the next time the library opens</string>
+    <!-- EN: Choose -->
+    <string name="kairo_saves_choose">Choose</string>
+    <!-- EN: Save conflicts -->
+    <string name="kairo_saves_conflicts">Save conflicts</string>
+    <!-- EN: KEEP -->
+    <string name="kairo_saves_keep_group">KEEP</string>
+    <!-- EN: Choose which save to keep for each game. -->
+    <string name="kairo_saves_choose_each">Choose which save to keep for each game.</string>
+    <!-- Why a game's data from an earlier version did not move to it. -->
+    <!-- EN: Saved data from an earlier version did not move: %1$s -->
+    <string name="kairo_migration_failed">Saved data from an earlier version did not move: %1$s</string>
+    <!-- Save states. -->
+    <!-- EN: Save state -->
+    <string name="kairo_state_save">Save state</string>
+    <!-- EN: Load state -->
+    <string name="kairo_state_load">Load state</string>
+    <!-- Why the slots could not be read (or kairo_saves_storage_error). -->
+    <!-- EN: Could not open save states: %1$s -->
+    <string name="kairo_state_open_failed">Could not open save states: %1$s</string>
+    <!-- The emulator's or storage's reason. -->
+    <!-- EN: Save failed: %1$s -->
+    <string name="kairo_state_save_failed">Save failed: %1$s</string>
+    <!-- EN: Saved to slot %1$d -->
+    <string name="kairo_state_saved">Saved to slot %1$d</string>
+    <!-- EN: Loaded slot %1$d -->
+    <string name="kairo_state_loaded">Loaded slot %1$d</string>
+    <!-- The emulator's or storage's reason. -->
+    <!-- EN: Load failed: %1$s -->
+    <string name="kairo_state_load_failed">Load failed: %1$s</string>
+    <!-- A slot's number, then when it was saved. -->
+    <!-- EN: Slot %1$d, %2$s -->
+    <string name="kairo_state_slot_saved_at">Slot %1$d, %2$s</string>
+    <!-- EN: Slot %1$d, empty -->
+    <string name="kairo_state_slot_empty">Slot %1$d, empty</string>
+    <!-- EN: This slot is empty -->
+    <string name="kairo_state_slot_is_empty">This slot is empty</string>
+    <!-- When the slot was saved. -->
+    <!-- EN: Replace the save from %1$s? -->
+    <string name="kairo_state_replace_confirm">Replace the save from %1$s?</string>
+    <!-- EN: Overwrite -->
+    <string name="kairo_state_overwrite">Overwrite</string>
+    <!-- EN: Progress since your last save is lost. -->
+    <string name="kairo_state_load_confirm">Progress since your last save is lost.</string>
+    <!-- EN: Load -->
+    <string name="kairo_state_load_verb">Load</string>
+</resources>

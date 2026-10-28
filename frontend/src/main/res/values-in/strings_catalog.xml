@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Indonesian (in): the translation of values/strings_catalog.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
+<resources>
+    <!-- EN: CATALOGS -->
+    <string name="kairo_catalogs_group">CATALOGS</string>
+    <!-- EN: Update catalogs -->
+    <string name="kairo_catalogs_update">Update catalogs</string>
+    <!-- EN: Failed -->
+    <string name="kairo_catalogs_failed">Failed</string>
+    <!-- EN: Updated -->
+    <string name="kairo_catalogs_updated_value">Updated</string>
+    <!-- EN: Up to date -->
+    <string name="kairo_catalogs_up_to_date">Up to date</string>
+    <!-- EN: Import catalog file… -->
+    <string name="kairo_catalogs_import">Import catalog file…</string>
+    <!-- EN: Wait for the current catalog change to finish -->
+    <string name="kairo_catalogs_wait">Wait for the current catalog change to finish</string>
+    <!-- EN: Remove catalog -->
+    <string name="kairo_catalogs_remove">Remove catalog</string>
+    <!-- EN: None installed -->
+    <string name="kairo_catalogs_none_installed">None installed</string>
+    <plurals name="kairo_catalogs_installed">
+        <!-- EN: %1$d installed -->
+        <item quantity="other">%1$d installed</item>
+    </plurals>
+    <!-- EN: No installed catalogs -->
+    <string name="kairo_catalogs_none">No installed catalogs</string>
+    <!-- EN: INSTALLED -->
+    <string name="kairo_catalogs_installed_group">INSTALLED</string>
+    <!-- EN: Removes this catalog’s metadata and artwork. Your games and personal settings are kept. -->
+    <string name="kairo_catalogs_remove_confirm">Removes this catalog’s metadata and artwork. Your games and personal settings are kept.</string>
+    <!-- A catalog check's progress and result. -->
+    <!-- EN: Checking catalogs… -->
+    <string name="kairo_catalogs_checking">Checking catalogs…</string>
+    <!-- EN: Downloading catalogs… -->
+    <string name="kairo_catalogs_downloading">Downloading catalogs…</string>
+    <!-- EN: Importing catalog… -->
+    <string name="kairo_catalogs_importing">Importing catalog…</string>
+    <!-- EN: Applying catalogs… -->
+    <string name="kairo_catalogs_applying">Applying catalogs…</string>
+    <!-- EN: Catalogs are current -->
+    <string name="kairo_catalogs_current">Catalogs are current</string>
+    <!-- EN: Catalog check failed -->
+    <string name="kairo_catalogs_check_failed">Catalog check failed</string>
+    <!-- EN: Catalog update is already running -->
+    <string name="kairo_catalogs_already_running">Catalog update is already running</string>
+    <!-- The reasons the update failed, separated by semicolons. -->
+    <!-- EN: Catalog update partially completed: %1$s -->
+    <string name="kairo_catalogs_update_partial">Catalog update partially completed: %1$s</string>
+    <!-- EN: Catalog update failed: %1$s -->
+    <string name="kairo_catalogs_update_failed">Catalog update failed: %1$s</string>
+    <!-- EN: Catalogs are already current -->
+    <string name="kairo_catalogs_already_current">Catalogs are already current</string>
+    <!-- The installed catalog's name. -->
+    <!-- EN: Installed %1$s -->
+    <string name="kairo_catalogs_installed_name">Installed %1$s</string>
+    <!-- EN: Removing catalog… -->
+    <string name="kairo_catalogs_removing">Removing catalog…</string>
+    <!-- EN: Catalog removed -->
+    <string name="kairo_catalogs_removed">Catalog removed</string>
+    <!-- EN: Catalog operation failed: %1$s -->
+    <string name="kairo_catalogs_operation_failed">Catalog operation failed: %1$s</string>
+    <!-- EN: Catalog already installed or source/revision changed -->
+    <string name="kairo_catalogs_already_installed">Catalog already installed or source/revision changed</string>
+</resources>

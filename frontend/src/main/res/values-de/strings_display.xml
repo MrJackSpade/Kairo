@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- German (de): the translation of values/strings_display.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
+<resources>
+    <!-- EN: Graphics -->
+    <string name="kairo_graphics">Graphics</string>
+    <!-- EN: Landscape scaling -->
+    <string name="kairo_scaling_landscape">Landscape scaling</string>
+    <!-- EN: Portrait scaling -->
+    <string name="kairo_scaling_portrait">Portrait scaling</string>
+    <!-- EN: Integer -->
+    <string name="kairo_scaling_integer">Integer</string>
+    <!-- EN: Full image (default) -->
+    <string name="kairo_scaling_integer_help">Full image (default)</string>
+    <!-- EN: Integer crop -->
+    <string name="kairo_scaling_crop">Integer crop</string>
+    <!-- EN: Crops the edges -->
+    <string name="kairo_scaling_crop_help">Crops the edges</string>
+    <!-- EN: Fit display -->
+    <string name="kairo_scaling_fit">Fit display</string>
+    <!-- EN: Fractional scale -->
+    <string name="kairo_scaling_fit_help">Fractional scale</string>
+    <!-- EN: Portrait notch padding -->
+    <string name="kairo_notch_padding">Portrait notch padding</string>
+    <!-- %1$d is a length in density-independent pixels. -->
+    <!-- EN: %1$d dp -->
+    <string name="kairo_dp">%1$d dp</string>
+    <!-- EN: Game orientation -->
+    <string name="kairo_orientation_game">Game orientation</string>
+    <!-- EN: Landscape -->
+    <string name="kairo_orientation_landscape">Landscape</string>
+    <!-- EN: Portrait -->
+    <string name="kairo_orientation_portrait">Portrait</string>
+    <!-- EN: Rotation was attempted but did not apply. A system setting is likely blocking it. -->
+    <string name="kairo_orientation_blocked">Rotation was attempted but did not apply. A system setting is likely blocking it.</string>
+    <!-- EN: SHADER -->
+    <string name="kairo_shader_group">SHADER</string>
+    <!-- EN: Shader -->
+    <string name="kairo_shader">Shader</string>
+    <!-- EN: BUILT-IN -->
+    <string name="kairo_shader_group_built_in">BUILT-IN</string>
+    <!-- EN: IMPORTED -->
+    <string name="kairo_shader_group_imported">IMPORTED</string>
+    <!-- EN: Sharp bilinear -->
+    <string name="kairo_shader_sharp_bilinear">Sharp bilinear</string>
+    <!-- EN: Sharp bilinear + scanlines -->
+    <string name="kairo_shader_sharp_bilinear_scanlines">Sharp bilinear + scanlines</string>
+    <!-- EN: CRT EasyMode -->
+    <string name="kairo_shader_crt_easymode">CRT EasyMode</string>
+    <!-- EN: Import shader pack… -->
+    <string name="kairo_shader_import">Import shader pack…</string>
+    <!-- EN: Importing… -->
+    <string name="kairo_shader_importing">Importing…</string>
+    <!-- EN: Imports RetroArch Slang presets (.slangp) from a ZIP file. -->
+    <string name="kairo_shader_import_foot">Imports RetroArch Slang presets (.slangp) from a ZIP file.</string>
+    <!-- EN: Could not prepare built-in shader -->
+    <string name="kairo_shader_builtin_failed">Could not prepare built-in shader</string>
+    <!-- %1$s is the preset's path within its pack. -->
+    <!-- EN: Shader set to %1$s -->
+    <string name="kairo_shader_set">Shader set to %1$s</string>
+    <!-- EN: Could not import shader pack -->
+    <string name="kairo_shader_import_failed">Could not import shader pack</string>
+    <!-- EN: Shader ZIP contains an unsafe path -->
+    <string name="kairo_shader_zip_unsafe">Shader ZIP contains an unsafe path</string>
+    <!-- EN: Shader ZIP contains too many files -->
+    <string name="kairo_shader_zip_too_many">Shader ZIP contains too many files</string>
+    <!-- EN: Shader ZIP is too large -->
+    <string name="kairo_shader_zip_too_large">Shader ZIP is too large</string>
+    <!-- EN: Could not open shader ZIP -->
+    <string name="kairo_shader_zip_unreadable">Could not open shader ZIP</string>
+    <!-- EN: Shader ZIP contains no .slangp presets -->
+    <string name="kairo_shader_zip_no_presets">Shader ZIP contains no .slangp presets</string>
+</resources>
