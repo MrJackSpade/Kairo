@@ -23,6 +23,9 @@ and the decision is recorded so it can be reviewed and corrected:
   descriptions-v1.json   {"<game key>": "original description"}
   descriptions-adult-v1.json  {"<game key>": "frank description"} of an adult game, which replaces
                          its main description only in the adult data part (catalog_parts.py)
+  descriptions-<language>-v1.json, descriptions-adult-<language>-v1.json
+                         the same descriptions translated, for each of catalog_languages.LANGUAGES;
+                         a game's translation needs its English description
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork"|"controller": ...}} applied last
 A game LaunchBox has no cover for takes its MobyGames cover and screenshot (moby_art.py), encoded
 into catalog/artwork; moby-artwork-v1.json records their sources.
@@ -62,6 +65,7 @@ from pathlib import Path
 from launchbox import BOX_TYPES, SCREENSHOT_TYPES, TitleIndex, key as title_key
 from moby_art import MobyArt
 from disk_sets import disk_sets, group as disk_group, ungrouped_sets
+from catalog_languages import LANGUAGES
 import art_verdicts
 from launchbox_artwork import URL
 
@@ -461,8 +465,9 @@ def assemble(root, moby_root):
         raise SystemExit(f"{len(ungrouped)} multi-disk sets are more than one library entry: " +
                          "; ".join(f"{name} ({len(shown)} entries)" for name, shown in ungrouped[:10]))
 
+    translated = [f"descriptions{kind}-{language}-v1.json" for kind in ("", "-adult") for language in LANGUAGES]
     for name, field in (("descriptions-v1.json", "descriptions"), ("descriptions-adult-v1.json", "descriptions"),
-                        ("overrides-v1.json", "games")):
+                        *((name, "descriptions") for name in translated), ("overrides-v1.json", "games")):
         relocate(research / name, field, moved, games)
     review_path = root / "catalog/core-review-v1.json"
     relocate(review_path, "excluded", moved, games)
@@ -480,6 +485,16 @@ def assemble(root, moby_root):
         raise SystemExit(f"adult descriptions for unknown games: {sorted(unknown)[:5]}")
     for key, text in adult_descriptions.items():
         games[key]["adultDescription"] = text
+    for kind, english, field in (("", "description", "descriptions"), ("-adult", "adultDescription", "adultDescriptions")):
+        for language in LANGUAGES:
+            texts = read(research / f"descriptions{kind}-{language}-v1.json",
+                         {"schemaVersion": 1, "descriptions": {}})["descriptions"]
+            untranslatable = [key for key in texts if not games.get(key, {}).get(english)]
+            if untranslatable:
+                raise SystemExit(f"descriptions{kind}-{language}-v1.json: translations of no {english}: "
+                                 f"{sorted(untranslatable)[:5]}")
+            for key, text in texts.items():
+                games[key].setdefault(field, {})[language] = text
 
     overrides = read(research / "overrides-v1.json", {"schemaVersion": 1, "games": {}})["games"]
     for key, fields in overrides.items():

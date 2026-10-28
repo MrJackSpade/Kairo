@@ -10,6 +10,8 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "title": "...", "aliases": [...], "description": "...",   shipped display metadata
       "adultDescription": "...",                                an adult game's frank description, shipped
                                                                 only in the adult data part (data.nsfw)
+      "descriptions": {"<language>": "..."},                    the description translated (catalog_languages)
+      "adultDescriptions": {"<language>": "..."},               the frank description translated, in data.nsfw
       "boxArtUrl": "...", "screenshotUrl": "...",               LaunchBox images, compacted
       "artwork": {...},                                         or a reviewed compact pick
       "contentIds": [...], "sourceGroups": [...],               media this game is known by
@@ -46,11 +48,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import catalog_documents
 from catalog_documents import compact, require
+from catalog_languages import LANGUAGES, valid_translations
 from catalog_package import image_paths
 from catalog_parts import generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
-SHIPPED = ("title", "description", "aliases", "controller")
+SHIPPED = ("title", "description", "descriptions", "aliases", "controller")
 CORE_VERSION = 3
 MAX_IDS = 64
 
@@ -81,7 +84,7 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
 
     def validate_record(record):
         require(isinstance(record, dict), "game must be an object")
-        require(set(record) <= {"game", "title", "description", "aliases", "artwork", "heart",
+        require(set(record) <= {"game", "title", "description", "descriptions", "aliases", "artwork", "heart",
                                 "hidden", "setDisks", "media", "machine", "launch", "controller", "contentIds"},
                 "unknown game field")
         ids = record.get("contentIds")
@@ -96,6 +99,8 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
         description = record.get("description")
         require(description is None or (isinstance(description, str) and 0 < len(description.strip()) <= 8000),
                 "invalid description")
+        require("descriptions" not in record or (description is not None and valid_translations(record["descriptions"])),
+                "invalid translated descriptions")
         aliases = record.get("aliases", [])
         require(isinstance(aliases, list) and len(aliases) <= 64 and
                 all(isinstance(x, str) and 0 < len(x.strip()) <= 256 for x in aliases), "invalid aliases")
@@ -255,7 +260,9 @@ def generate(root, check=False):
             (root / path).write_bytes(content)
     optional = {"schemaVersion": 1, "games": {}, "nameIndex": name_index}
     # Kept out of the name index and the update pack: they reach a build only through data.nsfw.
-    adult = {"name-index-v1.json": {"games": {key: {"description": entry["adultDescription"]}
+    adult = {"name-index-v1.json": {"games": {key: {"description": entry["adultDescription"],
+                                                    **({"descriptions": entry["adultDescriptions"]}
+                                                       if entry.get("adultDescriptions") else {})}
              for key, entry in sorted(research["games"].items()) if entry.get("adultDescription")}}}
     generate_parts(root, config.APP, documents, optional, adult, config.ARTWORK.expand, config.ARTWORK.compact, check)
     print(f"{config.APP}: {len(games)} games, {manifest['games']} content IDs, {len(unique_names)} unique names, "

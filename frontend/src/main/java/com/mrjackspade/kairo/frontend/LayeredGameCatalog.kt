@@ -264,7 +264,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         // Paths and URLs are checked where an image is opened or downloaded, for that game alone.
         return CatalogGame(
             contentId, title.ifBlank { fileName },
-            merged.optString("description").takeIf { it.isNotBlank() },
+            description(merged, layers),
             merged.opt("heart") as? Boolean,
             artwork?.optString("boxArt")?.takeIf { it.isNotEmpty() },
             artwork?.optString("preview")?.takeIf { it.isNotEmpty() },
@@ -388,6 +388,9 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         "heart" -> value is Boolean
         "hidden" -> value is Boolean
         "description" -> value is String && validDescription(value)
+        "descriptions" -> value is JSONObject && value.keys().asSequence().all { language ->
+            language in DESCRIPTION_LANGUAGES && (value.opt(language) as? String)?.let(::validDescription) == true
+        }
         "aliases" -> value is JSONArray && value.length() <= 64 &&
             (0 until value.length()).all { index ->
                 (value.opt(index) as? String)?.let(::validTitle) == true
@@ -534,12 +537,31 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         private val ART_FIELDS = ART_PATH_FIELDS + ART_URL_FIELDS
         private val INPUT_FIELDS = setOf("mode", "touch", "secondary")
         private val DISPLAY_FIELDS = setOf("landscapeAnchor", "portraitAnchor")
+        /** The languages a catalog describes games in besides English (tools/translations.py names the same). */
+        val DESCRIPTION_LANGUAGES = setOf("es", "pt-BR", "de", "ru", "ja", "ko", "ar", "id")
+
+        /**
+         * The description in the device's language, else the English one. A layer that replaced the
+         * English text above the translation, as the adult part does, is shown instead.
+         */
+        fun description(record: JSONObject, layers: CatalogFieldLayers.Result,
+                        locale: java.util.Locale = java.util.Locale.getDefault()): String? {
+            val english = record.optString("description").takeIf { it.isNotBlank() }
+            val translations = record.optJSONObject("descriptions") ?: return english
+            val tag = locale.toLanguageTag()
+            val language = listOf(tag, tag.substringBefore('-')).firstOrNull { translations.has(it) } ?: return english
+            val translated = translations.optString(language).takeIf { it.isNotBlank() } ?: return english
+            val englishLayer = layers.sourceIndexOf("description") ?: -1
+            return if ((layers.sourceIndexOf("descriptions", language) ?: -1) >= englishLayer) translated else english
+        }
         private val COMMON_OBJECT_FIELDS = mapOf(
             "artwork" to ART_FIELDS,
             // "layer" is the player's own mapping layer (ControllerDefaults.cascade); catalogs never hold one.
             "controller" to setOf("profile", "bindings", "defaults", "layer"),
             "input" to INPUT_FIELDS,
-            "display" to DISPLAY_FIELDS)
+            "display" to DISPLAY_FIELDS,
+            // A description per language beside the English one, by BCP 47 tag; each layer replaces a language on its own.
+            "descriptions" to DESCRIPTION_LANGUAGES)
         private val COMMON_FIELDS = setOf("title", "description", "aliases", "heart", "hidden", "media") +
             COMMON_OBJECT_FIELDS.keys
         private fun validTitle(value: String) = value.isNotBlank() && value.length <= 256

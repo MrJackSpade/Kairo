@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from typing import NamedTuple
 from catalog_package import compact, filter_artwork, image_paths, build_package
+from catalog_languages import valid_translations
 
 class App(NamedTuple):
     """How an app publishes its catalog. package/identity name its importable artwork package;
@@ -73,9 +74,12 @@ def adult_descriptions(adult_data):
     for document, value in adult_data.items():
         assert set(value) == {'games'}, f'{document}: an adult data document holds only games'
         for key, record in value['games'].items():
-            assert set(record) == {'description'}, f'{document} {key}: adult data holds only descriptions'
+            assert set(record) in ({'description'}, {'description', 'descriptions'}), \
+                f'{document} {key}: adult data holds only descriptions'
             text = record['description']
             assert isinstance(text, str) and 0 < len(text.strip()) <= 8000, f'{key}: invalid adult description'
+            assert 'descriptions' not in record or valid_translations(record['descriptions']), \
+                f'{key}: invalid translated adult descriptions'
             games[key] = record
     return games
 

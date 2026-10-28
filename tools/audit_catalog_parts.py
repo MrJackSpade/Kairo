@@ -114,8 +114,9 @@ def audit(root, product, artifacts=()):
             if spec.name_index:
                 # A name-index game also carries its adult description, the one data.nsfw holds.
                 games = optional['nameIndex']['games']
-                artwork_only({k: {f: v for f, v in r.items() if f != 'description'} for k, r in games.items()})
-                assert {k: {'description': r['description']} for k, r in games.items() if 'description' in r} == adult
+                text = {'description', 'descriptions'}
+                artwork_only({k: {f: v for f, v in r.items() if f not in text} for k, r in games.items()})
+                assert {k: {f: v for f, v in r.items() if f in text} for k, r in games.items() if 'description' in r} == adult
             else:
                 assert not adult
     for artifact in artifacts:
