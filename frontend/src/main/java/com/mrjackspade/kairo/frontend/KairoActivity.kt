@@ -79,10 +79,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun sendMouseButton(button: Int, down: Boolean)
     /** The guest's keyboard and mouse reads for Auto touch mode, as [InputModeDecider.GuestInput.fromNative] takes them. */
     protected open fun inputTelemetry(): LongArray? = null
-    /** The touch keyboard's height, and whether its touchpad tab drives the guest mouse. */
-    protected open val keyboardHeightDp: Int = 260
-    protected open val keyboardHasTouchpad: Boolean = false
-    /** The frame size the keyboard's touchpad scales its movement to. */
+    /** The frame size the keyboard's touchpad tab, which every app has, scales its movement to. */
     protected open fun touchpadReferenceSize(): Pair<Int, Int> = videoSize().let { it.first to it.second }
 
     // The library and its catalog ---------------------------------------------------------------
@@ -699,8 +696,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { controllerProfiles.configuration.layout })
 
         keyboardPanel = GuestKeyboardPanel(this, panelInputs, keyboard, ::hideKeyboard,
-            touchpadTab = keyboardHasTouchpad, mouseReferenceSize = ::touchpadReferenceSize)
-        root.addView(keyboardPanel, FrameLayout.LayoutParams(-1, dp(keyboardHeightDp), Gravity.BOTTOM))
+            touchpadTab = true, mouseReferenceSize = ::touchpadReferenceSize)
+        root.addView(keyboardPanel, FrameLayout.LayoutParams(-1, dp(KEYBOARD_HEIGHT_DP), Gravity.BOTTOM))
         onScreenControls.bindGuestKeyboard(keyboardPanel)
         swappedKeyboardPanel = GuestKeyboardPanel(this, panelInputs, keyboard, {}, showClose = false,
             onSwap = { secondaryKeyboard.toggleSwap() })
@@ -1469,6 +1466,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     companion object {
         private const val FOLDER_REQUEST = 99
+        /** The touch keyboard's height, with room for its touchpad tab. */
+        private const val KEYBOARD_HEIGHT_DP = 280
         /** The machine states a session reports (sessionStatus), as the game menu's status line names them. */
         private val SESSION_STATES = mapOf("Running" to R.string.kairo_state_running, "Paused" to R.string.kairo_state_paused,
             "Stopped" to R.string.kairo_state_stopped, "Starting" to R.string.kairo_state_starting, "Error" to R.string.kairo_state_error,
