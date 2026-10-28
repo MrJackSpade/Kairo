@@ -38,7 +38,7 @@ internal class GuestJoystickPage(
 
     private fun portView(port: JoystickPort): View {
         val column = LinearLayout(context).apply { orientation = VERTICAL }
-        port.label?.let { column.addView(Ui.text(context, it, Ui.SECONDARY, Ui.TEXT_MUTED).apply { gravity = Gravity.CENTER }) }
+        port.label?.let { column.addView(Ui.text(context, it.resolve(context), Ui.SECONDARY, Ui.TEXT_MUTED).apply { gravity = Gravity.CENTER }) }
         val row = LinearLayout(context).apply {
             orientation = HORIZONTAL
             gravity = Gravity.CENTER

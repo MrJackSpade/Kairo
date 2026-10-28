@@ -1472,7 +1472,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         private const val FOLDER_REQUEST = 99
         /** The machine states a session reports (sessionStatus), as the game menu's status line names them. */
         private val SESSION_STATES = mapOf("Running" to R.string.kairo_state_running, "Paused" to R.string.kairo_state_paused,
-            "Stopped" to R.string.kairo_state_stopped, "Starting" to R.string.kairo_state_starting, "Error" to R.string.kairo_state_error)
+            "Stopped" to R.string.kairo_state_stopped, "Starting" to R.string.kairo_state_starting, "Error" to R.string.kairo_state_error,
+            "Loading" to R.string.kairo_state_loading, "Failed" to R.string.kairo_state_failed)
         /** The first request code a product may use for its own pickers. */
         const val FIRST_PRODUCT_REQUEST = 200
     }

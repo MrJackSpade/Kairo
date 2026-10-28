@@ -12,7 +12,7 @@ class GameDisksTest {
         override val error: String? = null
         override val displayName = (zipEntry ?: path).substringAfterLast('/')
         override val playable = true
-        override val mediaLabel = "Floppy disk"
+        override val mediaLabel = UiText.fixed("Floppy disk")
     }
 
     private val tosec = "Atari ST - Games"

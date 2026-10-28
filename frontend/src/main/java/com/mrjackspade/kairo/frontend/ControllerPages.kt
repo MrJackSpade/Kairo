@@ -73,7 +73,7 @@ data class ControllerGuestSpec(
 }
 
 /** One guest joystick port: its direction controls by direction, and its buttons in order. */
-data class JoystickPort(val label: String?, val up: String?, val down: String?, val left: String?,
+data class JoystickPort(val label: UiText?, val up: String?, val down: String?, val left: String?,
                         val right: String?, val buttons: List<String>) {
     companion object {
         /** One unnamed port: controls named up/down/left/right are its directions, the rest its buttons. */

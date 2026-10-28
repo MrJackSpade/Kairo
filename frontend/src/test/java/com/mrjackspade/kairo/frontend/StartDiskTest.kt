@@ -9,7 +9,7 @@ import java.io.InputStream
 class StartDiskTest {
     private fun disk(zipEntry: String, label: String, archive: String = "Games/Set.zip") = DiskImageEntry(
         id = "$archive/$zipEntry", uri = "doc:$archive", path = archive, zipEntry = zipEntry, sourceSize = 1,
-        sourceModified = 1, imageSize = 1, imageCrc = 1, contentId = "sha256-x-v1:$archive/$zipEntry", mediaLabel = label)
+        sourceModified = 1, imageSize = 1, imageCrc = 1, contentId = "sha256-x-v1:$archive/$zipEntry", mediaText = label)
 
     /** A catalog that knows [known], lists [sets] as their entry points' set disks and hides [hidden]. */
     private class Catalog(val known: Set<LibraryItem> = emptySet(), val sets: Map<LibraryItem, List<LibraryItem>> = emptyMap(),
@@ -51,14 +51,14 @@ class StartDiskTest {
     @Test
     fun aCompanionIsTheOneOfItsKindBesideTheDisk() {
         val entries = listOf(cd, userDisk, hardDisk, disk("Other.cue", "CD-ROM", "Games/Other.zip"))
-        assertEquals(cd, companionFor(null, hardDisk, entries, UiText.fixed("CD")) { it.mediaLabel == "CD-ROM" })
-        assertNull(companionFor(null, cd, entries, UiText.fixed("hard disk")) { it.mediaLabel == "Floppy disk" && it.id.endsWith(".d77") })
+        assertEquals(cd, companionFor(null, hardDisk, entries, UiText.fixed("CD")) { it.mediaText == "CD-ROM" })
+        assertNull(companionFor(null, cd, entries, UiText.fixed("hard disk")) { it.mediaText == "Floppy disk" && it.id.endsWith(".d77") })
     }
 
     @Test
     fun aCompanionTheCatalogNamesMustBeThere() {
         val missing = assertThrows(MissingDisk::class.java) {
-            companionFor("sha256-x-v1:missing", cd, listOf(cd, userDisk), UiText.fixed("boot floppy")) { it.mediaLabel == "Floppy disk" }
+            companionFor("sha256-x-v1:missing", cd, listOf(cd, userDisk), UiText.fixed("boot floppy")) { it.mediaText == "Floppy disk" }
         }
         assertEquals(UiText.res(R.string.kairo_companion_missing, UiText.fixed("boot floppy")), missing.text)
     }

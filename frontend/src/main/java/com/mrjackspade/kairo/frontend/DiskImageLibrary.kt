@@ -49,12 +49,14 @@ data class DiskImageEntry(
     val companions: List<String> = emptyList(),
     override val catalogId: String? = contentId,
     /** What the library calls the image, from its [DiskImageLibrary.Format]. */
-    override val mediaLabel: String = "Disk image",
+    val mediaText: String = "Disk image",
     /** False for an archive with no disk image in it, such as one of manuals and scans. */
     override val holdsGame: Boolean = true,
     /** A program's folder: every other file in it and below it, which the program may read. */
     val folder: List<FolderFile> = emptyList()
 ) : LibraryItem {
+    /** Resolved from the [DiskImageLibrary.Format] whenever the library is read, so it is fixed text here. */
+    override val mediaLabel: UiText get() = UiText.fixed(mediaText)
     override val displayName: String get() = (zipEntry ?: path).substringAfterLast('/').substringAfterLast('\\')
     override val playable: Boolean get() = contentId != null && error == null
 }
@@ -817,7 +819,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         format.kind(name)?.let { format.labels.getValue(it).resolve(context) } ?: context.getString(R.string.kairo_disk_image)
 
     /** [entry] with the label its formats give it, as for one an earlier cache layout read. */
-    private fun labeled(entry: DiskImageEntry) = entry.copy(mediaLabel = label(entry.zipEntry ?: entry.path))
+    private fun labeled(entry: DiskImageEntry) = entry.copy(mediaText = label(entry.zipEntry ?: entry.path))
 
     /** An image's key: its path in the games folder, and its path inside an archive. */
     fun keyOf(path: String, member: String?) = member?.let { GameKey.inArchive(path, it) } ?: GameKey(path)

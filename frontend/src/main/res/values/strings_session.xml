@@ -35,6 +35,8 @@
     <string name="kairo_state_stopped">Stopped</string>
     <string name="kairo_state_starting">Starting</string>
     <string name="kairo_state_error">Error</string>
+    <string name="kairo_state_loading">Loading</string>
+    <string name="kairo_state_failed">Failed</string>
     <string name="kairo_session_muted">Muted</string>
     <string name="kairo_session_stopping">Stopping machine…</string>
 

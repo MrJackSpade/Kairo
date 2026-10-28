@@ -16,7 +16,7 @@ class GamePathMigrationTest {
         override val error: String? get() = null
         override val displayName: String get() = id.substringAfterLast('/')
         override val playable: Boolean get() = true
-        override val mediaLabel: String get() = "Test"
+        override val mediaLabel: UiText get() = UiText.fixed("Test")
     }
 
     private val root: File = Files.createTempDirectory("game-paths").toFile()

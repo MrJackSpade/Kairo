@@ -177,7 +177,7 @@ class GameDetailView<T : LibraryItem>(
         val game = metadata(entry)
         title.text = game.title
         tags.removeAllViews()
-        val labels = listOf(entry.mediaLabel) + game.tags +
+        val labels = listOf(entry.mediaLabel.resolve(context)) + game.tags +
             ((variantLabel(entry.path) ?: entry.zipEntry?.let(::variantLabel))?.split("  ·  ") ?: emptyList())
         labels.forEach { tags.addView(Ui.chip(context, it, Ui.TEXT_MUTED).apply {
             background = Ui.rounded(context, Color.TRANSPARENT, 4, Ui.LINE)

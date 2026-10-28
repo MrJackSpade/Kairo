@@ -17,7 +17,8 @@ interface LibraryItem {
     val error: String?
     val displayName: String
     val playable: Boolean
-    val mediaLabel: String
+    /** What kind of game file this is, shown as a chip on the game page, such as Floppy disk. */
+    val mediaLabel: UiText
     /** False for a file the scan remembers but that holds no game, such as an archive of manuals; never listed. */
     val holdsGame: Boolean get() = true
 }
