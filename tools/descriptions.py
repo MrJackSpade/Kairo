@@ -117,8 +117,8 @@ def translation_paths(root, language, adult):
         raise SystemExit(f"{language} is not one of {', '.join(LANGUAGES)}")
     kind = "-adult" if adult else ""
     research = root / "catalog/research"
-    if not (research / "games-v1.json").is_file():
-        raise SystemExit(f"{root} is not an app root: it has no catalog/research/games-v1.json")
+    if not (research / "descriptions-v1.json").is_file():
+        raise SystemExit(f"{root} is not an app root: it has no catalog/research/descriptions-v1.json")
     return research / f"descriptions{kind}-v1.json", research / f"descriptions{kind}-{language}-v1.json"
 
 
