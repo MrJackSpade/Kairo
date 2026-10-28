@@ -424,6 +424,13 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         invalidate(game)
     }
 
+    /** The player's changes to [from] become [to]'s, as an installer's do for the game it installs. */
+    @Synchronized fun moveOverrides(from: GameKey, to: GameKey) {
+        overrides.move(from, to)
+        invalidate(from)
+        invalidate(to)
+    }
+
     fun resetOverrideSubfield(game: GameKey, field: String, subfield: String) =
         updateOverrideSubfields(game, field, mapOf(subfield to null))
 
