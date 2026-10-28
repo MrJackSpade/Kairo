@@ -20,6 +20,9 @@
   descriptions.py revise <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
       Up to N translations, after game key KEY, that still write words in Latin letters, as
       {"<game key>": {"en": "English", "current": "translation"}}, for a pass that rewrites them.
+  descriptions.py rewritten <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
+      The same, for the translations that differ from the committed file (git HEAD), with that
+      version as "before": {"<game key>": {"en": ..., "before": ..., "current": ...}}.
   descriptions.py translate <app root> <language> <batch.json> --replace [--adult]
       Replace existing translations with {"<game key>": "translation"}; each key must be translated.
 
@@ -30,6 +33,7 @@ import argparse
 import html
 import json
 import re
+import subprocess
 from pathlib import Path
 
 EXCERPT = 360
@@ -139,6 +143,21 @@ def revise(root, language, output, adult, limit, after):
     print(f"{len(batch)} of {len(left)} left after {after} ({len(latin)} of {len(done)} use Latin letters) -> {output}")
 
 
+def rewritten(root, language, output, adult, limit, after):
+    source, target = translation_paths(root, language, adult)
+    english = read(source, {"descriptions": {}})["descriptions"]
+    done = read(target, {"descriptions": {}})["descriptions"]
+    committed = subprocess.run(["git", "show", f"HEAD:{target.relative_to(root).as_posix()}"], cwd=root,
+                               check=True, stdout=subprocess.PIPE).stdout
+    before = json.loads(committed)["descriptions"]
+    changed = [key for key in sorted(done) if done[key] != before.get(key)]
+    left = [key for key in changed if after is None or key > after]
+    batch = {key: {"en": english[key], "before": before.get(key), "current": done[key]}
+             for key in (left[:limit] if limit else left)}
+    output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(f"{len(batch)} of {len(left)} left after {after} ({len(changed)} of {len(done)} rewritten) -> {output}")
+
+
 def translate(root, language, batch_path, adult, replace=False):
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
@@ -190,6 +209,13 @@ def main():
     redo.add_argument("--adult", action="store_true")
     redo.add_argument("--limit", type=int)
     redo.add_argument("--after")
+    audit = commands.add_parser("rewritten")
+    audit.add_argument("root", type=Path)
+    audit.add_argument("language")
+    audit.add_argument("output", type=Path)
+    audit.add_argument("--adult", action="store_true")
+    audit.add_argument("--limit", type=int)
+    audit.add_argument("--after")
     args = parser.parse_args()
     if args.command == "worklist":
         worklist(args.root.resolve(), args.output, args.mobygames, args.limit)
@@ -199,6 +225,8 @@ def main():
         pending(args.root.resolve(), args.language, args.output, args.adult, args.limit)
     elif args.command == "revise":
         revise(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.after)
+    elif args.command == "rewritten":
+        rewritten(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.after)
     else:
         translate(args.root.resolve(), args.language, args.batch, args.adult, args.replace)
 
