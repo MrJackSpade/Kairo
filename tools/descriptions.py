@@ -27,6 +27,11 @@
   descriptions.py rewritten <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
       The same, for the translations that differ from the committed file (git HEAD), with that
       version as "before": {"<game key>": {"en": ..., "before": ..., "current": ...}}.
+  descriptions.py names <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
+      Up to N translations, after game key KEY, that keep a name in its English form where the
+      language's Wikipedia has an established form of it (name_forms.py): an official localized
+      title, a standard exonym. {"<game key>": {"en", "current", "names": {name: [linked, direct]}}},
+      each name to check and, where its article is the thing the description names, write natively.
   descriptions.py translate <app root> <language> <batch.json> --replace [--adult]
       Replace existing translations with {"<game key>": "translation"}; each key must be translated.
 
@@ -198,6 +203,59 @@ def locked(path):
         os.remove(lock)
 
 
+# A name in an English description: capitalized words (with the small words titles hold), or a
+# number starting a title.
+NAME = re.compile(r"(?:[A-Z][\w'’!&-]*|\d[\w'’!&-]*)(?:[ :-]+(?:of|the|de|du|la|le|von|van|vs|&|'n'?|n'|[A-Z0-9][\w\'’!&-]*))*")
+SMALL = re.compile(r"(?:[ :-]+(?:of|the|de|du|la|le|von|van|vs|&|'n'?|n'))+$")
+# The Wikipedia that writes each catalog language.
+WIKI = {"pt-BR": "pt"}
+
+
+def names_in(text):
+    found = []
+    for match in NAME.finditer(text):
+        name = SMALL.sub("", match.group(0)).strip(" :-.")
+        # A sentence's first word may be an ordinary verb before the name ("Explore Ghosts 'n
+        # Goblins"): offer the name without it too. Only names the translation still holds count.
+        opening = match.start() == 0 or text[:match.start()].rstrip().endswith((".", "!", "?"))
+        rest = name.split(" ", 1)[1] if opening and " " in name else ""
+        found += [candidate for candidate in (name, rest) if len(candidate) >= 3]
+    return found
+
+
+def names(root, language, output, adult, limit, after):
+    import name_forms
+    source, target = translation_paths(root, language, adult)
+    english = read(source, {"descriptions": {}})["descriptions"]
+    done = read(target, {"descriptions": {}})["descriptions"]
+    keys = [key for key in sorted(done) if after is None or key > after]
+    def kept(name, text):
+        return re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", text) is not None
+    candidates = {key: [name for name in dict.fromkeys(names_in(english[key])) if kept(name, done[key])] for key in keys}
+    leads = name_forms.cached(WIKI.get(language, language),
+                              sorted({name for found in candidates.values() for name in found}), search=False)
+
+    def native(name):
+        """The form the language's Wikipedia gives the name, when it differs from the English. An
+        English article of another title (a redirect to something broader, such as a year to its
+        millennium) says nothing about the name itself; a plain number is not a name."""
+        if re.fullmatch(r"[\d\s.,x-]+", name):
+            return []
+        linked, direct, _ = leads[name]
+        title, _, form = linked.partition(" -> ")
+        forms = [form if re.sub(r"\s*\([^()]*\)$", "", title).casefold() == name.casefold() else "-", direct]
+        return [form for form in forms if form and form != "-" and form.casefold() != name.casefold()]
+
+    flagged = {}
+    for key in keys:
+        found = {name: list(leads[name][:2]) for name in candidates[key] if native(name)}
+        if found:
+            flagged[key] = {"en": english[key], "current": done[key], "names": found}
+    batch = dict(list(flagged.items())[:limit] if limit else flagged.items())
+    output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    print(f"{len(batch)} of {len(flagged)} translations to check after {after} -> {output}")
+
+
 def translate(root, language, batch_path, adult, replace=False):
     source, target = translation_paths(root, language, adult)
     with locked(target):
@@ -258,6 +316,13 @@ def main():
     redo.add_argument("--adult", action="store_true")
     redo.add_argument("--limit", type=int)
     redo.add_argument("--after")
+    check = commands.add_parser("names")
+    check.add_argument("root", type=Path)
+    check.add_argument("language")
+    check.add_argument("output", type=Path)
+    check.add_argument("--adult", action="store_true")
+    check.add_argument("--limit", type=int)
+    check.add_argument("--after")
     audit = commands.add_parser("rewritten")
     audit.add_argument("root", type=Path)
     audit.add_argument("language")
@@ -274,6 +339,8 @@ def main():
         pending(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.start, args.end)
     elif args.command == "revise":
         revise(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.after)
+    elif args.command == "names":
+        names(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.after)
     elif args.command == "rewritten":
         rewritten(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.after)
     else:

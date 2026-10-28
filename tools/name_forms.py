@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -34,8 +35,18 @@ BATCH = 50
 HITS = 3
 
 
+# Wikipedia asks API clients to send one request at a time and not quickly (it answers 429
+# otherwise): this process waits until a second has passed since its last request.
+PACE = 1.0
+_last = [0.0]
+
+
 def query(language, params):
     url = f"https://{language}.wikipedia.org/w/api.php?{urllib.parse.urlencode({**params, 'format': 'json'})}"
+    wait = _last[0] + PACE - time.monotonic()
+    if wait > 0:
+        time.sleep(wait)
+    _last[0] = time.monotonic()
     with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": AGENT})) as response:
         data = json.load(response)
     if "query" not in data:
@@ -65,39 +76,54 @@ def resolve(language, names, extra):
     return pages
 
 
-def cached(language, names):
-    """forms() through a per-language cache shared by every caller, so each name is asked once."""
+# A cached row whose search was not run (a bulk lookup, search=False).
+NOT_SEARCHED = "?"
+
+
+def cached(language, names, search=True):
+    """forms() through a per-language cache shared by every caller, so each name is asked once.
+    search=False (bulk checks of many names) skips the search lead; a later call that wants it
+    runs it then."""
     path = CACHE / f"{language}.json"
     known = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-    def keep(name, row):
-        # Each answer as it arrives, so a refused search later keeps the ones before it. Another
-        # caller may have written meanwhile: merge into the file as it is now.
+    def keep(rows):
+        # Each batch's answers as they arrive, so a refused request later keeps the ones before
+        # it. Another caller may have written meanwhile: merge into the file as it is now.
         current = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-        current[name] = list(row)
+        current.update({name: list(row) for name, row in rows.items()})
         CACHE.mkdir(parents=True, exist_ok=True)
         scratch = path.with_suffix(f".{os.getpid()}.tmp")
         scratch.write_text(json.dumps(current, ensure_ascii=False, indent=0), encoding="utf-8")
         os.replace(scratch, path)
-        known[name] = list(row)
+        known.update({name: list(row) for name, row in rows.items()})
 
-    missing = [name for name in names if name not in known]
-    if missing:
-        forms(language, missing, keep)
+    missing = [name for name in names if name not in known or
+               search and known[name][2] == NOT_SEARCHED and known[name][0] == "-" and known[name][1] == "-"]
+    for start in range(0, len(missing), BATCH):
+        forms(language, missing[start:start + BATCH], keep, search)
     return {name: tuple(known[name]) for name in names}
 
 
-def forms(language, names, keep):
+def forms(language, names, keep, search=True):
     english = resolve("en", names, {"prop": "langlinks", "lllang": language, "lllimit": "max"})
     native = resolve(language, names, {})
+    rows = {}
     for name in names:
         page = english[name]
         links = page.get("langlinks", []) if page else []
         linked = f"{page['title']} -> {bare(links[0]['*'])}" if links else (f"{page['title']} -> -" if page else "-")
         direct = native[name]["title"] if native[name] else "-"
         # Search only for names neither title found: Wikipedia's search refuses work when busy.
-        hits = [] if links or native[name] else query(language, {
-            "action": "query", "list": "search", "srsearch": name, "srlimit": HITS})["query"]["search"]
-        keep(name, (linked, direct, " | ".join(hit["title"] for hit in hits) or "-"))
+        if links or native[name]:
+            found = "-"
+        elif not search:
+            found = NOT_SEARCHED
+        else:
+            hits = query(language, {"action": "query", "list": "search", "srsearch": name,
+                                    "srlimit": HITS})["query"]["search"]
+            found = " | ".join(hit["title"] for hit in hits) or "-"
+        rows[name] = (linked, direct, found)
+    keep(rows)
 
 
 def main():
