@@ -97,6 +97,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             fileName.substringAfterLast('/').substringAfterLast('\\').replace(mediaExtensions, "").lowercase()
         /** The title a library entry shows for the catalog's [title] and its [fileName]. */
         fun title(title: String, fileName: String): String = title
+        /** A record's `artwork` references as image paths and download URLs: LaunchBox references, by default. */
+        fun expandArtwork(art: JSONObject): JSONObject = LaunchBoxArtworkReferences.expand(art)
     }
 
     class ArtworkSource(val path: String, val url: String)
@@ -233,7 +235,9 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             CatalogFieldLayers.Source("User catalog", userRecord),
             CatalogFieldLayers.Source("User override", overrideRecord)
         ).let { withVariants(it, variantName) }
-            .map { source -> source.copy(record = LaunchBoxArtworkReferences.record(source.record)) },
+            .map { source -> source.copy(record = source.record?.let { record ->
+                record.optJSONObject("artwork")?.let { JsonCopy.shallow(record).put("artwork", schema.expandArtwork(it)) } ?: record
+            }) },
             { path -> path.size == 1 && path[0] in objectFields },
             schema::replacedSubfields)
     }
@@ -422,7 +426,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
                 (value.opt(index) as? String)?.let(::validTitle) == true
             }
         "artwork" -> value is JSONObject && runCatching {
-            val art = LaunchBoxArtworkReferences.expand(value)
+            val art = schema.expandArtwork(value)
             art.keys().asSequence().all { it in ART_FIELDS } && ART_PATH_FIELDS.all {
                 !art.has(it) || validArtPath(art.optString(it))
             } && ART_URL_FIELDS.all { !art.has(it) || validImageUrl(art.optString(it)) }
