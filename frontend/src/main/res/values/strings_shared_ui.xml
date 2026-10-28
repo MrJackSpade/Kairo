@@ -33,4 +33,5 @@
     <string name="kairo_saves_group">SAVE STATES</string>
     <string name="kairo_second_disk_missing">The second disk this game needs is not in the library</string>
     <string name="kairo_startup_commands">Startup commands</string>
+    <string name="kairo_startup_commands_hint">Lines to type, separated by ;</string>
 </resources>

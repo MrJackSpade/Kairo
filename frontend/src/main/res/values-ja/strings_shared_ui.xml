@@ -62,4 +62,6 @@
     <string name="kairo_second_disk_missing">このゲームに必要な2枚目のディスクがライブラリにありません</string>
     <!-- EN: Startup commands -->
     <string name="kairo_startup_commands">起動コマンド</string>
+    <!-- EN: Lines to type, separated by ; -->
+    <string name="kairo_startup_commands_hint">入力する行（; 区切り）</string>
 </resources>

@@ -62,4 +62,6 @@
     <string name="kairo_second_disk_missing">El segundo disco que necesita este juego no está en la biblioteca</string>
     <!-- EN: Startup commands -->
     <string name="kairo_startup_commands">Comandos de inicio</string>
+    <!-- EN: Lines to type, separated by ; -->
+    <string name="kairo_startup_commands_hint">Líneas que escribir, separadas por ;</string>
 </resources>

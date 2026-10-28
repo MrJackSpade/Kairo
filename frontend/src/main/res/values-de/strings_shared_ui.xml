@@ -62,4 +62,6 @@
     <string name="kairo_second_disk_missing">Der zweite Datenträger, den dieses Spiel benötigt, ist nicht in der Bibliothek</string>
     <!-- EN: Startup commands -->
     <string name="kairo_startup_commands">Startbefehle</string>
+    <!-- EN: Lines to type, separated by ; -->
+    <string name="kairo_startup_commands_hint">Einzugebende Zeilen, getrennt durch ;</string>
 </resources>
