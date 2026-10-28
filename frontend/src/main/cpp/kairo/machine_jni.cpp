@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 #include <cstdio>
+#include <fstream>
 #include <map>
 #include <string>
 #include <thread>
@@ -59,6 +60,7 @@ public:
     int save_state(const std::string &directory) override { return core_->save_state(directory); }
     int load_state(const std::string &directory) override { return core_->load_state(directory); }
     std::string state_error() override { return core_->state_error(); }
+    bool media_in_state() override { return core_->media_in_state(); }
     int media(int slot, const std::string &path) override { return core_->media(slot, path); }
     std::vector<std::string> media_paths() override { return core_->media_paths(); }
     kairo::Prompt prompt() override { return core_->prompt(); }
@@ -178,9 +180,36 @@ extern "C" JNIEXPORT jobjectArray JNICALL NATIVE_MACHINE(nativeMediaPaths)(JNIEn
     return array;
 }
 
+// For a core whose state holds no media (MachineCore::media_in_state): each slot's image when the
+// state was saved, one line per slot ("" for an empty one), beside the core's own state file.
+constexpr const char *kStateMedia = "/media-v1.txt";
+
 extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeSaveState)(JNIEnv *env, jobject, jstring directory) {
     std::string path = utf8(env, directory);
-    return machine.call([path](kairo::MachineCore &core) { return core.save_state(path); });
+    return machine.call([path](kairo::MachineCore &core) {
+        const int result = core.save_state(path);
+        if (result != 0 || core.media_in_state()) return result;
+        std::ofstream media(path + kStateMedia, std::ios::binary);
+        for (const std::string &image : core.media_paths()) media << image << '\n';
+        return media.good() ? 0 : kairo::MachineCore::kFailed;
+    });
+}
+
+// After a core's load: the state's media back in their slots, where they are now (kairo_state_path),
+// for a core whose state holds none. A state saved before this record existed has none to restore.
+static int restore_state_media(kairo::MachineCore &core, const std::string &path, const kairo::StatePaths &paths) {
+    std::ifstream media(path + kStateMedia, std::ios::binary);
+    if (!media) return 0;
+    const std::vector<std::string> now = core.media_paths();
+    std::string recorded;
+    for (size_t slot = 0; std::getline(media, recorded); ++slot) {
+        if (slot >= now.size()) return kairo::MachineCore::kFailed;
+        const std::string image = recorded.empty() ? "" : paths.resolve(recorded.c_str());
+        if (image == now[slot]) continue;
+        const int result = core.media(static_cast<int>(slot), image);
+        if (result != 0) return result;
+    }
+    return 0;
 }
 
 // [from] and [to]: each disk path a state may name, and where that disk is now (kairo/state_paths.h).
@@ -193,7 +222,8 @@ extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLoadState)(JNIEnv *env, j
     return machine.call([path, moved](kairo::MachineCore &core) {
         core.release_inputs();
         kairo::StatePaths paths(moved);
-        const int result = core.load_state(path);
+        int result = core.load_state(path);
+        if (result == 0 && !core.media_in_state()) result = restore_state_media(core, path, paths);
         if (result == 0) machine.redraw_paused(core);
         return result;
     });

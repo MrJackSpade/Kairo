@@ -85,6 +85,10 @@ public:
     virtual int load_state(const std::string &directory) { (void) directory; return kUnsupported; }
     // Why the last save_state or load_state failed, in the emulator's words; "" when it doesn't say.
     virtual std::string state_error() { return ""; }
+    // Whether a state the core saves records its media and a load puts them back (reopened through
+    // kairo_state_path). A core whose state holds no media returns false: the host then records
+    // media_paths() beside the state and inserts them again after the load.
+    virtual bool media_in_state() { return true; }
 
     // Inserts the image at path in slot, or ejects it for ""; 0 when it is in, else kFailed or kUnsupported.
     virtual int media(int slot, const std::string &path) { (void) slot; (void) path; return kUnsupported; }
