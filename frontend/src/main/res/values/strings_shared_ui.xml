@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="kairo_cartridge">Cartridge</string>
+    <string name="kairo_cassette">Cassette</string>
+    <string name="kairo_cd_rom">CD-ROM</string>
+    <!-- %1$s is a clock speed in megahertz, such as 2.5. -->
+    <string name="kairo_clock_mhz">%1$s MHz</string>
+    <!-- The disc a game needs, as "The %1$s this game needs is not in the library" names it. -->
+    <string name="kairo_companion_cd">CD</string>
+    <string name="kairo_drive_2">Drive 2</string>
+    <string name="kairo_firmware_dictionary">Dictionary</string>
+    <!-- A firmware file's description: %1$s is its file name; %2$s what it does. -->
+    <string name="kairo_firmware_part">%1$s · %2$s</string>
+    <string name="kairo_floppy_disk">Floppy disk</string>
+    <string name="kairo_folder_button">Choose games folder…</string>
+    <string name="kairo_folder_title">Choose a games folder</string>
+    <string name="kairo_hard_disk">Hard disk</string>
+    <string name="kairo_joystick_fire">Fire</string>
+    <string name="kairo_joystick_fire_2">Fire 2 (unused)</string>
+    <string name="kairo_keyboard_symbols">Symbols</string>
+    <string name="kairo_library_expired">Folder access expired. Select the games folder again.</string>
+    <!-- %1$d is a size in kilobytes. -->
+    <string name="kairo_memory_kb">%1$d KB</string>
+    <!-- %1$d is a size in megabytes. -->
+    <string name="kairo_memory_mb">%1$d MB</string>
+    <string name="kairo_option_clock">CPU clock</string>
+    <string name="kairo_option_machine">Machine</string>
+    <string name="kairo_option_memory">Memory</string>
+    <string name="kairo_option_system">System</string>
+    <string name="kairo_program">Program</string>
+    <string name="kairo_saves_group">SAVE STATES</string>
+    <string name="kairo_second_disk_missing">The second disk this game needs is not in the library</string>
+    <string name="kairo_startup_commands">Startup commands</string>
+</resources>
