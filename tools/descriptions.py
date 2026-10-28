@@ -8,9 +8,10 @@
       LaunchBox and MobyGames descriptions, or of an app's own references ({"<game key>": text},
       such as KairoDos's eXoDOS text). The excerpts are reference only; catalog descriptions are
       written fresh and never copy their wording.
-  descriptions.py add <app root> <batch.json>
-      Merge {"<game key>": "description"} into catalog/research/descriptions-v1.json. Each key
-      must be a game in games-v1.json that has no description yet.
+  descriptions.py add <app root> <batch.json> [--adult]
+      Merge {"<game key>": "description"} into catalog/research/descriptions-v1.json (with --adult,
+      an adult game's frank description into descriptions-adult-v1.json). Each key must be a game
+      in games-v1.json (with --adult, one marked adult) that has no such description yet.
 
   descriptions.py pending <app root> <language> <out.json> [--adult] [--limit N]
       Up to N of the English descriptions (or with --adult, the frank adult descriptions) not yet
@@ -104,19 +105,21 @@ def worklist(root, output, moby_root, references_path, limit):
     print(f"{len(lines)} games to describe -> {output}")
 
 
-def add(root, batch_path):
-    path = root / "catalog/research/descriptions-v1.json"
+def add(root, batch_path, adult=False):
+    path = root / f"catalog/research/descriptions{'-adult' if adult else ''}-v1.json"
     with locked(path):
-        merge_descriptions(root, path, batch_path)
+        merge_descriptions(root, path, batch_path, adult)
 
 
-def merge_descriptions(root, path, batch_path):
+def merge_descriptions(root, path, batch_path, adult):
     games = read(root / "catalog/research/games-v1.json")["games"]
     document = read(path, {"schemaVersion": 1, "descriptions": {}})
     batch = read(batch_path)
     for key, text in batch.items():
         if key not in games:
             raise SystemExit(f"unknown game {key}")
+        if adult and not games[key].get("adult"):
+            raise SystemExit(f"{key} is not an adult game")
         if key in document["descriptions"]:
             raise SystemExit(f"{key} already has a description")
         if not isinstance(text, str) or not 0 < len(text.strip()) <= MAX_LENGTH or text != text.strip():
@@ -230,6 +233,7 @@ def main():
     merge = commands.add_parser("add")
     merge.add_argument("root", type=Path)
     merge.add_argument("batch", type=Path)
+    merge.add_argument("--adult", action="store_true")
     todo = commands.add_parser("pending")
     todo.add_argument("root", type=Path)
     todo.add_argument("language")
@@ -260,7 +264,7 @@ def main():
     if args.command == "worklist":
         worklist(args.root.resolve(), args.output, args.mobygames, args.references, args.limit)
     elif args.command == "add":
-        add(args.root.resolve(), args.batch)
+        add(args.root.resolve(), args.batch, args.adult)
     elif args.command == "pending":
         pending(args.root.resolve(), args.language, args.output, args.adult, args.limit)
     elif args.command == "revise":
