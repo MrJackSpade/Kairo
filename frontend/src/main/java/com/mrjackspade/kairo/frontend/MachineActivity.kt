@@ -693,6 +693,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     else resources.getQuantityString(R.plurals.kairo_firmware_imported, imported.size, imported.size)
                 }
             }
+            MEDIA_FILE_REQUEST -> {
+                val slot = pickingMediaSlot ?: return true
+                pickingMediaSlot = null
+                DocumentPicker.selectedUri(resultCode, data)?.let { insertPickedFile(slot, it) }
+            }
             FIRMWARE_FILE_REQUEST -> {
                 val (set, part) = pickingPart ?: return true
                 pickingPart = null
@@ -773,14 +778,48 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /**
      * Empty ejects; then the running game's own disks ([ownMedia]); then Other, every disk of the
      * library the slot takes, on a page of its own: a player rarely needs one, and a library can
-     * hold thousands.
+     * hold thousands. Choose file takes a disk image on the device, outside the library.
      */
     private fun mediaChoice(slot: Int): ChoiceSpec {
         fun takes(entry: E) = entry.playable && mediaSlots[slot].accepts(entry)
         return GameDisks.choice(this, text(mediaSlots[slot].label), { currentGame?.title }, {
             val current = currentEntry ?: return@choice emptyList()
             GameDisks.own(current, libraryEntries, mounted, catalog.setDisks(current).toSet(), catalog::matchId, ::takes)
-        }, { libraryEntries.filter(::takes) }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) })
+        }, { libraryEntries.filter(::takes) }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) }) {
+            listOf(SettingsRow.action("choose", getString(R.string.kairo_choose_file)) {
+                pickingMediaSlot = slot
+                DocumentPicker.open(this, MEDIA_FILE_REQUEST, failed = ::toast)
+            })
+        }
+    }
+
+    /** The drive a disk image picked on the device goes into. */
+    private var pickingMediaSlot: Int? = null
+
+    /**
+     * A file picked for [slot], read as a file opened from outside the library is (an image, or a
+     * ZIP or 7z archive of them): the one image the drive takes goes in; with several, the player
+     * picks one.
+     */
+    private fun insertPickedFile(slot: Int, uri: Uri) {
+        val file = ExternalGameIntent.file(Intent(Intent.ACTION_VIEW, uri), this, tree) ?: return
+        Thread {
+            val result = runCatching {
+                library.inspectExternal(file, AtomicBoolean(false)).filter { it.playable && mediaSlots[slot].accepts(it) }
+            }
+            runOnUiThread {
+                result.onFailure { toast(it.message ?: getString(R.string.kairo_media_change_failed)) }
+                result.onSuccess { found ->
+                    when (found.size) {
+                        0 -> toast(getString(R.string.kairo_media_file_none, file.name, text(mediaSlots[slot].label)))
+                        1 -> changeMedia(slot, found.single())
+                        else -> pages.push(ChoicePage(ChoiceSpec(getString(R.string.kairo_media_file_choose), { file.name }, {
+                            listOf(ChoiceGroup(null, GameDisks.options(found)))
+                        }, { null }, { id -> found.firstOrNull { it.id == id }?.let { changeMedia(slot, it) } }, cycles = false)))
+                    }
+                }
+            }
+        }.apply { name = "${identity.appName}-media-file"; start() }
     }
 
     private fun changeMedia(slot: Int, entry: E?) {
@@ -806,6 +845,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     companion object {
         private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
         private const val FIRMWARE_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 2
+        private const val MEDIA_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 3
         /** The folder firmware was last imported from. */
         private const val FIRMWARE_FOLDER = "firmware_folder_v1"
         /** The drive choice that leaves a drive empty. */

@@ -109,6 +109,9 @@
     <string name="kairo_firmware_optional">Optional</string>
     <string name="kairo_firmware_replace">Replace…</string>
     <string name="kairo_choose_file">Choose file…</string>
+    <string name="kairo_media_file_choose">Choose the disk to insert</string>
+    <!-- %1$s is the picked file's name; %2$s the drive, such as Drive B. -->
+    <string name="kairo_media_file_none">Nothing in %1$s fits %2$s</string>
     <!-- %1$s is the machine's name; %2$s the files still missing. -->
     <string name="kairo_firmware_missing">Import the %1$s firmware in Menu › Machine first (missing %2$s)</string>
     <string name="kairo_firmware_none_in_folder">No %1$s firmware files in that folder</string>

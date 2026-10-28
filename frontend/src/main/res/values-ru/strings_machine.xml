@@ -186,6 +186,11 @@
     <string name="kairo_firmware_replace">Заменить…</string>
     <!-- EN: Choose file… -->
     <string name="kairo_choose_file">Выбрать файл…</string>
+    <!-- EN: Choose the disk to insert -->
+    <string name="kairo_media_file_choose">Выберите диск, который нужно вставить</string>
+    <!-- %1$s is the picked file's name; %2$s the drive, such as Drive B. -->
+    <!-- EN: Nothing in %1$s fits %2$s -->
+    <string name="kairo_media_file_none">В %1$s нет ничего, что подходит для: %2$s</string>
     <!-- %1$s is the machine's name; %2$s the files still missing. -->
     <!-- EN: Import the %1$s firmware in Menu › Machine first (missing %2$s) -->
     <string name="kairo_firmware_missing">Сначала импортируйте прошивку %1$s в разделе Меню › Машина (отсутствует: %2$s)</string>
