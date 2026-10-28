@@ -84,8 +84,6 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected open val keyboardHasTouchpad: Boolean = false
     /** The frame size the keyboard's touchpad scales its movement to. */
     protected open fun touchpadReferenceSize(): Pair<Int, Int> = videoSize().let { it.first to it.second }
-    /** Whether the screen stays on in the library as well as in a game. */
-    protected open val keepScreenOnInLibrary: Boolean = true
 
     // The library and its catalog ---------------------------------------------------------------
 
@@ -442,7 +440,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 releaseInputs()
                 hideKeyboard()
                 swappedKeyboardPanel.close()
-                if (!keepScreenOnInLibrary) window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                // The screen stays on only while a game shows; the library lets the device sleep (Kairo#90).
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }, {
                 secondaryKeyboard.showLibrary(false)
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -538,7 +537,6 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         setMuted(muted)
         controllerFlow.initialize()
         controllerDevices.register(handler)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         ImmersiveWindow.apply(this)
         viewScale = ViewScale(this)
         buildUi()
