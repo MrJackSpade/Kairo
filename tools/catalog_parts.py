@@ -7,8 +7,8 @@ from catalog_languages import valid_translations
 
 class App(NamedTuple):
     """How an app publishes its catalog. package/identity name its importable artwork package;
-    label is that package's display name as published. Apps whose records name games in a name
-    index ship that index's artwork; KairoDos keys records directly and has folders instead."""
+    label is that package's display name as published. name_index: the app's records name games
+    in a name index, whose artwork its package ships."""
     repo: str
     product: str
     package: str
@@ -20,7 +20,7 @@ class App(NamedTuple):
 # Kairo98's v2 records name their games' shared records; its v1 package stays frozen for app
 # versions that read the repeated records.
 APPS = {
-    'kairodos': App('KairoDos', 'dos', 'kairodos-art.nsfw', 'kairodos-art', 'Kairodos artwork', False),
+    'kairodos': App('KairoDos', 'dos', 'kairodos-art.nsfw', 'kairodos-art', 'Kairodos artwork', True),
     'kairo98': App('Kairo98', 'pc98', 'kairo98-art-v2.nsfw', 'kairo98-art-v2', 'Kairo98 artwork', True),
     'kairo88': App('Kairo88', 'pc88', 'kairo88-art.nsfw', 'kairo88-art', 'Kairo88 artwork', True),
     'kairo68': App('Kairo68', 'x68000', 'kairo68-art.nsfw', 'kairo68-art', 'Kairo68 artwork', True),

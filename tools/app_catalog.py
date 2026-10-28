@@ -122,7 +122,7 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
                 "invalid translated descriptions")
         tags = record.get("tags", [])
         require(isinstance(tags, list) and len(tags) <= 32 and
-                all(isinstance(x, str) and 0 < len(x.strip()) <= 64 for x in tags), "invalid tags")
+                all(isinstance(x, str) and 0 < len(x.strip()) <= 128 for x in tags), "invalid tags")
         aliases = record.get("aliases", [])
         require(isinstance(aliases, list) and len(aliases) <= 64 and
                 all(isinstance(x, str) and 0 < len(x.strip()) <= 256 for x in aliases), "invalid aliases")

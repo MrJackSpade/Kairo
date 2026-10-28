@@ -420,7 +420,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             language in DESCRIPTION_LANGUAGES && (value.opt(language) as? String)?.let(::validDescription) == true
         }
         "tags" -> value is JSONArray && value.length() <= 32 &&
-            (0 until value.length()).all { index -> (value.opt(index) as? String)?.let { it.isNotBlank() && it.length <= 64 } == true }
+            (0 until value.length()).all { index -> (value.opt(index) as? String)?.let { it.isNotBlank() && it.length <= 128 } == true }
         "aliases" -> value is JSONArray && value.length() <= 64 &&
             (0 until value.length()).all { index ->
                 (value.opt(index) as? String)?.let(::validTitle) == true
