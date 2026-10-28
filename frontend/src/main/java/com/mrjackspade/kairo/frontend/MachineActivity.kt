@@ -348,8 +348,38 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     override fun launch(entry: E, fromFrontend: Boolean) = startSession(entry, catalog.resolve(entry), fromFrontend)
 
-    /** Starts [entry] on the machine, as [launch] does once the product has what it needs. */
-    protected fun startSession(entry: E, game: CatalogGame, fromFrontend: Boolean) {
+    /**
+     * Whether the machine has a command line a game can open at (Kairo#89), such as BASIC's prompt:
+     * the library then offers it, and [startAtPrompt] starts it.
+     */
+    protected open val commandLine: Boolean = false
+
+    /**
+     * Starts the machine at its command line with [entry]'s media in its drives: nothing started from
+     * them and no startup commands typed. For a product with a [commandLine].
+     */
+    protected open fun startAtPrompt(entry: E, game: CatalogGame, cancelled: AtomicBoolean, progress: (String) -> Unit): Unit =
+        error("${identity.appName} has no command line")
+
+    override val commandLaunch: ((E) -> Unit)?
+        get() = if (commandLine) { entry -> startSession(entry, catalog.resolve(entry), false, atPrompt = true) } else null
+
+    /**
+     * Puts each of [entries], by media slot, in its drive of the running machine, as the Disks page
+     * does: for [startAtPrompt], which boots with the drives empty so nothing starts from them.
+     */
+    protected fun insertMedia(entries: List<E?>, cancelled: AtomicBoolean, progress: (String) -> Unit) {
+        entries.forEachIndexed { slot, entry ->
+            entry?.let {
+                val image = library.prepare(it, cancelled, progress)
+                check(bridge.media(slot, image.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
+            }
+        }
+        mediaStarted(entries)
+    }
+
+    /** Starts [entry] on the machine, as [launch] does once the product has what it needs; at its prompt with [atPrompt]. */
+    protected fun startSession(entry: E, game: CatalogGame, fromFrontend: Boolean, atPrompt: Boolean = false) {
         val generation = beginLaunch(getString(R.string.kairo_launch_preparing, entry.displayName))
         val cancelled = AtomicBoolean(false)
         Thread {
@@ -357,9 +387,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 bridge.stop()
                 if (current(generation)) {
                     inputRouter.resetLocks()
-                    startGame(entry, game, cancelled) { message ->
-                        runOnUiThread { if (current(generation)) showProgress(message) }
-                    }
+                    val progress = { message: String -> runOnUiThread { if (current(generation)) showProgress(message) } }
+                    if (atPrompt) startAtPrompt(entry, game, cancelled, progress) else startGame(entry, game, cancelled, progress)
                 }
                 null
             } catch (error: Exception) {
