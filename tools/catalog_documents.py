@@ -101,6 +101,9 @@ def update_archive(documents):
         for name in sorted(entries):
             info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
+            # ZipInfo defaults this field from the host OS: pinned, so Windows and Linux CI build the
+            # same bytes (as catalog_package.write_zip).
+            info.create_system = 3
             info.external_attr = 0o644 << 16
             archive.writestr(info, compact(entries[name]), compresslevel=9)
     return output.getvalue()
