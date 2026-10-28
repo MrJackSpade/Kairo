@@ -62,6 +62,10 @@ class LayeredCatalogSettings(private val schema: LayeredGameCatalog.Schema) : Ca
             val value = record.get(field)
             when {
                 field in DESCRIBES -> emptyList()
+                // A file-name variant's fields are settings like its record's.
+                field == "variants" -> (value as JSONObject).let { variants ->
+                    variants.keys().asSequence().flatMap { recordProblems(id, variants.getJSONObject(it)) }.toList()
+                }
                 field == CatalogSetting.MEDIA -> mediaProblems(id, value)
                 field in setOf("controller", "input") ->
                     (value as JSONObject).keys().asSequence().map { "$field.$it" }.filter { it !in common }
@@ -86,6 +90,6 @@ class LayeredCatalogSettings(private val schema: LayeredGameCatalog.Schema) : Ca
 
     companion object {
         /** Fields that say what a game is, not how it runs: which game, its disks, its name and pictures. */
-        private val DESCRIBES = setOf("game", "setDisks", "title", "description", "descriptions", "aliases", "heart", "hidden", "artwork")
+        private val DESCRIBES = setOf("game", "setDisks", "title", "description", "descriptions", "aliases", "tags", "heart", "hidden", "artwork")
     }
 }

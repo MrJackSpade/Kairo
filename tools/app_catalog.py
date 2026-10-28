@@ -8,6 +8,7 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
 
   {"schemaVersion": 1, "games": {"<platform>:<id>": {
       "title": "...", "aliases": [...], "description": "...",   shipped display metadata
+      "tags": ["1993", "Action", ...],                          shipped tags (year, genre, players)
       "adultDescription": "...",                                an adult game's frank description, shipped
                                                                 only in the adult data part (data.nsfw)
       "descriptions": {"<language>": "..."},                    the description translated (catalog_languages)
@@ -20,9 +21,13 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
                                                                 lines typed at the machine's prompt to start it) and
                                                                 "launch" (other launch fields, LAUNCH_FIELDS)
       "diskHidden": [...],                                      disks behind a set entry other games share
+      "diskVariants": {"<disk>": {"<file name>": {...}}},       one medium holding several games: the game and
+                                                                launch a library file's name picks (its
+                                                                record's "variants", Schema.variantName)
       "adult": true,                                            heart marker, core-review exclusion
       "hidden": true,                                           not a game: never listed in the library
-      "controller": {"defaults": {"withoutSticks": [...], "withSticks": [...]}}   the game's own controls
+      "controller": {"profile": "...", "defaults": {"withoutSticks": [...], "withSticks": [...]}}
+                                                                the game's own controls and the preset they are
       "launchbox": "...", "mobygames": 0, "year": 0, ...         research only, never shipped
   }}}
 
@@ -30,6 +35,10 @@ catalog/system-v1.json is the system's definition: its controller mapping,
 {"schemaVersion": 1, "controller": {"bindings": [...]}}, the lowest layer of every game's mapping
 (shared ControllerDefaults.cascade). It binds every control (the D-pad to the arrow keys) and holds
 no explicit null ("unbound"): what we ship leaves no control dead.
+
+An app's catalog_config.DOCUMENTS(games), when it has one, returns its own documents
+{"<name>.json": {...}}, shipped beside the records and carried in the update's "documents"
+(shared LayeredGameCatalog.documents), such as KairoDos's launch folders.
 
 catalog/core-review-v1.json lists excluded games and approved artwork. Outputs: catalog/source-v1.json,
 catalog/core-v3.json with its .meta.json, catalog/parts/, the artwork exclusion list and the
@@ -53,7 +62,7 @@ from catalog_package import image_paths
 from catalog_parts import generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
-SHIPPED = ("title", "description", "descriptions", "aliases", "controller")
+SHIPPED = ("title", "description", "descriptions", "aliases", "tags", "controller")
 CORE_VERSION = 3
 MAX_IDS = 64
 
@@ -78,19 +87,29 @@ COMMAND_LINE = re.compile(r"[ -~]{1,40}")
 
 
 def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, launch_fields=None):
-    """[launch_fields] maps each launch field an app has besides "commands" to the pattern its value matches."""
-    launch_fields = {name: re.compile(pattern) for name, pattern in (launch_fields or {}).items()}
+    """[launch_fields] maps each launch field an app has besides "commands" to the pattern its value
+    matches, or to a function that says whether a value is valid."""
+    launch_fields = {name: rule if callable(rule) else
+                     (lambda value, pattern=re.compile(rule): isinstance(value, str) and bool(pattern.fullmatch(value)))
+                     for name, rule in (launch_fields or {}).items()}
     content_id = re.compile(r"sha256-(?:" + "|".join(sorted(kinds)) + r")-v1:[0-9a-f]{64}\Z")
 
     def validate_record(record):
         require(isinstance(record, dict), "game must be an object")
-        require(set(record) <= {"game", "title", "description", "descriptions", "aliases", "artwork", "heart",
-                                "hidden", "setDisks", "media", "machine", "launch", "controller", "contentIds"},
+        require(set(record) <= {"game", "title", "description", "descriptions", "aliases", "tags", "artwork", "heart",
+                                "hidden", "setDisks", "media", "machine", "launch", "controller", "variants",
+                                "contentIds"},
                 "unknown game field")
+        variants = record.get("variants", {})
+        require(isinstance(variants, dict) and len(variants) <= 16 and
+                all(isinstance(name, str) and 0 < len(name) <= 256 and name == name.lower() and isinstance(v, dict)
+                    and v and "variants" not in v for name, v in variants.items()), "invalid variants")
         ids = record.get("contentIds")
         require(isinstance(ids, list) and 1 <= len(ids) <= MAX_IDS and len(ids) == len(set(ids)) and
                 all(isinstance(value, str) and content_id.fullmatch(value) for value in ids),
                 "contentIds must list 1-64 distinct content IDs")
+        for variant in variants.values():
+            validate_record({**variant, "contentIds": ids})
         require("game" not in record or (isinstance(record["game"], str) and GAME_KEY.fullmatch(record["game"])),
                 "invalid game reference")
         title = record.get("title")
@@ -101,6 +120,9 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
                 "invalid description")
         require("descriptions" not in record or (description is not None and valid_translations(record["descriptions"])),
                 "invalid translated descriptions")
+        tags = record.get("tags", [])
+        require(isinstance(tags, list) and len(tags) <= 32 and
+                all(isinstance(x, str) and 0 < len(x.strip()) <= 64 for x in tags), "invalid tags")
         aliases = record.get("aliases", [])
         require(isinstance(aliases, list) and len(aliases) <= 64 and
                 all(isinstance(x, str) and 0 < len(x.strip()) <= 256 for x in aliases), "invalid aliases")
@@ -117,7 +139,9 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
         if "controller" in record:
             controller = record["controller"]
             defaults = controller.get("defaults") if isinstance(controller, dict) else None
-            require(isinstance(controller, dict) and set(controller) == {"defaults"} and isinstance(defaults, dict) and
+            profile = controller.get("profile") if isinstance(controller, dict) else None
+            require(profile is None or (isinstance(profile, str) and 0 < len(profile) <= 64), "invalid controller profile")
+            require(isinstance(controller, dict) and set(controller) - {"profile"} == {"defaults"} and isinstance(defaults, dict) and
                     "withoutSticks" in defaults and set(defaults) <= {"withoutSticks", "withSticks"} and
                     all(isinstance(bindings, list) and all(isinstance(b, dict) and isinstance(b.get("input"), str)
                                                            for b in bindings) for bindings in defaults.values()),
@@ -137,9 +161,8 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
                 require(isinstance(commands, list) and 1 <= len(commands) <= 8 and
                         all(isinstance(line, str) and COMMAND_LINE.fullmatch(line) for line in commands),
                         "invalid startup commands")
-            for field, pattern in launch_fields.items():
-                require(field not in launch or (isinstance(launch[field], str) and pattern.fullmatch(launch[field])),
-                        f"invalid launch {field}")
+            for field, valid in launch_fields.items():
+                require(field not in launch or valid(launch[field]), f"invalid launch {field}")
         machine = record.get("machine", {})
         require(isinstance(machine, dict) and ("machine" not in record or machine_options) and
                 all(value in machine_options.get(option, ()) for option, value in machine.items()),
@@ -209,6 +232,8 @@ def generate(root, check=False):
         own = {disk: dict(fields) for disk, fields in entry.get("diskSets", {}).items()}
         for disk in entry.get("diskHidden", []):
             own.setdefault(disk, {})["hidden"] = True
+        for disk, variants in entry.get("diskVariants", {}).items():
+            own.setdefault(disk, {})["variants"] = variants
         for disk, settings in entry.get("diskMachine", {}).items():
             settings = dict(settings)
             # The startup commands and other launch fields are the disk's launch; the rest are machine settings.
@@ -242,13 +267,16 @@ def generate(root, check=False):
     manifest, shards = catalog_documents.build(source, validate_record)
     system = json.loads((root / "catalog/system-v1.json").read_text(encoding="utf-8"))
     validate_system(system)
-    documents = {"base-v1.json": {"schemaVersion": 1, "games": {}}, "manifest-v1.json": manifest,
+    own_documents = config.DOCUMENTS(research["games"]) if hasattr(config, "DOCUMENTS") else {}
+    require(not own_documents.keys() & {"base-v1.json", "manifest-v1.json", "name-index-v1.json", "system-v1.json"}
+            and all(not name.startswith("shards/") for name in own_documents), "an app document takes a catalog name")
+    documents = {**own_documents, "base-v1.json": {"schemaVersion": 1, "games": {}}, "manifest-v1.json": manifest,
                  "name-index-v1.json": name_index, "system-v1.json": system,
                  **{f"shards/{prefix}.json": {"schemaVersion": 1, "games": records}
                     for prefix, records in shards.items()}}
     placeholder = f"sha256-{sorted(config.KINDS)[0]}-v1:" + "0" * 64
     pack = compact({**catalog_documents.build_pack(source, name_index, validate_record, placeholder),
-                    "coreVersion": CORE_VERSION})
+                    "coreVersion": CORE_VERSION, **({"documents": own_documents} if own_documents else {})})
     outputs = {"catalog/source-v1.json": compact(source), "catalog/core-v3.json": pack,
                "catalog/core-v3.meta.json": (json.dumps({"schemaVersion": 1, "archive": "core-v3.json",
                    "sha256": hashlib.sha256(pack).hexdigest(), "size": len(pack)}, separators=(",", ":")) + "\n").encode("utf-8")}
