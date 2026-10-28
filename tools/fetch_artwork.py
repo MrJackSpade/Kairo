@@ -39,16 +39,15 @@ def load_config(root):
 
 
 def references(value, expand, found):
-    """Every image path in the documents, with its source URL."""
+    """Every image path in the documents, with its source URL, or None for an image the app keeps in
+    its repository (KairoDos's), which is never fetched."""
     if isinstance(value, dict):
         for key, child in value.items():
             if key == "artwork":
                 art = expand(child)
                 for kind, url in KINDS:
                     if art.get(kind):
-                        if not art.get(url):
-                            raise SystemExit(f"{art[kind]} has no source URL")
-                        found[art[kind]] = art[url]
+                        found[art[kind]] = art.get(url)
             else:
                 references(child, expand, found)
     return found
@@ -138,6 +137,9 @@ def main():
     if unreferenced:
         print(f"removed {len(unreferenced)} unreferenced images", flush=True)
     print(f"{len(images)} images referenced, {len(missing)} to fetch", flush=True)
+    unfetchable = [path for path in missing if not images[path]]
+    if unfetchable:
+        raise SystemExit(f"{len(unfetchable)} missing images have no source URL, such as {unfetchable[0]}")
 
     def one(path):
         url = images[path]
