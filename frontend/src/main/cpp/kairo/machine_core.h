@@ -33,8 +33,10 @@ struct Launch {
 
 class MachineCore {
 public:
-    // A state call the core does not support; NativeMachine reports it as a failure.
+    // A save, load or media call the core does not support (MachineActivity.stateError).
     static constexpr int kUnsupported = -2;
+    // A save, load or media call that failed; for a state, state_error() may say why.
+    static constexpr int kFailed = 2;
 
     virtual ~MachineCore() = default;
 
@@ -78,11 +80,13 @@ public:
     virtual std::string details() { return ""; }
 
     virtual void reset() = 0;
-    // 0, or a code the product's stateError explains.
+    // 0, kFailed or kUnsupported.
     virtual int save_state(const std::string &directory) { (void) directory; return kUnsupported; }
     virtual int load_state(const std::string &directory) { (void) directory; return kUnsupported; }
+    // Why the last save_state or load_state failed, in the emulator's words; "" when it doesn't say.
+    virtual std::string state_error() { return ""; }
 
-    // Inserts the image at path in slot, or ejects it for ""; 0 when it is in.
+    // Inserts the image at path in slot, or ejects it for ""; 0 when it is in, else kFailed or kUnsupported.
     virtual int media(int slot, const std::string &path) { (void) slot; (void) path; return kUnsupported; }
     // What each slot holds, "" for an empty one.
     virtual std::vector<std::string> media_paths() { return {}; }

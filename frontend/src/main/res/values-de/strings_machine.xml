@@ -108,6 +108,16 @@
     <string name="kairo_states_library_only">Speicherstände sind für Spiele verfügbar, die aus der Bibliothek gestartet wurden.</string>
     <!-- EN: the machine is not running -->
     <string name="kairo_state_error_not_running">die Maschine läuft nicht</string>
+    <!-- EN: the emulator could not read or write the state -->
+    <string name="kairo_state_error_failed">Der Emulator konnte den Speicherstand nicht lesen oder schreiben</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <!-- EN: the emulator could not read or write the state: %1$s -->
+    <string name="kairo_state_error_failed_reason">Der Emulator konnte den Speicherstand nicht lesen oder schreiben: %1$s</string>
+    <!-- EN: this emulator does not support save states -->
+    <string name="kairo_state_error_unsupported">dieser Emulator unterstützt keine Speicherstände</string>
+    <!-- %1$d is the emulator's error code. -->
+    <!-- EN: code %1$d -->
+    <string name="kairo_state_error_code">Code %1$d</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">%1$s wird vorbereitet…</string>

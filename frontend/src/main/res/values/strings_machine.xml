@@ -63,6 +63,12 @@
     <string name="kairo_save_slot">Slot %1$s</string>
     <string name="kairo_states_library_only">Save states are available for games started from the library.</string>
     <string name="kairo_state_error_not_running">the machine is not running</string>
+    <string name="kairo_state_error_failed">the emulator could not read or write the state</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <string name="kairo_state_error_failed_reason">the emulator could not read or write the state: %1$s</string>
+    <string name="kairo_state_error_unsupported">this emulator does not support save states</string>
+    <!-- %1$d is the emulator's error code. -->
+    <string name="kairo_state_error_code">code %1$d</string>
 
     <!-- %1$s is the game's name. -->
     <string name="kairo_launch_preparing">Preparing %1$s…</string>

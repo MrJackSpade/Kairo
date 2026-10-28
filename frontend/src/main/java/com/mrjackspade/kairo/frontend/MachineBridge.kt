@@ -23,13 +23,15 @@ interface MachineBridge {
     /** Relative guest mouse movement, and button 1 (left) or 2 (right). */
     fun mouseMove(dx: Int, dy: Int)
     fun mouseButton(button: Int, down: Boolean)
-    /** Saves the machine into [directory]; 0, or a code [MachineActivity.stateError] explains. */
+    /** Saves the machine into [directory]; 0, [FAILED], [UNSUPPORTED] or [NOT_RUNNING]. */
     fun saveState(directory: String): Int
     /**
      * Loads the machine from [directory]. [moved] maps each disk path a state may name to where
      * that disk is now (MachineLibrary.statePaths); the machine reopens its disks through it.
      */
     fun loadState(directory: String, moved: Map<String, String>): Int
+    /** Why the last save or load failed, in the emulator's words; "" when it doesn't say. */
+    fun stateErrorReason(): String = ""
     /** The lock keys the machine has on, as after loading a state. */
     fun lockedKeys(): Set<Int>
     /** `<state>|<error>|<frames>|<audio>|<xruns>|<audio config>`, as [MachineStatus] reads it. */
@@ -48,6 +50,10 @@ interface MachineBridge {
     companion object {
         /** A state call made while no machine runs, or one that stopped before answering. */
         const val NOT_RUNNING = -1000
+        /** A save or load that failed ([stateErrorReason] may say why): MachineCore::kFailed. */
+        const val FAILED = 2
+        /** A save or load the machine can't do: MachineCore::kUnsupported. */
+        const val UNSUPPORTED = -2
     }
 }
 

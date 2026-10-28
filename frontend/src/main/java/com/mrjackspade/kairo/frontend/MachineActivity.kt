@@ -40,8 +40,19 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** Rows in the game flyout's GAME group after Save state and Load state, such as Disks. */
     protected open fun machineRows(): List<SettingsRow> = emptyList()
 
-    /** Why a save or load failed, for a nonzero code the bridge returned. */
-    protected abstract fun stateError(code: Int): String
+    /**
+     * Why a save or load failed, for a nonzero code the bridge returned: the shared machine host's
+     * codes (MachineCore's kFailed, with the emulator's reason, and kUnsupported). A product with a
+     * bridge of its own codes maps them here instead.
+     */
+    protected open fun stateError(code: Int): String = when (code) {
+        MachineBridge.FAILED -> bridge.stateErrorReason().let { reason ->
+            if (reason.isEmpty()) getString(R.string.kairo_state_error_failed)
+            else getString(R.string.kairo_state_error_failed_reason, reason)
+        }
+        MachineBridge.UNSUPPORTED -> getString(R.string.kairo_state_error_unsupported)
+        else -> getString(R.string.kairo_state_error_code, code)
+    }
 
     /** A state loaded: the product rereads what the machine now holds, such as its disks. */
     protected open fun stateLoaded() {}

@@ -108,6 +108,16 @@
     <string name="kairo_states_library_only">Сохраненные состояния доступны для игр, запущенных из библиотеки.</string>
     <!-- EN: the machine is not running -->
     <string name="kairo_state_error_not_running">машина не запущена</string>
+    <!-- EN: the emulator could not read or write the state -->
+    <string name="kairo_state_error_failed">эмулятор не смог прочитать или записать состояние</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <!-- EN: the emulator could not read or write the state: %1$s -->
+    <string name="kairo_state_error_failed_reason">эмулятор не смог прочитать или записать состояние: %1$s</string>
+    <!-- EN: this emulator does not support save states -->
+    <string name="kairo_state_error_unsupported">этот эмулятор не поддерживает сохраненные состояния</string>
+    <!-- %1$d is the emulator's error code. -->
+    <!-- EN: code %1$d -->
+    <string name="kairo_state_error_code">код %1$d</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">Подготовка %1$s…</string>

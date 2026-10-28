@@ -108,6 +108,16 @@
     <string name="kairo_states_library_only">상태 저장은 라이브러리에서 시작한 게임에서 사용할 수 있습니다.</string>
     <!-- EN: the machine is not running -->
     <string name="kairo_state_error_not_running">머신이 실행 중이 아님</string>
+    <!-- EN: the emulator could not read or write the state -->
+    <string name="kairo_state_error_failed">에뮬레이터가 상태를 읽거나 쓸 수 없음</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <!-- EN: the emulator could not read or write the state: %1$s -->
+    <string name="kairo_state_error_failed_reason">에뮬레이터가 상태를 읽거나 쓸 수 없음: %1$s</string>
+    <!-- EN: this emulator does not support save states -->
+    <string name="kairo_state_error_unsupported">이 에뮬레이터는 상태 저장을 지원하지 않음</string>
+    <!-- %1$d is the emulator's error code. -->
+    <!-- EN: code %1$d -->
+    <string name="kairo_state_error_code">코드 %1$d</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">%1$s 준비 중…</string>

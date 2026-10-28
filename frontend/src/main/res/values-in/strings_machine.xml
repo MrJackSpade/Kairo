@@ -108,6 +108,16 @@
     <string name="kairo_states_library_only">Status tersimpan tersedia untuk game yang dimulai dari pustaka.</string>
     <!-- EN: the machine is not running -->
     <string name="kairo_state_error_not_running">mesin tidak berjalan</string>
+    <!-- EN: the emulator could not read or write the state -->
+    <string name="kairo_state_error_failed">emulator tidak dapat membaca atau menulis status</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <!-- EN: the emulator could not read or write the state: %1$s -->
+    <string name="kairo_state_error_failed_reason">emulator tidak dapat membaca atau menulis status: %1$s</string>
+    <!-- EN: this emulator does not support save states -->
+    <string name="kairo_state_error_unsupported">emulator ini tidak mendukung status tersimpan</string>
+    <!-- %1$d is the emulator's error code. -->
+    <!-- EN: code %1$d -->
+    <string name="kairo_state_error_code">kode %1$d</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">Menyiapkan %1$s…</string>

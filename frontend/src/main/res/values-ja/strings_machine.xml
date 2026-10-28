@@ -108,6 +108,16 @@
     <string name="kairo_states_library_only">ステートセーブはライブラリから起動したゲームで使用できます。</string>
     <!-- EN: the machine is not running -->
     <string name="kairo_state_error_not_running">マシンが動作していません</string>
+    <!-- EN: the emulator could not read or write the state -->
+    <string name="kairo_state_error_failed">エミュレーターがステートを読み書きできませんでした</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <!-- EN: the emulator could not read or write the state: %1$s -->
+    <string name="kairo_state_error_failed_reason">エミュレーターがステートを読み書きできませんでした: %1$s</string>
+    <!-- EN: this emulator does not support save states -->
+    <string name="kairo_state_error_unsupported">このエミュレーターはステートセーブに対応していません</string>
+    <!-- %1$d is the emulator's error code. -->
+    <!-- EN: code %1$d -->
+    <string name="kairo_state_error_code">コード %1$d</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">%1$s を準備しています…</string>

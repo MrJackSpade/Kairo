@@ -58,6 +58,7 @@ public:
     void reset() override { core_->reset(); }
     int save_state(const std::string &directory) override { return core_->save_state(directory); }
     int load_state(const std::string &directory) override { return core_->load_state(directory); }
+    std::string state_error() override { return core_->state_error(); }
     int media(int slot, const std::string &path) override { return core_->media(slot, path); }
     std::vector<std::string> media_paths() override { return core_->media_paths(); }
     kairo::Prompt prompt() override { return core_->prompt(); }
@@ -196,6 +197,16 @@ extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLoadState)(JNIEnv *env, j
         if (result == 0) machine.redraw_paused(core);
         return result;
     });
+}
+
+// Why the last save or load failed, in the emulator's words; "" when it doesn't say or has stopped.
+extern "C" JNIEXPORT jstring JNICALL NATIVE_MACHINE(nativeStateError)(JNIEnv *env, jobject) {
+    std::string reason;
+    machine.call([&reason](kairo::MachineCore &core) {
+        reason = core.state_error();
+        return 0;
+    });
+    return env->NewStringUTF(reason.c_str());
 }
 
 extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLocks)(JNIEnv *, jobject) {

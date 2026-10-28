@@ -108,6 +108,16 @@
     <string name="kairo_states_library_only">Estados salvos estão disponíveis para jogos iniciados pela biblioteca.</string>
     <!-- EN: the machine is not running -->
     <string name="kairo_state_error_not_running">a máquina não está em execução</string>
+    <!-- EN: the emulator could not read or write the state -->
+    <string name="kairo_state_error_failed">o emulador não conseguiu ler nem gravar o estado</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <!-- EN: the emulator could not read or write the state: %1$s -->
+    <string name="kairo_state_error_failed_reason">o emulador não conseguiu ler nem gravar o estado: %1$s</string>
+    <!-- EN: this emulator does not support save states -->
+    <string name="kairo_state_error_unsupported">este emulador não oferece suporte a estados salvos</string>
+    <!-- %1$d is the emulator's error code. -->
+    <!-- EN: code %1$d -->
+    <string name="kairo_state_error_code">código %1$d</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">Preparando %1$s…</string>

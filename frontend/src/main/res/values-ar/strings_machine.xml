@@ -108,6 +108,16 @@
     <string name="kairo_states_library_only">تتوفر الحالات المحفوظة للألعاب التي تبدأ من المكتبة.</string>
     <!-- EN: the machine is not running -->
     <string name="kairo_state_error_not_running">الجهاز لا يعمل</string>
+    <!-- EN: the emulator could not read or write the state -->
+    <string name="kairo_state_error_failed">تعذّر على المحاكي قراءة الحالة أو كتابتها</string>
+    <!-- %1$s is the emulator's own reason, untranslated. -->
+    <!-- EN: the emulator could not read or write the state: %1$s -->
+    <string name="kairo_state_error_failed_reason">تعذّر على المحاكي قراءة الحالة أو كتابتها: %1$s</string>
+    <!-- EN: this emulator does not support save states -->
+    <string name="kairo_state_error_unsupported">لا يدعم هذا المحاكي الحالات المحفوظة</string>
+    <!-- %1$d is the emulator's error code. -->
+    <!-- EN: code %1$d -->
+    <string name="kairo_state_error_code">الرمز %1$d</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">جارٍ تجهيز %1$s…</string>
