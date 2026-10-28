@@ -7,27 +7,26 @@ from catalog_languages import LANGUAGES, valid_translations
 
 class App(NamedTuple):
     """How an app publishes its catalog. package/identity name its importable artwork package;
-    label is that package's display name as published. name_index: the app's records name games
-    in a name index, whose artwork its package ships."""
+    label is that package's display name as published. Every app's records name games in a name
+    index, whose artwork its package ships."""
     repo: str
     product: str
     package: str
     identity: str
     label: str
-    name_index: bool
 
 
 # Kairo98's v2 records name their games' shared records; its v1 package stays frozen for app
 # versions that read the repeated records.
 APPS = {
-    'kairodos': App('KairoDos', 'dos', 'kairodos-art.nsfw', 'kairodos-art', 'Kairodos artwork', True),
-    'kairo98': App('Kairo98', 'pc98', 'kairo98-art-v2.nsfw', 'kairo98-art-v2', 'Kairo98 artwork', True),
-    'kairo88': App('Kairo88', 'pc88', 'kairo88-art.nsfw', 'kairo88-art', 'Kairo88 artwork', True),
-    'kairo68': App('Kairo68', 'x68000', 'kairo68-art.nsfw', 'kairo68-art', 'Kairo68 artwork', True),
-    'kairotowns': App('KairoTowns', 'fmtowns', 'kairotowns-art.nsfw', 'kairotowns-art', 'KairoTowns artwork', True),
-    'kairomsx': App('KairoMSX', 'msx', 'kairomsx-art.nsfw', 'kairomsx-art', 'KairoMSX artwork', True),
-    'kairost': App('KairoST', 'atarist', 'kairost-art.nsfw', 'kairost-art', 'KairoST artwork', True),
-    'kairo64': App('Kairo64', 'c64', 'kairo64-art.nsfw', 'kairo64-art', 'Kairo64 artwork', True),
+    'kairodos': App('KairoDos', 'dos', 'kairodos-art.nsfw', 'kairodos-art', 'Kairodos artwork'),
+    'kairo98': App('Kairo98', 'pc98', 'kairo98-art-v2.nsfw', 'kairo98-art-v2', 'Kairo98 artwork'),
+    'kairo88': App('Kairo88', 'pc88', 'kairo88-art.nsfw', 'kairo88-art', 'Kairo88 artwork'),
+    'kairo68': App('Kairo68', 'x68000', 'kairo68-art.nsfw', 'kairo68-art', 'Kairo68 artwork'),
+    'kairotowns': App('KairoTowns', 'fmtowns', 'kairotowns-art.nsfw', 'kairotowns-art', 'KairoTowns artwork'),
+    'kairomsx': App('KairoMSX', 'msx', 'kairomsx-art.nsfw', 'kairomsx-art', 'KairoMSX artwork'),
+    'kairost': App('KairoST', 'atarist', 'kairost-art.nsfw', 'kairost-art', 'KairoST artwork'),
+    'kairo64': App('Kairo64', 'c64', 'kairo64-art.nsfw', 'kairo64-art', 'Kairo64 artwork'),
 }
 
 CONTROL_FIELDS = {'controller', 'input', 'machine', 'launch', 'startupChoices', 'diskSwaps', 'media'}
@@ -120,16 +119,11 @@ def generate_parts(root, app, full_documents, optional_data, adult_data, expand,
     restricted = filter_artwork(optional_data, withheld, expand, compact_art)
     _, _, art = split(restricted)
     spec = APPS[app]
-    if not spec.name_index:
-        assert not adult, f'{app}: adult descriptions need a name index'
-        payload = {'schemaVersion':1,'games':art.get('games',{}),'folders':{},
-                   'controllers':{'schemaVersion':1,'profiles':{},'presets':{},'assignments':{}}}
-    else:
-        # The package carries the adult images and the adult descriptions, for builds without either part.
-        games = merge(art.get('nameIndex',{}).get('games',{}), adult)
-        payload = {'schemaVersion':1,'games':art.get('games',{}),'nameIndex':{'schemaVersion':1,
-            'games':games,'names':{k:v for k,v in optional_data['nameIndex']['names'].items() if v in games}},
-            **({'documents':adult_translations} if adult_translations else {})}
+    # The package carries the adult images and the adult descriptions, for builds without either part.
+    games = merge(art.get('nameIndex',{}).get('games',{}), adult)
+    payload = {'schemaVersion':1,'games':art.get('games',{}),'nameIndex':{'schemaVersion':1,
+        'games':games,'names':{k:v for k,v in optional_data['nameIndex']['names'].items() if v in games}},
+        **({'documents':adult_translations} if adult_translations else {})}
     if not check:
         release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
         assert release['schemaVersion'] == 1 and release['revision'] > 0

@@ -20,9 +20,10 @@ def audit(root, product, artifacts=()):
         assert path.relative_to(root).as_posix() in tracked, f'Catalog file is not tracked: {path}'
         assert path.is_file(), f'Missing catalog file: {path}'
     # Check every public snapshot and optional update manifest against committed bytes.
-    manifests = list((root/'catalog/optional').glob('*.meta.json'))
-    manifests += ([root/'catalog/core-v3.meta.json'] if spec.name_index
-        else [root/'catalog/core-v2.json', root/'catalog/online-v1.json'])
+    # The optional packages and every published update: core-v4 and each language's, and core-v3
+    # where the app still publishes it for its earlier versions.
+    manifests = list((root/'catalog/optional').glob('*.meta.json')) + sorted((root/'catalog').glob('core-v*.meta.json'))
+    assert root/'catalog/core-v4.meta.json' in manifests, 'The app publishes no update' 
     prefix = f'https://raw.githubusercontent.com/MrJackSpade/{spec.repo}/main/'
     for path in manifests:
         repository_file(path)
@@ -37,8 +38,12 @@ def audit(root, product, artifacts=()):
         payload = archive.read_bytes()
         assert len(payload) == meta['size'] and hashlib.sha256(payload).hexdigest() == meta['sha256'], path
     sys.path.insert(0, str(root/'tools'))
-    if spec.name_index: from artwork_references import expand
-    else: from dos_artwork import expand
+    # The app's artwork references: its catalog_config's (shared app_catalog), else its own module (Kairo98).
+    if (root/'tools/catalog_config.py').is_file():
+        from app_catalog import load_config
+        expand = load_config(root).ARTWORK.expand
+    else:
+        from artwork_references import expand
     policy = json.loads((root/'catalog/core-review-v1.json').read_text('utf8'))
     parts = {p.name:p.read_bytes() for p in (root/'catalog/parts').glob('*.json')}
     assert set(parts) == {'data.json','controls.json','art.json','art.nsfw.json','data.nsfw.json'}
@@ -62,19 +67,19 @@ def audit(root, product, artifacts=()):
     assert withheld == expected_withheld
     assert withheld == set(json.loads((root/'catalog/artwork-exclusions-v1.json').read_text('utf8'))['artwork'])
     expected_core = merge(data, controls, safe)
+    # An app that also keeps its generated documents as asset files (Kairo98) keeps them equal to its parts.
     assets = root/app/'src/main/assets/catalog'
-    legacy = {p.relative_to(assets).as_posix():json.loads(p.read_text('utf8')) for p in assets.rglob('*.json')}
-    assert expected_core == legacy, 'Parts do not reconstruct generated core metadata'
-    if not spec.name_index:
-        ids = {k for n,v in legacy.items() if n.startswith('dos/') and 'games' in v for k in v['games']}
-        assert policy['excluded'].keys() <= ids
-        for path in [root/'catalog/online-v1.zip',root/'catalog/core-v2.zip',root/'shared/catalog/dos/online-v1.zip',root/'shared/catalog/dos/core-v2.zip']:
-            with zipfile.ZipFile(path) as z:
-                assert {'dos/'+n:json.loads(z.read(n)) for n in z.namelist()} == legacy
-    else:
-        assert policy['excluded'].keys() <= legacy['name-index-v1.json']['games'].keys()
-        for name in ('source-v1.json','core-v3.json'):
-            assert image_paths(json.loads((root/'catalog'/name).read_text('utf8')),expand) <= approved
+    if assets.is_dir():
+        legacy = {p.relative_to(assets).as_posix():json.loads(p.read_text('utf8')) for p in assets.rglob('*.json')}
+        assert expected_core == legacy, 'Parts do not reconstruct generated core metadata'
+    assert policy['excluded'].keys() <= expected_core['name-index-v1.json']['games'].keys()
+    published = [json.loads((root/'catalog/source-v1.json').read_text('utf8'))]
+    if (root/'catalog/core-v3.json').is_file():
+        published.append(json.loads((root/'catalog/core-v3.json').read_text('utf8')))
+    with zipfile.ZipFile(root/'catalog/core-v4.zip') as update:
+        published += [json.loads(update.read(name)) for name in update.namelist()]
+    for document in published:
+        assert image_paths(document, expand) <= approved, 'A published catalog names withheld artwork' 
     # Approved images are pinned by checksum; an app listing adult images instead pins none.
     for path, sha in policy.get('approvedArtwork', {}).items():
         assert hashlib.sha256((root/'catalog/artwork'/path).read_bytes()).hexdigest() == sha
@@ -111,15 +116,12 @@ def audit(root, product, artifacts=()):
                     assert record.keys() <= {'artwork','variants'}
                     artwork_only(record.get('variants',{}))
             artwork_only(optional['games'])
-            if spec.name_index:
-                # A name-index game also carries its adult description, the one data.nsfw holds.
-                games = optional['nameIndex']['games']
-                artwork_only({k: {f: v for f, v in r.items() if f != 'description'} for k, r in games.items()})
-                assert {k: {'description': r['description']} for k, r in games.items() if 'description' in r} == adult
-                # And the adult translations, the documents data.nsfw holds.
-                assert optional.get('documents', {}) == adult_translations
-            else:
-                assert not adult
+            # A name-index game also carries its adult description, the one data.nsfw holds.
+            games = optional['nameIndex']['games']
+            artwork_only({k: {f: v for f, v in r.items() if f != 'description'} for k, r in games.items()})
+            assert {k: {'description': r['description']} for k, r in games.items() if 'description' in r} == adult
+            # And the adult translations, the documents data.nsfw holds.
+            assert optional.get('documents', {}) == adult_translations
     for artifact in artifacts:
         play = artifact.suffix == '.aab'
         with zipfile.ZipFile(artifact) as z:
