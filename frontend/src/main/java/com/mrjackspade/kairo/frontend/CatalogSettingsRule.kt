@@ -86,6 +86,6 @@ class LayeredCatalogSettings(private val schema: LayeredGameCatalog.Schema) : Ca
 
     companion object {
         /** Fields that say what a game is, not how it runs: which game, its disks, its name and pictures. */
-        private val DESCRIBES = setOf("game", "setDisks", "title", "description", "aliases", "heart", "hidden", "artwork")
+        private val DESCRIBES = setOf("game", "setDisks", "title", "description", "descriptions", "aliases", "heart", "hidden", "artwork")
     }
 }
