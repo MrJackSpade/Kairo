@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Write an app's original game descriptions in batches.
 
-  descriptions.py worklist <app root> <out.jsonl> --mobygames <dump> [--limit N]
-      One line per game the library shows (one with media, not hidden) without a description,
-      with the reference facts for writing one:
-      title, aliases, year, developer, publisher, MobyGames genres, and short excerpts of the
-      LaunchBox and MobyGames descriptions. The excerpts are reference only; catalog
-      descriptions are written fresh and never copy their wording.
+  descriptions.py worklist <app root> <out.jsonl> [--mobygames <dump>] [--references <json>] [--limit N]
+      One line per game the library shows (one with media or that a medium's file name picks,
+      not hidden) without a description, with the reference facts for writing one:
+      title, aliases, tags, year, developer, publisher, MobyGames genres, and short excerpts of the
+      LaunchBox and MobyGames descriptions, or of an app's own references ({"<game key>": text},
+      such as KairoDos's eXoDOS text). The excerpts are reference only; catalog descriptions are
+      written fresh and never copy their wording.
   descriptions.py add <app root> <batch.json>
       Merge {"<game key>": "description"} into catalog/research/descriptions-v1.json. Each key
       must be a game in games-v1.json that has no description yet.
@@ -59,23 +60,30 @@ def excerpt(text):
     return text if len(text) <= EXCERPT else text[:EXCERPT].rsplit(" ", 1)[0] + " …"
 
 
-def worklist(root, output, moby_root, limit):
+def worklist(root, output, moby_root, references_path, limit):
     games = read(root / "catalog/research/games-v1.json")["games"]
     described = read(root / "catalog/research/descriptions-v1.json", {"descriptions": {}})["descriptions"]
     snapshots = {}
     for path in (root / ".downloads/launchbox").glob("*-snapshot.json"):
         snapshots.update(read(path))
     listings = {}
-    for path in moby_root.glob("*-listing.json"):
+    for path in (moby_root.glob("*-listing.json") if moby_root else ()):
         for game in read(path):
             listings[game["id"]] = game
+    references = read(references_path) if references_path else {}
+    # The games a medium's file name picks (diskVariants) show in the library as well.
+    picked = {variant["game"] for entry in games.values() for variants in entry.get("diskVariants", {}).values()
+              for variant in variants.values()}
     lines = []
     for key, entry in sorted(games.items()):
         # Only games the library can show: a game no medium identifies, or a hidden one, is never seen.
-        if key in described or entry.get("description") or not entry.get("contentIds") or entry.get("hidden"):
+        shown = entry.get("contentIds") or key in picked
+        if key in described or entry.get("description") or not shown or entry.get("hidden"):
             continue
         item = {"key": key, "title": entry["title"]}
-        for field in ("aliases", "year", "developer", "publisher", "adult"):
+        if key in references:
+            item["reference"] = excerpt(references[key])
+        for field in ("aliases", "tags", "year", "developer", "publisher", "adult"):
             if entry.get(field):
                 item[field] = entry[field]
         if entry.get("sourceGroups") and ":local-" in key:
@@ -97,8 +105,13 @@ def worklist(root, output, moby_root, limit):
 
 
 def add(root, batch_path):
-    games = read(root / "catalog/research/games-v1.json")["games"]
     path = root / "catalog/research/descriptions-v1.json"
+    with locked(path):
+        merge_descriptions(root, path, batch_path)
+
+
+def merge_descriptions(root, path, batch_path):
+    games = read(root / "catalog/research/games-v1.json")["games"]
     document = read(path, {"schemaVersion": 1, "descriptions": {}})
     batch = read(batch_path)
     for key, text in batch.items():
@@ -211,7 +224,8 @@ def main():
     work = commands.add_parser("worklist")
     work.add_argument("root", type=Path)
     work.add_argument("output", type=Path)
-    work.add_argument("--mobygames", type=Path, required=True)
+    work.add_argument("--mobygames", type=Path)
+    work.add_argument("--references", type=Path)
     work.add_argument("--limit", type=int)
     merge = commands.add_parser("add")
     merge.add_argument("root", type=Path)
@@ -244,7 +258,7 @@ def main():
     audit.add_argument("--after")
     args = parser.parse_args()
     if args.command == "worklist":
-        worklist(args.root.resolve(), args.output, args.mobygames, args.limit)
+        worklist(args.root.resolve(), args.output, args.mobygames, args.references, args.limit)
     elif args.command == "add":
         add(args.root.resolve(), args.batch)
     elif args.command == "pending":
