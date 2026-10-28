@@ -55,11 +55,13 @@ class GraphicsOptions(
         preferences.getBoolean("integer_scaling", true)) to preferences.getBoolean("integer_crop_$orientation",
         preferences.getBoolean("integer_crop", false))
 
-    private fun scalingChoice(orientation: String, label: String) = ChoiceSpec(label, { "All games" },
+    private fun str(id: Int, vararg args: Any): String = activity.getString(id, *args)
+
+    private fun scalingChoice(orientation: String, label: String) = ChoiceSpec(label, { GameSource.ALL_GAMES },
         { listOf(ChoiceGroup(null, listOf(
-            ChoiceOption("integer", "Integer", "Full image (default)"),
-            ChoiceOption("crop", "Integer crop", "Crops the edges"),
-            ChoiceOption("fit", "Fit display", "Fractional scale")))) },
+            ChoiceOption("integer", UiText.res(R.string.kairo_scaling_integer), UiText.res(R.string.kairo_scaling_integer_help)),
+            ChoiceOption("crop", UiText.res(R.string.kairo_scaling_crop), UiText.res(R.string.kairo_scaling_crop_help)),
+            ChoiceOption("fit", UiText.res(R.string.kairo_scaling_fit), UiText.res(R.string.kairo_scaling_fit_help))))) },
         {
             val (integer, crop) = scaling(orientation)
             if (!integer) "fit" else if (crop) "crop" else "integer"
@@ -72,12 +74,14 @@ class GraphicsOptions(
         })
 
     /** The DISPLAY group of the Graphics page. */
-    fun displayGroup() = RowGroup("DISPLAY", listOf(
-        SettingsRow.choice("scale-landscape", "Landscape scaling", scalingChoice("landscape", "Landscape scaling")),
-        SettingsRow.choice("scale-portrait", "Portrait scaling", scalingChoice("portrait", "Portrait scaling")),
-        anchorRow("landscape", "Landscape anchor"),
-        anchorRow("portrait", "Portrait anchor"),
-        SettingsRow.slider("notch", "Portrait notch padding", { "$portraitNotchPadding dp" },
+    fun displayGroup() = RowGroup(str(R.string.kairo_display_group), listOf(
+        SettingsRow.choice("scale-landscape", str(R.string.kairo_scaling_landscape),
+            scalingChoice("landscape", str(R.string.kairo_scaling_landscape))),
+        SettingsRow.choice("scale-portrait", str(R.string.kairo_scaling_portrait),
+            scalingChoice("portrait", str(R.string.kairo_scaling_portrait))),
+        anchorRow("landscape", str(R.string.kairo_anchor_landscape)),
+        anchorRow("portrait", str(R.string.kairo_anchor_portrait)),
+        SettingsRow.slider("notch", str(R.string.kairo_notch_padding), { str(R.string.kairo_dp, portraitNotchPadding) },
             SliderSpec(0, 240, 1, 4, { portraitNotchPadding }) { value ->
                 portraitNotchPadding = value
                 preferences.edit().putInt("portrait_notch_padding", value).apply()
@@ -87,7 +91,7 @@ class GraphicsOptions(
     /** The Graphics page: display and shader settings, plus any groups the app adds. */
     /** The page; [shader] is null in an app without shaders, which then lists none. */
     fun page(shader: ShaderOptions?, extra: () -> List<RowGroup> = { emptyList() }) =
-        GroupsPage("Graphics", { "All games" }, { listOfNotNull(displayGroup(), shader?.group()) + extra() })
+        GroupsPage(str(R.string.kairo_graphics), { GameSource.ALL_GAMES }, { listOfNotNull(displayGroup(), shader?.group()) + extra() })
 
     /**
      * The picture's size and place: [anchor] pins it within the screen above the keyboard, and in

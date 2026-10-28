@@ -249,7 +249,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                         toast(error.message ?: getString(R.string.kairo_disk_reset_failed))
                     }
                     pages.refresh()
-                }.tray()
+                }.tray(this)
             }))
     }
 

@@ -499,7 +499,7 @@ internal class SecondaryDisplayContent(
     private var onSearchDone: (() -> Unit)? = null
     private val searchField = android.widget.EditText(context).testId("secondary.search.field").apply {
         visibility = View.GONE
-        hint = "Search by title or file name"
+        hint = context.getString(R.string.kairo_search_hint)
         textSize = Ui.BODY
         isSingleLine = true
         setTextColor(Ui.TEXT)

@@ -114,8 +114,8 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
             SettingsRow.Kind.SWITCH -> { row.setChecked?.invoke(!row.checked()); stack.refresh() }
             SettingsRow.Kind.SLIDER, SettingsRow.Kind.INFO -> Unit
             SettingsRow.Kind.ACTION -> when {
-                row.confirm?.title != null -> stack.push(ConfirmPage(row.confirm))
-                row.confirm != null -> openTray(row.id, row.confirm.tray())
+                row.confirm?.title != null -> stack.push(ConfirmPage(context, row.confirm))
+                row.confirm != null -> openTray(row.id, row.confirm.tray(context))
                 row.tray != null -> openTray(row.id, row.tray.invoke())
                 else -> { row.run?.invoke(); stack.refresh() }
             }

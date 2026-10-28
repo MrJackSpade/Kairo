@@ -48,7 +48,7 @@ class SessionFlow(
             "pause" -> {
                 state.userPaused = !state.userPaused
                 applyPauseState()
-                Ui.message(pages.activity, if (state.userPaused) "Paused" else "Resumed")
+                Ui.message(pages.activity, pages.activity.getString(if (state.userPaused) R.string.kairo_state_paused else R.string.kairo_resumed))
             }
             "restart" -> if (!isOpen) open("f-restart", confirm = true)
             "exit" -> if (!isOpen) open("f-exit", confirm = true)

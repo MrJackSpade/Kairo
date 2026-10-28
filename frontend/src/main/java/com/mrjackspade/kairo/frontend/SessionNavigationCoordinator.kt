@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Context
 import android.view.View
 
 /** Common session state: pausing a machine does not hide its display or keyboard. */
@@ -43,13 +44,14 @@ class SessionNavigationCoordinator(
      * The game flyout's return row. A game launched by a frontend returns to the frontend and
      * the app closes; with no game loaded the row returns without asking.
      */
-    fun returnRow(appName: String): SettingsRow {
+    fun returnRow(context: Context, appName: String): SettingsRow {
         val external = hasGame() && externalSession()
-        return SettingsRow.action("f-library", if (external) "Return to frontend" else "Return to library",
+        return SettingsRow.action("f-library",
+            context.getString(if (external) R.string.kairo_return_to_frontend else R.string.kairo_return_to_library),
             confirm = if (!hasGame()) null else Confirm(
-                if (external) "This game stops and $appName closes. Progress since your last save is lost."
-                else "This game stops. Progress since your last save is lost.", "End game",
-                title = if (external) "Return to frontend?" else "Return to library?",
+                if (external) context.getString(R.string.kairo_return_to_frontend_confirm, appName)
+                else context.getString(R.string.kairo_return_to_library_confirm), context.getString(R.string.kairo_end_game),
+                title = context.getString(if (external) R.string.kairo_return_to_frontend_title else R.string.kairo_return_to_library_title),
                 run = ::returnToLibrary),
             run = ::returnToLibrary)
     }

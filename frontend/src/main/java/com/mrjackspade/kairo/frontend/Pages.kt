@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -470,8 +471,8 @@ open class ModalPage(
 }
 
 /** A modal confirmation: Cancel then the verb, opening on Cancel. */
-class ConfirmPage(confirm: Confirm) : ModalPage(confirm.title, confirm.message, listOf(
-    ModalButton("Cancel"),
+class ConfirmPage(context: Context, confirm: Confirm) : ModalPage(confirm.title, confirm.message, listOf(
+    ModalButton(context.getString(R.string.kairo_cancel)),
     ModalButton(confirm.verb, if (confirm.danger) ButtonTone.DANGER else ButtonTone.PRIMARY, confirm.run)))
 
 /** A text document in a card. Up and Down scroll 96 dp. */

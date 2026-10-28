@@ -108,7 +108,7 @@ class GuestKeyboardPanel(
                 setImageResource(R.drawable.ic_gamepad)
                 imageTintList = keyText()
                 setPadding(dp(14), dp(8), dp(14), dp(8))
-                contentDescription = "Controller mapping"
+                contentDescription = context.getString(R.string.kairo_keyboard_mapping)
                 testId("keyboard.mapping")
                 background = keyBackground(action = true)
                 onPress(this) { mode.toggle() }
@@ -124,7 +124,7 @@ class GuestKeyboardPanel(
             mappingButton?.let { brand.addView(it, LayoutParams(dp(54), dp(40)).apply { marginEnd = dp(8) }) }
             brand.addView(TextView(context).apply {
                 text = "\u2191\u2193"
-                contentDescription = "Swap game and keyboard screens"
+                contentDescription = context.getString(R.string.kairo_keyboard_swap)
                 testId("keyboard.swap")
                 gravity = Gravity.CENTER
                 textSize = 22f
@@ -158,7 +158,7 @@ class GuestKeyboardPanel(
                 setImageResource(R.drawable.ic_joystick)
                 imageTintList = keyText()
                 setPadding(dp(10), dp(7), dp(10), dp(7))
-                contentDescription = "Joystick"
+                contentDescription = context.getString(R.string.kairo_joystick)
                 background = keyBackground(action = true)
                 attachPageSwitch(this, JOYSTICK_PAGE)
             }
@@ -172,7 +172,7 @@ class GuestKeyboardPanel(
                 setImageResource(R.drawable.ic_mouse)
                 imageTintList = keyText()
                 setPadding(dp(10), dp(7), dp(10), dp(7))
-                contentDescription = "Mouse touchpad mode"
+                contentDescription = context.getString(R.string.kairo_keyboard_touchpad_mode)
                 background = keyBackground(action = true)
                 attachPageSwitch(this, TOUCHPAD_PAGE)
             }
@@ -186,7 +186,7 @@ class GuestKeyboardPanel(
         }
         if (showClose) {
             header.addView(TextView(context).apply {
-                text = "Close ×"
+                text = context.getString(R.string.kairo_keyboard_close)
                 testId("keyboard.close")
                 gravity = Gravity.CENTER
                 textSize = 14f
@@ -214,12 +214,11 @@ class GuestKeyboardPanel(
         isClickable = true
         setBackgroundColor(Ui.SCRIM)
         setPadding(dp(24), dp(12), dp(24), dp(12))
-        addView(Ui.text(context, "Controller mapping", Ui.TITLE, bold = true).apply { gravity = Gravity.CENTER })
-        addView(Ui.text(context, "Tap a key, then press the controller button that should send it. " +
-            "Tap a selected key again to clear it. Tap the controller button again to finish.", Ui.BODY, Ui.TEXT_BODY).apply {
+        addView(Ui.text(context, context.getString(R.string.kairo_keyboard_mapping), Ui.TITLE, bold = true).apply { gravity = Gravity.CENTER })
+        addView(Ui.text(context, context.getString(R.string.kairo_keyboard_mapping_help), Ui.BODY, Ui.TEXT_BODY).apply {
             gravity = Gravity.CENTER
         }, LayoutParams(-2, -2).apply { setMargins(0, dp(8), 0, dp(14)) })
-        val ok = Ui.primaryButton(context, "OK") { visibility = View.GONE }
+        val ok = Ui.primaryButton(context, context.getString(R.string.kairo_ok)) { visibility = View.GONE }
         onPress(ok) { visibility = View.GONE }
         addView(ok, LayoutParams(dp(120), dp(44)))
     }

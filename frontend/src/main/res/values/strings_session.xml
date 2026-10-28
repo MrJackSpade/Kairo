@@ -2,6 +2,31 @@
 <!-- The app shell: launching and leaving games, the game menu, game settings, About and Diagnostics. -->
 <resources>
     <string name="kairo_no_game">No game</string>
+    <string name="kairo_back">Back</string>
+    <string name="kairo_task_stop">Stop</string>
+    <string name="kairo_paused_banner">PAUSED</string>
+    <string name="kairo_resumed">Resumed</string>
+
+    <!-- The menus' SETTINGS rows. -->
+    <string name="kairo_configurations">Configurations</string>
+    <string name="kairo_sound">Sound</string>
+    <string name="kairo_about">About</string>
+    <!-- The game menu. %1$s is the app's name, such as Kairo88. -->
+    <string name="kairo_flyout_game_group">GAME</string>
+    <string name="kairo_flyout_settings_group">SETTINGS</string>
+    <string name="kairo_flyout_game_settings_library_only">Game settings are available for games started from the library.</string>
+    <string name="kairo_flyout_restart">Restart game</string>
+    <string name="kairo_flyout_restart_confirm">Progress since your last save is lost.</string>
+    <string name="kairo_flyout_exit">Exit %1$s</string>
+    <string name="kairo_flyout_exit_title">Exit %1$s?</string>
+    <string name="kairo_flyout_exit_confirm">The machine stops. Progress since your last save is lost.</string>
+    <string name="kairo_return_to_library">Return to library</string>
+    <string name="kairo_return_to_library_title">Return to library?</string>
+    <string name="kairo_return_to_library_confirm">This game stops. Progress since your last save is lost.</string>
+    <string name="kairo_return_to_frontend">Return to frontend</string>
+    <string name="kairo_return_to_frontend_title">Return to frontend?</string>
+    <string name="kairo_return_to_frontend_confirm">This game stops and %1$s closes. Progress since your last save is lost.</string>
+    <string name="kairo_end_game">End game</string>
     <!-- The machine's state on the game menu's status line. -->
     <string name="kairo_state_running">Running</string>
     <string name="kairo_state_paused">Paused</string>

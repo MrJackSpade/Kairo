@@ -49,7 +49,7 @@ object GameDeletionFlow {
                             }
                         }
                     }.apply { name = threadName; start() }
-                }.tray()
+                }.tray(activity)
             })
     }
 }

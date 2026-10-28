@@ -1,12 +1,13 @@
 package com.mrjackspade.kairo.frontend
 
 import android.content.SharedPreferences
+import androidx.annotation.StringRes
 
 /** When the on-screen controls show. Auto hides them while a physical controller is connected. */
-enum class OnScreenMode(val label: String, val description: String) {
-    AUTO("Auto", "Hidden while a controller is connected"),
-    SHOWN("Shown", "Always shown"),
-    HIDDEN("Hidden", "Always hidden");
+enum class OnScreenMode(@StringRes val label: Int, @StringRes val description: Int) {
+    AUTO(R.string.kairo_auto, R.string.kairo_onscreen_mode_auto_help),
+    SHOWN(R.string.kairo_onscreen_mode_shown, R.string.kairo_onscreen_mode_shown_help),
+    HIDDEN(R.string.kairo_onscreen_mode_hidden, R.string.kairo_onscreen_mode_hidden_help);
 
     fun shown(controllerConnected: Boolean) = when (this) {
         AUTO -> !controllerConnected

@@ -22,10 +22,11 @@ class GameOrientation(private val activity: Activity, private val preferences: S
 
     private val selected: String get() = preferences.getString(KEY, AUTO)!!
 
-    fun row() = SettingsRow.choice(KEY, "Game orientation", ChoiceSpec("Game orientation",
+    fun row() = SettingsRow.choice(KEY, activity.getString(R.string.kairo_orientation_game), ChoiceSpec(activity.getString(R.string.kairo_orientation_game),
         { GameSource.ALL_GAMES }, {
-            listOf(ChoiceGroup(null, listOf(ChoiceOption(AUTO, "Auto"),
-                ChoiceOption(LANDSCAPE, "Landscape"), ChoiceOption(PORTRAIT, "Portrait"))))
+            listOf(ChoiceGroup(null, listOf(ChoiceOption(AUTO, UiText.res(R.string.kairo_auto)),
+                ChoiceOption(LANDSCAPE, UiText.res(R.string.kairo_orientation_landscape)),
+                ChoiceOption(PORTRAIT, UiText.res(R.string.kairo_orientation_portrait)))))
         }, { selected }, select = { value ->
             preferences.edit().putString(KEY, value).apply()
             apply()

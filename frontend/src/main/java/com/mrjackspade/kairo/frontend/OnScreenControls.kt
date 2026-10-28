@@ -15,6 +15,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.annotation.StringRes
 import org.json.JSONObject
 import kotlin.math.atan2
 import kotlin.math.hypot
@@ -29,11 +30,12 @@ class OnScreenControls(
     private val onVisibilityChanged: () -> Unit,
     private val controllerLayout: () -> ControllerLayout
 ) {
-    private enum class LayoutOrientation(val label: String, val preference: String) {
-        PORTRAIT("Portrait", "onscreen_layout_portrait_v2"),
-        LANDSCAPE("Landscape", "onscreen_layout_landscape_v2")
+    private enum class LayoutOrientation(@StringRes val label: Int, val preference: String) {
+        PORTRAIT(R.string.kairo_orientation_portrait, "onscreen_layout_portrait_v2"),
+        LANDSCAPE(R.string.kairo_orientation_landscape, "onscreen_layout_landscape_v2")
     }
 
+    /** [label] is the control's legend, as a controller prints it; [group] is a key into [GROUPS]. */
     private data class Spec(val id: String, val label: String, val group: String,
                             val x: Float, val y: Float, val shown: Boolean)
     private data class State(var shown: Boolean, var x: Float, var y: Float)
@@ -168,34 +170,36 @@ class OnScreenControls(
     }
 
     /** Controls › ON-SCREEN CONTROLS, for the current orientation and controller layout. */
-    fun group() = RowGroup("ON-SCREEN CONTROLS", listOf(
-        SettingsRow.choice("osc", "On-screen controls", ChoiceSpec("On-screen controls", { GameSource.ALL_GAMES }, {
-            listOf(ChoiceGroup(null, OnScreenMode.entries.map { ChoiceOption(it.name, it.label, it.description) }))
+    fun group() = RowGroup(str(R.string.kairo_onscreen_group), listOf(
+        SettingsRow.choice("osc", str(R.string.kairo_onscreen_controls), ChoiceSpec(str(R.string.kairo_onscreen_controls), { GameSource.ALL_GAMES }, {
+            listOf(ChoiceGroup(null, OnScreenMode.entries.map {
+                ChoiceOption(it.name, UiText.res(it.label), UiText.res(it.description))
+            }))
         }, { mode.name }, select = { value ->
             mode = OnScreenMode.valueOf(value)
             mode.save(preferences)
             refreshVisibility(requestedVisible)
         })),
-        SettingsRow.choice("dpad-style", "D-pad style", ChoiceSpec("D-pad style", { GameSource.ALL_GAMES }, {
+        SettingsRow.choice("dpad-style", str(R.string.kairo_onscreen_dpad_style), ChoiceSpec(str(R.string.kairo_onscreen_dpad_style), { GameSource.ALL_GAMES }, {
             listOf(ChoiceGroup(null, listOf(
-                ChoiceOption("arrows", "4 buttons", "Separate up, down, left, and right"),
-                ChoiceOption("pad", "8-way pad", "One round pad with diagonals"))))
+                ChoiceOption("arrows", UiText.res(R.string.kairo_onscreen_dpad_arrows), UiText.res(R.string.kairo_onscreen_dpad_arrows_help)),
+                ChoiceOption("pad", UiText.res(R.string.kairo_onscreen_dpad_pad), UiText.res(R.string.kairo_onscreen_dpad_pad_help)))))
         }, { if (eightWayDpad) "pad" else "arrows" }, select = { eightWayDpad = it == "pad" })),
-        SettingsRow.nav("visible", "Visible buttons", value = { "${visibleCount()} shown" }) {
+        SettingsRow.nav("visible", str(R.string.kairo_onscreen_visible), value = { str(R.string.kairo_onscreen_shown_count, visibleCount()) }) {
             pages?.push(visiblePage())
         },
-        SettingsRow.nav("arrange", "Arrange layout") { pages?.push(arrangePage()) },
-        SettingsRow.action("reset-positions", "Reset positions",
-            confirm = Confirm("Restore the standard positions for this layout?", "Reset") {
+        SettingsRow.nav("arrange", str(R.string.kairo_onscreen_arrange)) { pages?.push(arrangePage()) },
+        SettingsRow.action("reset-positions", str(R.string.kairo_onscreen_reset_positions),
+            confirm = Confirm(str(R.string.kairo_onscreen_reset_positions_confirm), str(R.string.kairo_reset)) {
                 specs.forEach { spec ->
                     val default = defaultPosition(spec, orientation)
                     states.getValue(spec.id).apply { x = default.first; y = default.second }
                 }
                 saveLayout()
                 positionAll()
-                Ui.message(activity, "Positions reset")
+                Ui.message(activity, str(R.string.kairo_onscreen_positions_reset))
             })),
-        "Layouts are saved separately for portrait and landscape, and for controllers with and without sticks.")
+        str(R.string.kairo_onscreen_foot))
 
     private fun relevant(spec: Spec) = when {
         spec.id in DPAD -> !eightWayDpad
@@ -206,22 +210,22 @@ class OnScreenControls(
 
     private fun visibleCount() = specs.count { relevant(it) && states.getValue(it.id).shown }
 
-    private fun visiblePage() = GroupsPage("Visible buttons",
-        { "${orientation.label} \u00b7 ${profile.label}" }, {
+    private fun visiblePage() = GroupsPage(str(R.string.kairo_onscreen_visible),
+        { str(R.string.kairo_onscreen_visible_scope, str(orientation.label), str(profile.label)) }, {
             specs.filter(::relevant).groupBy { it.group }.map { (group, items) ->
-                RowGroup(group, items.map { spec ->
+                RowGroup(str(GROUPS.getValue(group)), items.map { spec ->
                     SettingsRow.switch("v:${spec.id}", controlName(spec.id), { states.getValue(spec.id).shown }) { value ->
                         states.getValue(spec.id).shown = value
                         saveLayout()
                         positionAll()
                     }
                 })
-            } + RowGroup(null, listOf(SettingsRow.action("v:reset", "Reset visible buttons",
-                confirm = Confirm("Restore the standard selection for this layout?", "Reset") {
+            } + RowGroup(null, listOf(SettingsRow.action("v:reset", str(R.string.kairo_onscreen_reset_visible),
+                confirm = Confirm(str(R.string.kairo_onscreen_reset_visible_confirm), str(R.string.kairo_reset)) {
                     specs.forEach { spec -> states.getValue(spec.id).shown = defaultShown(spec, profile) }
                     saveLayout()
                     positionAll()
-                    Ui.message(activity, "Visible buttons reset")
+                    Ui.message(activity, str(R.string.kairo_onscreen_visible_reset))
                 })))
         })
 
@@ -240,8 +244,8 @@ class OnScreenControls(
             setPadding(dp(16), 0, dp(6), 0)
             setBackgroundColor(0xee10151d.toInt())
         }
-        bar.addView(Ui.text(activity, "Drag controls to reposition", Ui.BODY), LinearLayout.LayoutParams(0, -2, 1f))
-        bar.addView(Ui.text(activity, "Done", Ui.TITLE, Ui.ACCENT, bold = true).apply {
+        bar.addView(Ui.text(activity, str(R.string.kairo_onscreen_drag), Ui.BODY), LinearLayout.LayoutParams(0, -2, 1f))
+        bar.addView(Ui.text(activity, str(R.string.kairo_done), Ui.TITLE, Ui.ACCENT, bold = true).apply {
             gravity = Gravity.CENTER
             background = Ui.focusable(activity, Color.TRANSPARENT, null)
             isClickable = true
@@ -529,13 +533,16 @@ class OnScreenControls(
     }
 
     private fun controlName(id: String) = when (id) {
-        "up" -> "Up"; "down" -> "Down"
-        "left" -> "Left"; "right" -> "Right"
-        "ls" -> "Left stick"; "rs" -> "Right stick"
-        "start" -> "Start"; "select" -> "Select"; "menu" -> "Menu"
-        PAD8 -> "8-way pad"
+        "up" -> str(R.string.kairo_up); "down" -> str(R.string.kairo_down)
+        "left" -> str(R.string.kairo_left); "right" -> str(R.string.kairo_right)
+        "ls" -> str(R.string.kairo_onscreen_left_stick); "rs" -> str(R.string.kairo_onscreen_right_stick)
+        "start" -> str(R.string.kairo_control_start); "select" -> str(R.string.kairo_control_select)
+        "menu" -> str(R.string.kairo_control_menu)
+        PAD8 -> str(R.string.kairo_onscreen_dpad_pad)
         else -> id.uppercase()
     }
+
+    private fun str(id: Int, vararg args: Any): String = activity.getString(id, *args)
 
     private fun buttonBackground(editing: Boolean) = GradientDrawable().apply {
         setColor(if (editing) 0xdd304e63.toInt() else 0xb5253344.toInt())
@@ -548,6 +555,10 @@ class OnScreenControls(
 
     private companion object {
         val DPAD = listOf("up", "down", "left", "right")
+        /** Each control group's heading on Visible buttons, by the key its specs name. */
+        val GROUPS = mapOf("D-PAD" to R.string.kairo_control_group_dpad, "FACE BUTTONS" to R.string.kairo_control_group_face,
+            "SHOULDERS" to R.string.kairo_control_group_shoulders, "SYSTEM" to R.string.kairo_control_group_system,
+            "STICKS" to R.string.kairo_onscreen_group_sticks)
         const val PAD8 = "pad8"
     }
 }

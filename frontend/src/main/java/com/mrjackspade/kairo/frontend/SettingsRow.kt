@@ -53,8 +53,8 @@ class TraySpec(
  */
 class Confirm(val message: String, val verb: String, val danger: Boolean = false,
               val title: String? = null, val run: () -> Unit) {
-    fun tray() = TraySpec(message, listOf(
-        TrayButton("Cancel"),
+    fun tray(context: Context) = TraySpec(message, listOf(
+        TrayButton(context.getString(R.string.kairo_cancel)),
         TrayButton(verb, if (danger) ButtonTone.DANGER else ButtonTone.PRIMARY) { run() }),
         focus = 0)
 }

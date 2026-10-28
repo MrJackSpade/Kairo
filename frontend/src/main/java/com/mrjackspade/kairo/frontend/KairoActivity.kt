@@ -760,13 +760,13 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }
 
     /** One settings list, shown the same way in the game flyout and the library flyout. */
-    private fun settingsRows() = SessionMenus.settingsRows(SessionMenus.Settings(
+    private fun settingsRows() = SessionMenus.settingsRows(this, SessionMenus.Settings(
         graphics = { pages.push(graphics.page(shaderOptions, ::graphicsGroups)) },
         controls = {
             pages.push(controllerPages.controlsPage(currentEntry?.takeIf { !libraryVisible && it.contentId != null }))
         },
         machine = { pages.push(machinePage()) },
-        configurations = { pages.push(SessionMenus.configurationsPage(gameOrientation, saveFolder, text(identity.savesLabel))) },
+        configurations = { pages.push(SessionMenus.configurationsPage(this, gameOrientation, saveFolder, text(identity.savesLabel))) },
         soundOn = { !muted },
         setSound = { on -> if (on == muted) toggleMute() },
         about = { pages.push(aboutPage()) }))
@@ -777,7 +777,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }?.let(::titleOf) ?: unit.game
 
     /** The game flyout: the game's own pages, settings, then leaving. */
-    private fun gameFlyout() = SessionMenus.gameFlyout(identity.brand, identity.appName,
+    private fun gameFlyout() = SessionMenus.gameFlyout(this, identity.brand, identity.appName,
         { currentEntry?.let(::titleOf) ?: getString(R.string.kairo_no_game) }, ::menuStatusText, sessionNavigation,
         ::gameRows, { currentEntry != null }, { currentEntry?.let(::showGameDetails) },
         ::settingsRows, restart = {

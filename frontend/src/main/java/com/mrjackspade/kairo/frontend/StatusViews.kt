@@ -18,7 +18,7 @@ class TaskStrip(context: Context) : LinearLayout(context) {
     private class Task(val text: String, val priority: Int, val stop: (() -> Unit)?)
     private val tasks = HashMap<String, Task>()
     private val label = Ui.oneLineKeepingEnd(Ui.text(context, "", Ui.SECONDARY))
-    val stopButton: TextView = Ui.text(context, "Stop", Ui.SECONDARY, Ui.ACCENT, bold = true).apply {
+    val stopButton: TextView = Ui.text(context, context.getString(R.string.kairo_task_stop), Ui.SECONDARY, Ui.ACCENT, bold = true).apply {
         gravity = Gravity.CENTER
         setPadding(Ui.dp(context, 12), 0, Ui.dp(context, 12), 0)
         background = Ui.focusable(context, Color.TRANSPARENT, null)
@@ -94,7 +94,7 @@ class GameOverlay(context: Context) : FrameLayout(context) {
     private val noticeMessage = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_BODY)
     private val noticeButtons = WrapLayout(context, Ui.dp(context, 8))
     private val paused = PixelTextView(context).apply {
-        text = "PAUSED"
+        text = context.getString(R.string.kairo_paused_banner)
         color = Ui.PIN
         visibility = View.GONE
         background = Ui.rounded(context, 0xd90c1017.toInt())

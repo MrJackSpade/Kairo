@@ -27,6 +27,8 @@ class SecondaryTouchpadView(
     private var dragging = false
     private var hold: Runnable? = null
     private var release: Runnable? = null
+    private val dragHint = context.getString(R.string.kairo_touchpad_hint_drag)
+    private val holdHint = context.getString(R.string.kairo_touchpad_hint_hold)
     private val hint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Ui.TEXT_MUTED
         textAlign = Paint.Align.CENTER
@@ -35,7 +37,7 @@ class SecondaryTouchpadView(
 
     init {
         setBackgroundColor(Ui.RAISED)
-        contentDescription = "Guest mouse touchpad. Drag to move, tap to click, hold to drag."
+        contentDescription = context.getString(R.string.kairo_touchpad_description)
         testId("keyboard.touchpad")
         isClickable = true
     }
@@ -98,8 +100,8 @@ class SecondaryTouchpadView(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val center = height / 2f
-        canvas.drawText("Drag to move · Tap to click", width / 2f, center - hint.textSize / 2f, hint)
-        canvas.drawText("Hold to drag", width / 2f, center + hint.textSize, hint)
+        canvas.drawText(dragHint, width / 2f, center - hint.textSize / 2f, hint)
+        canvas.drawText(holdHint, width / 2f, center + hint.textSize, hint)
     }
 
     private fun move(event: MotionEvent) {

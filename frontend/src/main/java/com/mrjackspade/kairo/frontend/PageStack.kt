@@ -518,7 +518,7 @@ abstract class Page {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(6), dp(4), dp(18), 0)
         }
-        bar.addView(Ui.iconButton(context, R.drawable.ic_back, "Back") { stack.back() }.apply {
+        bar.addView(Ui.iconButton(context, R.drawable.ic_back, context.getString(R.string.kairo_back)) { stack.back() }.apply {
             isFocusable = false
             testId("page.back")
         }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(4) })

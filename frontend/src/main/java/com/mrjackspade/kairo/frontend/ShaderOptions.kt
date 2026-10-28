@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import androidx.annotation.StringRes
 import java.io.File
 import java.io.IOException
 import java.util.UUID
@@ -18,7 +19,7 @@ class ShaderOptions(
     private val reportError: (String) -> Unit
 ) {
     @Volatile private var importing = false
-    private data class Builtin(val id: String, val title: String, val preset: String,
+    private data class Builtin(val id: String, @StringRes val title: Int, val preset: String,
         val shader: String)
 
     companion object {
@@ -29,12 +30,12 @@ class ShaderOptions(
         private const val MAX_FILE_BYTES = 64L * 1024 * 1024
         private const val BUILTIN_VERSION = "e1d7563-v4"
         private val BUILTINS = listOf(
-            Builtin("sharp-bilinear", "Sharp bilinear", "pixel-art-scaling/sharp-bilinear.slangp",
+            Builtin("sharp-bilinear", R.string.kairo_shader_sharp_bilinear, "pixel-art-scaling/sharp-bilinear.slangp",
                 "pixel-art-scaling/shaders/sharp-bilinear.slang"),
-            Builtin("sharp-bilinear-scanlines", "Sharp bilinear + scanlines",
+            Builtin("sharp-bilinear-scanlines", R.string.kairo_shader_sharp_bilinear_scanlines,
                 "pixel-art-scaling/sharp-bilinear-scanlines.slangp",
                 "pixel-art-scaling/shaders/sharp-bilinear-scanlines.slang"),
-            Builtin("crt-easymode", "CRT EasyMode", "crt/crt-easymode.slangp",
+            Builtin("crt-easymode", R.string.kairo_shader_crt_easymode, "crt/crt-easymode.slangp",
                 "crt/shaders/crt-easymode.slang")
         )
     }
@@ -56,9 +57,11 @@ class ShaderOptions(
 
     fun label(): String {
         val value = preferences.getString(SETTING, null)
-        return BUILTINS.firstOrNull { value == "builtin:${it.id}" }?.title
-            ?: selectedPath()?.let { File(it).nameWithoutExtension } ?: "Off"
+        return BUILTINS.firstOrNull { value == "builtin:${it.id}" }?.let { str(it.title) }
+            ?: selectedPath()?.let { File(it).nameWithoutExtension } ?: str(R.string.kairo_off)
     }
+
+    private fun str(id: Int, vararg args: Any): String = activity.getString(id, *args)
 
     /** Read on first use and dropped when an import ends; only the main thread touches it. */
     private var tree: ShaderPresetTree? = null
@@ -74,13 +77,13 @@ class ShaderOptions(
     }
 
     /** The Shader choice: BUILT-IN presets, then IMPORTED ones by folder. */
-    fun choice() = ChoiceSpec("Shader", { "All games" }, {
+    fun choice() = ChoiceSpec(str(R.string.kairo_shader), { GameSource.ALL_GAMES }, {
         val imported = presets()
         listOfNotNull(
-            ChoiceGroup("BUILT-IN", listOf(ChoiceOption("off", "Off")) +
-                BUILTINS.map { ChoiceOption("builtin:${it.id}", it.title) }),
+            ChoiceGroup(str(R.string.kairo_shader_group_built_in), listOf(ChoiceOption("off", UiText.res(R.string.kairo_off))) +
+                BUILTINS.map { ChoiceOption("builtin:${it.id}", UiText.res(it.title)) }),
             imported.takeIf { !it.isEmpty }?.let {
-                ChoiceGroup("IMPORTED", options(it.presets), folders = it.folders.map(::folder))
+                ChoiceGroup(str(R.string.kairo_shader_group_imported), options(it.presets), folders = it.folders.map(::folder))
             })
     }, {
         val selected = preferences.getString(SETTING, null)
@@ -99,13 +102,13 @@ class ShaderOptions(
     })
 
     /** The SHADER group: the choice and the import action that adds to it. */
-    fun group() = RowGroup("SHADER", listOf(
-        SettingsRow.choice("shader", "Shader", choice(), value = { label() }),
-        SettingsRow.action("shader-import", "Import shader pack…",
-            value = { if (importing) "Importing…" else "" }, busy = { importing },
-            enabled = { !importing }, disabledReason = { "Wait for the current import to finish" },
+    fun group() = RowGroup(str(R.string.kairo_shader_group), listOf(
+        SettingsRow.choice("shader", str(R.string.kairo_shader), choice(), value = { label() }),
+        SettingsRow.action("shader-import", str(R.string.kairo_shader_import),
+            value = { if (importing) str(R.string.kairo_shader_importing) else "" }, busy = { importing },
+            enabled = { !importing }, disabledReason = { str(R.string.kairo_firmware_wait) },
             run = ::importZip)),
-        "Imports RetroArch Slang presets (.slangp) from a ZIP file.")
+        str(R.string.kairo_shader_import_foot))
 
     private fun selectBuiltin(builtin: Builtin) {
         try {
@@ -113,7 +116,7 @@ class ShaderOptions(
             preferences.edit().putString(SETTING, "builtin:${builtin.id}").apply()
             onSelected(path)
         } catch (error: IOException) {
-            reportError(error.message ?: "Could not prepare built-in shader")
+            reportError(error.message ?: str(R.string.kairo_shader_builtin_failed))
         }
     }
 
@@ -167,12 +170,12 @@ class ShaderOptions(
                     // One preset is selected at once; with several, the user picks from the list.
                     if (files.size == 1) {
                         select(files.single().absolutePath)
-                        Ui.message(activity, "Shader set to ${presetLabel(files.single())}")
+                        Ui.message(activity, str(R.string.kairo_shader_set, presetLabel(files.single())))
                     } else pages()?.let { stack ->
                         if (stack.top is GroupsPage) stack.push(ChoicePage(choice(), "shader"))
                     }
                 }, onFailure = { error ->
-                    reportError(error.message ?: "Could not import shader pack")
+                    reportError(error.message ?: str(R.string.kairo_shader_import_failed))
                 })
                 pages()?.refresh()
             }
@@ -193,11 +196,11 @@ class ShaderOptions(
                         val parts = entry.name.replace('\\', '/').split('/')
                         if (entry.name.startsWith('/') || parts.any { it == ".." || ':' in it ||
                                 it.any { char -> char.code < 32 || char.code == 127 } })
-                            throw IOException("Shader ZIP contains an unsafe path")
+                            throw IOException(str(R.string.kairo_shader_zip_unsafe))
                         val relative = parts.filter { it.isNotEmpty() && it != "." }
                         if (relative.isEmpty()) continue
                         val target = File(destination, relative.joinToString(File.separator))
-                        if (++count > MAX_FILES) throw IOException("Shader ZIP contains too many files")
+                        if (++count > MAX_FILES) throw IOException(str(R.string.kairo_shader_zip_too_many))
                         if (entry.isDirectory) {
                             if (!target.mkdirs() && !target.isDirectory)
                                 throw IOException("Could not create shader directory")
@@ -214,17 +217,17 @@ class ShaderOptions(
                                 fileBytes += read
                                 total += read
                                 if (fileBytes > MAX_FILE_BYTES || total > MAX_BYTES)
-                                    throw IOException("Shader ZIP is too large")
+                                    throw IOException(str(R.string.kairo_shader_zip_too_large))
                                 output.write(buffer, 0, read)
                             }
                         }
                         zip.closeEntry()
                     }
                 }
-            } ?: throw IOException("Could not open shader ZIP")
+            } ?: throw IOException(str(R.string.kairo_shader_zip_unreadable))
             val presets = destination.walkTopDown().filter { it.isFile &&
                 it.extension.equals("slangp", ignoreCase = true) }.toList()
-            if (presets.isEmpty()) throw IOException("Shader ZIP contains no .slangp presets")
+            if (presets.isEmpty()) throw IOException(str(R.string.kairo_shader_zip_no_presets))
             return Result.success(presets)
         } catch (error: Exception) {
             destination.deleteRecursively()

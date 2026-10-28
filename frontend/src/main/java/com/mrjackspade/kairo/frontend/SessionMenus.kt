@@ -1,5 +1,7 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Context
+
 /** The menus every Kairo app shows. Apps supply their pages and actions, never the rows. */
 object SessionMenus {
     /** The SETTINGS rows of the game flyout and the library flyout. */
@@ -13,18 +15,18 @@ object SessionMenus {
         val about: () -> Unit
     )
 
-    fun settingsRows(settings: Settings) = listOf(
-        SettingsRow.nav("f-graphics", "Graphics", open = settings.graphics),
-        SettingsRow.nav("f-controls", "Controls", open = settings.controls),
-        SettingsRow.nav("f-machine", "Machine", open = settings.machine),
-        SettingsRow.nav("f-configurations", "Configurations", open = settings.configurations),
-        SettingsRow.switch("f-sound", "Sound", settings.soundOn, set = settings.setSound),
-        SettingsRow.nav("f-about", "About", open = settings.about))
+    fun settingsRows(context: Context, settings: Settings) = listOf(
+        SettingsRow.nav("f-graphics", context.getString(R.string.kairo_graphics), open = settings.graphics),
+        SettingsRow.nav("f-controls", context.getString(R.string.kairo_controls), open = settings.controls),
+        SettingsRow.nav("f-machine", context.getString(R.string.kairo_machine), open = settings.machine),
+        SettingsRow.nav("f-configurations", context.getString(R.string.kairo_configurations), open = settings.configurations),
+        SettingsRow.switch("f-sound", context.getString(R.string.kairo_sound), settings.soundOn, set = settings.setSound),
+        SettingsRow.nav("f-about", context.getString(R.string.kairo_about), open = settings.about))
 
     /** [saves] names what the save folder holds, such as SAVED GAMES or SAVE STATES. */
-    fun configurationsPage(orientation: GameOrientation, saveFolder: SaveFolderSettings, saves: String) =
-        GroupsPage("Configurations", { GameSource.ALL_GAMES }, {
-            listOf(RowGroup("DISPLAY", listOf(orientation.row())),
+    fun configurationsPage(context: Context, orientation: GameOrientation, saveFolder: SaveFolderSettings, saves: String) =
+        GroupsPage(context.getString(R.string.kairo_configurations), { GameSource.ALL_GAMES }, {
+            listOf(RowGroup(context.getString(R.string.kairo_display_group), listOf(orientation.row())),
                 RowGroup(saves, listOf(saveFolder.row())))
         })
 
@@ -32,23 +34,26 @@ object SessionMenus {
      * The flyout over a running game. [gameRows] come before Game settings, which needs a
      * library game: [openGameSettings] returns false when there is none.
      */
-    fun gameFlyout(product: String, appName: String, title: () -> String, status: () -> String,
+    fun gameFlyout(context: Context, product: String, appName: String, title: () -> String, status: () -> String,
                    navigation: SessionNavigationCoordinator, gameRows: () -> List<SettingsRow>,
                    hasGameSettings: () -> Boolean, openGameSettings: () -> Unit,
                    settingsRows: () -> List<SettingsRow>, restart: () -> Unit, exit: () -> Unit) =
         FlyoutModel(product, title, status) {
             listOf(
-                RowGroup("GAME", gameRows() + SettingsRow.nav("f-game", "Game settings",
+                RowGroup(context.getString(R.string.kairo_flyout_game_group), gameRows() +
+                    SettingsRow.nav("f-game", context.getString(R.string.kairo_game_settings),
                     enabled = hasGameSettings,
-                    disabledReason = { "Game settings are available for games started from the library." },
+                    disabledReason = { context.getString(R.string.kairo_flyout_game_settings_library_only) },
                     open = openGameSettings)),
-                RowGroup("SETTINGS", settingsRows()),
+                RowGroup(context.getString(R.string.kairo_flyout_settings_group), settingsRows()),
                 RowGroup(null, listOf(
-                    SettingsRow.action("f-restart", "Restart game",
-                        confirm = Confirm("Progress since your last save is lost.", "Restart", run = restart)),
-                    navigation.returnRow(appName),
-                    SettingsRow.action("f-exit", "Exit $appName",
-                        confirm = Confirm("The machine stops. Progress since your last save is lost.", "Exit",
-                            title = "Exit $appName?", run = exit)))))
+                    SettingsRow.action("f-restart", context.getString(R.string.kairo_flyout_restart),
+                        confirm = Confirm(context.getString(R.string.kairo_flyout_restart_confirm),
+                            context.getString(R.string.kairo_action_restart), run = restart)),
+                    navigation.returnRow(context, appName),
+                    SettingsRow.action("f-exit", context.getString(R.string.kairo_flyout_exit, appName),
+                        confirm = Confirm(context.getString(R.string.kairo_flyout_exit_confirm),
+                            context.getString(R.string.kairo_action_exit),
+                            title = context.getString(R.string.kairo_flyout_exit_title, appName), run = exit)))))
         }
 }

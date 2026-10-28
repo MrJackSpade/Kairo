@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Graphics: scaling, anchors, notch padding, shaders and game orientation. -->
+<resources>
+    <string name="kairo_graphics">Graphics</string>
+    <string name="kairo_scaling_landscape">Landscape scaling</string>
+    <string name="kairo_scaling_portrait">Portrait scaling</string>
+    <string name="kairo_scaling_integer">Integer</string>
+    <string name="kairo_scaling_integer_help">Full image (default)</string>
+    <string name="kairo_scaling_crop">Integer crop</string>
+    <string name="kairo_scaling_crop_help">Crops the edges</string>
+    <string name="kairo_scaling_fit">Fit display</string>
+    <string name="kairo_scaling_fit_help">Fractional scale</string>
+    <string name="kairo_notch_padding">Portrait notch padding</string>
+    <!-- %1$d is a length in density-independent pixels. -->
+    <string name="kairo_dp">%1$d dp</string>
+
+    <string name="kairo_orientation_game">Game orientation</string>
+    <string name="kairo_orientation_landscape">Landscape</string>
+    <string name="kairo_orientation_portrait">Portrait</string>
+
+    <string name="kairo_shader_group">SHADER</string>
+    <string name="kairo_shader">Shader</string>
+    <string name="kairo_shader_group_built_in">BUILT-IN</string>
+    <string name="kairo_shader_group_imported">IMPORTED</string>
+    <string name="kairo_shader_sharp_bilinear">Sharp bilinear</string>
+    <string name="kairo_shader_sharp_bilinear_scanlines">Sharp bilinear + scanlines</string>
+    <string name="kairo_shader_crt_easymode">CRT EasyMode</string>
+    <string name="kairo_shader_import">Import shader pack…</string>
+    <string name="kairo_shader_importing">Importing…</string>
+    <string name="kairo_shader_import_foot">Imports RetroArch Slang presets (.slangp) from a ZIP file.</string>
+    <string name="kairo_shader_builtin_failed">Could not prepare built-in shader</string>
+    <!-- %1$s is the preset's path within its pack. -->
+    <string name="kairo_shader_set">Shader set to %1$s</string>
+    <string name="kairo_shader_import_failed">Could not import shader pack</string>
+    <string name="kairo_shader_zip_unsafe">Shader ZIP contains an unsafe path</string>
+    <string name="kairo_shader_zip_too_many">Shader ZIP contains too many files</string>
+    <string name="kairo_shader_zip_too_large">Shader ZIP is too large</string>
+    <string name="kairo_shader_zip_unreadable">Could not open shader ZIP</string>
+    <string name="kairo_shader_zip_no_presets">Shader ZIP contains no .slangp presets</string>
+</resources>
