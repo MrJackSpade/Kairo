@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The translation of values/strings_shared_ui.xml. Each EN comment is the English a string translates; update it with the translation. -->
 <resources>
+    <!-- EN: Automatic -->
+    <string name="kairo_automatic">Automatisch</string>
     <!-- EN: Cartridge -->
     <string name="kairo_cartridge">Modul</string>
     <!-- EN: Cassette -->

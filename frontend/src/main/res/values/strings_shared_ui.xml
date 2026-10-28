@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="kairo_automatic">Automatic</string>
     <string name="kairo_cartridge">Cartridge</string>
     <string name="kairo_cassette">Cassette</string>
     <string name="kairo_cd_rom">CD-ROM</string>
