@@ -75,7 +75,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
         label?.text = next.label
         label?.setTextColor(if (next.danger) Ui.DANGER else Ui.TEXT)
         description?.text = next.description
-        val shown = next.value()
+        val shown = next.value(context)
         value?.let {
             it.text = shown
             it.visibility = if (shown.isEmpty()) View.GONE else View.VISIBLE
@@ -85,7 +85,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
         tag?.let { chip ->
             val source = next.tag()
             chip.visibility = if (source == null) View.GONE else View.VISIBLE
-            chip.text = source
+            chip.text = source?.let { GameSource.text(context, it) }
             val color = if (source == "Custom") Ui.ACCENT else Ui.TEXT_FAINT
             chip.setTextColor(color)
             chip.background = Ui.rounded(context, Color.TRANSPARENT, 4, color)
@@ -102,7 +102,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
         radio?.checked = next.checked()
         slider?.let { bar -> next.slider?.let { bar.setRange(it.min, it.max, it.get()) } }
         line.contentDescription = listOfNotNull(next.label, next.tag(), shown.ifEmpty { null },
-            if (next.kind == SettingsRow.Kind.SWITCH) if (next.checked()) "On" else "Off" else null,
+            if (next.kind == SettingsRow.Kind.SWITCH) context.getString(if (next.checked()) R.string.kairo_on else R.string.kairo_off) else null,
             if (!enabled) next.disabledReason() else null).joinToString(", ")
     }
 

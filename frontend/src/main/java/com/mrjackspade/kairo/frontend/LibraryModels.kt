@@ -54,6 +54,6 @@ interface LibraryCatalog {
 data class LibraryStrings(
     val productName: String,
     val appName: String,
-    val folder: String = "games folder",
-    val noFolder: String = "No games folder selected"
+    val folder: UiText = UiText.res(R.string.kairo_games_folder),
+    val noFolder: UiText = UiText.res(R.string.kairo_no_games_folder)
 )

@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Context
 import java.util.Locale
 
 /**
@@ -48,9 +49,9 @@ object GameDisks {
         return entries.map { entry ->
             val archive = entry.zipEntry?.let { entry.path.substringAfterLast('/') }
             ChoiceOption(entry.id, when {
-                archive == null -> entry.displayName
-                images.getValue(entry.uri) > 1 -> "$archive: ${entry.displayName}"
-                else -> archive
+                archive == null -> UiText.fixed(entry.displayName)
+                images.getValue(entry.uri) > 1 -> UiText.res(R.string.kairo_disk_in_archive, archive, entry.displayName)
+                else -> UiText.fixed(archive)
             })
         }
     }
@@ -59,14 +60,16 @@ object GameDisks {
      * The choice: [own] and [all] are read each time the pages show, [selected] is the inserted
      * disk's id (or [EMPTY]), and [insert] takes the picked disk, null to eject.
      */
-    fun <E : LibraryItem> choice(title: String, scope: () -> String?, own: () -> List<E>, all: () -> List<E>,
+    fun <E : LibraryItem> choice(context: Context, title: String, scope: () -> String?, own: () -> List<E>, all: () -> List<E>,
                                  selected: () -> String?, insert: (E?) -> Unit,
                                  actions: () -> List<SettingsRow> = { emptyList() }): ChoiceSpec {
-        val other = ChoiceFolder("other", "Other") { listOf(ChoiceGroup(null, options(all()))) }
+        val other = ChoiceFolder("other", context.getString(R.string.kairo_disks_other)) {
+            listOf(ChoiceGroup(null, options(all())))
+        }
         return ChoiceSpec(title, scope, {
             val found = own()
-            listOfNotNull(ChoiceGroup(null, listOf(ChoiceOption(EMPTY, "Empty"))),
-                found.takeIf { it.isNotEmpty() }?.let { ChoiceGroup("THIS GAME", options(it)) },
+            listOfNotNull(ChoiceGroup(null, listOf(ChoiceOption(EMPTY, UiText.res(R.string.kairo_empty)))),
+                found.takeIf { it.isNotEmpty() }?.let { ChoiceGroup(context.getString(R.string.kairo_disks_this_game), options(it)) },
                 ChoiceGroup(null, emptyList(), folders = listOf(other)))
         }, selected, { id ->
             if (id == EMPTY) insert(null)

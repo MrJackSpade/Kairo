@@ -52,10 +52,10 @@ class LibraryFlow<T : LibraryItem>(
     /** The folder's name, shown as the library flyout title and the folder row value. */
     private fun folderLabel(uri: Uri): String = try {
         DocumentsContract.getTreeDocumentId(uri).substringAfterLast('/').substringAfterLast(':')
-            .ifEmpty { screen.strings.folder }
+            .ifEmpty { screen.strings.folder.resolve(activity) }
     } catch (_: IllegalArgumentException) {
         // Only a folder chosen through the document tree picker has a tree document ID.
-        screen.strings.folder
+        screen.strings.folder.resolve(activity)
     }
 
     fun hasGrant(uri: Uri): Boolean = FolderGrants.has(activity, uri, writable)

@@ -2,6 +2,7 @@ package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
 import android.content.ContentResolver
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import java.io.File
@@ -20,7 +21,7 @@ class FirmwareSet(
     val parts: List<Part>,
     val requirements: List<List<Part>> = parts.filter { it.required }.map { listOf(it) },
     /** A short note under the set, such as which games use a machine. */
-    val note: String? = null
+    val note: UiText? = null
 ) {
     init { require(requirements.all { it.isNotEmpty() && parts.containsAll(it) }) }
 
@@ -38,15 +39,15 @@ class FirmwareSet(
      * highest-ranked file a folder holds is imported, and null for any other file. It only sorts
      * what a folder holds, and never refuses a file the player picks.
      */
-    class Part(val name: String, val label: String, val description: String, val accepted: Set<String>,
+    class Part(val name: String, val label: UiText, val description: UiText, val accepted: Set<String>,
                val required: Boolean, val sizes: Set<Long> = emptySet(), val sha1: Set<String> = emptySet(),
                val maxBytes: Long = sizes.maxOrNull() ?: Long.MAX_VALUE, val validate: (File) -> Unit = {},
-               val status: (() -> String?)? = null, val missing: String = "Missing",
-               val removeLabel: String = "Remove", val identifies: ((ByteArray) -> Int?)? = null) {
+               val status: (() -> UiText?)? = null, val missing: UiText = UiText.res(R.string.kairo_missing),
+               val removeLabel: UiText = UiText.res(R.string.kairo_remove), val identifies: ((ByteArray) -> Int?)? = null) {
         init {
-            require(description.isNotBlank()) { "$label has no description" }
-            require(sha1.isEmpty() || maxBytes < Long.MAX_VALUE) { "$label is found by content but has no size limit" }
-            require(identifies == null || sizes.isNotEmpty()) { "$label is found by its header but has no sizes" }
+            require(description !is UiText.Fixed || description.text.isNotBlank()) { "$name has no description" }
+            require(sha1.isEmpty() || maxBytes < Long.MAX_VALUE) { "$name is found by content but has no size limit" }
+            require(identifies == null || sizes.isNotEmpty()) { "$name is found by its header but has no sizes" }
         }
     }
 
@@ -59,7 +60,9 @@ class FirmwareSet(
     /** The requirements none of whose parts is installed. */
     val missingRequirements: List<List<Part>> get() = requirements.filter { it.none(::installed) }
     /** [missingRequirements] for a message, such as "IPL-ROM, CG-ROM or CG-ROM (XVI)". */
-    val missingText: String get() = missingRequirements.joinToString(", ") { group -> group.joinToString(" or ") { it.label } }
+    fun missingText(context: Context): String = missingRequirements.joinToString(context.getString(R.string.kairo_list_separator)) { group ->
+        group.joinToString(context.getString(R.string.kairo_list_or)) { it.label.resolve(context) }
+    }
     val installedCount: Int get() = parts.count(::installed)
 
     /**
@@ -75,13 +78,13 @@ class FirmwareSet(
     }
 
     /** The row's state: what is installed, or what covers a missing part. */
-    fun state(part: Part): String {
+    fun state(part: Part): UiText {
         part.status?.invoke()?.let { return it }
-        if (installed(part)) return "Installed"
+        if (installed(part)) return UiText.res(R.string.kairo_installed)
         // Not installed, but every requirement it is part of is met by another file.
         val groups = requirements.filter { part in it }
         val cover = groups.flatMap { group -> group.filter { it !== part && installed(it) } }.firstOrNull()
-        return if (cover != null && groups.all { group -> group.any(::installed) }) "Covered by ${cover.label}"
+        return if (cover != null && groups.all { group -> group.any(::installed) }) UiText.res(R.string.kairo_firmware_covered_by, cover.label)
             else part.missing
     }
 
@@ -95,7 +98,7 @@ class FirmwareSet(
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             .apply { if (start != null) putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, start) }, requestCode)
     } catch (error: android.content.ActivityNotFoundException) {
-        failed(error.message ?: "Could not open the folder chooser")
+        failed(error.message ?: activity.getString(R.string.kairo_folder_chooser_failed))
     }
 
     /**
@@ -103,7 +106,8 @@ class FirmwareSet(
      * imported. Runs on a worker thread. A file that fails its part's checks fails the import
      * before anything is replaced.
      */
-    fun importFolder(resolver: ContentResolver, tree: Uri, cancelled: AtomicBoolean): List<Part> {
+    fun importFolder(context: Context, tree: Uri, cancelled: AtomicBoolean): List<Part> {
+        val resolver = context.contentResolver
         val files = DocumentTreeWalker(resolver).scan(tree, cancelled,
             { name -> hashed.isNotEmpty() || headed.isNotEmpty() || partFor(name) != null }, {}).files
         val byName = parts.mapNotNull { part ->
@@ -127,7 +131,7 @@ class FirmwareSet(
         }.groupBy { it.first }.map { (part, matches) -> part to matches.maxBy { it.second }.third }
         val found = (byName + byContent + byHeader).distinctBy { it.first }
         // Every copy is checked before any replaces an installed file.
-        val staged = found.map { (part, uri) -> part to stage(resolver, uri, part) }
+        val staged = found.map { (part, uri) -> part to stage(context, uri, part) }
         try {
             for ((part, copy) in staged) commit(copy, part)
         } finally {
@@ -137,23 +141,29 @@ class FirmwareSet(
     }
 
     /** Copies the file the player picked for [part], replacing its installed copy once it passes. */
-    fun importPart(resolver: ContentResolver, uri: Uri, part: Part) {
-        val copy = stage(resolver, uri, part)
+    fun importPart(context: Context, uri: Uri, part: Part) {
+        val copy = stage(context, uri, part)
         try { commit(copy, part) } finally { copy.delete() }
     }
 
-    fun remove(part: Part) = check(!file(part).exists() || file(part).delete()) { "Could not remove ${part.label}" }
+    fun remove(context: Context, part: Part) = check(!file(part).exists() || file(part).delete()) {
+        context.getString(R.string.kairo_firmware_remove_failed, part.label.resolve(context))
+    }
 
     /** A checked copy of [uri] for [part], beside its installed file. */
-    private fun stage(resolver: ContentResolver, uri: Uri, part: Part): File {
+    private fun stage(context: Context, uri: Uri, part: Part): File {
         check(directory.isDirectory || directory.mkdirs()) { "Cannot create the firmware folder" }
         val copy = File(directory, "${part.name}.part")
+        val label = part.label.resolve(context)
         try {
-            importFile(resolver, uri, copy, part.label, maxBytes = part.maxBytes) { file ->
+            importFile(context, uri, copy, label, maxBytes = part.maxBytes) { file ->
                 require(part.sizes.isEmpty() || file.length() in part.sizes) {
-                    "${part.label} is ${file.length()} bytes; it must be ${part.sizes.joinToString(" or ") { describe(it) }}"
+                    context.getString(R.string.kairo_import_wrong_size, label, bytes(context, file.length()),
+                        part.sizes.joinToString(context.getString(R.string.kairo_list_or)) { describe(context, it) })
                 }
-                require(part.sha1.isEmpty() || sha1(file) in part.sha1) { "That file is not a known ${part.label} dump" }
+                require(part.sha1.isEmpty() || sha1(file) in part.sha1) {
+                    context.getString(R.string.kairo_firmware_unknown_dump, label)
+                }
                 part.validate(file)
             }
         } catch (error: Exception) {
@@ -210,14 +220,15 @@ class FirmwareSet(
          * must be exactly [exactBytes] when given, at most [maxBytes], not empty, and pass [validate].
          * Runs on a worker thread; [label] names the file in errors.
          */
-        fun importFile(resolver: ContentResolver, uri: Uri, target: File, label: String, exactBytes: Long? = null,
+        fun importFile(context: Context, uri: Uri, target: File, label: String, exactBytes: Long? = null,
                        maxBytes: Long = exactBytes ?: Long.MAX_VALUE, validate: (File) -> Unit = {}) {
             val directory = checkNotNull(target.parentFile) { "$label has no folder" }
             check(directory.isDirectory || directory.mkdirs()) { "Cannot create ${directory.name}" }
             val partial = File(directory, "${target.name}.part")
-            val sizeRule = exactBytes?.let { "$label must be exactly ${describe(it)}" } ?: "$label is too large"
+            val sizeRule = exactBytes?.let { context.getString(R.string.kairo_import_exact_size, label, describe(context, it)) }
+                ?: context.getString(R.string.kairo_import_too_large, label)
             try {
-                (resolver.openInputStream(uri) ?: error("Unable to open the selected file")).use { input ->
+                (context.contentResolver.openInputStream(uri) ?: error("Unable to open the selected file")).use { input ->
                     partial.outputStream().use { output ->
                         val buffer = ByteArray(64 * 1024)
                         var size = 0L
@@ -228,7 +239,7 @@ class FirmwareSet(
                             require(size <= maxBytes) { sizeRule }
                             output.write(buffer, 0, count)
                         }
-                        require(size > 0) { "$label is empty" }
+                        require(size > 0) { context.getString(R.string.kairo_import_empty, label) }
                         require(exactBytes == null || size == exactBytes) { sizeRule }
                     }
                 }
@@ -240,6 +251,11 @@ class FirmwareSet(
             }
         }
 
-        private fun describe(bytes: Long) = if (bytes % 1024 == 0L) "${bytes / 1024} KiB" else "$bytes bytes"
+        private fun describe(context: Context, bytes: Long): String =
+            if (bytes % 1024 == 0L) context.getString(R.string.kairo_size_kib, bytes / 1024)
+            else bytes(context, bytes)
+
+        private fun bytes(context: Context, count: Long): String = context.resources.getQuantityString(
+            R.plurals.kairo_size_bytes, count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), count)
     }
 }

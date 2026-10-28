@@ -504,7 +504,8 @@ abstract class Page {
 
     /** Back arrow, then a title that is the label of the row that opened the page, then scope. */
     protected fun header(title: String, scope: String?): View {
-        val chip = Ui.text(context, scope ?: "", Ui.LABEL, Ui.TEXT_MUTED).apply {
+        // A scope may be a source, such as All games, shown in the player's language.
+        val chip = Ui.text(context, scope?.let { GameSource.text(context, it) } ?: "", Ui.LABEL, Ui.TEXT_MUTED).apply {
             background = Ui.rounded(context, android.graphics.Color.TRANSPARENT, 999, Ui.LINE)
             setPadding(dp(10), dp(4), dp(10), dp(4))
             maxLines = 1

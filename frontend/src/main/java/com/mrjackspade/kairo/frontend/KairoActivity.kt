@@ -46,14 +46,14 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         val preferences: String,
         val strings: LibraryStrings,
         /** The About page's credits, such as which emulator the app runs. */
-        val credits: String,
+        val credits: UiText,
         /** The library's empty and expired-folder messages. */
-        val emptyStatus: String,
-        val expiredStatus: String,
+        val emptyStatus: UiText,
+        val expiredStatus: UiText,
         /** First-run step 1. */
         val folderStep: MachineFirstRun.Folder,
         /** The save folder's section in Configurations, such as SAVE STATES. */
-        val savesLabel: String,
+        val savesLabel: UiText,
         /** The app's GitHub repository, such as MrJackSpade/Kairo88, whose releases are offered as updates. */
         val repository: String
     )
@@ -152,7 +152,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract val touchStore: TouchSettingsStore<E>
     /** What tapping the screen means in each mode, for the Screen tap choice. */
     protected abstract val touchModes: List<Pair<InputModeDecider.Mode, ChoiceOption>>
-    protected abstract val directTouchExplanation: String
+    protected abstract val directTouchExplanation: UiText
     /** Whether the guest mouse can take a touched point; without it, mouse touch is a touchpad. */
     protected open val directTouchAvailable: Boolean = false
 
@@ -176,7 +176,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
      * ([allGames]), stored with the game's other settings.
      */
     protected abstract fun gameAnchor(game: E, orientation: String, allGames: () -> Anchor): GameValue<String>
-    protected open val resetMessage: String = "Game settings reset. Machine changes apply on next launch or restart."
+    protected open val resetMessage: UiText = UiText.res(R.string.kairo_settings_reset_done)
 
     // Pages and the session ---------------------------------------------------------------------
 
@@ -205,9 +205,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected open fun sessionDetails(): List<String> = emptyList()
     protected open fun diagnosticsRows(running: Boolean): List<SettingsRow> = emptyList()
     protected open val aboutHelp: List<Pair<String, String>> get() = listOf(
-        "Open the menu" to "Mode or Home button, Back, Menu, or a swipe from the left edge",
-        "Open the keyboard" to "Swipe in from the right edge",
-        "Physical keyboard" to "Types into the ${identity.guestName} while the menu is closed")
+        getString(R.string.kairo_help_open_menu) to getString(R.string.kairo_help_open_menu_how),
+        getString(R.string.kairo_help_open_keyboard) to getString(R.string.kairo_help_open_keyboard_how),
+        getString(R.string.kairo_help_physical_keyboard) to getString(R.string.kairo_help_physical_keyboard_how, identity.guestName))
     /** First-run step 2, or null for an app with no firmware to import. */
     protected abstract val firmware: MachineFirstRun.Firmware?
     /** Where first-run setup stopped: 0 before the folder, 1 at firmware, 2 done. */
@@ -357,7 +357,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected val saveFolder by lazy {
         SaveFolderSettings(this, pages, preferences, AppSaveLocation(appSaves), saveKinds,
             ::saveTitle, ::saveUnitLabel,
-            { if (currentEntry != null) "Return to the library to change the save folder." else null },
+            { if (currentEntry != null) getString(R.string.kairo_saves_return_to_library) else null },
             ::prepareSaveMove)
     }
     private val graphics by lazy { GraphicsOptions(this, preferences, { pages }) { updateViewport(); refreshSettingValues() } }
@@ -406,7 +406,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { if (::screen.isInitialized) screen.requestFocus() })
     }
     protected val touchSettingsCoordinator by lazy {
-        TouchSettingsCoordinator(touchStore, touchModes, directTouchExplanation,
+        TouchSettingsCoordinator(this, touchStore, touchModes, directTouchExplanation,
             changed = { entry ->
                 if (entry == null || currentEntry?.id == entry.id) {
                     inputModeDecider.reset()
@@ -465,7 +465,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         CatalogUpdateController(this, ::downloadCatalogUpdate,
             { message -> if (!message.endsWith("…")) toast(message) },
             { libraryScreen.refreshCatalog(); catalogUpdated() },
-            { if (libraryVisible) toast("Catalogs updated") }, { libraryMenu.showCatalogProgress(it) },
+            { if (libraryVisible) toast(getString(R.string.kairo_catalogs_updated)) }, { libraryMenu.showCatalogProgress(it) },
             installedCatalogs::update)
     }
     private var externalEntries: List<E> = emptyList()
@@ -569,7 +569,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         libraryFlow = LibraryFlow(this, preferences, libraryPage, FOLDER_REQUEST,
             { folder -> movedToPaths(cachedLibrary(folder)) },
             { folder, depth, cancelled, progress -> movedToPaths(scanLibrary(folder, depth, cancelled, progress)) },
-            identity.emptyStatus, identity.expiredStatus,
+            text(identity.emptyStatus), text(identity.expiredStatus),
             { entries -> LibraryScanSummary.format(entries, hashCount) },
             ::libraryLoaded,
             { _ ->
@@ -588,7 +588,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         // On a dual-screen device, the lower screen shows the selected game's page, then its settings once opened.
         lowerLibrary = LowerLibraryController(this, catalog, libraryPage::metadata, { launchFromLibrary(it, false) },
             ::showDetailPreview, commandLaunch, libraryPage::openDetail, { libraryPage.closeDetail() },
-            { entry -> gameSettingsPage({ titleOf(entry) }) { gameSettings(entry) } }, libraryPage::settingsMoved)
+            { entry -> gameSettingsPage(this, { titleOf(entry) }) { gameSettings(entry) } }, libraryPage::settingsMoved)
         secondaryKeyboard.lowerLibrary = lowerLibrary::create
         libraryPage.detailOpened = lowerLibrary::opened
         libraryPage.settingsElsewhere = { lowerLibrary.showsSettings }
@@ -605,7 +605,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         root.post {
             if (isFinishing || isDestroyed) return@post
             if (controllerSetupPending) {
-                pages.push(controllerProfiles.configuration.setupPage(identity.brand, ::finish) {
+                pages.push(controllerProfiles.configuration.setupPage(this, identity.brand, ::finish) {
                     controllerSetupPending = false
                     controllerFlow.initialize()
                     pages.closeAll()
@@ -670,7 +670,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private fun chooseExternalGame(entries: List<E>) {
         val playable = entries.filter { it.playable }
         if (playable.isEmpty()) {
-            libraryScreen.showStatus("No playable ${identity.guestName} game found")
+            libraryScreen.showStatus(getString(R.string.kairo_external_no_playable, identity.guestName))
             return
         }
         val fromFrontend = externalFromFrontend
@@ -678,7 +678,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         // chooses only when nothing settles it.
         startDisk(playable, catalog, ::preferredExternal)?.let { launchFromLibrary(it, fromFrontend); return }
         // Back cancels and leaves the app open.
-        pages.push(ChoicePage(ChoiceSpec("Choose a disk to start", { null }, {
+        pages.push(ChoicePage(ChoiceSpec(getString(R.string.kairo_external_choose_disk), { null }, {
             listOf(ChoiceGroup(null, playable.map { ChoiceOption(it.id, it.displayName) }))
         }, { null }, { id ->
             playable.firstOrNull { it.id == id }?.let { launchFromLibrary(it, fromFrontend) }
@@ -766,7 +766,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             pages.push(controllerPages.controlsPage(currentEntry?.takeIf { !libraryVisible && it.contentId != null }))
         },
         machine = { pages.push(machinePage()) },
-        configurations = { pages.push(SessionMenus.configurationsPage(gameOrientation, saveFolder, identity.savesLabel)) },
+        configurations = { pages.push(SessionMenus.configurationsPage(gameOrientation, saveFolder, text(identity.savesLabel))) },
         soundOn = { !muted },
         setSound = { on -> if (on == muted) toggleMute() },
         about = { pages.push(aboutPage()) }))
@@ -778,7 +778,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     /** The game flyout: the game's own pages, settings, then leaving. */
     private fun gameFlyout() = SessionMenus.gameFlyout(identity.brand, identity.appName,
-        { currentEntry?.let(::titleOf) ?: "No game" }, ::menuStatusText, sessionNavigation,
+        { currentEntry?.let(::titleOf) ?: getString(R.string.kairo_no_game) }, ::menuStatusText, sessionNavigation,
         ::gameRows, { currentEntry != null }, { currentEntry?.let(::showGameDetails) },
         ::settingsRows, restart = {
             cancelAutomation()
@@ -791,7 +791,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** The menu itself pauses the guest, so it reads Paused only when the player paused the game. */
     private fun menuStatusText(): String {
         val state = sessionStatus().let { if (it == "Paused" && !userPaused) "Running" else it }
-        return (listOf(state) + sessionDetails() + listOfNotNull(if (muted) "Muted" else null)).joinToString(" · ")
+        return (listOf(SESSION_STATES[state]?.let(::getString) ?: state) + sessionDetails() +
+            listOfNotNull(if (muted) getString(R.string.kairo_session_muted) else null)).joinToString(" · ")
     }
 
     protected fun refreshSettingValues() {
@@ -837,19 +838,21 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         fun row(orientation: String, label: String): SettingsRow {
             val id = "game-anchor-$orientation"
             val value = { gameAnchor(entry, orientation) { graphics.anchor(orientation) } }
-            fun name(anchor: String) = Anchor.of(anchor).label
+            fun name(anchor: String) = getString(Anchor.of(anchor).label)
             return SettingsRow.action(id, label, { name(value().effective) },
                 { if (value().custom() != null) ValueTone.CUSTOM else ValueTone.CURRENT },
                 { if (value().custom() != null) GameSource.CUSTOM else value().source() },
-                enabled = hashed, disabledReason = { GameSettingsRows.NO_HASH }) {
+                enabled = hashed, disabledReason = { GameSettingsRows.noHash(this) }) {
                 pages.push(AnchorPage(label, { titleOf(entry) }, { value().custom() }, { value().effective },
-                    { "${value().source()}: ${name(value().fallback())}" }, { picked ->
+                    { getString(R.string.kairo_settings_default_from, GameSource.text(this, value().source()),
+                        name(value().fallback())) }, { picked ->
                         value().set(picked)
                         if (currentEntry?.id == entry.id) updateViewport()
                     }, id))
             }
         }
-        return RowGroup("DISPLAY", listOf(row("landscape", "Landscape anchor"), row("portrait", "Portrait anchor")))
+        return RowGroup(getString(R.string.kairo_display_group), listOf(row("landscape", getString(R.string.kairo_anchor_landscape)),
+            row("portrait", getString(R.string.kairo_anchor_portrait))))
     }
 
     protected fun openMenu(start: String? = null, confirm: Boolean = false) = sessionFlow.open(start, confirm)
@@ -905,7 +908,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         applyPauseState()
         val folder = tree
         if (folder != null && libraryFlow.hasGrant(folder)) libraryFlow.refresh(ScanDepth.CHANGED_FOLDERS)
-        else libraryScreen.showStatus("Choose a ${identity.strings.folder} from the library menu when you’re ready")
+        else libraryScreen.showStatus(getString(R.string.kairo_first_run_choose_later, text(identity.strings.folder)))
     }
 
     /** The first-run firmware page shows what an import changed. */
@@ -924,15 +927,15 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         cancelAutomation()
         releaseInputs()
         if (saveFolder.busy) {
-            toast("Wait for the saves to finish moving.")
+            toast(getString(R.string.kairo_saves_moving_wait))
             return
         }
         if (!entry.playable) {
-            toast(entry.error ?: "Refresh this entry before playing")
+            toast(entry.error ?: getString(R.string.kairo_launch_refresh_first))
             return
         }
         if (entry !in externalEntries && (tree == null || !libraryFlow.hasGrant(tree!!))) {
-            libraryScreen.showStatus(identity.expiredStatus)
+            libraryScreen.showStatus(text(identity.expiredStatus))
             return
         }
         launch(entry, fromFrontend)
@@ -997,7 +1000,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected fun launchFailed(message: String) {
         transitioning = false
         gameOrientation.launchFailed()
-        libraryScreen.showStatus("Launch failed: $message")
+        libraryScreen.showStatus(getString(R.string.kairo_launch_failed, message))
         applyPauseState()
     }
 
@@ -1017,7 +1020,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         transitioning = true
         releaseInputs()
         hideKeyboard()
-        showProgress("Stopping machine…")
+        showProgress(getString(R.string.kairo_session_stopping))
         Thread {
             stopGuest()
             runOnUiThread {
@@ -1191,41 +1194,43 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     /** Game settings over the game page, or over the game flyout while the game runs. */
     protected fun showGameDetails(entry: E) {
-        pages.push(gameSettingsPage({ titleOf(entry) }) { gameSettings(entry) })
+        pages.push(gameSettingsPage(this, { titleOf(entry) }) { gameSettings(entry) })
     }
 
     private fun gameSettings(entry: E): List<RowGroup> {
         // Settings belong to the game's key, once its files have been read.
         val id = entry.key.takeIf { entry.contentId != null }
         val hashed = { id != null }
-        val noHash = { GameSettingsRows.NO_HASH }
+        val noHash = { GameSettingsRows.noHash(this) }
         val scope = { titleOf(entry) }
         val inLibrary = libraryEntries.any { it.uri == entry.uri }
         return listOfNotNull(
-            RowGroup("CONTROLS", listOf(controllerPages.gameRow(entry, hashed, { controllerSource(entry) })) +
+            RowGroup(getString(R.string.kairo_controls_group), listOf(controllerPages.gameRow(entry, hashed, { controllerSource(entry) })) +
                 (id?.let { touchSettingsCoordinator.gameRows(entry, scope, hashed) } ?: listOf(
-                    SettingsRow.choice("game-tap", "Screen tap", ChoiceSpec("Screen tap", scope, { emptyList() },
+                    SettingsRow.choice("game-tap", getString(R.string.kairo_touch_screen_tap),
+                        ChoiceSpec(getString(R.string.kairo_touch_screen_tap), scope, { emptyList() },
                         { null }, select = {}), enabled = { false }, disabledReason = noHash)))),
             machineGroup(entry, hashed),
             displayGroup(entry, hashed),
-            RowGroup("LIBRARY", listOf(
-                GameSettingsRows.text("title", "Title", "Game title", { titleOf(entry) }, { titleCustom(entry) },
+            RowGroup(getString(R.string.kairo_library_group), listOf(
+                GameSettingsRows.text(this, "title", getString(R.string.kairo_title), getString(R.string.kairo_title_hint),
+                    { titleOf(entry) }, { titleCustom(entry) },
                     { titleSource(entry) },
-                    { value -> saveGameSetting(entry, "Saved") { setTitle(id!!, value) } },
-                    { saveGameSetting(entry, "Saved") { setTitle(id!!, null) } },
+                    { value -> saveGameSetting(entry, getString(R.string.kairo_saved)) { setTitle(id!!, value) } },
+                    { saveGameSetting(entry, getString(R.string.kairo_saved)) { setTitle(id!!, null) } },
                     enabled = hashed, disabledReason = noHash),
                 artwork.row(entry, "boxArt", hashed),
                 artwork.row(entry, "preview", hashed)),
-                "Chosen images are copied into your library."),
-            RowGroup("FILE", GameSettingsRows.file(entry.path, entry.zipEntry, entry.contentId, entry.error) +
+                getString(R.string.kairo_artwork_copied_foot)),
+            RowGroup(getString(R.string.kairo_file_group), GameSettingsRows.file(this, entry.path, entry.zipEntry, entry.contentId, entry.error) +
                 fileRows(entry) + listOfNotNull(deletePrompt(entry)?.takeIf { inLibrary }?.let { prompt ->
-                    GameDeletionFlow.row(this, libraryFlow, entry, prompt, identity.strings.folder,
+                    GameDeletionFlow.row(this, libraryFlow, entry, prompt, text(identity.strings.folder),
                         { !libraryVisible && currentEntry?.uri == entry.uri }, "${identity.appName}-delete-game") {
                         deleteSource(entry)
                     }
                 })),
-            RowGroup(null, listOf(GameSettingsRows.reset(hashed) {
-                saveGameSetting(entry, resetMessage, "Could not reset game settings") {
+            RowGroup(null, listOf(GameSettingsRows.reset(this, hashed) {
+                saveGameSetting(entry, text(resetMessage), getString(R.string.kairo_settings_reset_failed)) {
                     resetGameSettings(id!!)
                     if (currentEntry?.id == entry.id) {
                         updateViewport()
@@ -1239,7 +1244,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }
 
     /** Runs a game setting change and says how it went; the library and pages show the new value. */
-    protected fun saveGameSetting(entry: E, message: String = "Saved. Machine changes apply on next launch or restart.",
+    protected fun saveGameSetting(entry: E, message: String = getString(R.string.kairo_saved_machine),
                                   failure: String? = null, action: () -> Unit) {
         try {
             action()
@@ -1247,7 +1252,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             libraryScreen.metadataChanged(entry.key)
             toast(message)
         } catch (error: Exception) {
-            toast(failure ?: "Could not save: ${error.message ?: "Invalid value"}")
+            toast(failure ?: getString(R.string.kairo_save_failed, error.message ?: getString(R.string.kairo_invalid_value)))
         }
         pages.refresh()
         lowerLibrary.refresh()
@@ -1258,14 +1263,14 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     private fun showDetailPreview(entry: E) = artwork.view(entry)
 
-    private fun aboutPage() = AboutDocuments.page(this, pages, aboutHelp, "Android reserves the system Home key.",
-        identity.credits, "PRIVACY_POLICY.txt", "THIRD_PARTY_NOTICES.txt", ::diagnosticsPage)
+    private fun aboutPage() = AboutDocuments.page(this, pages, aboutHelp, getString(R.string.kairo_help_home_key),
+        text(identity.credits), "PRIVACY_POLICY.txt", "THIRD_PARTY_NOTICES.txt", ::diagnosticsPage)
 
     /** Live values, updated four times a second. */
-    private fun diagnosticsPage() = object : GroupsPage("Diagnostics", { currentEntry?.let(::titleOf) }, {
+    private fun diagnosticsPage() = object : GroupsPage(getString(R.string.kairo_diagnostics), { currentEntry?.let(::titleOf) }, {
         val running = currentEntry != null
-        listOf(RowGroup("MACHINE STATUS", diagnosticsRows(running),
-            if (running) "Live values from the emulator, updated four times a second." else "Start a game to see live values."))
+        listOf(RowGroup(getString(R.string.kairo_diagnostics_group), diagnosticsRows(running),
+            getString(if (running) R.string.kairo_diagnostics_live else R.string.kairo_diagnostics_start_game)))
     }) {
         override fun tick() = refresh()
     }
@@ -1306,7 +1311,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         if (currentEntry != null) {
             sessionFlow.close()
             transitioning = true
-            showProgress("Stopping machine…")
+            showProgress(getString(R.string.kairo_session_stopping))
         }
         Thread {
             stopGuest()
@@ -1465,6 +1470,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     companion object {
         private const val FOLDER_REQUEST = 99
+        /** The machine states a session reports (sessionStatus), as the game menu's status line names them. */
+        private val SESSION_STATES = mapOf("Running" to R.string.kairo_state_running, "Paused" to R.string.kairo_state_paused,
+            "Stopped" to R.string.kairo_state_stopped, "Starting" to R.string.kairo_state_starting, "Error" to R.string.kairo_state_error)
         /** The first request code a product may use for its own pickers. */
         const val FIRST_PRODUCT_REQUEST = 200
     }

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A frame-driven machine's session, game settings, media, firmware and diagnostics. -->
+<resources>
+    <!-- Where a value comes from, on a row's tag and a page's scope. -->
+    <string name="kairo_source_custom">Custom</string>
+    <string name="kairo_source_all_games">All games</string>
+    <string name="kairo_source_built_in">Built-in</string>
+    <string name="kairo_source_shipped_catalog">Shipped catalog</string>
+    <string name="kairo_source_updated_catalog">Updated catalog</string>
+    <string name="kairo_source_user_catalog">User catalog</string>
+    <string name="kairo_source_filename">Filename</string>
+
+    <string name="kairo_game_settings">Game settings</string>
+    <string name="kairo_settings_no_hash">This file needs a successful hash before settings can be saved</string>
+    <!-- The Default choice's description: %1$s is where the default comes from, %2$s its value. -->
+    <string name="kairo_settings_default_from">%1$s: %2$s</string>
+    <string name="kairo_settings_reset_all">Reset all game settings</string>
+    <string name="kairo_settings_reset_all_confirm">Remove every custom setting for this game and use its catalog and global defaults.</string>
+    <string name="kairo_file_location">Location</string>
+    <string name="kairo_file_zip_entry">ZIP entry</string>
+    <string name="kairo_file_content_id">Content ID</string>
+    <string name="kairo_file_not_hashed">Not hashed</string>
+    <string name="kairo_saved">Saved</string>
+    <string name="kairo_saved_machine">Saved. Machine changes apply on next launch or restart.</string>
+    <!-- %1$s is the setting's name, in lower case; %2$s what the player typed. -->
+    <string name="kairo_setting_invalid">Not a valid %1$s: %2$s</string>
+
+    <string name="kairo_machine">Machine</string>
+    <string name="kairo_machine_group">MACHINE</string>
+    <string name="kairo_machine_group_foot">Machine changes apply on the next launch or restart.</string>
+    <string name="kairo_machine_all_games_group">ALL GAMES</string>
+    <string name="kairo_machine_all_games_foot">A game\'s own settings come first. Changes apply on the next launch or restart.</string>
+    <string name="kairo_drive_not_in_library">Not in library</string>
+    <string name="kairo_disk_image">Disk image</string>
+    <string name="kairo_disks_other">Other</string>
+    <string name="kairo_disks_this_game">THIS GAME</string>
+    <!-- One of several disk images in an archive: %1$s is the archive, %2$s the image. -->
+    <string name="kairo_disk_in_archive">%1$s: %2$s</string>
+
+    <string name="kairo_touch_auto_help">Follows what the game reads</string>
+    <!-- %1$s is the machine's name, such as PC-88. -->
+    <string name="kairo_touch_tap_keyboard_help">Tap opens the %1$s keyboard</string>
+    <string name="kairo_touch_direct_explanation">Direct tap lands on the touched point in games that move the cursor one pixel per mouse count and stop it at the screen’s top-left edge.</string>
+    <string name="kairo_touch_group">TOUCH SCREEN</string>
+    <string name="kairo_touch_screen_tap">Screen tap</string>
+    <string name="kairo_touch_mouse_touch">Mouse touch</string>
+    <string name="kairo_touch_touchpad">Touchpad</string>
+    <string name="kairo_touch_touchpad_help">Drag to move, tap to click</string>
+    <string name="kairo_touch_direct">Direct tap</string>
+    <string name="kairo_touch_direct_help">Click where you touch</string>
+    <string name="kairo_touch_second_screen">Second screen starts with</string>
+    <string name="kairo_touch_mouse_touchpad">Mouse touchpad</string>
+    <string name="kairo_mapping_without_sticks_fallback">Using Without Sticks fallback</string>
+
+    <string name="kairo_disk_reset">Reset disk</string>
+    <string name="kairo_disk_reset_exit_first">Exit this game before resetting its disk</string>
+    <!-- %1$s is the disk image's name. -->
+    <string name="kairo_disk_reset_confirm">Replace %1$s\'s working copy with its disk image? Saves the game wrote to the disk are removed.</string>
+    <string name="kairo_disk_reset_done">Disk reset</string>
+    <string name="kairo_disk_reset_failed">Could not reset the disk</string>
+
+    <!-- %1$s is the state slot's number. -->
+    <string name="kairo_save_slot">Slot %1$s</string>
+    <string name="kairo_states_library_only">Save states are available for games started from the library.</string>
+    <string name="kairo_state_error_not_running">the machine is not running</string>
+
+    <!-- %1$s is the game's name. -->
+    <string name="kairo_launch_preparing">Preparing %1$s…</string>
+    <string name="kairo_launch_starting">Starting %1$s…</string>
+    <string name="kairo_session_stopped">%1$s stopped</string>
+    <!-- %2$s is the emulator's own error message. -->
+    <string name="kairo_session_stopped_error">%1$s stopped: %2$s</string>
+
+    <string name="kairo_diagnostics_state">State</string>
+    <string name="kairo_diagnostics_stopped">Stopped</string>
+    <string name="kairo_diagnostics_error">Error</string>
+    <string name="kairo_diagnostics_frames">Frames</string>
+    <string name="kairo_diagnostics_audio">Audio</string>
+    <string name="kairo_diagnostics_xruns">Xruns</string>
+    <string name="kairo_diagnostics_audio_config">Audio config</string>
+
+    <string name="kairo_media_disks">Disks</string>
+    <string name="kairo_media_drives_group">DRIVES</string>
+    <string name="kairo_media_drives_foot">A disk keeps what the game writes to it.</string>
+    <string name="kairo_media_wait">Wait for the disk change to finish</string>
+    <string name="kairo_media_start_first">Start a game before changing disks</string>
+    <string name="kairo_media_insert_failed">The disk could not be inserted</string>
+    <string name="kairo_media_change_failed">Disk change failed</string>
+    <!-- %1$s is the drive, such as Drive 1; %2$s the disk now in it, or Empty. -->
+    <string name="kairo_media_changed">%1$s: %2$s</string>
+
+    <!-- %1$s is the machine's name, such as PC-88. -->
+    <string name="kairo_firmware_title">%1$s BIOS</string>
+    <string name="kairo_firmware_description">Pick each file below, or import them all from a folder.</string>
+    <string name="kairo_firmware_required_note">Files marked Required are needed to start games.</string>
+    <string name="kairo_firmware_group">FIRMWARE</string>
+    <string name="kairo_firmware_import_folder">Import all from a folder…</string>
+    <string name="kairo_firmware_import_folder_description">Finds the files below in a folder you choose and imports every one it recognizes</string>
+    <string name="kairo_firmware_wait">Wait for the current import to finish</string>
+    <string name="kairo_firmware_return_to_library">Return to the library to change firmware.</string>
+    <string name="kairo_firmware_required">Required</string>
+    <string name="kairo_firmware_optional">Optional</string>
+    <string name="kairo_firmware_replace">Replace…</string>
+    <string name="kairo_choose_file">Choose file…</string>
+    <!-- %1$s is the machine's name; %2$s the files still missing. -->
+    <string name="kairo_firmware_missing">Import the %1$s firmware in Menu › Machine first (missing %2$s)</string>
+    <string name="kairo_firmware_none_in_folder">No %1$s firmware files in that folder</string>
+    <plurals name="kairo_firmware_imported">
+        <item quantity="one">Imported %1$d firmware file</item>
+        <item quantity="other">Imported %1$d firmware files</item>
+    </plurals>
+    <!-- %1$s is the firmware file's name, such as N88-BASIC. -->
+    <string name="kairo_firmware_part_imported">%1$s imported</string>
+    <string name="kairo_firmware_import_failed">Firmware import failed: %1$s</string>
+    <string name="kairo_firmware_remove_failed">Could not remove %1$s</string>
+    <string name="kairo_firmware_unknown_dump">That file is not a known %1$s dump</string>
+    <string name="kairo_folder_chooser_failed">Could not open the folder chooser</string>
+
+    <!-- A picked file's checks. %1$s names the file, such as N88-BASIC. -->
+    <string name="kairo_import_wrong_size">%1$s is %2$s; it must be %3$s</string>
+    <string name="kairo_import_exact_size">%1$s must be exactly %2$s</string>
+    <string name="kairo_import_too_large">%1$s is too large</string>
+    <string name="kairo_import_empty">%1$s is empty</string>
+    <string name="kairo_size_kib">%1$d KiB</string>
+    <plurals name="kairo_size_bytes">
+        <item quantity="one">%1$d bytes</item>
+        <item quantity="other">%1$d bytes</item>
+    </plurals>
+</resources>

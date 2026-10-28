@@ -1,6 +1,7 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
+import android.content.Context
 import android.graphics.Color
 import android.view.Gravity
 import android.view.InputDevice
@@ -11,46 +12,63 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.annotation.StringRes
 import kotlin.math.roundToInt
 
 /** What a guest machine accepts from a controller: its keys, joystick, and app actions. */
 data class ControllerGuestSpec(
     val name: String,
     val keyCodes: List<Int>,
+    /** A key's legend, as the guest keyboard prints it. */
     val keyLabel: (Int) -> String,
     val modifierCodes: Set<Int>,
-    val joystickControls: List<Pair<String, String>>,
-    val joystickHelp: String,
-    val actions: List<Pair<String, String>>,
+    val joystickControls: List<Pair<String, UiText>>,
+    val joystickHelp: UiText,
+    val actions: List<Pair<String, UiText>>,
     /** Keys are picked on the guest keyboard layout; codes it lacks go on an Other tab. */
     val keyboard: GuestKeyboardLayout,
     /** How the joystick tab lays out [joystickControls]: one port of up/down/left/right and buttons, unless an app says otherwise. */
     val joystickPorts: List<JoystickPort> = JoystickPort.single(joystickControls.map { it.first })
 ) {
-    fun joystickLabel(id: String) = joystickControls.firstOrNull { it.first == id }?.second ?: id
+    fun joystickLabel(context: Context, id: String): String =
+        joystickControls.firstOrNull { it.first == id }?.second?.resolve(context) ?: id
+
+    /** A joystick control as a binding names it, such as "Joystick fire 1". */
+    fun joystickTarget(context: Context, id: String): String =
+        context.getString(R.string.kairo_binding_joystick, joystickLabel(context, id).lowercase())
+
+    fun actionLabel(context: Context, id: String): String =
+        actions.firstOrNull { it.first == id }?.second?.resolve(context) ?: id.replaceFirstChar(Char::uppercase)
 
     /** What a binding sends, as the controller pages and the keyboard panel name it. */
-    fun describe(binding: ControllerBinding): String = when {
-        binding.cycleKeys.isNotEmpty() -> {
-            val direction = if (binding.input == ControllerKeyCycles.pair(binding.input)?.first) "previous" else "next"
-            "Cycle $direction " + binding.cycleKeys.joinToString(" → ") { keyLabel(it) }
+    fun describe(context: Context, binding: ControllerBinding): String = when {
+        binding.cycleKeys.isNotEmpty() -> context.getString(
+            if (binding.input == ControllerKeyCycles.pair(binding.input)?.first) R.string.kairo_binding_cycle_previous
+            else R.string.kairo_binding_cycle_next,
+            binding.cycleKeys.joinToString(" → ") { keyLabel(it) })
+        binding.mouse != null -> {
+            val target = MOUSE_TARGETS[binding.mouse]?.let(context::getString)
+                ?: context.getString(R.string.kairo_binding_mouse_other, binding.mouse.removePrefix("move").lowercase())
+            if (binding.mouse.startsWith("move")) context.getString(R.string.kairo_binding_mouse_speed, target, binding.mouseSpeed)
+            else target
         }
-        binding.mouse != null -> "Mouse " + when (binding.mouse) {
-            "leftButton" -> "left button"
-            "rightButton" -> "right button"
-            else -> binding.mouse.removePrefix("move").lowercase()
-        } + if (binding.mouse.startsWith("move")) java.lang.String.format(
-            java.util.Locale.ROOT, " · %.1f×", binding.mouseSpeed) else ""
-        binding.action != null -> actions.firstOrNull { it.first == binding.action }?.second
-            ?: binding.action.replaceFirstChar(Char::uppercase)
+        binding.action != null -> actionLabel(context, binding.action)
         else -> (binding.keys.map { keyLabel(it) } +
-            listOfNotNull(binding.joystick?.let { "Joystick " + joystickLabel(it).lowercase() })).joinToString(" + ")
+            listOfNotNull(binding.joystick?.let { joystickTarget(context, it) })).joinToString(" + ")
     }
 
     companion object {
         /** The app actions every Kairo app offers a controller. */
-        val STANDARD_ACTIONS = listOf("menu" to "Open menu", "pause" to "Pause or resume",
-            "fastForward" to "Fast forward while held", "restart" to "Restart", "exit" to "Exit")
+        val STANDARD_ACTIONS = listOf("menu" to UiText.res(R.string.kairo_action_menu),
+            "pause" to UiText.res(R.string.kairo_action_pause),
+            "fastForward" to UiText.res(R.string.kairo_action_fast_forward),
+            "restart" to UiText.res(R.string.kairo_action_restart), "exit" to UiText.res(R.string.kairo_action_exit))
+
+        /** What a mouse binding does, by its stored name. */
+        val MOUSE_TARGETS = mapOf("moveUp" to R.string.kairo_binding_mouse_up,
+            "moveDown" to R.string.kairo_binding_mouse_down, "moveLeft" to R.string.kairo_binding_mouse_left,
+            "moveRight" to R.string.kairo_binding_mouse_right, "leftButton" to R.string.kairo_binding_mouse_left_button,
+            "rightButton" to R.string.kairo_binding_mouse_right_button)
     }
 }
 
@@ -70,66 +88,98 @@ data class JoystickPort(val label: String?, val up: String?, val down: String?, 
 
 /** The virtual controls in the one order every controller page uses. */
 internal object VirtualControls {
-    class Control(val id: String, val short: String, val full: String)
-    class Group(val label: String, val stick: Boolean, val controls: List<Control>)
+    class Control(val id: String, @StringRes val short: Int, @StringRes val full: Int)
+    class Group(@StringRes val label: Int, val stick: Boolean, val controls: List<Control>)
 
     val groups = listOf(
-        Group("D-PAD", false, listOf(Control("up", "Up", "D-pad up"), Control("down", "Down", "D-pad down"),
-            Control("left", "Left", "D-pad left"), Control("right", "Right", "D-pad right"))),
-        Group("FACE BUTTONS", false, listOf(Control("a", "A", "A button"), Control("b", "B", "B button"),
-            Control("x", "X", "X button"), Control("y", "Y", "Y button"))),
-        Group("SHOULDERS", false, listOf(Control("l1", "L1", "L1 button"), Control("r1", "R1", "R1 button"),
-            Control("l2", "L2", "L2 button"), Control("r2", "R2", "R2 button"))),
-        Group("SYSTEM", false, listOf(Control("start", "Start", "Start button"),
-            Control("select", "Select", "Select button"), Control("menu", "Menu", "Menu button"))),
-        Group("LEFT STICK", true, listOf(Control("lsup", "Up", "Left stick up"),
-            Control("lsdown", "Down", "Left stick down"), Control("lsleft", "Left", "Left stick left"),
-            Control("lsright", "Right", "Left stick right"))),
-        Group("RIGHT STICK", true, listOf(Control("rsup", "Up", "Right stick up"),
-            Control("rsdown", "Down", "Right stick down"), Control("rsleft", "Left", "Right stick left"),
-            Control("rsright", "Right", "Right stick right"))))
+        Group(R.string.kairo_control_group_dpad, false, listOf(
+            Control("up", R.string.kairo_up, R.string.kairo_control_dpad_up),
+            Control("down", R.string.kairo_down, R.string.kairo_control_dpad_down),
+            Control("left", R.string.kairo_left, R.string.kairo_control_dpad_left),
+            Control("right", R.string.kairo_right, R.string.kairo_control_dpad_right))),
+        Group(R.string.kairo_control_group_face, false, listOf(
+            Control("a", R.string.kairo_control_a, R.string.kairo_control_a_button),
+            Control("b", R.string.kairo_control_b, R.string.kairo_control_b_button),
+            Control("x", R.string.kairo_control_x, R.string.kairo_control_x_button),
+            Control("y", R.string.kairo_control_y, R.string.kairo_control_y_button))),
+        Group(R.string.kairo_control_group_shoulders, false, listOf(
+            Control("l1", R.string.kairo_control_l1, R.string.kairo_control_l1_button),
+            Control("r1", R.string.kairo_control_r1, R.string.kairo_control_r1_button),
+            Control("l2", R.string.kairo_control_l2, R.string.kairo_control_l2_button),
+            Control("r2", R.string.kairo_control_r2, R.string.kairo_control_r2_button))),
+        Group(R.string.kairo_control_group_system, false, listOf(
+            Control("start", R.string.kairo_control_start, R.string.kairo_control_start_button),
+            Control("select", R.string.kairo_control_select, R.string.kairo_control_select_button),
+            Control("menu", R.string.kairo_control_menu, R.string.kairo_control_menu_button))),
+        Group(R.string.kairo_control_group_left_stick, true, listOf(
+            Control("lsup", R.string.kairo_up, R.string.kairo_control_left_stick_up),
+            Control("lsdown", R.string.kairo_down, R.string.kairo_control_left_stick_down),
+            Control("lsleft", R.string.kairo_left, R.string.kairo_control_left_stick_left),
+            Control("lsright", R.string.kairo_right, R.string.kairo_control_left_stick_right))),
+        Group(R.string.kairo_control_group_right_stick, true, listOf(
+            Control("rsup", R.string.kairo_up, R.string.kairo_control_right_stick_up),
+            Control("rsdown", R.string.kairo_down, R.string.kairo_control_right_stick_down),
+            Control("rsleft", R.string.kairo_left, R.string.kairo_control_right_stick_left),
+            Control("rsright", R.string.kairo_right, R.string.kairo_control_right_stick_right))))
 
-    fun full(id: String) = groups.flatMap { it.controls }.firstOrNull { it.id == id }?.full ?: id
+    fun full(context: Context, id: String) =
+        groups.flatMap { it.controls }.firstOrNull { it.id == id }?.let { context.getString(it.full) } ?: id
 }
 
 /** A physical input the Choose input page offers, grouped by where it is on a controller. */
 internal class InputSource(val group: String, val label: String, val name: String, val input: String)
 
 internal object InputSources {
-    fun common(): List<InputSource> {
+    fun common(context: Context): List<InputSource> {
+        fun text(id: Int, vararg args: Any) = context.getString(id, *args)
+        val buttonsGroup = text(R.string.kairo_input_group_buttons)
         val buttons = listOf("A" to KeyEvent.KEYCODE_BUTTON_A, "B" to KeyEvent.KEYCODE_BUTTON_B,
             "X" to KeyEvent.KEYCODE_BUTTON_X, "Y" to KeyEvent.KEYCODE_BUTTON_Y,
             "L1" to KeyEvent.KEYCODE_BUTTON_L1, "R1" to KeyEvent.KEYCODE_BUTTON_R1,
             "L2" to KeyEvent.KEYCODE_BUTTON_L2, "R2" to KeyEvent.KEYCODE_BUTTON_R2
-        ).map { (label, code) -> InputSource("BUTTONS", label, "Button $label", "button:$code") } + listOf(
-            InputSource("BUTTONS", "Start", "Start", "button:${KeyEvent.KEYCODE_BUTTON_START}"),
-            InputSource("BUTTONS", "Select", "Select", "button:${KeyEvent.KEYCODE_BUTTON_SELECT}"),
-            InputSource("BUTTONS", "Mode", "Mode", "button:${KeyEvent.KEYCODE_BUTTON_MODE}"),
-            InputSource("BUTTONS", "Left stick press", "Left stick press", "button:${KeyEvent.KEYCODE_BUTTON_THUMBL}"),
-            InputSource("BUTTONS", "Right stick press", "Right stick press", "button:${KeyEvent.KEYCODE_BUTTON_THUMBR}"))
-        val dpad = listOf("Up" to KeyEvent.KEYCODE_DPAD_UP, "Down" to KeyEvent.KEYCODE_DPAD_DOWN,
-            "Left" to KeyEvent.KEYCODE_DPAD_LEFT, "Right" to KeyEvent.KEYCODE_DPAD_RIGHT
-        ).map { (label, code) -> InputSource("D-PAD BUTTONS", label, "D-pad ${label.lowercase()}", "button:$code") }
-        fun axes(group: String, name: String, x: Int, y: Int, kind: String = "axis") = listOf(
-            InputSource(group, "Up", "$name up", "$kind:$y:-"), InputSource(group, "Down", "$name down", "$kind:$y:+"),
-            InputSource(group, "Left", "$name left", "$kind:$x:-"), InputSource(group, "Right", "$name right", "$kind:$x:+"))
+        ).map { (label, code) -> InputSource(buttonsGroup, label, text(R.string.kairo_input_button, label), "button:$code") } +
+            listOf(R.string.kairo_control_start to KeyEvent.KEYCODE_BUTTON_START,
+                R.string.kairo_control_select to KeyEvent.KEYCODE_BUTTON_SELECT,
+                R.string.kairo_input_mode to KeyEvent.KEYCODE_BUTTON_MODE,
+                R.string.kairo_input_left_stick_press to KeyEvent.KEYCODE_BUTTON_THUMBL,
+                R.string.kairo_input_right_stick_press to KeyEvent.KEYCODE_BUTTON_THUMBR
+            ).map { (label, code) -> InputSource(buttonsGroup, text(label), text(label), "button:$code") }
+        val dpadGroup = text(R.string.kairo_input_group_dpad_buttons)
+        val dpad = listOf(Triple(R.string.kairo_up, R.string.kairo_control_dpad_up, KeyEvent.KEYCODE_DPAD_UP),
+            Triple(R.string.kairo_down, R.string.kairo_control_dpad_down, KeyEvent.KEYCODE_DPAD_DOWN),
+            Triple(R.string.kairo_left, R.string.kairo_control_dpad_left, KeyEvent.KEYCODE_DPAD_LEFT),
+            Triple(R.string.kairo_right, R.string.kairo_control_dpad_right, KeyEvent.KEYCODE_DPAD_RIGHT)
+        ).map { (label, name, code) -> InputSource(dpadGroup, text(label), text(name), "button:$code") }
+        /** A stick's four directions; [names] are its up, down, left and right. */
+        fun axes(group: Int, names: List<Int>, x: Int, y: Int, kind: String = "axis") =
+            listOf("$kind:$y:-", "$kind:$y:+", "$kind:$x:-", "$kind:$x:+").zip(names).zip(DIRECTIONS)
+                .map { (input, direction) -> InputSource(text(group), text(direction), text(input.second), input.first) }
         return buttons + dpad +
-            axes("LEFT STICK", "Left stick", MotionEvent.AXIS_X, MotionEvent.AXIS_Y) +
-            axes("RIGHT STICK", "Right stick", MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ) +
-            listOf(InputSource("TRIGGERS", "Left trigger", "Left trigger", "axis:${MotionEvent.AXIS_LTRIGGER}:+"),
-                InputSource("TRIGGERS", "Right trigger", "Right trigger", "axis:${MotionEvent.AXIS_RTRIGGER}:+")) +
-            axes("D-PAD HAT", "Hat", MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y, "hat")
+            axes(R.string.kairo_control_group_left_stick, listOf(R.string.kairo_control_left_stick_up,
+                R.string.kairo_control_left_stick_down, R.string.kairo_control_left_stick_left,
+                R.string.kairo_control_left_stick_right), MotionEvent.AXIS_X, MotionEvent.AXIS_Y) +
+            axes(R.string.kairo_control_group_right_stick, listOf(R.string.kairo_control_right_stick_up,
+                R.string.kairo_control_right_stick_down, R.string.kairo_control_right_stick_left,
+                R.string.kairo_control_right_stick_right), MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ) +
+            listOf(R.string.kairo_input_left_trigger to MotionEvent.AXIS_LTRIGGER,
+                R.string.kairo_input_right_trigger to MotionEvent.AXIS_RTRIGGER).map { (label, axis) ->
+                InputSource(text(R.string.kairo_input_group_triggers), text(label), text(label), "axis:$axis:+")
+            } +
+            axes(R.string.kairo_input_group_hat, listOf(R.string.kairo_input_hat_up, R.string.kairo_input_hat_down,
+                R.string.kairo_input_hat_left, R.string.kairo_input_hat_right), MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y, "hat")
     }
 
+    private val DIRECTIONS = listOf(R.string.kairo_up, R.string.kairo_down, R.string.kairo_left, R.string.kairo_right)
+
     /** Axes a connected controller has beyond the common ones, grouped under its name. */
-    fun extra(): List<InputSource> {
-        val known = common().map { it.input }.toSet()
+    fun extra(context: Context): List<InputSource> {
+        val known = common(context).map { it.input }.toSet()
         return InputDevice.getDeviceIds().toList().mapNotNull(InputDevice::getDevice)
             .filter { it.supportsSource(InputDevice.SOURCE_JOYSTICK) }.flatMap { device ->
                 device.motionRanges.map { it.axis }.distinct()
                     .flatMap { axis -> listOf(axisInput(axis, -1f), axisInput(axis, 1f)) }
                     .filter { it !in known }
-                    .map { InputSource(device.name.uppercase(), name(it), name(it), it) }
+                    .map { InputSource(device.name.uppercase(), name(context, it), name(context, it), it) }
             }.distinctBy { it.input }
     }
 
@@ -139,19 +189,19 @@ internal object InputSources {
     }
 
     /** A readable name for any input code, such as Button A or Axis GAS +. */
-    fun name(input: String): String {
-        common().firstOrNull { it.input == input }?.let { return it.name }
+    fun name(context: Context, input: String): String {
+        common(context).firstOrNull { it.input == input }?.let { return it.name }
         val parts = input.split(':')
         if (parts.size == 2 && parts[0] == "button") {
             val code = parts[1].toIntOrNull() ?: return input
             val key = KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")
-            return if (key.startsWith("BUTTON_")) "Button " + key.removePrefix("BUTTON_")
+            return if (key.startsWith("BUTTON_")) context.getString(R.string.kairo_input_button, key.removePrefix("BUTTON_"))
                 else key.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase)
         }
         if (parts.size == 3) {
             val axis = parts[1].toIntOrNull() ?: return input
-            return (if (parts[0] == "hat") "Hat " else "Axis ") +
-                MotionEvent.axisToString(axis).removePrefix("AXIS_") + " " + parts[2]
+            return context.getString(if (parts[0] == "hat") R.string.kairo_input_hat_code else R.string.kairo_input_axis_code,
+                MotionEvent.axisToString(axis).removePrefix("AXIS_"), parts[2])
         }
         return input
     }
@@ -188,6 +238,7 @@ class ControllerPages<Game : Any>(
     private val changed: () -> Unit = {}
 ) {
     private fun message(text: String) = Ui.message(activity, text)
+    private fun str(id: Int, vararg args: Any): String = activity.getString(id, *args)
 
     private fun sticks() = configuration?.layout != ControllerLayout.WITHOUT_STICKS
 
@@ -195,32 +246,32 @@ class ControllerPages<Game : Any>(
      * Controls, for all games. In a game with its own bindings, that game's mapping comes first and
      * the all-games one is named as such, so neither reads as what the game uses when it is not.
      */
-    fun controlsPage(running: Game?) = GroupsPage("Controls", { GameSource.ALL_GAMES }, {
+    fun controlsPage(running: Game?) = GroupsPage(str(R.string.kairo_controls), { GameSource.ALL_GAMES }, {
         val own = running?.takeIf { gameSource(it) != GameSource.ALL_GAMES }
         val foot = running?.let { game ->
-            if (own != null) "${gameTitle(game)} uses its own button mapping, not the all-games one."
-            else "${gameTitle(game)} uses the all-games mapping. It can have its own in Game settings."
+            if (own != null) str(R.string.kairo_controls_foot_own_mapping, gameTitle(game))
+            else str(R.string.kairo_controls_foot_all_games_mapping, gameTitle(game))
         }
         listOf(
-            RowGroup("CONTROLLER", listOfNotNull(
+            RowGroup(str(R.string.kairo_controls_group_controller), listOfNotNull(
                 configuration?.let { layoutRow(it) },
                 own?.let { game ->
-                    SettingsRow.nav("running-mapping", "${gameTitle(game)} mapping", value = { gameSource(game) },
+                    SettingsRow.nav("running-mapping", str(R.string.kairo_controls_game_mapping, gameTitle(game)), value = { gameSource(game) },
                         tone = { if (gameSource(game) == GameSource.CUSTOM) ValueTone.CUSTOM else ValueTone.SUMMARY }) {
                         pages.push(mappingPage(game))
                     }
                 },
-                SettingsRow.nav("mapping", if (own != null) "All-games mapping" else "Button mapping",
+                SettingsRow.nav("mapping", str(if (own != null) R.string.kairo_controls_all_games_mapping else R.string.kairo_button_mapping),
                     value = { if (globalCustom()) GameSource.CUSTOM else GameSource.BUILT_IN },
                     tone = { if (globalCustom()) ValueTone.CUSTOM else ValueTone.SUMMARY }) {
                     pages.push(mappingPage(null))
                 },
-                SettingsRow.nav("inputs", "Controller inputs",
-                    value = { if (physicalCustom()) "Custom" else "Standard" },
+                SettingsRow.nav("inputs", str(R.string.kairo_controller_inputs),
+                    value = { str(if (physicalCustom()) R.string.kairo_custom else R.string.kairo_standard) },
                     tone = { if (physicalCustom()) ValueTone.CUSTOM else ValueTone.SUMMARY }) {
                     pages.push(inputsPage())
                 },
-                SettingsRow.slider("dead-zone", "Stick dead zone", { "${(getDeadZone() * 100).roundToInt()}%" },
+                SettingsRow.slider("dead-zone", str(R.string.kairo_controls_dead_zone), { str(R.string.kairo_percent, (getDeadZone() * 100).roundToInt()) },
                     SliderSpec(10, 90, 1, 5, { (getDeadZone() * 100).roundToInt() }) {
                         setDeadZone(it / 100f)
                     })), foot),
@@ -229,117 +280,118 @@ class ControllerPages<Game : Any>(
     })
 
     private fun layoutRow(config: ControllerConfiguration): SettingsRow {
-        val spec = ChoiceSpec("Controller layout", { GameSource.ALL_GAMES }, {
+        val spec = ChoiceSpec(str(R.string.kairo_controller_layout), { GameSource.ALL_GAMES }, {
             val detected = ControllerCapabilities.detect(ControllerCapabilities.connected())
             listOf(ChoiceGroup(null, listOfNotNull(
                 detected.device?.let {
-                    ChoiceOption(ControllerConfiguration.Choice.AUTO.name, "Auto",
-                        "Detected: ${detected.layout.label.lowercase()}")
+                    ChoiceOption(ControllerConfiguration.Choice.AUTO.name, UiText.res(R.string.kairo_auto),
+                        UiText.res(R.string.kairo_controller_layout_detected, UiText.res(detected.layout.detected)))
                 },
-                ChoiceOption(ControllerConfiguration.Choice.WITH_STICKS.name, "With sticks"),
-                ChoiceOption(ControllerConfiguration.Choice.WITHOUT_STICKS.name, "Without sticks"))))
+                ChoiceOption(ControllerConfiguration.Choice.WITH_STICKS.name, UiText.res(ControllerConfiguration.Choice.WITH_STICKS.label)),
+                ChoiceOption(ControllerConfiguration.Choice.WITHOUT_STICKS.name, UiText.res(ControllerConfiguration.Choice.WITHOUT_STICKS.label)))))
         }, { config.choice.name }, select = { picked ->
             config.select(ControllerConfiguration.Choice.valueOf(picked))
             onConfigurationChanged()
             changed()
         })
-        return SettingsRow.choice("layout", "Controller layout", spec, value = { config.label })
+        return SettingsRow.choice("layout", str(R.string.kairo_controller_layout), spec, value = { config.label(activity) })
     }
 
     /** Game settings › Button mapping for one game. */
     fun gameRow(game: Game, enabled: () -> Boolean, source: () -> String) =
-        SettingsRow.nav("game-mapping", "Button mapping", value = source,
+        SettingsRow.nav("game-mapping", str(R.string.kairo_button_mapping), value = source,
             tone = { if (source() == GameSource.CUSTOM) ValueTone.CUSTOM else ValueTone.SUMMARY },
-            enabled = enabled, disabledReason = { "Hash this game before editing its controls" }) {
+            enabled = enabled, disabledReason = { str(R.string.kairo_controls_hash_first) }) {
             pages.push(mappingPage(game))
         }
 
     private fun scope(game: Game?) = game?.let(gameTitle) ?: GameSource.ALL_GAMES
 
-    fun mappingPage(game: Game?) = GroupsPage("Button mapping", { scope(game) }, {
+    fun mappingPage(game: Game?) = GroupsPage(str(R.string.kairo_button_mapping), { scope(game) }, {
         val bindings = load(game).associateBy { it.input }
         val groups = VirtualControls.groups.filter { sticks() || !it.stick }.mapIndexed { index, group ->
-            RowGroup(group.label, group.controls.map { control ->
+            RowGroup(str(group.label), group.controls.map { control ->
                 val bound = bindings["virtual:${control.id}"]
                 val inherited = if (control.id.startsWith("ls")) bindings["virtual:" + control.id.removePrefix("ls")] else null
-                SettingsRow.nav("m:${control.id}", control.short,
-                    value = { bound?.let(::targetLabel) ?: inherited?.let { targetLabel(it) + " (follows D-pad)" } ?: "Unassigned" },
+                SettingsRow.nav("m:${control.id}", str(control.short),
+                    value = { bound?.let(::targetLabel) ?: inherited?.let { str(R.string.kairo_mapping_follows_dpad, targetLabel(it)) }
+                        ?: str(R.string.kairo_unassigned) },
                     tone = { when {
                         bound != null -> ValueTone.CURRENT
                         inherited != null -> ValueTone.SUMMARY
                         else -> ValueTone.EMPTY
                     } }) {
-                    pages.push(TargetPage(game, "virtual:${control.id}", control.full))
+                    pages.push(TargetPage(game, "virtual:${control.id}", str(control.full)))
                 }
             }, if (index == 0) mappingStatus(game) else null)
         }.toMutableList()
         val legacy = bindings.values.filter { !it.input.startsWith("virtual:") }
-        if (legacy.isNotEmpty()) groups += RowGroup("LEGACY DIRECT INPUTS", legacy.map { binding ->
-            SettingsRow.nav("m:${binding.input}", InputSources.name(binding.input), value = { targetLabel(binding) },
+        if (legacy.isNotEmpty()) groups += RowGroup(str(R.string.kairo_mapping_group_legacy), legacy.map { binding ->
+            SettingsRow.nav("m:${binding.input}", InputSources.name(activity, binding.input), value = { targetLabel(binding) },
                 tone = { ValueTone.CURRENT }) {
-                pages.push(TargetPage(game, binding.input, InputSources.name(binding.input)))
+                pages.push(TargetPage(game, binding.input, InputSources.name(activity, binding.input)))
             }
-        }, "These saved assignments still work. Reset this mapping to use virtual controls.")
-        groups += RowGroup(null, listOf(SettingsRow.action("m:reset", "Reset to defaults",
-            confirm = Confirm(if (game == null) "Restore the built-in mapping for all games?"
-                else "Remove this game’s changes and use its catalog or global mapping?", "Reset") {
-                change("Mapping reset") { reset(game) }
+        }, str(R.string.kairo_mapping_legacy_foot))
+        groups += RowGroup(null, listOf(SettingsRow.action("m:reset", str(R.string.kairo_mapping_reset),
+            confirm = Confirm(str(if (game == null) R.string.kairo_mapping_reset_all_confirm
+                else R.string.kairo_mapping_reset_game_confirm), str(R.string.kairo_reset)) {
+                change(str(R.string.kairo_mapping_reset_done)) { reset(game) }
             })))
         groups
     })
 
     /** Controller inputs: which physical input drives each virtual control, for all games. */
-    fun inputsPage() = GroupsPage("Controller inputs", { GameSource.ALL_GAMES }, {
+    fun inputsPage() = GroupsPage(str(R.string.kairo_controller_inputs), { GameSource.ALL_GAMES }, {
         val bindings = loadPhysical().groupBy { it.control }
         val connected = InputDevice.getDeviceIds().toList().mapNotNull(InputDevice::getDevice)
             .filter { it.supportsSource(InputDevice.SOURCE_GAMEPAD) || it.supportsSource(InputDevice.SOURCE_JOYSTICK) }
             .joinToString { it.name }
-        listOf(RowGroup("CONNECTED", listOf(SettingsRow.info("connected", "Controller") {
-            connected.ifEmpty { "None connected" }
+        listOf(RowGroup(str(R.string.kairo_inputs_group_connected), listOf(SettingsRow.info("connected", str(R.string.kairo_inputs_controller)) {
+            connected.ifEmpty { str(R.string.kairo_inputs_none_connected) }
         }))) + VirtualControls.groups.map { group ->
-            RowGroup(group.label, group.controls.map { control ->
+            RowGroup(str(group.label), group.controls.map { control ->
                 val sources = bindings[control.id].orEmpty()
-                SettingsRow.action("p:${control.id}", control.short,
+                SettingsRow.action("p:${control.id}", str(control.short),
                     value = { when (sources.size) {
-                        0 -> "Unassigned"
-                        1 -> InputSources.name(sources[0].input)
-                        else -> InputSources.name(sources[0].input) + " + ${sources.size - 1} more"
+                        0 -> str(R.string.kairo_unassigned)
+                        1 -> InputSources.name(activity, sources[0].input)
+                        else -> activity.resources.getQuantityString(R.plurals.kairo_inputs_and_more, sources.size - 1,
+                            InputSources.name(activity, sources[0].input), sources.size - 1)
                     } },
                     tone = { if (sources.isEmpty()) ValueTone.EMPTY else ValueTone.CURRENT },
                     tray = { listenTray(control.id, sources.isNotEmpty()) })
             })
         } + RowGroup(null, listOf(
-            SettingsRow.action("p:add", "Add alternate input", tray = { listenTray(null, false) }),
-            SettingsRow.action("p:reset", "Reset to standard layout",
-                confirm = Confirm("Restore the standard controller layout?", "Reset") {
-                    change("Controller inputs reset") { resetPhysical() }
+            SettingsRow.action("p:add", str(R.string.kairo_inputs_add_alternate), tray = { listenTray(null, false) }),
+            SettingsRow.action("p:reset", str(R.string.kairo_inputs_reset),
+                confirm = Confirm(str(R.string.kairo_inputs_reset_confirm), str(R.string.kairo_reset)) {
+                    change(str(R.string.kairo_inputs_reset_done)) { resetPhysical() }
                 })))
     })
 
     /** Listening starts when the tray opens; Enter code and Clear sit in the same tray. */
     private fun listenTray(control: String?, assigned: Boolean): TraySpec = TraySpec(
-        if (control == null) "Listening. Press the extra button, then choose the control it acts as."
-        else "Listening. Press a button, or move a stick, trigger, or D-pad.",
+        str(if (control == null) R.string.kairo_inputs_listening_alternate else R.string.kairo_inputs_listening),
         listOfNotNull(
-            TrayButton("Cancel"),
-            if (control != null && assigned) TrayButton("Clear") {
+            TrayButton(str(R.string.kairo_cancel)),
+            if (control != null && assigned) TrayButton(str(R.string.kairo_clear)) {
                 change(null) { savePhysical(loadPhysical().filterNot { it.control == control }) }
             } else null,
-            TrayButton("Choose input") { pages.push(chooseInputPage(control)) },
-            TrayButton("Enter code", keepOpen = true) { pages.replaceTray(codeTray(control)) }),
+            TrayButton(str(R.string.kairo_inputs_choose_input)) { pages.push(chooseInputPage(control)) },
+            TrayButton(str(R.string.kairo_inputs_enter_code), keepOpen = true) { pages.replaceTray(codeTray(control)) }),
         listening = true, focus = 0, capture = PhysicalInputCapture { input ->
             pages.closeTray()
             assign(control, input)
         })
 
     private fun codeTray(control: String?) = TraySpec(
-        "Android key and axis codes, such as button:96, axis:0:+, or hat:15:-.",
-        listOf(TrayButton("Cancel"), TrayButton("Assign", ButtonTone.PRIMARY, keepOpen = true) { text ->
+        str(R.string.kairo_inputs_code_help),
+        listOf(TrayButton(str(R.string.kairo_cancel)), TrayButton(str(R.string.kairo_inputs_assign), ButtonTone.PRIMARY, keepOpen = true) { text ->
             val input = text.trim().lowercase()
             try {
                 PhysicalControllerBindings.toJson(listOf(PhysicalControllerBinding(input, "a")))
             } catch (_: Exception) {
-                message("Invalid input code")
+                message(str(R.string.kairo_inputs_invalid_code))
                 return@TrayButton
             }
             pages.closeTray()
@@ -362,8 +414,9 @@ class ControllerPages<Game : Any>(
 
     private fun chooseInputPage(control: String?): GroupsPage {
         val current = control?.let { id -> loadPhysical().firstOrNull { it.control == id }?.input }
-        val sources = InputSources.common() + InputSources.extra()
-        val spec = ChoiceSpec("Choose input", { control?.let(VirtualControls::full) ?: "Alternate input" },
+        val sources = InputSources.common(activity) + InputSources.extra(activity)
+        val spec = ChoiceSpec(str(R.string.kairo_inputs_choose_input), {
+                control?.let { VirtualControls.full(activity, it) } ?: str(R.string.kairo_inputs_alternate_input) },
             { sources.groupBy { it.group }.map { (group, items) ->
                 ChoiceGroup(group, items.map { ChoiceOption(it.input, it.label, it.input) })
             } }, { current }, { input ->
@@ -375,13 +428,13 @@ class ControllerPages<Game : Any>(
         return ChoicePage(spec, control?.let { "p:$it" })
     }
 
-    private fun actsAsPage(input: String) = ChoicePage(ChoiceSpec("Acts as", { InputSources.name(input) }, {
+    private fun actsAsPage(input: String) = ChoicePage(ChoiceSpec(str(R.string.kairo_inputs_acts_as), { InputSources.name(activity, input) }, {
         VirtualControls.groups.map { group ->
-            ChoiceGroup(group.label, group.controls.map { ChoiceOption(it.id, it.full) })
+            ChoiceGroup(str(group.label), group.controls.map { ChoiceOption(it.id, UiText.res(it.full)) })
         }
     }, { loadPhysical().firstOrNull { it.input == input }?.control }, { control ->
-        val name = InputSources.name(input)
-        change("Added $name as ${VirtualControls.full(control)}") {
+        val name = InputSources.name(activity, input)
+        change(str(R.string.kairo_inputs_added, name, VirtualControls.full(activity, control))) {
             val updated = loadPhysical().filterNot { it.input == input } + PhysicalControllerBinding(input, control)
             PhysicalControllerBindings.toJson(updated)
             savePhysical(updated)
@@ -393,16 +446,16 @@ class ControllerPages<Game : Any>(
             action()
             changed()
             done?.let(::message)
-        } catch (error: Exception) { message(error.message ?: "Could not save mapping") }
+        } catch (error: Exception) { message(error.message ?: str(R.string.kairo_mapping_save_failed)) }
         pages.refresh()
     }
 
-    private fun targetLabel(binding: ControllerBinding): String = guest.describe(binding)
+    private fun targetLabel(binding: ControllerBinding): String = guest.describe(activity, binding)
 
-    private fun joystickLabel(id: String) = "Joystick " + guest.joystickLabel(id).lowercase()
+    private fun joystickLabel(id: String) = guest.joystickTarget(activity, id)
 
-    private enum class Tab(val label: String) { KEYS("Keys"), CYCLE("Key cycle"), JOYSTICK("Joystick"),
-        MOUSE("Mouse"), ACTION("Action") }
+    private enum class Tab(@StringRes val label: Int) { KEYS(R.string.kairo_target_tab_keys), CYCLE(R.string.kairo_target_tab_cycle),
+        JOYSTICK(R.string.kairo_joystick), MOUSE(R.string.kairo_mouse), ACTION(R.string.kairo_target_tab_action) }
 
     private class Key(val code: Int, val label: String, val weight: Float)
 
@@ -410,7 +463,7 @@ class ControllerPages<Game : Any>(
     private val keyTabs: List<Pair<String, List<List<Key>>>> by lazy {
         val plain = guest.keyboard.pages.flatMap { page -> page.rows.flatten().filter { !it.chordShift }.map { it.code } }.toSet()
         val tabs = guest.keyboard.pages.map { page ->
-            page.pickerLabel to page.rows.map { row ->
+            page.pickerLabel.resolve(activity) to page.rows.map { row ->
                 row.filter { !it.chordShift || it.code !in plain }
                     .filter { it.code in guest.keyCodes }
                     .map { key ->
@@ -424,7 +477,7 @@ class ControllerPages<Game : Any>(
         val other = guest.keyCodes.filter { it !in shown }.map { code ->
             Key(code, guest.keyLabel(code).removePrefix("Scan "), 1f)
         }
-        (if (other.isEmpty()) tabs else tabs + ("Other" to other.chunked(8))).filter { it.second.isNotEmpty() }
+        (if (other.isEmpty()) tabs else tabs + (str(R.string.kairo_target_keys_other) to other.chunked(8))).filter { it.second.isNotEmpty() }
     }
 
     /**
@@ -487,26 +540,26 @@ class ControllerPages<Game : Any>(
         override val scroll: ScrollView get() = scrollView
         override val testName: String get() = "Button target"
 
-        private val mouseOptions = listOf("moveUp" to "Move up", "moveDown" to "Move down",
-            "moveLeft" to "Move left", "moveRight" to "Move right",
-            "leftButton" to "Left button", "rightButton" to "Right button")
+        private val mouseOptions = listOf("moveUp" to R.string.kairo_target_mouse_up, "moveDown" to R.string.kairo_target_mouse_down,
+            "moveLeft" to R.string.kairo_target_mouse_left, "moveRight" to R.string.kairo_target_mouse_right,
+            "leftButton" to R.string.kairo_target_mouse_left_button, "rightButton" to R.string.kairo_target_mouse_right_button)
 
         override fun groups(): List<RowGroup> = when (tab) {
-            Tab.JOYSTICK -> listOf(RowGroup(null, listOf(SettingsRow.option("joy:none", "None", null,
+            Tab.JOYSTICK -> listOf(RowGroup(null, listOf(SettingsRow.option("joy:none", str(R.string.kairo_none), null,
                 { joystick == null }) { joystick = null; update() }) + guest.joystickControls.map { (id, label) ->
-                SettingsRow.option("joy:$id", label, null, { joystick == id }) { joystick = id; update() }
-            }, guest.joystickHelp))
+                SettingsRow.option("joy:$id", label.resolve(activity), null, { joystick == id }) { joystick = id; update() }
+            }, guest.joystickHelp.resolve(activity)))
             Tab.MOUSE -> listOfNotNull(RowGroup(null, mouseOptions.map { (id, label) ->
-                SettingsRow.option("mouse:$id", label, null, { mouse == id }) { mouse = id; update() }
-            }, "Stick directions use analog speed. Buttons and D-pad directions move at full speed."),
+                SettingsRow.option("mouse:$id", str(label), null, { mouse == id }) { mouse = id; update() }
+            }, str(R.string.kairo_target_mouse_foot)),
                 mouse?.takeIf { it.startsWith("move") }?.let {
-                    RowGroup(null, listOf(SettingsRow.slider("speed", "Speed",
-                        { java.lang.String.format(java.util.Locale.ROOT, "%.1f×", speed / 10f) },
+                    RowGroup(null, listOf(SettingsRow.slider("speed", str(R.string.kairo_target_mouse_speed),
+                        { str(R.string.kairo_target_mouse_speed_value, speed / 10f) },
                         SliderSpec(1, 200, 1, 5, { speed }) { speed = it; update() })),
-                        "Speed at full stick deflection.")
+                        str(R.string.kairo_target_mouse_speed_foot))
                 })
             Tab.ACTION -> listOf(RowGroup(null, guest.actions.map { (id, label) ->
-                SettingsRow.option("action:$id", label, null, { action == id }) { action = id; update() }
+                SettingsRow.option("action:$id", label.resolve(activity), null, { action == id }) { action = id; update() }
             }))
             else -> emptyList()
         }
@@ -523,7 +576,7 @@ class ControllerPages<Game : Any>(
                 setPadding(0, dp(8), 0, dp(4))
             }
             tabs.forEachIndexed { index, item ->
-                val view = Ui.text(context, item.label, Ui.SECONDARY, bold = true).apply {
+                val view = Ui.text(context, str(item.label), Ui.SECONDARY, bold = true).apply {
                     gravity = Gravity.CENTER
                     maxLines = 1
                     ellipsize = android.text.TextUtils.TruncateAt.END
@@ -553,7 +606,7 @@ class ControllerPages<Game : Any>(
             scrollView = PageParts.scroll(this, body, intArrayOf(dp(18), 0, dp(18), dp(24)))
             page.addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
             footer = Footer(this) {
-                listOf(FooterButton("clear", { "Clear" }) { finish(null) },
+                listOf(FooterButton("clear", { str(R.string.kairo_clear) }) { finish(null) },
                     FooterButton("save", { saveLabel() }, ButtonTone.PRIMARY) { trySave() })
             }
             footer.render()
@@ -563,10 +616,11 @@ class ControllerPages<Game : Any>(
         }
 
         private fun saveLabel() = when (tab) {
-            Tab.KEYS -> if (keys.isEmpty()) "Save keys" else "Save ${keys.size} key" + (if (keys.size == 1) "" else "s") +
-                if (joystick != null) " + joystick" else ""
-            Tab.CYCLE -> "Save key cycle"
-            else -> "Save"
+            Tab.KEYS -> if (keys.isEmpty()) str(R.string.kairo_target_save_keys) else activity.resources.getQuantityString(
+                if (joystick != null) R.plurals.kairo_target_save_keys_and_joystick else R.plurals.kairo_target_save_n_keys,
+                keys.size, keys.size)
+            Tab.CYCLE -> str(R.string.kairo_target_save_cycle)
+            else -> str(R.string.kairo_save)
         }
 
         private fun selectTab(next: Tab) {
@@ -627,12 +681,11 @@ class ControllerPages<Game : Any>(
         }
 
         private fun keysFoot(): String {
-            if (tab == Tab.KEYS) return "Modifiers are pressed before the other keys."
+            if (tab == Tab.KEYS) return str(R.string.kairo_target_keys_foot)
             val (back, forward) = ControllerKeyCycles.pair(input) ?: return ""
             fun short(id: String) = VirtualControls.groups.flatMap { it.controls }
-                .firstOrNull { it.id == id.removePrefix("virtual:") }?.short ?: id
-            return "${short(back)} cycles backward and ${short(forward)} forward, wrapping around. " +
-                "This sends keys, so it cannot see the game’s current selection."
+                .firstOrNull { it.id == id.removePrefix("virtual:") }?.let { str(it.short) } ?: id
+            return str(R.string.kairo_target_cycle_foot, short(back), short(forward))
         }
 
         private fun toggle(code: Int) {
@@ -640,7 +693,7 @@ class ControllerPages<Game : Any>(
             val limit = if (tab == Tab.CYCLE) 16 else 4
             if (!list.remove(code)) {
                 if (list.size >= limit) {
-                    message(if (tab == Tab.CYCLE) "A key cycle holds up to 16 keys" else "Choose up to four keys")
+                    message(str(if (tab == Tab.CYCLE) R.string.kairo_target_cycle_limit else R.string.kairo_target_keys_limit))
                     return
                 }
                 list += code
@@ -672,32 +725,31 @@ class ControllerPages<Game : Any>(
             when (tab) {
                 Tab.CYCLE -> {
                     nothing = list.isEmpty()
-                    summary.text = if (nothing) "No keys selected" else list.joinToString(" → ") { guest.keyLabel(it) }
-                    hint.text = "2 to 16 keys, in order"
+                    summary.text = if (nothing) str(R.string.kairo_target_no_keys) else list.joinToString(" → ") { guest.keyLabel(it) }
+                    hint.text = str(R.string.kairo_target_cycle_hint)
                 }
                 Tab.KEYS -> {
                     nothing = list.isEmpty() && joystick == null
-                    summary.text = if (nothing) "No keys selected"
+                    summary.text = if (nothing) str(R.string.kairo_target_no_keys)
                         else (list.map { guest.keyLabel(it) } + listOfNotNull(joystick?.let(::joystickLabel))).joinToString(" + ")
-                    hint.text = if (list.isEmpty()) "Up to 4 keys"
+                    hint.text = if (list.isEmpty()) str(R.string.kairo_target_keys_hint)
                         else list.joinToString(" + ") { "0x" + it.toString(16).padStart(2, '0') }
                 }
                 Tab.JOYSTICK -> {
                     nothing = joystick == null && keys.isEmpty()
-                    summary.text = if (nothing) "Nothing selected"
+                    summary.text = if (nothing) str(R.string.kairo_target_nothing)
                         else (listOfNotNull(joystick?.let(::joystickLabel)) + keys.map { guest.keyLabel(it) }).joinToString(" + ")
                     hint.text = ""
                 }
                 Tab.MOUSE -> {
                     nothing = mouse == null
                     summary.text = mouse?.let { targetLabel(ControllerBinding(input, mouse = it, mouseSpeed = speed / 10f)) }
-                        ?: "Nothing selected"
+                        ?: str(R.string.kairo_target_nothing)
                     hint.text = ""
                 }
                 Tab.ACTION -> {
                     nothing = action == null
-                    summary.text = action?.let { id -> guest.actions.firstOrNull { it.first == id }?.second ?: id }
-                        ?: "Nothing selected"
+                    summary.text = action?.let { guest.actionLabel(activity, it) } ?: str(R.string.kairo_target_nothing)
                     hint.text = ""
                 }
             }
@@ -745,18 +797,18 @@ class ControllerPages<Game : Any>(
                 // Keys and a joystick input are one draft: either tab saves both.
                 Tab.KEYS, Tab.JOYSTICK -> {
                     if (keys.isEmpty() && joystick == null) {
-                        message(if (tab == Tab.KEYS) "Choose at least one key" else "Choose a joystick control"); return
+                        message(str(if (tab == Tab.KEYS) R.string.kairo_target_choose_key else R.string.kairo_target_choose_joystick)); return
                     }
                     ControllerBinding(input, keys.sortedWith(compareBy<Int> { it !in guest.modifierCodes }.thenBy { it }),
                         joystick = joystick)
                 }
                 Tab.CYCLE -> {
-                    if (cycle.size !in 2..16) { message("Choose 2 to 16 keys"); return }
+                    if (cycle.size !in 2..16) { message(str(R.string.kairo_target_choose_cycle)); return }
                     null
                 }
-                Tab.MOUSE -> ControllerBinding(input, mouse = mouse ?: run { message("Choose a mouse control"); return },
+                Tab.MOUSE -> ControllerBinding(input, mouse = mouse ?: run { message(str(R.string.kairo_target_choose_mouse)); return },
                     mouseSpeed = if (mouse!!.startsWith("move")) speed / 10f else 1f)
-                Tab.ACTION -> ControllerBinding(input, action = action ?: run { message("Choose an action"); return })
+                Tab.ACTION -> ControllerBinding(input, action = action ?: run { message(str(R.string.kairo_target_choose_action)); return })
             }
             finish(binding, cycle = tab == Tab.CYCLE)
         }
@@ -779,7 +831,7 @@ class ControllerPages<Game : Any>(
                 save(game, updated)
                 changed()
             } catch (error: Exception) {
-                message(error.message ?: "Could not save mapping")
+                message(error.message ?: str(R.string.kairo_mapping_save_failed))
                 return
             }
             if (pages.top === this) {

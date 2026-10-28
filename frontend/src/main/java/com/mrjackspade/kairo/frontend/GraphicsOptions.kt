@@ -34,7 +34,7 @@ class GraphicsOptions(
 
     private fun anchorRow(orientation: String, label: String): SettingsRow {
         val id = "anchor-$orientation"
-        return SettingsRow.action(id, label, { anchor(orientation).label }, { ValueTone.CURRENT }) {
+        return SettingsRow.action(id, label, { activity.getString(anchor(orientation).label) }, { ValueTone.CURRENT }) {
             pages().push(AnchorPage(label, { GameSource.ALL_GAMES }, { anchor(orientation).id },
                 { anchor(orientation).id }, null, { picked ->
                     preferences.edit().putString("scaling_anchor_$orientation", requireNotNull(picked)).apply()

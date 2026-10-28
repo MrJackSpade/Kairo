@@ -1,13 +1,16 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
 import android.view.InputDevice
 import android.view.MotionEvent
+import androidx.annotation.StringRes
 
-enum class ControllerLayout(val label: String, val key: String) {
-    WITH_STICKS("With sticks", "withSticks"),
-    WITHOUT_STICKS("Without sticks", "withoutSticks")
+/** [detected] names the layout within a sentence, as in "Detected: with sticks". */
+enum class ControllerLayout(@StringRes val label: Int, @StringRes val detected: Int, val key: String) {
+    WITH_STICKS(R.string.kairo_layout_with_sticks, R.string.kairo_layout_detected_with_sticks, "withSticks"),
+    WITHOUT_STICKS(R.string.kairo_layout_without_sticks, R.string.kairo_layout_detected_without_sticks, "withoutSticks")
 }
 
 /** Capability policy is separate from Android enumeration so firmware edge cases are testable. */
@@ -45,7 +48,9 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
                                   ControllerCapabilities.detect(ControllerCapabilities.connected(),
                                       preferences.getString("controller_auto_device_v1", null))
                               }) {
-    enum class Choice(val label: String) { AUTO("Auto"), WITH_STICKS("With sticks"), WITHOUT_STICKS("Without sticks") }
+    enum class Choice(@StringRes val label: Int) {
+        AUTO(R.string.kairo_auto), WITH_STICKS(R.string.kairo_layout_with_sticks), WITHOUT_STICKS(R.string.kairo_layout_without_sticks)
+    }
     private var automatic = detect().also(::rememberDevice).layout
     private var session = false
     val configured get() = preferences.contains("controller_configuration_v1")
@@ -58,7 +63,9 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
         Choice.WITH_STICKS -> ControllerLayout.WITH_STICKS
         Choice.WITHOUT_STICKS -> ControllerLayout.WITHOUT_STICKS
     }
-    val label: String get() = if (choice == Choice.AUTO) "Auto (${layout.label.lowercase()})" else choice.label
+    fun label(context: Context): String = if (choice == Choice.AUTO)
+        context.getString(R.string.kairo_layout_auto_detected, context.getString(layout.detected))
+        else context.getString(choice.label)
 
     fun select(value: Choice) {
         preferences.edit().putString("controller_configuration_v1", value.name).apply()
@@ -78,27 +85,28 @@ class ControllerConfiguration(private val preferences: SharedPreferences,
      * controller detected. Nothing is preselected without a controller, and Continue waits for
      * a choice. Back closes the app.
      */
-    fun setupPage(product: String, exit: () -> Unit, onSelected: () -> Unit): SetupPage {
+    fun setupPage(context: Context, product: String, exit: () -> Unit, onSelected: () -> Unit): SetupPage {
         val detection = detect()
         val choices = if (detection.device == null) listOf(Choice.WITH_STICKS, Choice.WITHOUT_STICKS)
             else Choice.entries
         var selected: Choice? = if (detection.device == null) null else Choice.AUTO
         lateinit var page: SetupPage
-        page = SetupPage(product, null, "Controller layout",
-            if (detection.device == null) "No controller detected. Choose a layout to continue." else null,
+        page = SetupPage(product, null, context.getString(R.string.kairo_controller_layout),
+            if (detection.device == null) context.getString(R.string.kairo_layout_setup_no_controller) else null,
             content = {
                 listOf(RowGroup(null, choices.map { option ->
-                    SettingsRow.option("layout:${option.name}", option.label,
-                        if (option == Choice.AUTO) "Detected: ${detection.layout.label.lowercase()}" else null,
+                    SettingsRow.option("layout:${option.name}", context.getString(option.label),
+                        if (option == Choice.AUTO) context.getString(R.string.kairo_controller_layout_detected,
+                            context.getString(detection.layout.detected)) else null,
                         { option == selected }) {
                         selected = option
                         page.refresh()
                     }
-                }, "You can change this later in Menu \u203a Controls \u203a Controller layout."))
+                }, context.getString(R.string.kairo_layout_setup_foot)))
             },
             footerButtons = {
-                listOf(FooterButton("continue", { "Continue" }, ButtonTone.PRIMARY, { selected != null },
-                    "Choose a layout to continue") {
+                listOf(FooterButton("continue", { context.getString(R.string.kairo_continue) }, ButtonTone.PRIMARY, { selected != null },
+                    context.getString(R.string.kairo_layout_setup_choose)) {
                     val choice = selected ?: return@FooterButton
                     if (choice == Choice.AUTO && detect().device == null) {
                         selected = null

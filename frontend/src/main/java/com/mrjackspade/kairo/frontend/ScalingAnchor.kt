@@ -6,22 +6,23 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.StringRes
 
 /**
  * Where an integer-scaled picture sits on the screen (Kairo#54): the picture's matching corner,
  * edge midpoint or center lies on the screen's, whether it is smaller than the screen (the gap
  * goes to the other side) or larger (the overflow is cut from the other side).
  */
-enum class Anchor(val id: String, val label: String, val column: Int, val row: Int) {
-    TOP_LEFT("top-left", "Top Left", 0, 0),
-    TOP_CENTER("top-center", "Top Center", 1, 0),
-    TOP_RIGHT("top-right", "Top Right", 2, 0),
-    CENTER_LEFT("center-left", "Center Left", 0, 1),
-    CENTER("center", "Center", 1, 1),
-    CENTER_RIGHT("center-right", "Center Right", 2, 1),
-    BOTTOM_LEFT("bottom-left", "Bottom Left", 0, 2),
-    BOTTOM_CENTER("bottom-center", "Bottom Center", 1, 2),
-    BOTTOM_RIGHT("bottom-right", "Bottom Right", 2, 2);
+enum class Anchor(val id: String, @StringRes val label: Int, val column: Int, val row: Int) {
+    TOP_LEFT("top-left", R.string.kairo_anchor_top_left, 0, 0),
+    TOP_CENTER("top-center", R.string.kairo_anchor_top_center, 1, 0),
+    TOP_RIGHT("top-right", R.string.kairo_anchor_top_right, 2, 0),
+    CENTER_LEFT("center-left", R.string.kairo_anchor_center_left, 0, 1),
+    CENTER("center", R.string.kairo_anchor_center, 1, 1),
+    CENTER_RIGHT("center-right", R.string.kairo_anchor_center_right, 2, 1),
+    BOTTOM_LEFT("bottom-left", R.string.kairo_anchor_bottom_left, 0, 2),
+    BOTTOM_CENTER("bottom-center", R.string.kairo_anchor_bottom_center, 1, 2),
+    BOTTOM_RIGHT("bottom-right", R.string.kairo_anchor_bottom_right, 2, 2);
 
     /** The offset that places a [size] picture in [space] along the columns (or rows, with [row]). */
     fun offset(space: Int, size: Int, row: Boolean): Int {
@@ -60,7 +61,7 @@ class AnchorPage(
     private val squares = LinkedHashMap<Anchor, TextView>()
 
     override fun groups(): List<RowGroup> = default?.let { label ->
-        listOf(RowGroup(null, listOf(SettingsRow.option("o:default", "Default", label(),
+        listOf(RowGroup(null, listOf(SettingsRow.option("o:default", context.getString(R.string.kairo_default), label(),
             { selected() == null }) { pick(null) })))
     } ?: emptyList()
 
@@ -78,7 +79,7 @@ class AnchorPage(
                 val square = TextView(context).apply {
                     gravity = Gravity.CENTER
                     textSize = 22f
-                    contentDescription = anchor.label
+                    contentDescription = context.getString(anchor.label)
                     isClickable = true
                     setOnClickListener { pick(anchor.id) }
                 }.testId("anchor", anchor.id)

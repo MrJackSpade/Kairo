@@ -56,7 +56,7 @@ class ArtworkCoordinator<Game : Any>(
                 record().path != null -> ValueTone.CURRENT
                 else -> ValueTone.EMPTY
             } },
-            enabled = enabled, disabledReason = { GameSettingsRows.NO_HASH },
+            enabled = enabled, disabledReason = { GameSettingsRows.noHash(activity) },
             tray = {
                 val available = record().path != null
                 TraySpec(buttons = listOfNotNull(

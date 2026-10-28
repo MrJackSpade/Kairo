@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Context
 import android.view.KeyEvent
 import android.view.MotionEvent
 
@@ -58,7 +59,12 @@ class Confirm(val message: String, val verb: String, val danger: Boolean = false
         focus = 0)
 }
 
-class ChoiceOption(val id: String, val label: String, val description: String? = null)
+/** A choice's [label] and [description] are UiText, as a catalog's choices are declared without a Context. */
+class ChoiceOption(val id: String, val label: UiText, val description: UiText? = null) {
+    /** A choice named by text that is never translated, such as a file or a game's name. */
+    constructor(id: String, label: String, description: String? = null) :
+        this(id, UiText.fixed(label), description?.let(UiText::fixed))
+}
 
 /** Folders list before options; each opens its own choice page within the same choice. */
 class ChoiceGroup(val label: String? = null, val options: List<ChoiceOption>, val foot: String? = null,
@@ -116,7 +122,7 @@ class SettingsRow private constructor(
     val id: String,
     val kind: Kind,
     val label: String,
-    val value: () -> String,
+    private val valueOf: (Context) -> String,
     val tone: () -> ValueTone,
     val tag: () -> String?,
     val description: String?,
@@ -134,17 +140,21 @@ class SettingsRow private constructor(
 ) {
     enum class Kind { NAV, CHOICE, SWITCH, SLIDER, ACTION, INFO, OPTION }
 
+    /** The value the row shows now. */
+    fun value(context: Context): String = valueOf(context)
+
     companion object {
         private val never: () -> Boolean = { false }
         private val always: () -> Boolean = { true }
         private val none: () -> String? = { null }
         private val blank: () -> String = { "" }
+        private fun shown(value: () -> String): (Context) -> String = { value() }
 
         /** Opens a page. The value is a muted summary of that page. */
         fun nav(id: String, label: String, value: () -> String = blank,
                 tone: () -> ValueTone = { ValueTone.SUMMARY }, tag: () -> String? = none,
                 enabled: () -> Boolean = always, disabledReason: () -> String? = none,
-                open: () -> Unit) = SettingsRow(id, Kind.NAV, label, value, tone, tag, null,
+                open: () -> Unit) = SettingsRow(id, Kind.NAV, label, shown(value), tone, tag, null,
             enabled, disabledReason, false, never, open, null, never, null, null, null, null)
 
         /** Shows the current choice. A opens the choice page; Left and Right step through it. */
@@ -152,19 +162,19 @@ class SettingsRow private constructor(
                    tone: () -> ValueTone = { ValueTone.CURRENT }, tag: () -> String? = none,
                    enabled: () -> Boolean = always, disabledReason: () -> String? = none) =
             SettingsRow(id, Kind.CHOICE, label,
-                { value() ?: spec.selected()?.let { ChoiceSpec.find(spec.groups(), it) }?.label ?: "" },
+                { context -> value() ?: spec.selected()?.let { ChoiceSpec.find(spec.groups(), it) }?.label?.resolve(context) ?: "" },
                 tone, tag, null, enabled, disabledReason, false, never, null, spec, never, null,
                 null, null, null)
 
         fun switch(id: String, label: String, checked: () -> Boolean,
                    enabled: () -> Boolean = always, disabledReason: () -> String? = none,
-                   set: (Boolean) -> Unit) = SettingsRow(id, Kind.SWITCH, label, blank,
+                   set: (Boolean) -> Unit) = SettingsRow(id, Kind.SWITCH, label, shown(blank),
             { ValueTone.CURRENT }, none, null, enabled, disabledReason, false, never, null, null,
             checked, set, null, null, null)
 
         fun slider(id: String, label: String, value: () -> String, spec: SliderSpec,
                    enabled: () -> Boolean = always, disabledReason: () -> String? = none) =
-            SettingsRow(id, Kind.SLIDER, label, value, { ValueTone.CURRENT }, none, null, enabled,
+            SettingsRow(id, Kind.SLIDER, label, shown(value), { ValueTone.CURRENT }, none, null, enabled,
                 disabledReason, false, never, null, null, never, null, spec, null, null)
 
         /**
@@ -176,18 +186,18 @@ class SettingsRow private constructor(
                    danger: Boolean = false, busy: () -> Boolean = never,
                    enabled: () -> Boolean = always, disabledReason: () -> String? = none,
                    confirm: Confirm? = null, tray: (() -> TraySpec)? = null, description: String? = null,
-                   run: (() -> Unit)? = null) = SettingsRow(id, Kind.ACTION, label, value, tone, tag,
+                   run: (() -> Unit)? = null) = SettingsRow(id, Kind.ACTION, label, shown(value), tone, tag,
             description, enabled, disabledReason, danger, busy, run, null, never, null, null, tray, confirm)
 
         /** Read-only. Skipped by D-pad focus; long values wrap at the right edge. */
         fun info(id: String, label: String, value: () -> String) = SettingsRow(id, Kind.INFO,
-            label, value, { ValueTone.SUMMARY }, none, null, never, none, false, never, null, null,
+            label, shown(value), { ValueTone.SUMMARY }, none, null, never, none, false, never, null, null,
             never, null, null, null, null)
 
         /** A choice page option, the only row with a description line. */
         fun option(id: String, label: String, description: String?, selected: () -> Boolean,
                    enabled: () -> Boolean = always, pick: () -> Unit) = SettingsRow(id, Kind.OPTION,
-            label, blank, { ValueTone.CURRENT }, none, description, enabled, none, false, never,
+            label, shown(blank), { ValueTone.CURRENT }, none, description, enabled, none, false, never,
             pick, null, selected, null, null, null, null)
     }
 }

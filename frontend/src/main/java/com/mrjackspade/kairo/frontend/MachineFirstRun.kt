@@ -14,7 +14,7 @@ class MachineFirstRun(
     private val firmware: Firmware?
 ) {
     /** Step 1's title, such as "Choose a games folder", its description, and its button. */
-    class Folder(val title: String, val description: String, val button: String)
+    class Folder(val title: UiText, val description: UiText, val button: UiText)
 
     /** The firmware step: a title, a description, its row groups, and whether an import runs. */
     class Firmware(val title: String, val description: String, val groups: () -> List<RowGroup>,
@@ -59,17 +59,19 @@ class MachineFirstRun(
         if (isOpen && step == Step.FIRMWARE) pages.refresh()
     }
 
-    private fun folderPage() = SetupPage(brand, if (firmware == null) null else "STEP 1 OF 2", folderStep.title,
-        folderStep.description, "You can choose or change it later in Menu › Manage library.",
+    private fun str(id: Int): String = pages.activity.getString(id)
+
+    private fun folderPage() = SetupPage(brand, if (firmware == null) null else str(R.string.kairo_first_run_step_1),
+        folderStep.title.resolve(pages.activity), folderStep.description.resolve(pages.activity), str(R.string.kairo_first_run_folder_later),
         footerButtons = {
-            listOf(FooterButton("skip", { "Skip for now" }) { skipRomFolder(false) },
-                FooterButton("choose", { folderStep.button }, ButtonTone.PRIMARY, run = selectRomFolder))
+            listOf(FooterButton("skip", { str(R.string.kairo_first_run_skip) }) { skipRomFolder(false) },
+                FooterButton("choose", { folderStep.button.resolve(pages.activity) }, ButtonTone.PRIMARY, run = selectRomFolder))
         }, onBack = { skipRomFolder(false) }, startFocus = "choose")
 
-    private fun firmwarePage(firmware: Firmware) = SetupPage(brand, "STEP 2 OF 2", firmware.title, firmware.description,
-        content = firmware.groups,
+    private fun firmwarePage(firmware: Firmware) = SetupPage(brand, str(R.string.kairo_first_run_step_2), firmware.title,
+        firmware.description, content = firmware.groups,
         footerButtons = {
-            listOf(FooterButton("done", { "Continue to library" }, ButtonTone.PRIMARY, { !firmware.busy() },
-                "Wait for the current import to finish") { finish() })
+            listOf(FooterButton("done", { str(R.string.kairo_first_run_to_library) }, ButtonTone.PRIMARY, { !firmware.busy() },
+                str(R.string.kairo_firmware_wait)) { finish() })
         }, onBack = { if (!firmware.busy()) show(Step.ROM_FOLDER) })
 }

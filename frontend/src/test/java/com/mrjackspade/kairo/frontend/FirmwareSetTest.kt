@@ -9,16 +9,20 @@ import org.junit.rules.TemporaryFolder
 class FirmwareSetTest {
     @get:Rule val folder = TemporaryFolder()
 
-    private fun part(name: String, required: Boolean = true) = FirmwareSet.Part(name, name, "$name for tests", setOf(name), required)
+    private fun part(name: String, required: Boolean = true) =
+        FirmwareSet.Part(name, UiText.fixed(name), UiText.fixed("$name for tests"), setOf(name), required)
+
+    /** Each missing requirement as the names of the parts that would meet it. */
+    private fun missing(set: FirmwareSet) = set.missingRequirements.map { group -> group.map { it.name } }
 
     @Test
     fun eachRequiredPartIsItsOwnRequirementByDefault() {
         val bios = part("bios.rom")
         val font = part("font.rom")
         val set = FirmwareSet(folder.root, listOf(bios, font, part("extra.rom", required = false)))
-        assertEquals("bios.rom, font.rom", set.missingText)
+        assertEquals(listOf(listOf("bios.rom"), listOf("font.rom")), missing(set))
         folder.newFile("bios.rom")
-        assertEquals("font.rom", set.missingText)
+        assertEquals(listOf(listOf("font.rom")), missing(set))
         folder.newFile("font.rom")
         assertTrue(set.missingRequirements.isEmpty())
     }
@@ -32,10 +36,10 @@ class FirmwareSetTest {
         val font = part("font.rom")
         val set = FirmwareSet(folder.root, listOf(eprom, bios, music, font),
             listOf(listOf(eprom, bios), listOf(eprom, music), listOf(font)))
-        assertEquals("ic18.rom or bios.rom, ic18.rom or music.rom, font.rom", set.missingText)
+        assertEquals(listOf(listOf("ic18.rom", "bios.rom"), listOf("ic18.rom", "music.rom"), listOf("font.rom")), missing(set))
         folder.newFile("bios.rom")
         folder.newFile("music.rom")
-        assertEquals("font.rom", set.missingText)
+        assertEquals(listOf(listOf("font.rom")), missing(set))
         folder.newFile("font.rom")
         assertTrue(set.missingRequirements.isEmpty())
     }
@@ -60,10 +64,10 @@ class FirmwareSetTest {
         val set = FirmwareSet(folder.root, listOf(eprom, bios, music, font, extra),
             listOf(listOf(eprom, bios), listOf(eprom, music), listOf(font)))
         assertEquals(listOf(false, true, true, true, false), listOf(eprom, bios, music, font, extra).map(set::isRequired))
-        assertEquals("Missing", set.state(bios))
+        assertEquals(UiText.res(R.string.kairo_missing), set.state(bios))
         folder.newFile("ic18.rom")
-        assertEquals("Installed", set.state(eprom))
-        assertEquals("Covered by ic18.rom", set.state(bios))
-        assertEquals("Missing", set.state(font))
+        assertEquals(UiText.res(R.string.kairo_installed), set.state(eprom))
+        assertEquals(UiText.res(R.string.kairo_firmware_covered_by, UiText.fixed("ic18.rom")), set.state(bios))
+        assertEquals(UiText.res(R.string.kairo_missing), set.state(font))
     }
 }

@@ -15,9 +15,12 @@ data class KeyboardKey(
     val rows: Int = 1
 )
 
-/** [pickerLabel] names the page on the button target key picker, where it may differ. */
+/**
+ * [label] is the page's tab legend, such as ABC or ?123; [pickerLabel] names the page on the
+ * button target key picker, where it may differ, such as Symbols.
+ */
 data class GuestKeyboardPage(val label: String, val rows: List<List<KeyboardKey>>,
-                             val pickerLabel: String = label)
+                             val pickerLabel: UiText = UiText.fixed(label))
 
 /** The guest owns codes and legends; the frontend owns drawing and input behavior. */
 data class GuestKeyboardLayout(

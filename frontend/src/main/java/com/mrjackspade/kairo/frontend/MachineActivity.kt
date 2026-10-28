@@ -29,7 +29,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** Whether this build may download catalog artwork (the product's build flavor decides). */
     protected abstract val artworkDownloadsEnabled: Boolean
     /** What tapping the screen does in Keyboard mode, as the Screen tap choice describes it. */
-    protected open val keyboardTapHelp: String get() = "Tap opens the ${identity.guestName} keyboard"
+    protected open val keyboardTapHelp: String get() = getString(R.string.kairo_touch_tap_keyboard_help, identity.guestName)
 
     /**
      * Runs on a worker thread: prepares [entry]'s media and starts the machine with [bridge],
@@ -58,18 +58,18 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     protected open val machineOptions: List<MachineOption> = emptyList()
 
     /** The machine's firmware, by set label: each file its own row (firmwareGroups); empty for none. */
-    protected open val firmwareSets: List<Pair<String, FirmwareSet>> = emptyList()
+    protected open val firmwareSets: List<Pair<UiText, FirmwareSet>> = emptyList()
     /** The first-run step's title and text, and the note under the firmware rows; the same in every app. */
     private val firmwareText: Triple<String, String, String>
-        get() = Triple("${identity.guestName} BIOS", "Pick each file below, or import them all from a folder.",
-            "Files marked Required are needed to start games.")
+        get() = Triple(getString(R.string.kairo_firmware_title, identity.guestName), getString(R.string.kairo_firmware_description),
+            getString(R.string.kairo_firmware_required_note))
 
     /** The media slots a game's own disks go in, shown on the flyout's media page. */
     protected open val mediaSlots: List<MediaSlot<E>> = emptyList()
-    protected open val mediaPageTitle = "Disks"
+    protected open val mediaPageTitle: UiText = UiText.res(R.string.kairo_media_disks)
 
     /** A slot of the machine, such as a floppy drive, and the library entries it takes. */
-    class MediaSlot<E>(val label: String, val accepts: (E) -> Boolean = { true })
+    class MediaSlot<E>(val label: UiText, val accepts: (E) -> Boolean = { true })
 
     // ---------------------------------------------------------------------------------------
 
@@ -165,15 +165,14 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         if (game.overriddenFields.contains("controller") || game.controllerProfile == "custom-v1") return null
         return if (game.controllerDefaultBindings != null &&
             org.json.JSONObject(game.controllerDefaultBindings).optJSONArray("withSticks") == null)
-            "Using Without Sticks fallback" else null
+            getString(R.string.kairo_mapping_without_sticks_fallback) else null
     }
 
     override val touchModes get() = listOf(
-        InputModeDecider.Mode.AUTO to ChoiceOption("auto", "Auto", "Follows what the game reads"),
-        InputModeDecider.Mode.KEYBOARD to ChoiceOption("keyboard", "Keyboard", keyboardTapHelp),
-        InputModeDecider.Mode.MOUSE to ChoiceOption("mouse", "Mouse"))
-    override val directTouchExplanation = "Direct tap lands on the touched point in games that move the " +
-        "cursor one pixel per mouse count and stop it at the screen’s top-left edge."
+        InputModeDecider.Mode.AUTO to ChoiceOption("auto", UiText.res(R.string.kairo_auto), UiText.res(R.string.kairo_touch_auto_help)),
+        InputModeDecider.Mode.KEYBOARD to ChoiceOption("keyboard", UiText.res(R.string.kairo_keyboard), UiText.fixed(keyboardTapHelp)),
+        InputModeDecider.Mode.MOUSE to ChoiceOption("mouse", UiText.res(R.string.kairo_mouse)))
+    override val directTouchExplanation: UiText = UiText.res(R.string.kairo_touch_direct_explanation)
     override val touchStore: TouchSettingsStore<E> by lazy {
         object : TouchSettingsStore<E> {
             override fun global() = TouchInputSelection(
@@ -225,7 +224,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun gameAnchor(game: E, orientation: String, allGames: () -> Anchor) =
         machineValue(game, "display", "${orientation}Anchor",
             { it.section("display")?.optString("${orientation}Anchor")?.takeIf(String::isNotEmpty) },
-            { allGames().id }, GameSource.ALL_GAMES, saved = "Saved")
+            { allGames().id }, GameSource.ALL_GAMES, saved = getString(R.string.kairo_saved))
     override fun gameSettingChanged(entry: E) {
         if (currentEntry?.id == entry.id) currentGame = catalog.resolve(entry)
     }
@@ -238,17 +237,16 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     override fun fileRows(entry: E): List<SettingsRow> {
         if (!library.hasWorkingImage(entry)) return emptyList()
-        return listOf(SettingsRow.action("reset-disk", "Reset disk", danger = true,
+        return listOf(SettingsRow.action("reset-disk", getString(R.string.kairo_disk_reset), danger = true,
             enabled = { libraryVisible || currentEntry?.id != entry.id },
-            disabledReason = { "Exit this game before resetting its disk" },
+            disabledReason = { getString(R.string.kairo_disk_reset_exit_first) },
             tray = {
-                Confirm("Replace ${entry.displayName}'s working copy with its disk image? " +
-                    "Saves the game wrote to the disk are removed.", "Reset", danger = true) {
+                Confirm(getString(R.string.kairo_disk_reset_confirm, entry.displayName), getString(R.string.kairo_reset), danger = true) {
                     try {
                         library.resetWorkingImage(entry)
-                        toast("Disk reset")
+                        toast(getString(R.string.kairo_disk_reset_done))
                     } catch (error: Exception) {
-                        toast(error.message ?: "Could not reset the disk")
+                        toast(error.message ?: getString(R.string.kairo_disk_reset_failed))
                     }
                     pages.refresh()
                 }.tray()
@@ -261,7 +259,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     protected fun machineValue(entry: E, section: String, subfield: String, read: (CatalogGame) -> String?,
                                fallback: () -> String, appDefault: String,
-                               saved: String = "Saved. Machine changes apply on next launch or restart.",
+                               saved: String = getString(R.string.kairo_saved_machine),
                                toStored: (String) -> Any = { it }): GameValue<String> {
         val id = entry.key.takeIf { entry.contentId != null }
         fun custom() = id != null && catalog.sourceOf(entry, section, subfield) == "User override"
@@ -280,19 +278,23 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         set(value) { preferences.edit().putInt("onboarding_step_v1", value).apply() }
     override val saveKinds: Map<String, String> = StateSlotStore.KINDS
     override val appSaves: File get() = File(filesDir, "states")
-    override fun saveUnitLabel(kind: String) = "Slot ${kind.removePrefix("state")}"
+    override fun saveUnitLabel(kind: String) = getString(R.string.kairo_save_slot, kind.removePrefix("state"))
 
     override fun sessionStatus() = MachineStatus(bridge.status()).state
     override fun diagnosticsRows(running: Boolean): List<SettingsRow> {
-        if (!running) return listOf(SettingsRow.info("state", "State") { "Stopped" })
+        if (!running) return listOf(SettingsRow.info("state", getString(R.string.kairo_diagnostics_state)) {
+            getString(R.string.kairo_diagnostics_stopped)
+        })
         val status = MachineStatus(bridge.status())
         return listOfNotNull(
-            SettingsRow.info("state", "State") { MachineStatus(bridge.status()).state },
-            status.error.takeIf { it.isNotEmpty() }?.let { SettingsRow.info("error", "Error") { it } },
-            SettingsRow.info("frames", "Frames") { MachineStatus(bridge.status()).frames },
-            SettingsRow.info("audio", "Audio") { MachineStatus(bridge.status()).audio },
-            SettingsRow.info("xruns", "Xruns") { MachineStatus(bridge.status()).xruns },
-            SettingsRow.info("audio-config", "Audio config") { MachineStatus(bridge.status()).audioConfig })
+            SettingsRow.info("state", getString(R.string.kairo_diagnostics_state)) { MachineStatus(bridge.status()).state },
+            status.error.takeIf { it.isNotEmpty() }?.let { SettingsRow.info("error", getString(R.string.kairo_diagnostics_error)) { it } },
+            SettingsRow.info("frames", getString(R.string.kairo_diagnostics_frames)) { MachineStatus(bridge.status()).frames },
+            SettingsRow.info("audio", getString(R.string.kairo_diagnostics_audio)) { MachineStatus(bridge.status()).audio },
+            SettingsRow.info("xruns", getString(R.string.kairo_diagnostics_xruns)) { MachineStatus(bridge.status()).xruns },
+            SettingsRow.info("audio-config", getString(R.string.kairo_diagnostics_audio_config)) {
+                MachineStatus(bridge.status()).audioConfig
+            })
     }
 
     private val stateFlow by lazy {
@@ -310,11 +312,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 inputModeDecider.reset()
                 userPaused = false
                 closeMenu()
-            }, ::loadRejected, "Save states are available for games started from the library.")
+            }, ::loadRejected, getString(R.string.kairo_states_library_only))
     }
 
     override fun gameRows() = stateFlow.rows() + machineRows() + listOfNotNull(mediaSlots.takeIf { it.isNotEmpty() }?.let {
-        SettingsRow.nav("f-media", mediaPageTitle) { pages.push(mediaPage()) }
+        SettingsRow.nav("f-media", text(mediaPageTitle)) { pages.push(mediaPage()) }
     })
 
     /** A loaded state restores the lock keys it was saved with. */
@@ -331,13 +333,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     private fun describeStateError(code: Int) =
-        if (code == MachineBridge.NOT_RUNNING) "the machine is not running" else stateError(code)
+        if (code == MachineBridge.NOT_RUNNING) getString(R.string.kairo_state_error_not_running) else stateError(code)
 
     override fun launch(entry: E, fromFrontend: Boolean) = startSession(entry, catalog.resolve(entry), fromFrontend)
 
     /** Starts [entry] on the machine, as [launch] does once the product has what it needs. */
     protected fun startSession(entry: E, game: CatalogGame, fromFrontend: Boolean) {
-        val generation = beginLaunch("Preparing ${entry.displayName}…")
+        val generation = beginLaunch(getString(R.string.kairo_launch_preparing, entry.displayName))
         val cancelled = AtomicBoolean(false)
         Thread {
             val failure = try {
@@ -359,7 +361,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     // A machine that boots to a black screen (Kairo68#2) keeps the launch's message up
                     // until it shows something.
                     val blank = MachineStatus(bridge.status()).pictured == false
-                    enterSession(entry, fromFrontend, if (blank) "Starting ${entry.displayName}…" else null)
+                    enterSession(entry, fromFrontend, if (blank) getString(R.string.kairo_launch_starting, entry.displayName) else null)
                     if (blank) awaitPicture(generation)
                     watchEnd(generation, game.title)
                     gameStarted(entry, game)
@@ -379,8 +381,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             runOnUiThread {
                 if (!current(generation) || currentEntry == null || isDestroyed) return@runOnUiThread
                 guestFinished(completed = false)
-                libraryScreen.showStatus(if (end.state == "Error" && end.error.isNotEmpty()) "$title stopped: ${end.error}"
-                    else "$title stopped")
+                libraryScreen.showStatus(if (end.state == "Error" && end.error.isNotEmpty())
+                    getString(R.string.kairo_session_stopped_error, title, end.error)
+                    else getString(R.string.kairo_session_stopped, title))
             }
         }.apply { name = "${identity.appName}-session-end"; start() }
     }
@@ -413,7 +416,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun probeDetails(): Map<String, String> {
         val status = MachineStatus(bridge.status())
         val details = linkedMapOf("frames" to status.frames, "error" to status.error)
-        mediaSlots.forEachIndexed { slot, media -> details["media.${media.label}"] = mounted[slot]?.displayName ?: "" }
+        mediaSlots.forEachIndexed { slot, media -> details["media.${text(media.label)}"] = mounted[slot]?.displayName ?: "" }
         currentGame?.let { game -> optionValues(game).forEach { (id, value) -> details["option.$id"] = value } }
         (bridge as? NativeMachine)?.startedSettings?.forEach { (name, value) -> details["machine.$name"] = value }
         status.core.forEach { (name, value) -> details["core.$name"] = value }
@@ -463,14 +466,14 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** A row for each setting the catalog can give a game ([CatalogSetting]) that matters to [entry]. */
     override fun machineGroup(entry: E, enabled: () -> Boolean): RowGroup? {
         val scope = { titleOf(entry) }
-        val noHash = { GameSettingsRows.NO_HASH }
+        val noHash = { GameSettingsRows.noHash(this) }
         val rows = catalog.schema.settings.filter { setting -> entry.contentId?.let(setting.appliesTo) ?: true }
             .mapNotNull { setting ->
                 when (setting) {
                     is CatalogSetting.Choice -> {
                         // The app's own option, which may offer more than the catalog's (such as importing a file).
                         val option = machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option
-                        GameSettingsRows.choice(option.id, option.label, scope, { option.choices },
+                        GameSettingsRows.choice(this, option.id, text(option.label), scope, { option.choices },
                             machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
                                 { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES, toStored = option::stored),
                             enabled, noHash, actions = option.actions)
@@ -482,7 +485,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 }
             }
         if (rows.isEmpty()) return null
-        return RowGroup("MACHINE", rows, "Machine changes apply on the next launch or restart.")
+        return RowGroup(getString(R.string.kairo_machine_group), rows, getString(R.string.kairo_machine_group_foot))
     }
 
     /**
@@ -501,21 +504,21 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val id = entry.key.takeIf { entry.contentId != null }
         val role = setting.role
         fun custom() = id != null && catalog.sourceOf(entry, CatalogSetting.MEDIA) == "User override"
-        fun name(contentId: String) = if (contentId == EMPTY_DRIVE) "Empty"
+        fun name(contentId: String) = if (contentId == EMPTY_DRIVE) getString(R.string.kairo_empty)
             else libraryEntries.firstOrNull { it.contentId == contentId || it.catalogId == contentId }?.displayName
-                ?: "Not in library"
+                ?: getString(R.string.kairo_drive_not_in_library)
         val value = GameValue({ if (custom()) catalog.resolve(entry).mediaId(role) ?: EMPTY_DRIVE else null },
             { catalog.resolveDefault(entry).mediaId(role) ?: EMPTY_DRIVE },
             { catalog.defaultSourceOf(entry, CatalogSetting.MEDIA).takeIf { it != "App default" }
                 ?.let(GameSource::label) ?: GameSource.BUILT_IN },
             { picked -> saveGameSetting(entry) { setDrive(entry, id!!, role, picked) } })
         val disks = {
-            listOf(ChoiceOption(EMPTY_DRIVE, "Empty")) + libraryEntries.filter { other ->
+            listOf(ChoiceOption(EMPTY_DRIVE, UiText.res(R.string.kairo_empty))) + libraryEntries.filter { other ->
                 other.playable && other.id != entry.id && sameSource(entry, other) &&
                     catalog.schema.validMedia(role, other.contentId!!)
             }.map { ChoiceOption(it.contentId!!, it.displayName) }
         }
-        return GameSettingsRows.choice("drive-$role", setting.label, scope, disks, value, enabled, noHash,
+        return GameSettingsRows.choice(this, "drive-$role", text(setting.label), scope, disks, value, enabled, noHash,
             defaultLabel = { name(value.fallback()) })
     }
 
@@ -545,7 +548,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val field = setting.field
         val subfield = setting.subfield
         fun custom() = id != null && catalog.sourceOf(entry, field, subfield) == "User override"
-        return GameSettingsRows.text("lines-$field-$subfield", setting.label, setting.hint,
+        return GameSettingsRows.text(this, "lines-$field-$subfield", text(setting.label), text(setting.hint),
             { catalog.resolve(entry).let { game -> setting.value(game, optionValues(game)).takeIf { it.isNotEmpty() }?.let(setting::text) } }, ::custom,
             { catalog.defaultSourceOf(entry, field, subfield).takeIf { it != "App default" }
                 ?.let(GameSource::label) ?: GameSource.BUILT_IN },
@@ -570,34 +573,34 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val field = setting.field
         val subfield = setting.subfield
         fun custom() = id != null && catalog.sourceOf(entry, field, subfield) == "User override"
-        return GameSettingsRows.text("text-$field-$subfield", setting.label, setting.hint,
+        return GameSettingsRows.text(this, "text-$field-$subfield", text(setting.label), text(setting.hint),
             { setting.value(catalog.resolve(entry)).takeIf { it.isNotEmpty() } }, ::custom,
             { catalog.defaultSourceOf(entry, field, subfield).takeIf { it != "App default" }
                 ?.let(GameSource::label) ?: GameSource.BUILT_IN },
             { typed ->
                 val value = setting.normalize(typed)
-                if (!setting.valid(value)) toast("Not a valid ${setting.label.lowercase()}: $typed")
+                if (!setting.valid(value)) toast(getString(R.string.kairo_setting_invalid, text(setting.label).lowercase(), typed))
                 else saveGameSetting(entry) { catalog.setOverrideSubfield(id!!, field, subfield, value) }
             },
             { saveGameSetting(entry) { catalog.resetOverrideSubfield(id!!, field, subfield) } },
-            empty = setting.empty, enabled = enabled, disabledReason = noHash)
+            empty = text(setting.empty), enabled = enabled, disabledReason = noHash)
     }
 
     /** Machine: the all-games defaults of the options, then firmware. */
-    override fun machinePage(): Page = GroupsPage("Machine", { GameSource.ALL_GAMES }, {
+    override fun machinePage(): Page = GroupsPage(getString(R.string.kairo_machine), { GameSource.ALL_GAMES }, {
         listOfNotNull(
             machineOptions.takeIf { it.isNotEmpty() }?.let { options ->
-                RowGroup("ALL GAMES", options.map { option ->
+                RowGroup(getString(R.string.kairo_machine_all_games_group), options.map { option ->
                     val select = { value: String ->
                         preferences.edit().apply {
                             if (option.numeric) putInt(option.id, value.toInt()) else putString(option.id, value)
                         }.apply()
                         refreshSettingValues()
                     }
-                    SettingsRow.choice("default-${option.id}", option.label, ChoiceSpec(option.label,
+                    SettingsRow.choice("default-${option.id}", text(option.label), ChoiceSpec(text(option.label),
                         { GameSource.ALL_GAMES }, { listOf(ChoiceGroup(null, option.choices)) }, { optionDefault(option) },
                         select = select, actions = { option.actions(select) }))
-                }, "A game's own settings come first. Changes apply on the next launch or restart.")
+                }, getString(R.string.kairo_machine_all_games_foot))
             },
         ) + firmwareGroups()
     })
@@ -619,34 +622,36 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     protected fun firmwareGroups(): List<RowGroup> {
         if (firmwareSets.isEmpty()) return emptyList()
-        val reason = { if (firmwareImporting) "Wait for the current import to finish" else RETURN_FOR_FIRMWARE }
+        val reason = { getString(if (firmwareImporting) R.string.kairo_firmware_wait else R.string.kairo_firmware_return_to_library) }
         val usable = { firmwareConfigurable() && !firmwareImporting }
-        val folder = SettingsRow.action("firmware-folder", "Import all from a folder…",
-            description = "Finds the files below in a folder you choose and imports every one it recognizes",
+        val folder = SettingsRow.action("firmware-folder", getString(R.string.kairo_firmware_import_folder),
+            description = getString(R.string.kairo_firmware_import_folder_description),
             busy = { firmwareImporting }, enabled = usable, disabledReason = reason) {
             firmwareSets.first().second.chooseFolder(this, FIRMWARE_REQUEST, firmwareFolderStart(), ::toast)
         }
         val sets = firmwareSets.mapIndexed { index, (label, set) ->
-            RowGroup(label.uppercase(), set.parts.map { part -> firmwareRow(index, set, part, usable, reason) }, set.note)
+            RowGroup(text(label).uppercase(), set.parts.map { part -> firmwareRow(index, set, part, usable, reason) },
+                set.note?.let(::text))
         }
-        return listOf(RowGroup("FIRMWARE", listOf(folder),
-            if (firmwareConfigurable()) firmwareText.third else RETURN_FOR_FIRMWARE)) + sets
+        return listOf(RowGroup(getString(R.string.kairo_firmware_group), listOf(folder),
+            if (firmwareConfigurable()) firmwareText.third else getString(R.string.kairo_firmware_return_to_library))) + sets
     }
 
     /** One firmware file: what it is for, Required or Optional, its state, and a tray to pick or remove it. */
     private fun firmwareRow(index: Int, set: FirmwareSet, part: FirmwareSet.Part, usable: () -> Boolean,
                             reason: () -> String) =
-        SettingsRow.action("firmware$index-${part.name}", part.label, value = { set.state(part) },
+        SettingsRow.action("firmware$index-${part.name}", text(part.label), value = { text(set.state(part)) },
             tone = { if (set.installed(part) || part.status?.invoke() != null) ValueTone.CURRENT else ValueTone.SUMMARY },
-            tag = { if (set.isRequired(part)) "Required" else "Optional" },
-            description = part.description, busy = { firmwareImporting }, enabled = usable, disabledReason = reason,
+            tag = { getString(if (set.isRequired(part)) R.string.kairo_firmware_required else R.string.kairo_firmware_optional) },
+            description = text(part.description), busy = { firmwareImporting }, enabled = usable, disabledReason = reason,
             tray = {
-                val choose = TrayButton(if (set.installed(part)) "Replace…" else "Choose file…", ButtonTone.PRIMARY) {
+                val choose = TrayButton(getString(if (set.installed(part)) R.string.kairo_firmware_replace else R.string.kairo_choose_file),
+                    ButtonTone.PRIMARY) {
                     pickingPart = set to part
                     DocumentPicker.open(this, FIRMWARE_FILE_REQUEST, failed = ::toast)
                 }
-                TraySpec(buttons = if (set.installed(part)) listOf(TrayButton(part.removeLabel) {
-                    set.remove(part)
+                TraySpec(buttons = if (set.installed(part)) listOf(TrayButton(text(part.removeLabel)) {
+                    set.remove(this, part)
                     firmwareChanged()
                 }, choose) else listOf(choose))
             })
@@ -661,8 +666,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** Fails a launch whose required firmware in [sets] is missing, naming what to import. */
     protected fun requireFirmware(sets: List<FirmwareSet> = firmwareSets.map { it.second }) {
         val missing = sets.filter { it.missingRequirements.isNotEmpty() }
-        if (missing.isNotEmpty()) error("Import the ${identity.guestName} firmware in Menu › Machine first " +
-            "(missing ${missing.joinToString(", ") { it.missingText }})")
+        if (missing.isNotEmpty()) error(getString(R.string.kairo_firmware_missing, identity.guestName,
+            missing.joinToString(getString(R.string.kairo_list_separator)) { it.missingText(this) }))
     }
 
     override fun handleProductResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
@@ -672,9 +677,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 preferences.edit().putString(FIRMWARE_FOLDER, tree.toString()).apply()
                 importFirmware {
                     val cancelled = AtomicBoolean(false)
-                    val imported = firmwareSets.flatMap { it.second.importFolder(contentResolver, tree, cancelled) }
-                    if (imported.isEmpty()) "No ${identity.guestName} firmware files in that folder"
-                    else "Imported ${imported.size} firmware ${if (imported.size == 1) "file" else "files"}"
+                    val imported = firmwareSets.flatMap { it.second.importFolder(this, tree, cancelled) }
+                    if (imported.isEmpty()) getString(R.string.kairo_firmware_none_in_folder, identity.guestName)
+                    else resources.getQuantityString(R.plurals.kairo_firmware_imported, imported.size, imported.size)
                 }
             }
             FIRMWARE_FILE_REQUEST -> {
@@ -682,8 +687,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 pickingPart = null
                 val uri = DocumentPicker.selectedUri(resultCode, data) ?: return true
                 importFirmware {
-                    set.importPart(contentResolver, uri, part)
-                    "${part.label} imported"
+                    set.importPart(this, uri, part)
+                    getString(R.string.kairo_firmware_part_imported, text(part.label))
                 }
             }
             else -> return false
@@ -705,7 +710,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             val message = try {
                 run().also { firmwareImported() }
             } catch (error: Exception) {
-                "Firmware import failed: ${error.message ?: error.javaClass.simpleName}"
+                getString(R.string.kairo_firmware_import_failed, error.message ?: error.javaClass.simpleName)
             }
             runOnUiThread {
                 firmwareImporting = false
@@ -743,15 +748,16 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         for (slot in mounted.indices) mounted[slot] = paths.getOrNull(slot)?.let { library.entryForWorkingImage(it, libraryEntries) }
     }
 
-    private fun mediaPage() = GroupsPage(mediaPageTitle, { currentGame?.title }, {
-        listOf(RowGroup("DRIVES", mediaSlots.indices.map(::mediaRow), "A disk keeps what the game writes to it."))
+    private fun mediaPage() = GroupsPage(text(mediaPageTitle), { currentGame?.title }, {
+        listOf(RowGroup(getString(R.string.kairo_media_drives_group), mediaSlots.indices.map(::mediaRow),
+            getString(R.string.kairo_media_drives_foot)))
     })
 
-    private fun mediaRow(slot: Int) = SettingsRow.choice("media$slot", mediaSlots[slot].label, mediaChoice(slot),
-        value = { mounted[slot]?.displayName ?: "Empty" },
+    private fun mediaRow(slot: Int) = SettingsRow.choice("media$slot", text(mediaSlots[slot].label), mediaChoice(slot),
+        value = { mounted[slot]?.displayName ?: getString(R.string.kairo_empty) },
         tone = { if (mounted[slot] == null) ValueTone.EMPTY else ValueTone.CURRENT },
         enabled = { machineRunning && !mediaBusy },
-        disabledReason = { if (mediaBusy) "Wait for the disk change to finish" else "Start a game before changing disks" })
+        disabledReason = { getString(if (mediaBusy) R.string.kairo_media_wait else R.string.kairo_media_start_first) })
 
     /**
      * Empty ejects; then the running game's own disks ([ownMedia]); then Other, every disk of the
@@ -760,7 +766,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     private fun mediaChoice(slot: Int): ChoiceSpec {
         fun takes(entry: E) = entry.playable && mediaSlots[slot].accepts(entry)
-        return GameDisks.choice(mediaSlots[slot].label, { currentGame?.title }, {
+        return GameDisks.choice(this, text(mediaSlots[slot].label), { currentGame?.title }, {
             val current = currentEntry ?: return@choice emptyList()
             GameDisks.own(current, libraryEntries, mounted, catalog.setDisks(current).toSet(), catalog::matchId, ::takes)
         }, { libraryEntries.filter(::takes) }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) })
@@ -773,13 +779,14 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         Thread {
             val failure = try {
                 val image = entry?.let { library.prepare(it, AtomicBoolean(false)) { } }
-                check(bridge.media(slot, image?.absolutePath)) { "The disk could not be inserted" }
+                check(bridge.media(slot, image?.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
                 null
-            } catch (error: Exception) { error.message ?: "Disk change failed" }
+            } catch (error: Exception) { error.message ?: getString(R.string.kairo_media_change_failed) }
             runOnUiThread {
                 mediaBusy = false
                 if (failure == null) mounted[slot] = entry
-                toast(failure ?: "${mediaSlots[slot].label}: ${entry?.displayName ?: "Empty"}")
+                toast(failure ?: getString(R.string.kairo_media_changed, text(mediaSlots[slot].label),
+                    entry?.displayName ?: getString(R.string.kairo_empty)))
                 refreshSettingValues()
             }
         }.apply { name = "${identity.appName}-media"; start() }
@@ -788,7 +795,6 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     companion object {
         private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
         private const val FIRMWARE_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 2
-        private const val RETURN_FOR_FIRMWARE = "Return to the library to change firmware."
         /** The folder firmware was last imported from. */
         private const val FIRMWARE_FOLDER = "firmware_folder_v1"
         /** The drive choice that leaves a drive empty. */

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Words many screens use. Each screen's own text is in the strings_<area>.xml beside this. -->
+<resources>
+    <string name="kairo_on">On</string>
+    <string name="kairo_off">Off</string>
+    <string name="kairo_auto">Auto</string>
+    <string name="kairo_empty">Empty</string>
+    <string name="kairo_default">Default</string>
+    <string name="kairo_cancel">Cancel</string>
+    <string name="kairo_remove">Remove</string>
+    <string name="kairo_missing">Missing</string>
+    <string name="kairo_installed">Installed</string>
+    <string name="kairo_continue">Continue</string>
+    <string name="kairo_keyboard">Keyboard</string>
+    <string name="kairo_mouse">Mouse</string>
+    <string name="kairo_joystick">Joystick</string>
+
+    <!-- Joins a list, and the choices within one of its items: "IPL-ROM, CG-ROM or CG-ROM (XVI)". -->
+    <string name="kairo_list_separator">", "</string>
+    <string name="kairo_list_or">" or "</string>
+
+    <string name="kairo_games_folder">games folder</string>
+    <string name="kairo_no_games_folder">No games folder selected</string>
+
+    <string name="kairo_option_skip_memory_check">Skip memory check</string>
+    <!-- A firmware file that is not installed but another installed file stands in for. -->
+    <string name="kairo_firmware_covered_by">Covered by %1$s</string>
+</resources>

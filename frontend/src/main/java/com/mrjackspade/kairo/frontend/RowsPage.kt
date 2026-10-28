@@ -36,7 +36,7 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
     fun trayFocused(): String? = tray?.spec?.buttons?.getOrNull(trayFocus)?.label
     fun trayMessage(): String? = tray?.spec?.message
     /** The row's current value, for hosts and fixtures. */
-    fun rowValue(id: String): String? = rows[id]?.value?.invoke()
+    fun rowValue(id: String): String? = rows[id]?.value(context)
 
     /** The rows of every view, for a page that builds them all. */
     protected fun rowsView(groups: List<RowGroup> = groups()): LinearLayout =

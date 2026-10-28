@@ -102,7 +102,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         /** Image extensions (lower case) and the content ID kind each is hashed as, such as "fd". */
         val kinds: Map<String, String>,
         /** The library's label for each kind, such as "Floppy disk". */
-        val labels: Map<String, String>,
+        val labels: Map<String, UiText>,
         /** The largest image of each kind; for a descriptor, its track data. */
         val maxBytes: Map<String, Long>,
         /** The machine's name, for messages such as "No PC-88 disk image in archive". */
@@ -806,7 +806,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             catalogId, label(member ?: source.path), folder = folder)
 
     /** An image's label; a folder or archive that failed whole is labeled as an image of none. */
-    private fun label(name: String) = format.kind(name)?.let(format.labels::getValue) ?: "Disk image"
+    private fun label(name: String): String =
+        format.kind(name)?.let { format.labels.getValue(it).resolve(context) } ?: context.getString(R.string.kairo_disk_image)
 
     /** [entry] with the label its formats give it, as for one an earlier cache layout read. */
     private fun labeled(entry: DiskImageEntry) = entry.copy(mediaLabel = label(entry.zipEntry ?: entry.path))

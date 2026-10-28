@@ -43,6 +43,8 @@ class GameDisksTest {
     @Test
     fun optionsNameTheArchiveAndOnlyNameItsImageWhenItHoldsSeveral() {
         val options = GameDisks.options(listOf(betrayal2, setA, setB, catalogued)).map { it.label }
-        assertEquals(listOf("Betrayal (1991)(Rainbird)(Disk 2 of 2).zip", "A.zip: Game A.st", "A.zip: Game B.st", "Data disk.st"), options)
+        assertEquals(listOf(UiText.fixed("Betrayal (1991)(Rainbird)(Disk 2 of 2).zip"),
+            UiText.res(R.string.kairo_disk_in_archive, "A.zip", "Game A.st"),
+            UiText.res(R.string.kairo_disk_in_archive, "A.zip", "Game B.st"), UiText.fixed("Data disk.st")), options)
     }
 }

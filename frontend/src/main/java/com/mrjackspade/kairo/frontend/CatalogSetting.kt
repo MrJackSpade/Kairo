@@ -22,7 +22,7 @@ sealed class CatalogSetting(val field: String, val subfield: String,
     class Choice(val option: MachineOption) : CatalogSetting(MachineOption.SECTION, option.id)
 
     /** The disk in a drive beside the game's own: the `media` item of [role], named by [label]. */
-    class Drive(val role: String, val label: String, appliesTo: (String) -> Boolean = { true }) :
+    class Drive(val role: String, val label: UiText, appliesTo: (String) -> Boolean = { true }) :
         CatalogSetting(MEDIA, role, appliesTo)
 
     /**
@@ -30,7 +30,7 @@ sealed class CatalogSetting(val field: String, val subfield: String,
      * an array of 1 to [maxLines] strings matching [line]. [default] gives the lines a game types
      * without any of its own (none, or a tape's load) for the machine it boots (each option's value by ID).
      */
-    class Lines(field: String, subfield: String, val label: String, val hint: String, val line: Regex,
+    class Lines(field: String, subfield: String, val label: UiText, val hint: UiText, val line: Regex,
                 val maxLines: Int, appliesTo: (String) -> Boolean = { true }, val default: (CatalogGame, Map<String, String>) -> List<String>) :
         CatalogSetting(field, subfield, appliesTo) {
         fun valid(lines: JSONArray?): Boolean = lines != null && lines.length() in 1..maxLines &&
@@ -53,8 +53,8 @@ sealed class CatalogSetting(val field: String, val subfield: String,
      * matching [pattern], or "" for the machine's own choice, which the row calls [empty].
      * [normalize] turns what the player types into the stored form.
      */
-    class Text(field: String, subfield: String, val label: String, val hint: String, val pattern: Regex,
-               val empty: String, val normalize: (String) -> String = String::trim,
+    class Text(field: String, subfield: String, val label: UiText, val hint: UiText, val pattern: Regex,
+               val empty: UiText, val normalize: (String) -> String = String::trim,
                appliesTo: (String) -> Boolean = { true }) : CatalogSetting(field, subfield, appliesTo) {
         fun valid(value: Any?): Boolean = value is String && (value.isEmpty() || pattern.matches(value))
 

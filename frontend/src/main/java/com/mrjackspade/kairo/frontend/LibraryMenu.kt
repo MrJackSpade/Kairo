@@ -43,7 +43,7 @@ class LibraryMenu<T : LibraryItem>(
         if (pages.isActive) return
         screen.dismissSearchKeyboard()
         pages.push(FlyoutPage(FlyoutModel(strings.productName,
-            { screen.folderName ?: strings.noFolder }, ::status, { flow.scanning }) {
+            { screen.folderName ?: strings.noFolder.resolve(activity) }, ::status, { flow.scanning }) {
             listOf(
                 RowGroup("LIBRARY", listOf(
                     SettingsRow.action("f-refresh", "Refresh", busy = { flow.scanning && !flow.rehashing }) {
@@ -61,14 +61,14 @@ class LibraryMenu<T : LibraryItem>(
         if (screen.needsFolder()) return screen.status
         val entries = flow.entries
         val unreadable = entries.count { it.error != null }
-        return "${strings.folder} · ${entries.count { it.playable }} games" +
+        return "${strings.folder.resolve(activity)} · ${entries.count { it.playable }} games" +
             if (unreadable == 0) "" else " · $unreadable unreadable"
     }
 
     private fun managePage() = GroupsPage("Manage library", content = {
         val groups = mutableListOf(
             RowGroup("SOURCE", listOf(
-                SettingsRow.action("folder", strings.folder,
+                SettingsRow.action("folder", strings.folder.resolve(activity),
                     value = { screen.folderName ?: "None" },
                     tone = { if (screen.folderName == null) ValueTone.EMPTY else ValueTone.CURRENT },
                     tray = { TraySpec(buttons = listOf(TrayButton("Choose folder…", ButtonTone.PRIMARY) {

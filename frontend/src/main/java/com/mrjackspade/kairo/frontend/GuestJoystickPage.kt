@@ -54,7 +54,7 @@ internal class GuestJoystickPage(
         val buttons = LinearLayout(context).apply { orientation = VERTICAL }
         for (pair in port.buttons.chunked(2)) {
             val cells = LinearLayout(context).apply { orientation = HORIZONTAL }
-            for (id in pair) cells.addView(control(id, spec.joystickLabel(id)),
+            for (id in pair) cells.addView(control(id, spec.joystickLabel(context, id)),
                 LayoutParams(0, -1, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
             buttons.addView(cells, LayoutParams(-1, 0, 1f))
         }
@@ -73,7 +73,7 @@ internal class GuestJoystickPage(
     @SuppressLint("ClickableViewAccessibility")
     private fun control(id: String, label: String): TextView = TextView(context).apply {
         text = label
-        contentDescription = "Joystick " + spec.joystickLabel(id).lowercase()
+        contentDescription = spec.joystickTarget(context, id)
         testId("joystick.control", id)
         gravity = Gravity.CENTER
         maxLines = 2

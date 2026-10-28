@@ -139,7 +139,7 @@ open class GroupsPage(
         super.refresh()
         scopeChip?.let { chip ->
             val value = scope()
-            chip.text = value ?: ""
+            chip.text = value?.let { GameSource.text(context, it) } ?: ""
             chip.visibility = if (value.isNullOrEmpty()) View.GONE else View.VISIBLE
         }
         footer?.let { it.render(); renav() }
@@ -163,10 +163,10 @@ class ChoicePage private constructor(
     override fun groups(): List<RowGroup> {
         val options = content().map { group ->
             RowGroup(group.label, group.folders.map { folder ->
-                SettingsRow.nav("f:${folder.id}", folder.label, { folder.find(spec.selected())?.label ?: "" },
+                SettingsRow.nav("f:${folder.id}", folder.label, { folder.find(spec.selected())?.label?.resolve(context) ?: "" },
                     { ValueTone.CURRENT }) { open(folder) }
             } + group.options.map { option ->
-                SettingsRow.option("o:${option.id}", option.label, option.description,
+                SettingsRow.option("o:${option.id}", option.label.resolve(context), option.description?.resolve(context),
                     { spec.selected() == option.id }) { pick(option.id) }
             }, group.foot)
         }

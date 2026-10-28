@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app shell: launching and leaving games, the game menu, game settings, About and Diagnostics. -->
+<resources>
+    <string name="kairo_no_game">No game</string>
+    <!-- The machine's state on the game menu's status line. -->
+    <string name="kairo_state_running">Running</string>
+    <string name="kairo_state_paused">Paused</string>
+    <string name="kairo_state_stopped">Stopped</string>
+    <string name="kairo_state_starting">Starting</string>
+    <string name="kairo_state_error">Error</string>
+    <string name="kairo_session_muted">Muted</string>
+    <string name="kairo_session_stopping">Stopping machine…</string>
+
+    <!-- %1$s is the machine's name, such as PC-88. -->
+    <string name="kairo_external_no_playable">No playable %1$s game found</string>
+    <string name="kairo_external_choose_disk">Choose a disk to start</string>
+    <string name="kairo_launch_refresh_first">Refresh this entry before playing</string>
+    <!-- %1$s says why, often the emulator's own message. -->
+    <string name="kairo_launch_failed">Launch failed: %1$s</string>
+    <string name="kairo_saves_moving_wait">Wait for the saves to finish moving.</string>
+    <string name="kairo_saves_return_to_library">Return to the library to change the save folder.</string>
+    <string name="kairo_catalogs_updated">Catalogs updated</string>
+    <!-- %1$s is the library folder's name, such as games folder. -->
+    <string name="kairo_first_run_choose_later">Choose a %1$s from the library menu when you’re ready</string>
+
+    <string name="kairo_first_run_step_1">STEP 1 OF 2</string>
+    <string name="kairo_first_run_step_2">STEP 2 OF 2</string>
+    <string name="kairo_first_run_folder_later">You can choose or change it later in Menu › Manage library.</string>
+    <string name="kairo_first_run_skip">Skip for now</string>
+    <string name="kairo_first_run_to_library">Continue to library</string>
+
+    <string name="kairo_controls_group">CONTROLS</string>
+    <string name="kairo_display_group">DISPLAY</string>
+    <string name="kairo_library_group">LIBRARY</string>
+    <string name="kairo_file_group">FILE</string>
+    <string name="kairo_anchor_landscape">Landscape anchor</string>
+    <string name="kairo_anchor_portrait">Portrait anchor</string>
+    <string name="kairo_title">Title</string>
+    <string name="kairo_title_hint">Game title</string>
+    <string name="kairo_artwork_copied_foot">Chosen images are copied into your library.</string>
+    <string name="kairo_settings_reset_done">Game settings reset. Machine changes apply on next launch or restart.</string>
+    <string name="kairo_settings_reset_failed">Could not reset game settings</string>
+    <!-- %1$s says why the value was refused. -->
+    <string name="kairo_save_failed">Could not save: %1$s</string>
+    <string name="kairo_invalid_value">Invalid value</string>
+
+    <string name="kairo_anchor_top_left">Top Left</string>
+    <string name="kairo_anchor_top_center">Top Center</string>
+    <string name="kairo_anchor_top_right">Top Right</string>
+    <string name="kairo_anchor_center_left">Center Left</string>
+    <string name="kairo_anchor_center">Center</string>
+    <string name="kairo_anchor_center_right">Center Right</string>
+    <string name="kairo_anchor_bottom_left">Bottom Left</string>
+    <string name="kairo_anchor_bottom_center">Bottom Center</string>
+    <string name="kairo_anchor_bottom_right">Bottom Right</string>
+
+    <string name="kairo_help_open_menu">Open the menu</string>
+    <string name="kairo_help_open_menu_how">Mode or Home button, Back, Menu, or a swipe from the left edge</string>
+    <string name="kairo_help_open_keyboard">Open the keyboard</string>
+    <string name="kairo_help_open_keyboard_how">Swipe in from the right edge</string>
+    <string name="kairo_help_physical_keyboard">Physical keyboard</string>
+    <!-- %1$s is the machine's name, such as PC-88. -->
+    <string name="kairo_help_physical_keyboard_how">Types into the %1$s while the menu is closed</string>
+    <string name="kairo_help_home_key">Android reserves the system Home key.</string>
+
+    <string name="kairo_diagnostics">Diagnostics</string>
+    <string name="kairo_diagnostics_group">MACHINE STATUS</string>
+    <string name="kairo_diagnostics_live">Live values from the emulator, updated four times a second.</string>
+    <string name="kairo_diagnostics_start_game">Start a game to see live values.</string>
+</resources>

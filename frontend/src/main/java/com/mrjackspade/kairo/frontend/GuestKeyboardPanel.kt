@@ -513,7 +513,7 @@ class GuestKeyboardPanel(
     private fun showPressed(binding: ControllerBinding) {
         val spec = inputs.spec ?: return
         if (visibility != View.VISIBLE) return
-        pressedLabel.text = spec.describe(binding)
+        pressedLabel.text = spec.describe(context, binding)
         pressedLabel.visibility = View.VISIBLE
         handler.removeCallbacks(hidePressedLabel)
         handler.postDelayed(hidePressedLabel, 900)

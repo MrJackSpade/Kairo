@@ -82,7 +82,7 @@ class LibraryScreen<T : LibraryItem>(
     private val list = ListView(context).testId("library.list")
     private val emptyState = LinearLayout(context)
     private val emptyText = Ui.text(context, "", Ui.BODY, Ui.TEXT_MUTED).testId("library.status")
-    private val emptyButton = Ui.primaryButton(context, "Choose ${strings.folder}…") { chooseFolder() }.testId("library.choose-folder")
+    private val emptyButton = Ui.primaryButton(context, "Choose ${strings.folder.resolve(context)}…") { chooseFolder() }.testId("library.choose-folder")
     private val scanProgress = Ui.spinner(context, 24, 3).testId("library.scanning")
     val tasks = TaskStrip(context)
     private var detailPage: GameDetailPage<T>? = null

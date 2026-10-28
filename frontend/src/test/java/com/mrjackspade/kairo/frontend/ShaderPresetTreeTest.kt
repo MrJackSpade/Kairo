@@ -58,8 +58,8 @@ class ShaderPresetTreeTest {
             ChoiceGroup("IMPORTED", listOf(ChoiceOption("top", "Top")), folders = listOf(crt)))
         val spec = ChoiceSpec("Shader", groups = { groups }, selected = { "deep" }, select = {})
         assertEquals(listOf("off", "deep", "easy", "top"), spec.options.map { it.id })
-        assertEquals("Deep", ChoiceSpec.find(groups, "deep")?.label)
-        assertEquals("Deep", crt.find("deep")?.label)
+        assertEquals(UiText.fixed("Deep"), ChoiceSpec.find(groups, "deep")?.label)
+        assertEquals(UiText.fixed("Deep"), crt.find("deep")?.label)
         assertNull(inner.find("easy"))
         assertNull(crt.find(null))
     }

@@ -19,7 +19,7 @@ import org.json.JSONObject
  */
 class MachineOption(
     val id: String,
-    val label: String,
+    val label: UiText,
     private val choicesOf: () -> List<ChoiceOption>,
     val default: String,
     val numeric: Boolean = false,
@@ -27,7 +27,7 @@ class MachineOption(
     val actions: (select: (String) -> Unit) -> List<SettingsRow> = { emptyList() },
     val ownFirmware: String? = null
 ) {
-    constructor(id: String, label: String, choices: List<ChoiceOption>, default: String, numeric: Boolean = false,
+    constructor(id: String, label: UiText, choices: List<ChoiceOption>, default: String, numeric: Boolean = false,
                 ownFirmware: String? = null) :
         this(id, label, { choices }, default, numeric, ownFirmware = ownFirmware) {
         require(ownFirmware == null || choices.any { it.id == ownFirmware }) { "$id's own firmware $ownFirmware is not a choice" }
@@ -52,8 +52,8 @@ class MachineOption(
         const val SKIP_MEMORY_CHECK = "skipMemoryCheck"
 
         /** Skip memory check: the same option, on by default, in every app whose machine counts its memory at boot. */
-        fun skipMemoryCheck() = MachineOption(SKIP_MEMORY_CHECK, "Skip memory check",
-            listOf(ChoiceOption("on", "On"), ChoiceOption("off", "Off")), "on")
+        fun skipMemoryCheck() = MachineOption(SKIP_MEMORY_CHECK, UiText.res(R.string.kairo_option_skip_memory_check),
+            listOf(ChoiceOption("on", UiText.res(R.string.kairo_on)), ChoiceOption("off", UiText.res(R.string.kairo_off))), "on")
 
         /** Whether [value] is a `machine` section holding only valid choices of [options]. */
         fun validSection(options: List<MachineOption>, value: Any): Boolean = value is JSONObject &&
