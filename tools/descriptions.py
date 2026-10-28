@@ -15,12 +15,14 @@
 
   descriptions.py pending <app root> <language> <out.json> [--adult] [--limit N] [--from KEY] [--to KEY]
       Up to N of the English descriptions (or with --adult, the frank adult descriptions) not yet
-      translated into <language> (catalog_languages.LANGUAGES), as {"<game key>": "English"};
+      translated into <language> (catalog_languages.LANGUAGES), or whose translation is stale (made
+      from English that has since changed), as {"<game key>": "English"};
       --from and --to keep to game keys from KEY up to, not including, KEY, so several workers
       can share a language.
   descriptions.py translate <app root> <language> <batch.json> [--adult]
-      Merge {"<game key>": "translation"} into catalog/research/descriptions[-adult]-<language>-v1.json.
-      Each key must have that English description and no translation yet.
+      Merge {"<game key>": "translation"} into catalog/research/descriptions[-adult]-<language>-v1.json,
+      each stored as {"en": the English it translates, "text": translation}. Each key must have that
+      English description and no translation yet, or a stale one.
   descriptions.py revise <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
       Up to N translations, after game key KEY, that still write words in Latin letters, as
       {"<game key>": {"en": "English", "current": "translation"}}, for a pass that rewrites them.
@@ -34,6 +36,8 @@
       each name to check and, where its article is the thing the description names, write natively.
   descriptions.py translate <app root> <language> <batch.json> --replace [--adult]
       Replace existing translations with {"<game key>": "translation"}; each key must be translated.
+  descriptions.py stale <app root>
+      Each language's count of stale translations, main and adult.
 
 Run research.py afterwards to carry the descriptions into games-v1.json.
 """
@@ -148,21 +152,45 @@ def translation_paths(root, language, adult):
     return research / f"descriptions{kind}-v1.json", research / f"descriptions{kind}-{language}-v1.json"
 
 
+def done_translations(target):
+    """A language file's {"<game key>": {"en", "text"}}, empty when it doesn't exist yet."""
+    import catalog_descriptions
+    return catalog_descriptions.translations(target)
+
+
+def done_texts(target):
+    return {key: entry["text"] for key, entry in done_translations(target).items()}
+
+
 def pending(root, language, output, adult, limit, start=None, end=None):
+    import catalog_descriptions
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
-    done = read(target, {"descriptions": {}})["descriptions"]
-    left = {key: text for key, text in sorted(english.items()) if key not in done and
+    done = done_translations(target)
+    outdated = set(catalog_descriptions.stale(english, done))
+    left = {key: text for key, text in sorted(english.items()) if (key not in done or key in outdated) and
             (start is None or key >= start) and (end is None or key < end)}
     batch = dict(list(left.items())[:limit] if limit else left.items())
     output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    print(f"{len(batch)} of {len(left)} untranslated ({len(done)} of {len(english)} done) -> {output}")
+    print(f"{len(batch)} of {len(left)} to translate, {len(outdated)} of them stale "
+          f"({len(done) - len(outdated)} of {len(english)} done) -> {output}")
+
+
+def report_stale(root):
+    import catalog_descriptions
+    from catalog_languages import LANGUAGES
+    for adult in (False, True):
+        for language in LANGUAGES:
+            source, target = translation_paths(root, language, adult)
+            if target.is_file():
+                english = read(source, {"descriptions": {}})["descriptions"]
+                print(f"{target.name}: {len(catalog_descriptions.stale(english, done_translations(target)))} stale")
 
 
 def revise(root, language, output, adult, limit, after):
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
-    done = read(target, {"descriptions": {}})["descriptions"]
+    done = done_texts(target)
     latin = {key: text for key, text in sorted(done.items()) if re.search(r"[A-Za-z]", text)}
     left = [key for key in latin if after is None or key > after]
     batch = {key: {"en": english[key], "current": latin[key]} for key in (left[:limit] if limit else left)}
@@ -173,10 +201,10 @@ def revise(root, language, output, adult, limit, after):
 def rewritten(root, language, output, adult, limit, after):
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
-    done = read(target, {"descriptions": {}})["descriptions"]
+    done = done_texts(target)
     committed = subprocess.run(["git", "show", f"HEAD:{target.relative_to(root).as_posix()}"], cwd=root,
                                check=True, stdout=subprocess.PIPE).stdout
-    before = json.loads(committed)["descriptions"]
+    before = {key: entry["text"] for key, entry in json.loads(committed)["descriptions"].items()}
     changed = [key for key in sorted(done) if done[key] != before.get(key)]
     left = [key for key in changed if after is None or key > after]
     batch = {key: {"en": english[key], "before": before.get(key), "current": done[key]}
@@ -227,7 +255,7 @@ def names(root, language, output, adult, limit, after):
     import name_forms
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
-    done = read(target, {"descriptions": {}})["descriptions"]
+    done = done_texts(target)
     keys = [key for key in sorted(done) if after is None or key > after]
     def kept(name, text):
         return re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", text) is not None
@@ -263,19 +291,22 @@ def translate(root, language, batch_path, adult, replace=False):
 
 
 def merge(target, source, language, batch_path, replace):
+    import catalog_descriptions
     english = read(source, {"descriptions": {}})["descriptions"]
-    document = read(target, {"schemaVersion": 1, "descriptions": {}})
+    document = {"schemaVersion": 1, **read(target, {}), "descriptions": done_translations(target)}
+    outdated = set(catalog_descriptions.stale(english, document["descriptions"]))
     batch = read(batch_path)
     for key, text in batch.items():
         if key not in english:
             raise SystemExit(f"{key} has no English description in {source.name}")
         if replace and key not in document["descriptions"]:
             raise SystemExit(f"{key} has no translation in {target.name} to replace")
-        if not replace and key in document["descriptions"]:
+        if not replace and key in document["descriptions"] and key not in outdated:
             raise SystemExit(f"{key} is already translated in {target.name}")
         if not isinstance(text, str) or not 0 < len(text.strip()) <= MAX_TRANSLATION or text != text.strip():
             raise SystemExit(f"{key}: a translation must be 1-{MAX_TRANSLATION} characters without outer spaces")
-    document["descriptions"].update(batch)
+    # Each translation keeps the English it was made from, beside it, for reviewers and stale().
+    document["descriptions"].update({key: {"en": english[key], "text": text} for key, text in batch.items()})
     document["descriptions"] = dict(sorted(document["descriptions"].items()))
     target.write_text(json.dumps(document, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     print(f"{len(batch)} {'replaced' if replace else 'added'}; "
@@ -330,8 +361,12 @@ def main():
     audit.add_argument("--adult", action="store_true")
     audit.add_argument("--limit", type=int)
     audit.add_argument("--after")
+    outdated = commands.add_parser("stale")
+    outdated.add_argument("root", type=Path)
     args = parser.parse_args()
-    if args.command == "worklist":
+    if args.command == "stale":
+        report_stale(args.root.resolve())
+    elif args.command == "worklist":
         worklist(args.root.resolve(), args.output, args.mobygames, args.references, args.limit)
     elif args.command == "add":
         add(args.root.resolve(), args.batch, args.adult)
