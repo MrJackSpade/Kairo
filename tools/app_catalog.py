@@ -41,7 +41,9 @@ An app's catalog_config.DOCUMENTS(games), when it has one, returns its own docum
 (shared LayeredGameCatalog.documents), such as KairoDos's launch folders.
 
 catalog/core-review-v1.json lists excluded games and approved artwork. Outputs: catalog/source-v1.json,
-catalog/core-v3.json with its .meta.json, catalog/parts/, the artwork exclusion list and the
+catalog/core-v4.zip with its .meta.json (the update: the catalog's documents, shared
+catalog_documents.update_archive), catalog/core-v3.json with its .meta.json (English only, for app
+versions before v4), catalog/parts/, the artwork exclusion list and the
 importable artwork package. --check regenerates in memory and fails if a committed file differs.
 """
 
@@ -62,7 +64,7 @@ from catalog_package import image_paths
 from catalog_parts import generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
-SHIPPED = ("title", "description", "descriptions", "aliases", "tags", "controller")
+SHIPPED = ("title", "description", "aliases", "tags", "controller")
 CORE_VERSION = 3
 MAX_IDS = 64
 
@@ -213,6 +215,12 @@ def metadata(key, entry, config):
     return record
 
 
+def meta(name, content):
+    """The metadata an app checks a download against: its archive's name, SHA-256 and size."""
+    return (json.dumps({"schemaVersion": 1, "archive": name, "sha256": hashlib.sha256(content).hexdigest(),
+                        "size": len(content)}, separators=(",", ":")) + "\n").encode("utf-8")
+
+
 def generate(root, check=False):
     config = load_config(root)
     validate_record = validator(config.KINDS, config.ARTWORK, {rule[1] for rule in config.COMPANION.values()},
@@ -272,16 +280,31 @@ def generate(root, check=False):
     own_documents = config.DOCUMENTS(research["games"]) if hasattr(config, "DOCUMENTS") else {}
     require(not own_documents.keys() & {"base-v1.json", "manifest-v1.json", "name-index-v1.json", "system-v1.json"}
             and all(not name.startswith("shards/") for name in own_documents), "an app document takes a catalog name")
-    documents = {**own_documents, "base-v1.json": {"schemaVersion": 1, "games": {}}, "manifest-v1.json": manifest,
-                 "name-index-v1.json": name_index, "system-v1.json": system,
+    # Each language's descriptions in a document of its own, beside the English records.
+    translations = catalog_documents.translation_documents(
+        {key: entry["descriptions"] for key, entry in research["games"].items() if entry.get("descriptions")})
+    documents = {**own_documents, **translations, "base-v1.json": {"schemaVersion": 1, "games": {}},
+                 "manifest-v1.json": manifest, "name-index-v1.json": name_index, "system-v1.json": system,
                  **{f"shards/{prefix}.json": {"schemaVersion": 1, "games": records}
                     for prefix, records in shards.items()}}
     placeholder = f"sha256-{sorted(config.KINDS)[0]}-v1:" + "0" * 64
-    pack = compact({**catalog_documents.build_pack(source, name_index, validate_record, placeholder),
-                    "coreVersion": CORE_VERSION, **({"documents": own_documents} if own_documents else {})})
-    outputs = {"catalog/source-v1.json": compact(source), "catalog/core-v3.json": pack,
-               "catalog/core-v3.meta.json": (json.dumps({"schemaVersion": 1, "archive": "core-v3.json",
-                   "sha256": hashlib.sha256(pack).hexdigest(), "size": len(pack)}, separators=(",", ":")) + "\n").encode("utf-8")}
+    pack = catalog_documents.build_pack(source, name_index, validate_record, placeholder)
+    # The update in English, and each language's descriptions as a download of their own: an app
+    # fetches its device language's beside the English one.
+    update = catalog_documents.update_archive({name: document for name, document in documents.items()
+                                               if name not in translations})
+    outputs = {"catalog/source-v1.json": compact(source), "catalog/core-v4.zip": update,
+               "catalog/core-v4.meta.json": meta("core-v4.zip", update)}
+    for name, document in translations.items():
+        language = name.removeprefix("descriptions/").removesuffix(".json")
+        archive = catalog_documents.update_archive({name: document})
+        outputs.update({f"catalog/core-v4-{language}.zip": archive,
+                        f"catalog/core-v4-{language}.meta.json": meta(f"core-v4-{language}.zip", archive)})
+    # App versions before the v4 update read one JSON pack, English only (an app whose released
+    # versions read their own frozen format, KairoDos, has LEGACY_UPDATE = False).
+    if getattr(config, "LEGACY_UPDATE", True):
+        legacy = compact({**pack, "coreVersion": CORE_VERSION})
+        outputs.update({"catalog/core-v3.json": legacy, "catalog/core-v3.meta.json": meta("core-v3.json", legacy)})
     for path, content in outputs.items():
         if check:
             require((root / path).read_bytes() == content, f"Stale {path}")
@@ -289,11 +312,12 @@ def generate(root, check=False):
             (root / path).parent.mkdir(parents=True, exist_ok=True)
             (root / path).write_bytes(content)
     optional = {"schemaVersion": 1, "games": {}, "nameIndex": name_index}
-    # Kept out of the name index and the update pack: they reach a build only through data.nsfw.
-    adult = {"name-index-v1.json": {"games": {key: {"description": entry["adultDescription"],
-                                                    **({"descriptions": entry["adultDescriptions"]}
-                                                       if entry.get("adultDescriptions") else {})}
-             for key, entry in sorted(research["games"].items()) if entry.get("adultDescription")}}}
+    # Kept out of the name index and the update: they reach a build only through data.nsfw.
+    adult = {"name-index-v1.json": {"games": {key: {"description": entry["adultDescription"]}
+             for key, entry in sorted(research["games"].items()) if entry.get("adultDescription")}},
+             **catalog_documents.translation_documents(
+                 {key: entry["adultDescriptions"] for key, entry in research["games"].items()
+                  if entry.get("adultDescriptions")})}
     generate_parts(root, config.APP, documents, optional, adult, config.ARTWORK.expand, config.ARTWORK.compact, check)
     print(f"{config.APP}: {len(games)} games, {manifest['games']} content IDs, {len(unique_names)} unique names, "
           f"{len(image_paths(name_index, config.ARTWORK.expand))} artwork paths")

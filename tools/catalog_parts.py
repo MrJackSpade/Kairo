@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from typing import NamedTuple
 from catalog_package import compact, filter_artwork, image_paths, build_package
-from catalog_languages import valid_translations
+from catalog_languages import LANGUAGES, valid_translations
 
 class App(NamedTuple):
     """How an app publishes its catalog. package/identity name its importable artwork package;
@@ -68,20 +68,30 @@ def merge(*parts):
     return result
 
 def adult_descriptions(adult_data):
-    """The games of an adult data part, {document: {"games": {key: {"description": text}}}}: frank
-    descriptions of adult games, which replace their main descriptions where the part ships."""
-    games = {}
+    """The adult data part's documents: "name-index-v1.json", {"games": {key: {"description": text}}},
+    frank descriptions of adult games, which replace their main descriptions where the part ships,
+    and "descriptions/<language>.json", {"games": {key: text}}, those translated. Returns the English
+    games and the translation documents."""
+    games, translations = {}, {}
     for document, value in adult_data.items():
         assert set(value) == {'games'}, f'{document}: an adult data document holds only games'
-        for key, record in value['games'].items():
-            assert set(record) in ({'description'}, {'description', 'descriptions'}), \
-                f'{document} {key}: adult data holds only descriptions'
-            text = record['description']
-            assert isinstance(text, str) and 0 < len(text.strip()) <= 8000, f'{key}: invalid adult description'
-            assert 'descriptions' not in record or valid_translations(record['descriptions']), \
-                f'{key}: invalid translated adult descriptions'
-            games[key] = record
-    return games
+        if document == 'name-index-v1.json':
+            for key, record in value['games'].items():
+                assert set(record) == {'description'}, f'{document} {key}: adult data holds only descriptions'
+                text = record['description']
+                assert isinstance(text, str) and 0 < len(text.strip()) <= 8000, f'{key}: invalid adult description'
+                games[key] = record
+        else:
+            language = document.removeprefix('descriptions/').removesuffix('.json')
+            assert document == f'descriptions/{language}.json' and language in LANGUAGES, \
+                f'{document}: not a translated description document'
+            assert all(valid_translations({language: text}) for text in value['games'].values()), \
+                f'{document}: invalid translated adult description'
+            translations[document] = value
+    for document, value in translations.items():
+        untranslatable = value['games'].keys() - games.keys()
+        assert not untranslatable, f'{document}: translations of no adult description: {sorted(untranslatable)[:5]}'
+    return games, translations
 
 def generate_parts(root, app, full_documents, optional_data, adult_data, expand, compact_art, check=False):
     """Writes the parts: data, controls and art always ship; art.nsfw (adult images) and data.nsfw
@@ -93,7 +103,7 @@ def generate_parts(root, app, full_documents, optional_data, adult_data, expand,
     data, controls, _ = split(full_documents)
     safe = split(filter_artwork(full_documents, approved, expand, compact_art))[2]
     extra = split(filter_artwork(full_documents, withheld, expand, compact_art))[2]
-    adult = adult_descriptions(adult_data)
+    adult, adult_translations = adult_descriptions(adult_data)
     unknown = set(adult) - set(data.get('name-index-v1.json', {}).get('games', {}))
     assert not unknown, f'adult descriptions for games the catalog does not have: {sorted(unknown)[:5]}'
     outputs = {'data.json':data, 'controls.json':controls, 'art.json':safe, 'art.nsfw.json':extra,
@@ -118,7 +128,8 @@ def generate_parts(root, app, full_documents, optional_data, adult_data, expand,
         # The package carries the adult images and the adult descriptions, for builds without either part.
         games = merge(art.get('nameIndex',{}).get('games',{}), adult)
         payload = {'schemaVersion':1,'games':art.get('games',{}),'nameIndex':{'schemaVersion':1,
-            'games':games,'names':{k:v for k,v in optional_data['nameIndex']['names'].items() if v in games}}}
+            'games':games,'names':{k:v for k,v in optional_data['nameIndex']['names'].items() if v in games}},
+            **({'documents':adult_translations} if adult_translations else {})}
     if not check:
         release = json.loads((root/'catalog/artwork-release-v1.json').read_text('utf8'))
         assert release['schemaVersion'] == 1 and release['revision'] > 0

@@ -23,16 +23,21 @@ class CatalogParts(context: Context) {
     private val cache = object : android.util.LruCache<String, Document>(CACHE_BYTES) {
         override fun sizeOf(key: String, value: Document) = value.bytes
     }
-    @Synchronized fun read(path: String): JSONObject = read(path, false)
-    @Synchronized fun additional(path: String): JSONObject = read(path, true)
+    /** Which parts a read takes: every part, only those every build ships, or only the others (adult). */
+    private enum class Parts { ALL, MAIN, ADDITIONAL }
 
-    private fun read(path: String, additional: Boolean): JSONObject {
-        val key = "$additional:$path"
+    @Synchronized fun read(path: String): JSONObject = read(path, Parts.ALL)
+    @Synchronized fun main(path: String): JSONObject = read(path, Parts.MAIN)
+    @Synchronized fun additional(path: String): JSONObject = read(path, Parts.ADDITIONAL)
+
+    private fun read(path: String, parts: Parts): JSONObject {
+        val key = "$parts:$path"
         cache.get(key)?.let { return it.json }
         val result = JSONObject()
         var bytesRead = 0
         for ((part, index) in indexes) {
-            if (additional && part in setOf("data", "controls", "art")) continue
+            val main = part in MAIN_PARTS
+            if (parts == Parts.MAIN && !main || parts == Parts.ADDITIONAL && main) continue
             val range = index.optJSONArray(path) ?: continue
             val offset = range.getLong(0)
             val size = range.getInt(1)
@@ -112,6 +117,8 @@ class CatalogParts(context: Context) {
     }
 
     private companion object {
+        /** The parts every build ships; the others (adult images and descriptions) only some builds. */
+        val MAIN_PARTS = setOf("data", "controls", "art")
         /** Source JSON bytes kept parsed; Kairo98's name indexes and shards fit together. */
         const val CACHE_BYTES = 3 * 1024 * 1024
     }

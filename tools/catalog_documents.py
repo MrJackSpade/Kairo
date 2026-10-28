@@ -8,7 +8,9 @@ record may contain is the app's business: every function here takes the app's va
 raises ValueError on an invalid record and returns it without "contentIds".
 """
 
+import io
 import json
+import zipfile
 
 
 def compact(obj):
@@ -83,3 +85,32 @@ def build_pack(source, name_index, validate_record, placeholder_id):
     for record in games.values():
         validate_record({**inherit(record, name_index["games"]), "contentIds": [placeholder_id]})
     return {"schemaVersion": 1, "games": games, "nameIndex": name_index}
+
+
+# The update's format version (shared LayeredGameCatalog.UPDATE_VERSION): an archive of documents.
+UPDATE_VERSION = 4
+
+
+def update_archive(documents):
+    """The downloadable update: the app's catalog documents, each a JSON file at its catalog path,
+    plus update-v1.json naming the format, compressed and byte-identical for the same documents."""
+    require("update-v1.json" not in documents, "update-v1.json is the archive's own")
+    entries = {"update-v1.json": {"schemaVersion": 1, "updateVersion": UPDATE_VERSION}, **documents}
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        for name in sorted(entries):
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            archive.writestr(info, compact(entries[name]), compresslevel=9)
+    return output.getvalue()
+
+
+def translation_documents(translations):
+    """{"descriptions/<language>.json": {"games": {key: text}}} from {key: {language: text}}: each
+    language's descriptions in a document of its own, which the app reads only for its language."""
+    documents = {}
+    for key, texts in sorted(translations.items()):
+        for language, text in texts.items():
+            documents.setdefault(f"descriptions/{language}.json", {"games": {}})["games"][key] = text
+    return documents
