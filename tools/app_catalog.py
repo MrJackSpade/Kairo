@@ -60,8 +60,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import catalog_documents
 from catalog_documents import compact, require
 from catalog_languages import LANGUAGES, valid_translations
-from catalog_package import image_paths
-from catalog_parts import generate_parts
+from catalog_package import filter_artwork, image_paths
+from catalog_parts import artwork_split, generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
 SHIPPED = ("title", "description", "aliases", "tags", "controller")
@@ -288,12 +288,18 @@ def generate(root, check=False):
                  **{f"shards/{prefix}.json": {"schemaVersion": 1, "games": records}
                     for prefix, records in shards.items()}}
     placeholder = f"sha256-{sorted(config.KINDS)[0]}-v1:" + "0" * 64
-    pack = catalog_documents.build_pack(source, name_index, validate_record, placeholder)
+    # What is published names only the main artwork, as every build ships it: the adult images reach a
+    # build through its art.nsfw part or the importable package alone (catalog_parts).
+    approved, _ = artwork_split(policy, image_paths(documents, config.ARTWORK.expand))
+    def main_artwork(value):
+        return filter_artwork(value, approved, config.ARTWORK.expand, config.ARTWORK.compact)
+    published_source = main_artwork(source)
+    pack = catalog_documents.build_pack(published_source, main_artwork(name_index), validate_record, placeholder)
     # The update in English, and each language's descriptions as a download of their own: an app
     # fetches its device language's beside the English one.
-    update = catalog_documents.update_archive({name: document for name, document in documents.items()
+    update = catalog_documents.update_archive({name: main_artwork(document) for name, document in documents.items()
                                                if name not in translations})
-    outputs = {"catalog/source-v1.json": compact(source), "catalog/core-v4.zip": update,
+    outputs = {"catalog/source-v1.json": compact(published_source), "catalog/core-v4.zip": update,
                "catalog/core-v4.meta.json": meta("core-v4.zip", update)}
     for name, document in translations.items():
         language = name.removeprefix("descriptions/").removesuffix(".json")
