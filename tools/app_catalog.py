@@ -42,8 +42,7 @@ An app's catalog_config.DOCUMENTS(games), when it has one, returns its own docum
 
 catalog/core-review-v1.json lists excluded games and approved artwork. Outputs: catalog/source-v1.json,
 catalog/core-v4.zip with its .meta.json (the update: the catalog's documents, shared
-catalog_documents.update_archive), catalog/core-v3.json with its .meta.json (English only, for app
-versions before v4), catalog/parts/, the artwork exclusion list and the
+catalog_documents.update_archive), catalog/parts/, the artwork exclusion list and the
 importable artwork package. --check regenerates in memory and fails if a committed file differs.
 """
 
@@ -65,7 +64,6 @@ from catalog_parts import artwork_split, generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
 SHIPPED = ("title", "description", "aliases", "tags", "controller")
-CORE_VERSION = 3
 MAX_IDS = 64
 
 
@@ -294,7 +292,7 @@ def generate(root, check=False):
     def main_artwork(value):
         return filter_artwork(value, approved, config.ARTWORK.expand, config.ARTWORK.compact)
     published_source = main_artwork(source)
-    pack = catalog_documents.build_pack(published_source, main_artwork(name_index), validate_record, placeholder)
+    catalog_documents.build_pack(published_source, main_artwork(name_index), validate_record, placeholder)
     # The update in English, and each language's descriptions as a download of their own: an app
     # fetches its device language's beside the English one.
     update = catalog_documents.update_archive({name: main_artwork(document) for name, document in documents.items()
@@ -306,11 +304,8 @@ def generate(root, check=False):
         archive = catalog_documents.update_archive({name: document})
         outputs.update({f"catalog/core-v4-{language}.zip": archive,
                         f"catalog/core-v4-{language}.meta.json": meta(f"core-v4-{language}.zip", archive)})
-    # App versions before the v4 update read one JSON pack, English only (an app whose released
-    # versions read their own frozen format, KairoDos, has LEGACY_UPDATE = False).
-    if getattr(config, "LEGACY_UPDATE", True):
-        legacy = compact({**pack, "coreVersion": CORE_VERSION})
-        outputs.update({"catalog/core-v3.json": legacy, "catalog/core-v3.meta.json": meta("core-v3.json", legacy)})
+    # App versions before the v4 update read catalog/core-v3.json, which stays published as it was
+    # last built: they receive no further catalog fixes (Kairo#77).
     for path, content in outputs.items():
         if check:
             require((root / path).read_bytes() == content, f"Stale {path}")

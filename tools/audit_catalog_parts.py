@@ -20,8 +20,8 @@ def audit(root, product, artifacts=()):
         assert path.relative_to(root).as_posix() in tracked, f'Catalog file is not tracked: {path}'
         assert path.is_file(), f'Missing catalog file: {path}'
     # Check every public snapshot and optional update manifest against committed bytes.
-    # The optional packages and every published update: core-v4 and each language's, and core-v3
-    # where the app still publishes it for its earlier versions.
+    # The optional packages and every published update: core-v4 and each language's, and the
+    # frozen core-v3 earlier app versions read (Kairo#77).
     manifests = list((root/'catalog/optional').glob('*.meta.json')) + sorted((root/'catalog').glob('core-v*.meta.json'))
     assert root/'catalog/core-v4.meta.json' in manifests, 'The app publishes no update' 
     prefix = f'https://raw.githubusercontent.com/MrJackSpade/{spec.repo}/main/'
