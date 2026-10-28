@@ -2,81 +2,81 @@
 <!-- Arabic (ar): the translation of values/strings_input.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: ON-SCREEN CONTROLS -->
-    <string name="kairo_onscreen_group">ON-SCREEN CONTROLS</string>
+    <string name="kairo_onscreen_group">عناصر التحكم على الشاشة</string>
     <!-- EN: On-screen controls -->
-    <string name="kairo_onscreen_controls">On-screen controls</string>
+    <string name="kairo_onscreen_controls">عناصر التحكم على الشاشة</string>
     <!-- EN: Hidden while a controller is connected -->
-    <string name="kairo_onscreen_mode_auto_help">Hidden while a controller is connected</string>
+    <string name="kairo_onscreen_mode_auto_help">مخفية أثناء اتصال وحدة تحكم</string>
     <!-- EN: Shown -->
-    <string name="kairo_onscreen_mode_shown">Shown</string>
+    <string name="kairo_onscreen_mode_shown">ظاهرة</string>
     <!-- EN: Always shown -->
-    <string name="kairo_onscreen_mode_shown_help">Always shown</string>
+    <string name="kairo_onscreen_mode_shown_help">ظاهرة دائمًا</string>
     <!-- EN: Hidden -->
-    <string name="kairo_onscreen_mode_hidden">Hidden</string>
+    <string name="kairo_onscreen_mode_hidden">مخفية</string>
     <!-- EN: Always hidden -->
-    <string name="kairo_onscreen_mode_hidden_help">Always hidden</string>
+    <string name="kairo_onscreen_mode_hidden_help">مخفية دائمًا</string>
     <!-- EN: D-pad style -->
-    <string name="kairo_onscreen_dpad_style">D-pad style</string>
+    <string name="kairo_onscreen_dpad_style">نمط D-pad</string>
     <!-- EN: 4 buttons -->
-    <string name="kairo_onscreen_dpad_arrows">4 buttons</string>
+    <string name="kairo_onscreen_dpad_arrows">4 أزرار</string>
     <!-- EN: Separate up, down, left, and right -->
-    <string name="kairo_onscreen_dpad_arrows_help">Separate up, down, left, and right</string>
+    <string name="kairo_onscreen_dpad_arrows_help">أعلى وأسفل ويسار ويمين منفصلة</string>
     <!-- EN: 8-way pad -->
-    <string name="kairo_onscreen_dpad_pad">8-way pad</string>
+    <string name="kairo_onscreen_dpad_pad">لوحة 8 اتجاهات</string>
     <!-- EN: One round pad with diagonals -->
-    <string name="kairo_onscreen_dpad_pad_help">One round pad with diagonals</string>
+    <string name="kairo_onscreen_dpad_pad_help">لوحة دائرية واحدة مع الاتجاهات القطرية</string>
     <!-- EN: Visible buttons -->
-    <string name="kairo_onscreen_visible">Visible buttons</string>
+    <string name="kairo_onscreen_visible">الأزرار الظاهرة</string>
     <!-- %1$d is how many on-screen controls show. -->
     <!-- EN: %1$d shown -->
-    <string name="kairo_onscreen_shown_count">%1$d shown</string>
+    <string name="kairo_onscreen_shown_count">%1$d ظاهرة</string>
     <!-- %1$s is the orientation, such as Portrait; %2$s the controller layout, such as With sticks. -->
     <!-- EN: %1$s · %2$s -->
     <string name="kairo_onscreen_visible_scope">%1$s · %2$s</string>
     <!-- EN: Arrange layout -->
-    <string name="kairo_onscreen_arrange">Arrange layout</string>
+    <string name="kairo_onscreen_arrange">ترتيب التخطيط</string>
     <!-- EN: Reset positions -->
-    <string name="kairo_onscreen_reset_positions">Reset positions</string>
+    <string name="kairo_onscreen_reset_positions">إعادة تعيين المواضع</string>
     <!-- EN: Restore the standard positions for this layout? -->
-    <string name="kairo_onscreen_reset_positions_confirm">Restore the standard positions for this layout?</string>
+    <string name="kairo_onscreen_reset_positions_confirm">هل تريد استعادة المواضع القياسية لهذا التخطيط؟</string>
     <!-- EN: Positions reset -->
-    <string name="kairo_onscreen_positions_reset">Positions reset</string>
+    <string name="kairo_onscreen_positions_reset">تمت إعادة تعيين المواضع</string>
     <!-- EN: Layouts are saved separately for portrait and landscape, and for controllers with and without sticks. -->
-    <string name="kairo_onscreen_foot">Layouts are saved separately for portrait and landscape, and for controllers with and without sticks.</string>
+    <string name="kairo_onscreen_foot">تُحفظ التخطيطات بشكل منفصل للوضعين العمودي والأفقي، ولوحدات التحكم مع العصوين وبدونهما.</string>
     <!-- EN: Reset visible buttons -->
-    <string name="kairo_onscreen_reset_visible">Reset visible buttons</string>
+    <string name="kairo_onscreen_reset_visible">إعادة تعيين الأزرار الظاهرة</string>
     <!-- EN: Restore the standard selection for this layout? -->
-    <string name="kairo_onscreen_reset_visible_confirm">Restore the standard selection for this layout?</string>
+    <string name="kairo_onscreen_reset_visible_confirm">هل تريد استعادة الاختيار القياسي لهذا التخطيط؟</string>
     <!-- EN: Visible buttons reset -->
-    <string name="kairo_onscreen_visible_reset">Visible buttons reset</string>
+    <string name="kairo_onscreen_visible_reset">تمت إعادة تعيين الأزرار الظاهرة</string>
     <!-- EN: Drag controls to reposition -->
-    <string name="kairo_onscreen_drag">Drag controls to reposition</string>
+    <string name="kairo_onscreen_drag">اسحب عناصر التحكم لتغيير موضعها</string>
     <!-- EN: STICKS -->
-    <string name="kairo_onscreen_group_sticks">STICKS</string>
+    <string name="kairo_onscreen_group_sticks">العصوان</string>
     <!-- EN: Left stick -->
-    <string name="kairo_onscreen_left_stick">Left stick</string>
+    <string name="kairo_onscreen_left_stick">العصا اليسرى</string>
     <!-- EN: Right stick -->
-    <string name="kairo_onscreen_right_stick">Right stick</string>
+    <string name="kairo_onscreen_right_stick">العصا اليمنى</string>
     <!-- EN: Done -->
-    <string name="kairo_done">Done</string>
+    <string name="kairo_done">تم</string>
     <!-- EN: Controller mapping -->
-    <string name="kairo_keyboard_mapping">Controller mapping</string>
+    <string name="kairo_keyboard_mapping">تعيين وحدة التحكم</string>
     <!-- EN: Tap a key, then press the controller button that should send it. Tap a selected key again to clear it. Tap the controller button again to finish. -->
-    <string name="kairo_keyboard_mapping_help">Tap a key, then press the controller button that should send it. Tap a selected key again to clear it. Tap the controller button again to finish.</string>
+    <string name="kairo_keyboard_mapping_help">انقر على مفتاح، ثم اضغط زر وحدة التحكم الذي سيرسله. انقر على مفتاح محدد مرة أخرى لمسحه. اضغط زر وحدة التحكم مرة أخرى للإنهاء.</string>
     <!-- EN: Swap game and keyboard screens -->
-    <string name="kairo_keyboard_swap">Swap game and keyboard screens</string>
+    <string name="kairo_keyboard_swap">تبديل شاشتي اللعبة ولوحة المفاتيح</string>
     <!-- EN: Mouse touchpad mode -->
-    <string name="kairo_keyboard_touchpad_mode">Mouse touchpad mode</string>
+    <string name="kairo_keyboard_touchpad_mode">وضع لوحة لمس الماوس</string>
     <!-- EN: Close × -->
-    <string name="kairo_keyboard_close">Close ×</string>
+    <string name="kairo_keyboard_close">إغلاق ×</string>
     <!-- EN: OK -->
-    <string name="kairo_ok">OK</string>
+    <string name="kairo_ok">حسنًا</string>
     <!-- EN: Guest mouse touchpad. Drag to move, tap to click, hold to drag. -->
-    <string name="kairo_touchpad_description">Guest mouse touchpad. Drag to move, tap to click, hold to drag.</string>
+    <string name="kairo_touchpad_description">لوحة لمس لماوس الجهاز المُحاكى. اسحب للتحريك، وانقر للنقر، واضغط مطولًا للسحب.</string>
     <!-- EN: Drag to move · Tap to click -->
-    <string name="kairo_touchpad_hint_drag">Drag to move · Tap to click</string>
+    <string name="kairo_touchpad_hint_drag">اسحب للتحريك · انقر للنقر</string>
     <!-- EN: Hold to drag -->
-    <string name="kairo_touchpad_hint_hold">Hold to drag</string>
+    <string name="kairo_touchpad_hint_hold">اضغط مطولًا للسحب</string>
     <!-- EN: Search by title or file name -->
-    <string name="kairo_search_hint">Search by title or file name</string>
+    <string name="kairo_search_hint">البحث بالعنوان أو اسم الملف</string>
 </resources>

@@ -2,71 +2,71 @@
 <!-- Korean (ko): the translation of values/strings_display.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Graphics -->
-    <string name="kairo_graphics">Graphics</string>
+    <string name="kairo_graphics">그래픽</string>
     <!-- EN: Landscape scaling -->
-    <string name="kairo_scaling_landscape">Landscape scaling</string>
+    <string name="kairo_scaling_landscape">가로 화면 배율</string>
     <!-- EN: Portrait scaling -->
-    <string name="kairo_scaling_portrait">Portrait scaling</string>
+    <string name="kairo_scaling_portrait">세로 화면 배율</string>
     <!-- EN: Integer -->
-    <string name="kairo_scaling_integer">Integer</string>
+    <string name="kairo_scaling_integer">정수 배율</string>
     <!-- EN: Full image (default) -->
-    <string name="kairo_scaling_integer_help">Full image (default)</string>
+    <string name="kairo_scaling_integer_help">전체 이미지(기본값)</string>
     <!-- EN: Integer crop -->
-    <string name="kairo_scaling_crop">Integer crop</string>
+    <string name="kairo_scaling_crop">정수 배율 자르기</string>
     <!-- EN: Crops the edges -->
-    <string name="kairo_scaling_crop_help">Crops the edges</string>
+    <string name="kairo_scaling_crop_help">가장자리를 자릅니다</string>
     <!-- EN: Fit display -->
-    <string name="kairo_scaling_fit">Fit display</string>
+    <string name="kairo_scaling_fit">화면에 맞추기</string>
     <!-- EN: Fractional scale -->
-    <string name="kairo_scaling_fit_help">Fractional scale</string>
+    <string name="kairo_scaling_fit_help">소수 배율</string>
     <!-- EN: Portrait notch padding -->
-    <string name="kairo_notch_padding">Portrait notch padding</string>
+    <string name="kairo_notch_padding">세로 화면 노치 여백</string>
     <!-- %1$d is a length in density-independent pixels. -->
     <!-- EN: %1$d dp -->
     <string name="kairo_dp">%1$d dp</string>
     <!-- EN: Game orientation -->
-    <string name="kairo_orientation_game">Game orientation</string>
+    <string name="kairo_orientation_game">게임 화면 방향</string>
     <!-- EN: Landscape -->
-    <string name="kairo_orientation_landscape">Landscape</string>
+    <string name="kairo_orientation_landscape">가로</string>
     <!-- EN: Portrait -->
-    <string name="kairo_orientation_portrait">Portrait</string>
+    <string name="kairo_orientation_portrait">세로</string>
     <!-- EN: Rotation was attempted but did not apply. A system setting is likely blocking it. -->
-    <string name="kairo_orientation_blocked">Rotation was attempted but did not apply. A system setting is likely blocking it.</string>
+    <string name="kairo_orientation_blocked">회전을 시도했지만 적용되지 않았습니다. 시스템 설정이 막고 있을 수 있습니다.</string>
     <!-- EN: SHADER -->
-    <string name="kairo_shader_group">SHADER</string>
+    <string name="kairo_shader_group">셰이더</string>
     <!-- EN: Shader -->
-    <string name="kairo_shader">Shader</string>
+    <string name="kairo_shader">셰이더</string>
     <!-- EN: BUILT-IN -->
-    <string name="kairo_shader_group_built_in">BUILT-IN</string>
+    <string name="kairo_shader_group_built_in">기본 제공</string>
     <!-- EN: IMPORTED -->
-    <string name="kairo_shader_group_imported">IMPORTED</string>
+    <string name="kairo_shader_group_imported">가져옴</string>
     <!-- EN: Sharp bilinear -->
-    <string name="kairo_shader_sharp_bilinear">Sharp bilinear</string>
+    <string name="kairo_shader_sharp_bilinear">샤프 바이리니어</string>
     <!-- EN: Sharp bilinear + scanlines -->
-    <string name="kairo_shader_sharp_bilinear_scanlines">Sharp bilinear + scanlines</string>
+    <string name="kairo_shader_sharp_bilinear_scanlines">샤프 바이리니어 + 스캔라인</string>
     <!-- EN: CRT EasyMode -->
     <string name="kairo_shader_crt_easymode">CRT EasyMode</string>
     <!-- EN: Import shader pack… -->
-    <string name="kairo_shader_import">Import shader pack…</string>
+    <string name="kairo_shader_import">셰이더 팩 가져오기…</string>
     <!-- EN: Importing… -->
-    <string name="kairo_shader_importing">Importing…</string>
+    <string name="kairo_shader_importing">가져오는 중…</string>
     <!-- EN: Imports RetroArch Slang presets (.slangp) from a ZIP file. -->
-    <string name="kairo_shader_import_foot">Imports RetroArch Slang presets (.slangp) from a ZIP file.</string>
+    <string name="kairo_shader_import_foot">ZIP 파일에서 RetroArch Slang 프리셋(.slangp)을 가져옵니다.</string>
     <!-- EN: Could not prepare built-in shader -->
-    <string name="kairo_shader_builtin_failed">Could not prepare built-in shader</string>
+    <string name="kairo_shader_builtin_failed">기본 제공 셰이더를 준비할 수 없습니다</string>
     <!-- %1$s is the preset's path within its pack. -->
     <!-- EN: Shader set to %1$s -->
-    <string name="kairo_shader_set">Shader set to %1$s</string>
+    <string name="kairo_shader_set">셰이더를 %1$s(으)로 설정함</string>
     <!-- EN: Could not import shader pack -->
-    <string name="kairo_shader_import_failed">Could not import shader pack</string>
+    <string name="kairo_shader_import_failed">셰이더 팩을 가져올 수 없습니다</string>
     <!-- EN: Shader ZIP contains an unsafe path -->
-    <string name="kairo_shader_zip_unsafe">Shader ZIP contains an unsafe path</string>
+    <string name="kairo_shader_zip_unsafe">셰이더 ZIP에 안전하지 않은 경로가 있습니다</string>
     <!-- EN: Shader ZIP contains too many files -->
-    <string name="kairo_shader_zip_too_many">Shader ZIP contains too many files</string>
+    <string name="kairo_shader_zip_too_many">셰이더 ZIP에 파일이 너무 많습니다</string>
     <!-- EN: Shader ZIP is too large -->
-    <string name="kairo_shader_zip_too_large">Shader ZIP is too large</string>
+    <string name="kairo_shader_zip_too_large">셰이더 ZIP이 너무 큽니다</string>
     <!-- EN: Could not open shader ZIP -->
-    <string name="kairo_shader_zip_unreadable">Could not open shader ZIP</string>
+    <string name="kairo_shader_zip_unreadable">셰이더 ZIP을 열 수 없습니다</string>
     <!-- EN: Shader ZIP contains no .slangp presets -->
-    <string name="kairo_shader_zip_no_presets">Shader ZIP contains no .slangp presets</string>
+    <string name="kairo_shader_zip_no_presets">셰이더 ZIP에 .slangp 프리셋이 없습니다</string>
 </resources>

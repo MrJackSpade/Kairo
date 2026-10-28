@@ -2,25 +2,25 @@
 <!-- Indonesian (in): the translation of values/strings.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: On -->
-    <string name="kairo_on">On</string>
+    <string name="kairo_on">Aktif</string>
     <!-- EN: Off -->
-    <string name="kairo_off">Off</string>
+    <string name="kairo_off">Nonaktif</string>
     <!-- EN: Auto -->
-    <string name="kairo_auto">Auto</string>
+    <string name="kairo_auto">Otomatis</string>
     <!-- EN: Empty -->
-    <string name="kairo_empty">Empty</string>
+    <string name="kairo_empty">Kosong</string>
     <!-- EN: Default -->
     <string name="kairo_default">Default</string>
     <!-- EN: Cancel -->
-    <string name="kairo_cancel">Cancel</string>
+    <string name="kairo_cancel">Batal</string>
     <!-- EN: Remove -->
-    <string name="kairo_remove">Remove</string>
+    <string name="kairo_remove">Hapus</string>
     <!-- EN: Missing -->
-    <string name="kairo_missing">Missing</string>
+    <string name="kairo_missing">Tidak ada</string>
     <!-- EN: Installed -->
-    <string name="kairo_installed">Installed</string>
+    <string name="kairo_installed">Terpasang</string>
     <!-- EN: Continue -->
-    <string name="kairo_continue">Continue</string>
+    <string name="kairo_continue">Lanjutkan</string>
     <!-- EN: Keyboard -->
     <string name="kairo_keyboard">Keyboard</string>
     <!-- EN: Mouse -->
@@ -31,14 +31,14 @@
     <!-- EN: ", " -->
     <string name="kairo_list_separator">", "</string>
     <!-- EN: " or " -->
-    <string name="kairo_list_or">" or "</string>
+    <string name="kairo_list_or">" atau "</string>
     <!-- EN: games folder -->
-    <string name="kairo_games_folder">games folder</string>
+    <string name="kairo_games_folder">folder game</string>
     <!-- EN: No games folder selected -->
-    <string name="kairo_no_games_folder">No games folder selected</string>
+    <string name="kairo_no_games_folder">Belum ada folder game yang dipilih</string>
     <!-- EN: Skip memory check -->
-    <string name="kairo_option_skip_memory_check">Skip memory check</string>
+    <string name="kairo_option_skip_memory_check">Lewati pemeriksaan memori</string>
     <!-- A firmware file that is not installed but another installed file stands in for. -->
     <!-- EN: Covered by %1$s -->
-    <string name="kairo_firmware_covered_by">Covered by %1$s</string>
+    <string name="kairo_firmware_covered_by">Digantikan oleh %1$s</string>
 </resources>

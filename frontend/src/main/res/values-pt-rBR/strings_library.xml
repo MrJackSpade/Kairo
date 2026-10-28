@@ -3,41 +3,41 @@
 <resources>
     <!-- Scan status. The path is the file the scan reads. -->
     <!-- EN: Hashing %1$d of %2$d: %3$s -->
-    <string name="kairo_scan_hashing">Hashing %1$d of %2$d: %3$s</string>
+    <string name="kairo_scan_hashing">Calculando hash %1$d de %2$d: %3$s</string>
     <!-- EN: Confirming %1$d of %2$d: %3$s -->
-    <string name="kairo_scan_confirming">Confirming %1$d of %2$d: %3$s</string>
+    <string name="kairo_scan_confirming">Confirmando %1$d de %2$d: %3$s</string>
     <!-- EN: Hashing %1$s -->
-    <string name="kairo_scan_hashing_file">Hashing %1$s</string>
+    <string name="kairo_scan_hashing_file">Calculando hash de %1$s</string>
     <!-- A large file's status, then how much of it is read. -->
     <!-- EN: %1$s %2$d%% -->
     <string name="kairo_scan_percent">%1$s %2$d%%</string>
     <!-- EN: Library cache unreadable; rescanning every file -->
-    <string name="kairo_scan_cache_unreadable">Library cache unreadable; rescanning every file</string>
+    <string name="kairo_scan_cache_unreadable">Cache da biblioteca ilegível; verificando todos os arquivos de novo</string>
     <!-- EN: Skipping unreadable folder: %1$s -->
-    <string name="kairo_scan_skipping_folder">Skipping unreadable folder: %1$s</string>
+    <string name="kairo_scan_skipping_folder">Pulando pasta ilegível: %1$s</string>
     <!-- The folders listed so far, then the media files found in them (kairo_scan_folders, kairo_scan_media_files). -->
     <!-- EN: Checking the games folder: %1$s, %2$s -->
-    <string name="kairo_scan_listing">Checking the games folder: %1$s, %2$s</string>
+    <string name="kairo_scan_listing">Verificando a pasta de jogos: %1$s, %2$s</string>
     <plurals name="kairo_scan_folders">
         <!-- EN: %1$d folders -->
-        <item quantity="one">%1$d folders</item>
+        <item quantity="one">%1$d pasta</item>
         <!-- EN: %1$d folders -->
-        <item quantity="many">%1$d folders</item>
+        <item quantity="many">%1$d de pastas</item>
         <!-- EN: %1$d folders -->
-        <item quantity="other">%1$d folders</item>
+        <item quantity="other">%1$d pastas</item>
     </plurals>
     <plurals name="kairo_scan_media_files">
         <!-- EN: %1$d media files -->
-        <item quantity="one">%1$d media files</item>
+        <item quantity="one">%1$d arquivo de mídia</item>
         <!-- EN: %1$d media files -->
-        <item quantity="many">%1$d media files</item>
+        <item quantity="many">%1$d de arquivos de mídia</item>
         <!-- EN: %1$d media files -->
-        <item quantity="other">%1$d media files</item>
+        <item quantity="other">%1$d arquivos de mídia</item>
     </plurals>
     <!-- EN: Game folder is too deep -->
-    <string name="kairo_scan_too_deep">Game folder is too deep</string>
+    <string name="kairo_scan_too_deep">A pasta do jogo tem níveis demais</string>
     <!-- EN: Game folder has too many files -->
-    <string name="kairo_scan_too_many_files">Game folder has too many files</string>
+    <string name="kairo_scan_too_many_files">A pasta do jogo tem arquivos demais</string>
     <!-- A scan's summary: kairo_library_games, then kairo_library_hashes. -->
     <!-- EN: %1$s · %2$s -->
     <string name="kairo_library_summary">%1$s · %2$s</string>
@@ -46,54 +46,54 @@
     <string name="kairo_library_summary_unreadable">%1$s · %2$s · %3$s</string>
     <plurals name="kairo_library_games">
         <!-- EN: %1$d games -->
-        <item quantity="one">%1$d games</item>
+        <item quantity="one">%1$d jogo</item>
         <!-- EN: %1$d games -->
-        <item quantity="many">%1$d games</item>
+        <item quantity="many">%1$d de jogos</item>
         <!-- EN: %1$d games -->
-        <item quantity="other">%1$d games</item>
+        <item quantity="other">%1$d jogos</item>
     </plurals>
     <plurals name="kairo_library_unreadable">
         <!-- EN: %1$d unreadable -->
-        <item quantity="one">%1$d unreadable</item>
+        <item quantity="one">%1$d ilegível</item>
         <!-- EN: %1$d unreadable -->
-        <item quantity="many">%1$d unreadable</item>
+        <item quantity="many">%1$d de ilegíveis</item>
         <!-- EN: %1$d unreadable -->
-        <item quantity="other">%1$d unreadable</item>
+        <item quantity="other">%1$d ilegíveis</item>
     </plurals>
     <plurals name="kairo_library_hashes">
         <!-- EN: %1$d hashes this scan -->
-        <item quantity="one">%1$d hashes this scan</item>
+        <item quantity="one">%1$d hash nesta verificação</item>
         <!-- EN: %1$d hashes this scan -->
-        <item quantity="many">%1$d hashes this scan</item>
+        <item quantity="many">%1$d de hashes nesta verificação</item>
         <!-- EN: %1$d hashes this scan -->
-        <item quantity="other">%1$d hashes this scan</item>
+        <item quantity="other">%1$d hashes nesta verificação</item>
     </plurals>
     <!-- EN: Loading library… -->
-    <string name="kairo_library_loading">Loading library…</string>
+    <string name="kairo_library_loading">Carregando biblioteca…</string>
     <!-- The reason the cached library could not be read. -->
     <!-- EN: Library cache unreadable: %1$s -->
-    <string name="kairo_library_cache_unreadable">Library cache unreadable: %1$s</string>
+    <string name="kairo_library_cache_unreadable">Cache da biblioteca ilegível: %1$s</string>
     <!-- EN: Could not open folder chooser -->
-    <string name="kairo_library_chooser_failed">Could not open folder chooser</string>
+    <string name="kairo_library_chooser_failed">Não foi possível abrir o seletor de pastas</string>
     <!-- EN: Cannot keep folder access: %1$s -->
-    <string name="kairo_library_access_failed">Cannot keep folder access: %1$s</string>
+    <string name="kairo_library_access_failed">Não é possível manter o acesso à pasta: %1$s</string>
     <!-- EN: Rehashing folder… -->
-    <string name="kairo_library_rehashing">Rehashing folder…</string>
+    <string name="kairo_library_rehashing">Recalculando hashes da pasta…</string>
     <!-- EN: Checking the games folder… -->
-    <string name="kairo_library_checking">Checking the games folder…</string>
+    <string name="kairo_library_checking">Verificando a pasta de jogos…</string>
     <!-- EN: Scan failed: %1$s -->
-    <string name="kairo_library_scan_failed">Scan failed: %1$s</string>
+    <string name="kairo_library_scan_failed">Falha na verificação: %1$s</string>
     <!-- EN: Unknown error -->
-    <string name="kairo_unknown_error">Unknown error</string>
+    <string name="kairo_unknown_error">Erro desconhecido</string>
     <!-- EN: Could not save library: %1$s -->
-    <string name="kairo_library_save_failed">Could not save library: %1$s</string>
+    <string name="kairo_library_save_failed">Não foi possível salvar a biblioteca: %1$s</string>
     <!-- Library menu. -->
     <!-- EN: Refresh -->
-    <string name="kairo_library_refresh">Refresh</string>
+    <string name="kairo_library_refresh">Atualizar</string>
     <!-- EN: Manage library -->
-    <string name="kairo_library_manage">Manage library</string>
+    <string name="kairo_library_manage">Gerenciar biblioteca</string>
     <!-- EN: Choose one in Manage library -->
-    <string name="kairo_library_choose_in_manage">Choose one in Manage library</string>
+    <string name="kairo_library_choose_in_manage">Escolha uma em Gerenciar biblioteca</string>
     <!-- The games folder's name (kairo_games_folder or the app's own), then kairo_library_games. -->
     <!-- EN: %1$s · %2$s -->
     <string name="kairo_library_status">%1$s · %2$s</string>
@@ -101,221 +101,221 @@
     <!-- EN: %1$s · %2$s · %3$s -->
     <string name="kairo_library_status_unreadable">%1$s · %2$s · %3$s</string>
     <!-- EN: SOURCE -->
-    <string name="kairo_library_source_group">SOURCE</string>
+    <string name="kairo_library_source_group">ORIGEM</string>
     <!-- EN: Choose folder… -->
-    <string name="kairo_library_choose_folder">Choose folder…</string>
+    <string name="kairo_library_choose_folder">Escolher pasta…</string>
     <!-- EN: Scanning… -->
-    <string name="kairo_library_scanning">Scanning…</string>
+    <string name="kairo_library_scanning">Verificando…</string>
     <!-- EN: Recheck all files -->
-    <string name="kairo_library_recheck">Recheck all files</string>
+    <string name="kairo_library_recheck">Verificar todos os arquivos de novo</string>
     <!-- EN: Checking… -->
-    <string name="kairo_checking">Checking…</string>
+    <string name="kairo_checking">Verificando…</string>
     <!-- EN: Refresh finds added and removed games. Recheck all files identifies every file again. -->
-    <string name="kairo_library_source_foot">Refresh finds added and removed games. Recheck all files identifies every file again.</string>
+    <string name="kairo_library_source_foot">Atualizar encontra jogos adicionados e removidos. Verificar todos os arquivos de novo identifica cada arquivo outra vez.</string>
     <!-- The library screen. -->
     <!-- EN: Library menu -->
-    <string name="kairo_library_menu">Library menu</string>
+    <string name="kairo_library_menu">Menu da biblioteca</string>
     <!-- EN: Search games -->
-    <string name="kairo_library_search">Search games</string>
+    <string name="kairo_library_search">Pesquisar jogos</string>
     <!-- An unreadable entry: its file, then why it could not be read. -->
     <!-- EN: "%1$s  ·  %2$s. Fix the source, then Refresh." -->
-    <string name="kairo_library_entry_error">"%1$s  ·  %2$s. Fix the source, then Refresh."</string>
+    <string name="kairo_library_entry_error">"%1$s  ·  %2$s. Corrija a origem e toque em Atualizar."</string>
     <!-- The search text. -->
     <!-- EN: No games match “%1$s” -->
-    <string name="kairo_library_no_match">No games match “%1$s”</string>
+    <string name="kairo_library_no_match">Nenhum jogo corresponde a “%1$s”</string>
     <!-- EN: CONTINUE -->
-    <string name="kairo_library_continue_group">CONTINUE</string>
+    <string name="kairo_library_continue_group">CONTINUAR</string>
     <!-- EN: ALL GAMES -->
-    <string name="kairo_library_all_games_group">ALL GAMES</string>
+    <string name="kairo_library_all_games_group">TODOS OS JOGOS</string>
     <!-- A game's page. -->
     <!-- EN: Back to game library -->
-    <string name="kairo_detail_back">Back to game library</string>
+    <string name="kairo_detail_back">Voltar à biblioteca de jogos</string>
     <!-- EN: Library -->
-    <string name="kairo_detail_library">Library</string>
+    <string name="kairo_detail_library">Biblioteca</string>
     <!-- EN: View screenshot -->
-    <string name="kairo_detail_view_screenshot">View screenshot</string>
+    <string name="kairo_detail_view_screenshot">Ver captura de tela</string>
     <!-- EN: Game screenshot -->
-    <string name="kairo_detail_screenshot">Game screenshot</string>
+    <string name="kairo_detail_screenshot">Captura de tela do jogo</string>
     <!-- EN: No screenshot available -->
-    <string name="kairo_detail_no_screenshot">No screenshot available</string>
+    <string name="kairo_detail_no_screenshot">Nenhuma captura de tela disponível</string>
     <!-- EN: Loading screenshot… -->
-    <string name="kairo_detail_loading_screenshot">Loading screenshot…</string>
+    <string name="kairo_detail_loading_screenshot">Carregando captura de tela…</string>
     <!-- EN: Screenshot unavailable -->
-    <string name="kairo_detail_screenshot_unavailable">Screenshot unavailable</string>
+    <string name="kairo_detail_screenshot_unavailable">Captura de tela indisponível</string>
     <!-- EN: Play -->
-    <string name="kairo_detail_play">Play</string>
+    <string name="kairo_detail_play">Jogar</string>
     <!-- EN: DOS prompt or run program -->
-    <string name="kairo_detail_command">DOS prompt or run program</string>
+    <string name="kairo_detail_command">Prompt do DOS ou executar programa</string>
     <!-- EN: No description available yet. -->
-    <string name="kairo_detail_no_description">No description available yet.</string>
+    <string name="kairo_detail_no_description">Ainda não há descrição.</string>
     <!-- The game's file. -->
     <!-- EN: File: %1$s -->
-    <string name="kairo_detail_file">File: %1$s</string>
+    <string name="kairo_detail_file">Arquivo: %1$s</string>
     <!-- Why the game cannot be played (its error, or kairo_detail_unchecked). -->
     <!-- EN: Can’t play: %1$s. Fix the file, then Refresh from the library menu. -->
-    <string name="kairo_detail_unplayable">Can’t play: %1$s. Fix the file, then Refresh from the library menu.</string>
+    <string name="kairo_detail_unplayable">Não é possível jogar: %1$s. Corrija o arquivo e toque em Atualizar no menu da biblioteca.</string>
     <!-- EN: this file has not been checked yet -->
-    <string name="kairo_detail_unchecked">this file has not been checked yet</string>
+    <string name="kairo_detail_unchecked">este arquivo ainda não foi verificado</string>
     <!-- A game file another app sends. The file's name. -->
     <!-- EN: Opening %1$s… -->
-    <string name="kairo_external_opening">Opening %1$s…</string>
+    <string name="kairo_external_opening">Abrindo %1$s…</string>
     <!-- The file's name, then why it could not be opened. -->
     <!-- EN: Could not open %1$s: %2$s -->
-    <string name="kairo_external_open_failed">Could not open %1$s: %2$s</string>
+    <string name="kairo_external_open_failed">Não foi possível abrir %1$s: %2$s</string>
     <!-- EN: Invalid game file -->
-    <string name="kairo_external_invalid">Invalid game file</string>
+    <string name="kairo_external_invalid">Arquivo de jogo inválido</string>
     <!-- EN: Game file has no usable name -->
-    <string name="kairo_external_no_name">Game file has no usable name</string>
+    <string name="kairo_external_no_name">O arquivo de jogo não tem um nome utilizável</string>
     <!-- Deleting a game's source from Game settings. -->
     <!-- EN: Delete game file -->
-    <string name="kairo_delete_game_file">Delete game file</string>
+    <string name="kairo_delete_game_file">Excluir arquivo do jogo</string>
     <!-- EN: Delete game folder -->
-    <string name="kairo_delete_game_folder">Delete game folder</string>
+    <string name="kairo_delete_game_folder">Excluir pasta do jogo</string>
     <!-- EN: Exit this game before deleting its source file -->
-    <string name="kairo_delete_exit_first">Exit this game before deleting its source file</string>
+    <string name="kairo_delete_exit_first">Saia deste jogo antes de excluir o arquivo de origem dele</string>
     <!-- The games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: Select the same %1$s again and grant write access before deleting game files. -->
-    <string name="kairo_delete_grant">Select the same %1$s again and grant write access before deleting game files.</string>
+    <string name="kairo_delete_grant">Selecione a mesma %1$s de novo e conceda acesso de gravação antes de excluir arquivos de jogos.</string>
     <!-- The games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: Choose %1$s… -->
-    <string name="kairo_choose_named">Choose %1$s…</string>
+    <string name="kairo_choose_named">Escolher %1$s…</string>
     <!-- The game's path in the games folder. -->
     <!-- EN: Delete %1$s from device storage? -->
-    <string name="kairo_delete_question">Delete %1$s from device storage?</string>
+    <string name="kairo_delete_question">Excluir %1$s do armazenamento do dispositivo?</string>
     <!-- EN: This removes the folder and everything inside it. -->
-    <string name="kairo_delete_folder_warning">This removes the folder and everything inside it.</string>
+    <string name="kairo_delete_folder_warning">Isso remove a pasta e tudo o que há nela.</string>
     <!-- EN: This cannot be undone. Game settings and saves are kept. -->
-    <string name="kairo_delete_permanent">This cannot be undone. Game settings and saves are kept.</string>
+    <string name="kairo_delete_permanent">Esta ação não pode ser desfeita. As configurações e os jogos salvos são mantidos.</string>
     <plurals name="kairo_delete_zip_entries">
         <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
-        <item quantity="one">This ZIP contains %1$d library entries. All of them will be removed.</item>
+        <item quantity="one">Este ZIP contém %1$d entrada da biblioteca. Ela será removida.</item>
         <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
-        <item quantity="many">This ZIP contains %1$d library entries. All of them will be removed.</item>
+        <item quantity="many">Este ZIP contém %1$d de entradas da biblioteca. Todas serão removidas.</item>
         <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
-        <item quantity="other">This ZIP contains %1$d library entries. All of them will be removed.</item>
+        <item quantity="other">Este ZIP contém %1$d entradas da biblioteca. Todas serão removidas.</item>
     </plurals>
     <!-- EN: Delete -->
-    <string name="kairo_delete">Delete</string>
+    <string name="kairo_delete">Excluir</string>
     <!-- The game's path in the games folder. -->
     <!-- EN: Deleting %1$s… -->
-    <string name="kairo_deleting">Deleting %1$s…</string>
+    <string name="kairo_deleting">Excluindo %1$s…</string>
     <!-- EN: Could not delete game file -->
-    <string name="kairo_delete_failed">Could not delete game file</string>
+    <string name="kairo_delete_failed">Não foi possível excluir o arquivo do jogo</string>
     <!-- Files the player picks. -->
     <!-- EN: Could not open file chooser -->
-    <string name="kairo_file_chooser_failed">Could not open file chooser</string>
+    <string name="kairo_file_chooser_failed">Não foi possível abrir o seletor de arquivos</string>
     <!-- EN: That file is empty -->
-    <string name="kairo_import_file_empty">That file is empty</string>
+    <string name="kairo_import_file_empty">Esse arquivo está vazio</string>
     <!-- EN: Could not open that file -->
-    <string name="kairo_import_open_failed">Could not open that file</string>
+    <string name="kairo_import_open_failed">Não foi possível abrir esse arquivo</string>
     <!-- The imported file's name. -->
     <!-- EN: %1$s imported and chosen -->
-    <string name="kairo_import_chosen">%1$s imported and chosen</string>
+    <string name="kairo_import_chosen">%1$s importado e escolhido</string>
     <!-- What was imported, such as Font or TOS, then why it failed. -->
     <!-- EN: %1$s import failed: %2$s -->
-    <string name="kairo_import_failed">%1$s import failed: %2$s</string>
+    <string name="kairo_import_failed">Falha ao importar %1$s: %2$s</string>
     <!-- EN: Retry -->
-    <string name="kairo_retry">Retry</string>
+    <string name="kairo_retry">Tentar de novo</string>
     <!-- EN: Loading files… -->
-    <string name="kairo_files_loading">Loading files…</string>
+    <string name="kairo_files_loading">Carregando arquivos…</string>
     <!-- EN: No files here -->
-    <string name="kairo_files_none">No files here</string>
+    <string name="kairo_files_none">Nenhum arquivo aqui</string>
     <!-- EN: Could not list files -->
-    <string name="kairo_files_list_failed">Could not list files</string>
+    <string name="kairo_files_list_failed">Não foi possível listar os arquivos</string>
     <!-- A newer release of the app. -->
     <!-- EN: Update available -->
-    <string name="kairo_update_available">Update available</string>
+    <string name="kairo_update_available">Atualização disponível</string>
     <!-- The app's name, the new version, then the installed version. -->
     <!-- EN: %1$s %2$s is available. You have %3$s. -->
-    <string name="kairo_update_available_text">%1$s %2$s is available. You have %3$s.</string>
+    <string name="kairo_update_available_text">%1$s %2$s está disponível. Você tem a %3$s.</string>
     <!-- EN: Not now -->
-    <string name="kairo_update_not_now">Not now</string>
+    <string name="kairo_update_not_now">Agora não</string>
     <!-- EN: Skip this version -->
-    <string name="kairo_update_skip">Skip this version</string>
+    <string name="kairo_update_skip">Pular esta versão</string>
     <!-- EN: View release -->
-    <string name="kairo_update_view">View release</string>
+    <string name="kairo_update_view">Ver versão</string>
     <!-- The release page's address. -->
     <!-- EN: No app can open %1$s -->
-    <string name="kairo_update_no_app">No app can open %1$s</string>
+    <string name="kairo_update_no_app">Nenhum app pode abrir %1$s</string>
     <!-- Disk images in the games folder, and why one cannot be read or played. -->
     <!-- The disk a game needs, such as CD or boot floppy. -->
     <!-- EN: The %1$s this game needs is not in the library -->
-    <string name="kairo_companion_missing">The %1$s this game needs is not in the library</string>
+    <string name="kairo_companion_missing">O %1$s de que este jogo precisa não está na biblioteca</string>
     <!-- A game's working copy of its disk, in a list of saves to keep. -->
     <!-- EN: Disk -->
-    <string name="kairo_disk_working_copy">Disk</string>
+    <string name="kairo_disk_working_copy">Disco</string>
     <!-- The file's name. -->
     <!-- EN: %1$s needs its track data; open its folder or an archive that holds both -->
-    <string name="kairo_disk_needs_track_data">%1$s needs its track data; open its folder or an archive that holds both</string>
+    <string name="kairo_disk_needs_track_data">%1$s precisa dos dados de faixa; abra a pasta dele ou um arquivo compactado que contenha os dois</string>
     <!-- The file's name. -->
     <!-- EN: %1$s runs from its folder; choose the games folder that holds it -->
-    <string name="kairo_disk_runs_from_folder">%1$s runs from its folder; choose the games folder that holds it</string>
+    <string name="kairo_disk_runs_from_folder">%1$s é executado a partir da pasta dele; escolha a pasta de jogos que o contém</string>
     <!-- The machine's name, such as PC-88, then the file's name. -->
     <!-- EN: Unsupported %1$s game file: %2$s -->
-    <string name="kairo_disk_unsupported_file">Unsupported %1$s game file: %2$s</string>
+    <string name="kairo_disk_unsupported_file">Arquivo de jogo de %1$s incompatível: %2$s</string>
     <!-- The machine's name, such as PC-88, then the file's name. -->
     <!-- EN: No %1$s disk image in %2$s -->
-    <string name="kairo_disk_no_image_in">No %1$s disk image in %2$s</string>
+    <string name="kairo_disk_no_image_in">Nenhuma imagem de disco de %1$s em %2$s</string>
     <!-- Why the folder could not be read. -->
     <!-- EN: Unreadable folder: %1$s -->
-    <string name="kairo_disk_unreadable_folder">Unreadable folder: %1$s</string>
+    <string name="kairo_disk_unreadable_folder">Pasta ilegível: %1$s</string>
     <!-- EN: Disk image unreadable -->
-    <string name="kairo_disk_image_unreadable">Disk image unreadable</string>
+    <string name="kairo_disk_image_unreadable">Imagem de disco ilegível</string>
     <!-- EN: Archive unreadable -->
-    <string name="kairo_disk_archive_unreadable">Archive unreadable</string>
+    <string name="kairo_disk_archive_unreadable">Arquivo compactado ilegível</string>
     <!-- The descriptor's file name. -->
     <!-- EN: The track data of %1$s is missing -->
-    <string name="kairo_disk_track_data_missing">The track data of %1$s is missing</string>
+    <string name="kairo_disk_track_data_missing">Os dados de faixa de %1$s estão ausentes</string>
     <!-- The descriptor's name in the archive. -->
     <!-- EN: The track data of %1$s is missing from the archive -->
-    <string name="kairo_disk_track_data_missing_archive">The track data of %1$s is missing from the archive</string>
+    <string name="kairo_disk_track_data_missing_archive">Os dados de faixa de %1$s estão ausentes do arquivo compactado</string>
     <!-- A file's name in the archive. -->
     <!-- EN: %1$s is missing from the archive -->
-    <string name="kairo_disk_member_missing">%1$s is missing from the archive</string>
+    <string name="kairo_disk_member_missing">%1$s está ausente do arquivo compactado</string>
     <!-- EN: Not enough free space for this disk image -->
-    <string name="kairo_disk_no_space_image">Not enough free space for this disk image</string>
+    <string name="kairo_disk_no_space_image">Não há espaço livre suficiente para esta imagem de disco</string>
     <!-- EN: Not enough free space for this game\'s folder -->
-    <string name="kairo_disk_no_space_folder">Not enough free space for this game\'s folder</string>
+    <string name="kairo_disk_no_space_folder">Não há espaço livre suficiente para a pasta deste jogo</string>
     <!-- The disk or program being copied for the game to play from. -->
     <!-- EN: Preparing %1$s -->
-    <string name="kairo_disk_preparing">Preparing %1$s</string>
+    <string name="kairo_disk_preparing">Preparando %1$s</string>
     <!-- EN: Disk image changed since it was scanned; use Recheck all files in Manage library -->
-    <string name="kairo_disk_image_changed">Disk image changed since it was scanned; use Recheck all files in Manage library</string>
+    <string name="kairo_disk_image_changed">A imagem de disco mudou desde a verificação; use Verificar todos os arquivos de novo em Gerenciar biblioteca</string>
     <!-- EN: Archive changed since it was scanned; use Recheck all files in Manage library -->
-    <string name="kairo_disk_archive_changed">Archive changed since it was scanned; use Recheck all files in Manage library</string>
+    <string name="kairo_disk_archive_changed">O arquivo compactado mudou desde a verificação; use Verificar todos os arquivos de novo em Gerenciar biblioteca</string>
     <!-- EN: The games folder\'s storage cannot read archives in place -->
-    <string name="kairo_disk_archive_not_seekable">The games folder\'s storage cannot read archives in place</string>
+    <string name="kairo_disk_archive_not_seekable">O armazenamento da pasta de jogos não consegue ler arquivos compactados no local</string>
     <!-- EN: Archive has too many disk images -->
-    <string name="kairo_disk_archive_too_many_images">Archive has too many disk images</string>
+    <string name="kairo_disk_archive_too_many_images">O arquivo compactado tem imagens de disco demais</string>
     <!-- EN: Archive has too many entries -->
-    <string name="kairo_disk_archive_too_many_entries">Archive has too many entries</string>
+    <string name="kairo_disk_archive_too_many_entries">O arquivo compactado tem entradas demais</string>
     <!-- EN: Duplicate archive entry -->
-    <string name="kairo_disk_archive_duplicate">Duplicate archive entry</string>
+    <string name="kairo_disk_archive_duplicate">Entrada duplicada no arquivo compactado</string>
     <!-- EN: Archive exceeds size limit -->
-    <string name="kairo_disk_archive_too_large">Archive exceeds size limit</string>
+    <string name="kairo_disk_archive_too_large">O arquivo compactado excede o limite de tamanho</string>
     <!-- EN: Archive entry checksum mismatch -->
-    <string name="kairo_disk_archive_checksum">Archive entry checksum mismatch</string>
+    <string name="kairo_disk_archive_checksum">Checksum de entrada do arquivo compactado não confere</string>
     <!-- EN: Disk image exceeds size limit -->
-    <string name="kairo_disk_image_too_large">Disk image exceeds size limit</string>
+    <string name="kairo_disk_image_too_large">A imagem de disco excede o limite de tamanho</string>
     <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">Disk image exceeds expansion limit</string>
+    <string name="kairo_disk_image_expansion">A imagem de disco excede o limite de expansão</string>
     <!-- EN: Empty disk image -->
-    <string name="kairo_disk_image_empty">Empty disk image</string>
+    <string name="kairo_disk_image_empty">Imagem de disco vazia</string>
     <!-- EN: Disk image size changed during read -->
-    <string name="kairo_disk_image_size_changed">Disk image size changed during read</string>
+    <string name="kairo_disk_image_size_changed">O tamanho da imagem de disco mudou durante a leitura</string>
     <!-- About. -->
     <!-- EN: APP -->
     <string name="kairo_about_app_group">APP</string>
     <!-- EN: Version -->
-    <string name="kairo_about_version">Version</string>
+    <string name="kairo_about_version">Versão</string>
     <!-- EN: SHORTCUTS -->
-    <string name="kairo_about_shortcuts_group">SHORTCUTS</string>
+    <string name="kairo_about_shortcuts_group">ATALHOS</string>
     <!-- EN: LEGAL -->
-    <string name="kairo_about_legal_group">LEGAL</string>
+    <string name="kairo_about_legal_group">JURÍDICO</string>
     <!-- EN: Third-party licenses -->
-    <string name="kairo_about_licenses">Third-party licenses</string>
+    <string name="kairo_about_licenses">Licenças de terceiros</string>
     <!-- EN: Privacy policy -->
-    <string name="kairo_about_privacy">Privacy policy</string>
+    <string name="kairo_about_privacy">Política de privacidade</string>
     <!-- EN: This document could not be opened. -->
-    <string name="kairo_about_document_failed">This document could not be opened.</string>
+    <string name="kairo_about_document_failed">Não foi possível abrir este documento.</string>
 </resources>

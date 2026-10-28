@@ -2,92 +2,92 @@
 <!-- Japanese (ja): the translation of values/strings_artwork.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Box art -->
-    <string name="kairo_artwork_box_art">Box art</string>
+    <string name="kairo_artwork_box_art">パッケージ画像</string>
     <!-- EN: Screenshot -->
-    <string name="kairo_artwork_screenshot">Screenshot</string>
+    <string name="kairo_artwork_screenshot">スクリーンショット</string>
     <!-- EN: View -->
-    <string name="kairo_artwork_view">View</string>
+    <string name="kairo_artwork_view">表示</string>
     <!-- EN: Replace… -->
-    <string name="kairo_artwork_replace">Replace…</string>
+    <string name="kairo_artwork_replace">置き換え…</string>
     <!-- EN: Choose image… -->
-    <string name="kairo_artwork_choose">Choose image…</string>
+    <string name="kairo_artwork_choose">画像を選択…</string>
     <!-- EN: Could not import image -->
-    <string name="kairo_artwork_import_failed">Could not import image</string>
+    <string name="kairo_artwork_import_failed">画像をインポートできませんでした</string>
     <!-- EN: Artwork reset -->
-    <string name="kairo_artwork_reset_done">Artwork reset</string>
+    <string name="kairo_artwork_reset_done">画像をリセットしました</string>
     <!-- EN: Artwork saved -->
-    <string name="kairo_artwork_saved">Artwork saved</string>
+    <string name="kairo_artwork_saved">画像を保存しました</string>
     <!-- EN: Could not save artwork -->
-    <string name="kairo_artwork_save_failed">Could not save artwork</string>
+    <string name="kairo_artwork_save_failed">画像を保存できませんでした</string>
     <!-- The image's kind in lower case: kairo_artwork_box_art or kairo_artwork_screenshot. -->
     <!-- EN: No %1$s available -->
-    <string name="kairo_artwork_none_available">No %1$s available</string>
+    <string name="kairo_artwork_none_available">%1$sはありません</string>
     <!-- EN: Image unavailable -->
-    <string name="kairo_artwork_unavailable">Image unavailable</string>
+    <string name="kairo_artwork_unavailable">画像を表示できません</string>
     <!-- EN: Tap image to load a larger version -->
-    <string name="kairo_artwork_tap_larger">Tap image to load a larger version</string>
+    <string name="kairo_artwork_tap_larger">画像をタップすると大きいサイズを読み込みます</string>
     <!-- EN: Loading larger image… -->
-    <string name="kairo_artwork_loading_larger">Loading larger image…</string>
+    <string name="kairo_artwork_loading_larger">大きい画像を読み込んでいます…</string>
     <!-- EN: Could not load larger image -->
-    <string name="kairo_artwork_larger_failed">Could not load larger image</string>
+    <string name="kairo_artwork_larger_failed">大きい画像を読み込めませんでした</string>
     <!-- EN: Larger image loaded -->
-    <string name="kairo_artwork_larger_loaded">Larger image loaded</string>
+    <string name="kairo_artwork_larger_loaded">大きい画像を読み込みました</string>
     <!-- EN: ARTWORK -->
-    <string name="kairo_artwork_group">ARTWORK</string>
+    <string name="kairo_artwork_group">画像</string>
     <!-- EN: Download missing images -->
-    <string name="kairo_artwork_download">Download missing images</string>
+    <string name="kairo_artwork_download">不足している画像をダウンロード</string>
     <!-- EN: Stopping image download… -->
-    <string name="kairo_artwork_stopping">Stopping image download…</string>
+    <string name="kairo_artwork_stopping">画像のダウンロードを停止しています…</string>
     <!-- EN: Images are already downloading -->
-    <string name="kairo_artwork_already_running">Images are already downloading</string>
+    <string name="kairo_artwork_already_running">画像はすでにダウンロード中です</string>
     <!-- EN: Add games to the library first -->
-    <string name="kairo_artwork_no_games">Add games to the library first</string>
+    <string name="kairo_artwork_no_games">先にライブラリにゲームを追加してください</string>
     <!-- EN: Checking library artwork… -->
-    <string name="kairo_artwork_checking">Checking library artwork…</string>
+    <string name="kairo_artwork_checking">ライブラリの画像を確認しています…</string>
     <!-- Images done, then images to download. -->
     <!-- EN: Downloading images %1$d/%2$d -->
-    <string name="kairo_artwork_downloading">Downloading images %1$d/%2$d</string>
+    <string name="kairo_artwork_downloading">画像をダウンロード中 %1$d/%2$d</string>
     <!-- Images done, images to download, then images that failed. -->
     <!-- EN: Downloading images %1$d/%2$d · %3$d failed -->
-    <string name="kairo_artwork_downloading_failed">Downloading images %1$d/%2$d · %3$d failed</string>
+    <string name="kairo_artwork_downloading_failed">画像をダウンロード中 %1$d/%2$d · 失敗 %3$d</string>
     <!-- Images done, then images to download. -->
     <!-- EN: %1$d / %2$d -->
     <string name="kairo_artwork_progress">%1$d / %2$d</string>
     <!-- EN: Waiting… -->
-    <string name="kairo_artwork_waiting">Waiting…</string>
+    <string name="kairo_artwork_waiting">待機中…</string>
     <!-- The image server's host name. -->
     <!-- EN: Waiting for %1$s\'s rate limit… -->
-    <string name="kairo_artwork_waiting_for">Waiting for %1$s\'s rate limit…</string>
+    <string name="kairo_artwork_waiting_for">%1$s のレート制限を待っています…</string>
     <!-- EN: Image download failed: %1$s -->
-    <string name="kairo_artwork_download_failed">Image download failed: %1$s</string>
+    <string name="kairo_artwork_download_failed">画像のダウンロードに失敗しました: %1$s</string>
     <!-- EN: No missing catalog images for this library -->
-    <string name="kairo_artwork_none_missing_result">No missing catalog images for this library</string>
+    <string name="kairo_artwork_none_missing_result">このライブラリに不足しているカタログ画像はありません</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Image download stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped_result">Image download stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped_result">画像のダウンロードを停止しました · %1$d件保存</string>
     <plurals name="kairo_artwork_downloaded">
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="other">Downloaded %1$d images</item>
+        <item quantity="other">%1$d件の画像をダウンロードしました</item>
     </plurals>
     <!-- Images saved, images that failed, then why they failed (kairo_artwork_reason_count, separated by semicolons). -->
     <!-- EN: Downloaded %1$d images · %2$d failed: %3$s -->
-    <string name="kairo_artwork_downloaded_failed">Downloaded %1$d images · %2$d failed: %3$s</string>
+    <string name="kairo_artwork_downloaded_failed">%1$d件の画像をダウンロードしました · 失敗 %2$d件: %3$s</string>
     <!-- EN: Failed -->
-    <string name="kairo_artwork_failed">Failed</string>
+    <string name="kairo_artwork_failed">失敗</string>
     <!-- EN: None missing -->
-    <string name="kairo_artwork_none_missing">None missing</string>
+    <string name="kairo_artwork_none_missing">不足なし</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped">Stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped">停止 · %1$d件保存</string>
     <!-- EN: %1$d saved -->
-    <string name="kairo_artwork_saved_count">%1$d saved</string>
+    <string name="kairo_artwork_saved_count">%1$d件保存</string>
     <!-- Images saved, then images that failed. -->
     <!-- EN: %1$d saved · %2$d failed -->
-    <string name="kairo_artwork_saved_failed">%1$d saved · %2$d failed</string>
+    <string name="kairo_artwork_saved_failed">%1$d件保存 · 失敗 %2$d件</string>
     <!-- EN: No internet connection -->
-    <string name="kairo_artwork_no_internet">No internet connection</string>
+    <string name="kairo_artwork_no_internet">インターネットに接続されていません</string>
     <!-- EN: The image server did not respond -->
-    <string name="kairo_artwork_no_response">The image server did not respond</string>
+    <string name="kairo_artwork_no_response">画像サーバーが応答しませんでした</string>
     <!-- Why images failed, then how many failed for it. -->
     <!-- EN: %1$s (%2$d) -->
     <string name="kairo_artwork_reason_count">%1$s (%2$d)</string>

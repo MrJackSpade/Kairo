@@ -2,170 +2,170 @@
 <!-- Korean (ko): the translation of values/strings_session.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: No game -->
-    <string name="kairo_no_game">No game</string>
+    <string name="kairo_no_game">게임 없음</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: %1$s display -->
-    <string name="kairo_game_display">%1$s display</string>
+    <string name="kairo_game_display">%1$s 화면</string>
     <!-- EN: Back -->
-    <string name="kairo_back">Back</string>
+    <string name="kairo_back">뒤로</string>
     <!-- EN: Stop -->
-    <string name="kairo_task_stop">Stop</string>
+    <string name="kairo_task_stop">중지</string>
     <!-- EN: PAUSED -->
-    <string name="kairo_paused_banner">PAUSED</string>
+    <string name="kairo_paused_banner">일시중지됨</string>
     <!-- EN: Resumed -->
-    <string name="kairo_resumed">Resumed</string>
+    <string name="kairo_resumed">재개됨</string>
     <!-- The menus' SETTINGS rows. -->
     <!-- EN: Configurations -->
-    <string name="kairo_configurations">Configurations</string>
+    <string name="kairo_configurations">구성</string>
     <!-- EN: Sound -->
-    <string name="kairo_sound">Sound</string>
+    <string name="kairo_sound">사운드</string>
     <!-- EN: About -->
-    <string name="kairo_about">About</string>
+    <string name="kairo_about">정보</string>
     <!-- The game menu. %1$s is the app's name, such as Kairo88. -->
     <!-- EN: GAME -->
-    <string name="kairo_flyout_game_group">GAME</string>
+    <string name="kairo_flyout_game_group">게임</string>
     <!-- EN: SETTINGS -->
-    <string name="kairo_flyout_settings_group">SETTINGS</string>
+    <string name="kairo_flyout_settings_group">설정</string>
     <!-- EN: Game settings are available for games started from the library. -->
-    <string name="kairo_flyout_game_settings_library_only">Game settings are available for games started from the library.</string>
+    <string name="kairo_flyout_game_settings_library_only">게임 설정은 라이브러리에서 시작한 게임에서 사용할 수 있습니다.</string>
     <!-- EN: Restart game -->
-    <string name="kairo_flyout_restart">Restart game</string>
+    <string name="kairo_flyout_restart">게임 다시 시작</string>
     <!-- EN: Progress since your last save is lost. -->
-    <string name="kairo_flyout_restart_confirm">Progress since your last save is lost.</string>
+    <string name="kairo_flyout_restart_confirm">마지막 저장 이후의 진행 상황은 사라집니다.</string>
     <!-- EN: Exit %1$s -->
-    <string name="kairo_flyout_exit">Exit %1$s</string>
+    <string name="kairo_flyout_exit">%1$s 종료</string>
     <!-- EN: Exit %1$s? -->
-    <string name="kairo_flyout_exit_title">Exit %1$s?</string>
+    <string name="kairo_flyout_exit_title">%1$s을(를) 종료할까요?</string>
     <!-- EN: The machine stops. Progress since your last save is lost. -->
-    <string name="kairo_flyout_exit_confirm">The machine stops. Progress since your last save is lost.</string>
+    <string name="kairo_flyout_exit_confirm">머신이 중지됩니다. 마지막 저장 이후의 진행 상황은 사라집니다.</string>
     <!-- EN: Return to library -->
-    <string name="kairo_return_to_library">Return to library</string>
+    <string name="kairo_return_to_library">라이브러리로 돌아가기</string>
     <!-- EN: Return to library? -->
-    <string name="kairo_return_to_library_title">Return to library?</string>
+    <string name="kairo_return_to_library_title">라이브러리로 돌아갈까요?</string>
     <!-- EN: This game stops. Progress since your last save is lost. -->
-    <string name="kairo_return_to_library_confirm">This game stops. Progress since your last save is lost.</string>
+    <string name="kairo_return_to_library_confirm">이 게임이 중지됩니다. 마지막 저장 이후의 진행 상황은 사라집니다.</string>
     <!-- EN: Return to frontend -->
-    <string name="kairo_return_to_frontend">Return to frontend</string>
+    <string name="kairo_return_to_frontend">프런트엔드로 돌아가기</string>
     <!-- EN: Return to frontend? -->
-    <string name="kairo_return_to_frontend_title">Return to frontend?</string>
+    <string name="kairo_return_to_frontend_title">프런트엔드로 돌아갈까요?</string>
     <!-- EN: This game stops and %1$s closes. Progress since your last save is lost. -->
-    <string name="kairo_return_to_frontend_confirm">This game stops and %1$s closes. Progress since your last save is lost.</string>
+    <string name="kairo_return_to_frontend_confirm">이 게임이 중지되고 %1$s이(가) 닫힙니다. 마지막 저장 이후의 진행 상황은 사라집니다.</string>
     <!-- EN: End game -->
-    <string name="kairo_end_game">End game</string>
+    <string name="kairo_end_game">게임 끝내기</string>
     <!-- The machine's state on the game menu's status line. -->
     <!-- EN: Running -->
-    <string name="kairo_state_running">Running</string>
+    <string name="kairo_state_running">실행 중</string>
     <!-- EN: Paused -->
-    <string name="kairo_state_paused">Paused</string>
+    <string name="kairo_state_paused">일시중지됨</string>
     <!-- EN: Stopped -->
-    <string name="kairo_state_stopped">Stopped</string>
+    <string name="kairo_state_stopped">중지됨</string>
     <!-- EN: Starting -->
-    <string name="kairo_state_starting">Starting</string>
+    <string name="kairo_state_starting">시작 중</string>
     <!-- EN: Error -->
-    <string name="kairo_state_error">Error</string>
+    <string name="kairo_state_error">오류</string>
     <!-- EN: Loading -->
-    <string name="kairo_state_loading">Loading</string>
+    <string name="kairo_state_loading">불러오는 중</string>
     <!-- EN: Failed -->
-    <string name="kairo_state_failed">Failed</string>
+    <string name="kairo_state_failed">실패</string>
     <!-- EN: Muted -->
-    <string name="kairo_session_muted">Muted</string>
+    <string name="kairo_session_muted">음소거됨</string>
     <!-- EN: Stopping machine… -->
-    <string name="kairo_session_stopping">Stopping machine…</string>
+    <string name="kairo_session_stopping">머신 중지 중…</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: No playable %1$s game found -->
-    <string name="kairo_external_no_playable">No playable %1$s game found</string>
+    <string name="kairo_external_no_playable">플레이할 수 있는 %1$s 게임이 없습니다</string>
     <!-- EN: Choose a disk to start -->
-    <string name="kairo_external_choose_disk">Choose a disk to start</string>
+    <string name="kairo_external_choose_disk">시작할 디스크를 선택하세요</string>
     <!-- EN: Refresh this entry before playing -->
-    <string name="kairo_launch_refresh_first">Refresh this entry before playing</string>
+    <string name="kairo_launch_refresh_first">플레이하기 전에 이 항목을 새로고침하세요</string>
     <!-- %1$s says why, often the emulator's own message. -->
     <!-- EN: Launch failed: %1$s -->
-    <string name="kairo_launch_failed">Launch failed: %1$s</string>
+    <string name="kairo_launch_failed">실행 실패: %1$s</string>
     <!-- EN: Wait for the saves to finish moving. -->
-    <string name="kairo_saves_moving_wait">Wait for the saves to finish moving.</string>
+    <string name="kairo_saves_moving_wait">저장 데이터 이동이 끝날 때까지 기다리세요.</string>
     <!-- EN: Return to the library to change the save folder. -->
-    <string name="kairo_saves_return_to_library">Return to the library to change the save folder.</string>
+    <string name="kairo_saves_return_to_library">저장 폴더를 변경하려면 라이브러리로 돌아가세요.</string>
     <!-- EN: Catalogs updated -->
-    <string name="kairo_catalogs_updated">Catalogs updated</string>
+    <string name="kairo_catalogs_updated">카탈로그 업데이트됨</string>
     <!-- %1$s is the library folder's name, such as games folder. -->
     <!-- EN: Choose a %1$s from the library menu when you’re ready -->
-    <string name="kairo_first_run_choose_later">Choose a %1$s from the library menu when you’re ready</string>
+    <string name="kairo_first_run_choose_later">준비되면 라이브러리 메뉴에서 %1$s을(를) 선택하세요</string>
     <!-- EN: STEP 1 OF 2 -->
-    <string name="kairo_first_run_step_1">STEP 1 OF 2</string>
+    <string name="kairo_first_run_step_1">1/2단계</string>
     <!-- EN: STEP 2 OF 2 -->
-    <string name="kairo_first_run_step_2">STEP 2 OF 2</string>
+    <string name="kairo_first_run_step_2">2/2단계</string>
     <!-- EN: You can choose or change it later in Menu › Manage library. -->
-    <string name="kairo_first_run_folder_later">You can choose or change it later in Menu › Manage library.</string>
+    <string name="kairo_first_run_folder_later">나중에 메뉴 › 라이브러리 관리에서 선택하거나 변경할 수 있습니다.</string>
     <!-- EN: Skip for now -->
-    <string name="kairo_first_run_skip">Skip for now</string>
+    <string name="kairo_first_run_skip">지금은 건너뛰기</string>
     <!-- EN: Continue to library -->
-    <string name="kairo_first_run_to_library">Continue to library</string>
+    <string name="kairo_first_run_to_library">라이브러리로 계속</string>
     <!-- EN: CONTROLS -->
-    <string name="kairo_controls_group">CONTROLS</string>
+    <string name="kairo_controls_group">조작</string>
     <!-- EN: DISPLAY -->
-    <string name="kairo_display_group">DISPLAY</string>
+    <string name="kairo_display_group">디스플레이</string>
     <!-- EN: LIBRARY -->
-    <string name="kairo_library_group">LIBRARY</string>
+    <string name="kairo_library_group">라이브러리</string>
     <!-- EN: FILE -->
-    <string name="kairo_file_group">FILE</string>
+    <string name="kairo_file_group">파일</string>
     <!-- EN: Landscape anchor -->
-    <string name="kairo_anchor_landscape">Landscape anchor</string>
+    <string name="kairo_anchor_landscape">가로 화면 고정 위치</string>
     <!-- EN: Portrait anchor -->
-    <string name="kairo_anchor_portrait">Portrait anchor</string>
+    <string name="kairo_anchor_portrait">세로 화면 고정 위치</string>
     <!-- EN: Title -->
-    <string name="kairo_title">Title</string>
+    <string name="kairo_title">제목</string>
     <!-- EN: Game title -->
-    <string name="kairo_title_hint">Game title</string>
+    <string name="kairo_title_hint">게임 제목</string>
     <!-- EN: Chosen images are copied into your library. -->
-    <string name="kairo_artwork_copied_foot">Chosen images are copied into your library.</string>
+    <string name="kairo_artwork_copied_foot">선택한 이미지는 라이브러리에 복사됩니다.</string>
     <!-- EN: Game settings reset. Machine changes apply on next launch or restart. -->
-    <string name="kairo_settings_reset_done">Game settings reset. Machine changes apply on next launch or restart.</string>
+    <string name="kairo_settings_reset_done">게임 설정이 재설정되었습니다. 머신 변경 사항은 다음 실행 또는 다시 시작할 때 적용됩니다.</string>
     <!-- EN: Could not reset game settings -->
-    <string name="kairo_settings_reset_failed">Could not reset game settings</string>
+    <string name="kairo_settings_reset_failed">게임 설정을 재설정할 수 없습니다</string>
     <!-- %1$s says why the value was refused. -->
     <!-- EN: Could not save: %1$s -->
-    <string name="kairo_save_failed">Could not save: %1$s</string>
+    <string name="kairo_save_failed">저장할 수 없음: %1$s</string>
     <!-- EN: Invalid value -->
-    <string name="kairo_invalid_value">Invalid value</string>
+    <string name="kairo_invalid_value">잘못된 값</string>
     <!-- EN: Top Left -->
-    <string name="kairo_anchor_top_left">Top Left</string>
+    <string name="kairo_anchor_top_left">왼쪽 위</string>
     <!-- EN: Top Center -->
-    <string name="kairo_anchor_top_center">Top Center</string>
+    <string name="kairo_anchor_top_center">가운데 위</string>
     <!-- EN: Top Right -->
-    <string name="kairo_anchor_top_right">Top Right</string>
+    <string name="kairo_anchor_top_right">오른쪽 위</string>
     <!-- EN: Center Left -->
-    <string name="kairo_anchor_center_left">Center Left</string>
+    <string name="kairo_anchor_center_left">왼쪽 가운데</string>
     <!-- EN: Center -->
-    <string name="kairo_anchor_center">Center</string>
+    <string name="kairo_anchor_center">가운데</string>
     <!-- EN: Center Right -->
-    <string name="kairo_anchor_center_right">Center Right</string>
+    <string name="kairo_anchor_center_right">오른쪽 가운데</string>
     <!-- EN: Bottom Left -->
-    <string name="kairo_anchor_bottom_left">Bottom Left</string>
+    <string name="kairo_anchor_bottom_left">왼쪽 아래</string>
     <!-- EN: Bottom Center -->
-    <string name="kairo_anchor_bottom_center">Bottom Center</string>
+    <string name="kairo_anchor_bottom_center">가운데 아래</string>
     <!-- EN: Bottom Right -->
-    <string name="kairo_anchor_bottom_right">Bottom Right</string>
+    <string name="kairo_anchor_bottom_right">오른쪽 아래</string>
     <!-- EN: Open the menu -->
-    <string name="kairo_help_open_menu">Open the menu</string>
+    <string name="kairo_help_open_menu">메뉴 열기</string>
     <!-- EN: Mode or Home button, Back, Menu, or a swipe from the left edge -->
-    <string name="kairo_help_open_menu_how">Mode or Home button, Back, Menu, or a swipe from the left edge</string>
+    <string name="kairo_help_open_menu_how">Mode 또는 Home 버튼, 뒤로, 메뉴 또는 왼쪽 가장자리에서 스와이프</string>
     <!-- EN: Open the keyboard -->
-    <string name="kairo_help_open_keyboard">Open the keyboard</string>
+    <string name="kairo_help_open_keyboard">키보드 열기</string>
     <!-- EN: Swipe in from the right edge -->
-    <string name="kairo_help_open_keyboard_how">Swipe in from the right edge</string>
+    <string name="kairo_help_open_keyboard_how">오른쪽 가장자리에서 스와이프</string>
     <!-- EN: Physical keyboard -->
-    <string name="kairo_help_physical_keyboard">Physical keyboard</string>
+    <string name="kairo_help_physical_keyboard">물리 키보드</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: Types into the %1$s while the menu is closed -->
-    <string name="kairo_help_physical_keyboard_how">Types into the %1$s while the menu is closed</string>
+    <string name="kairo_help_physical_keyboard_how">메뉴가 닫혀 있는 동안 %1$s에 입력됩니다</string>
     <!-- EN: Android reserves the system Home key. -->
-    <string name="kairo_help_home_key">Android reserves the system Home key.</string>
+    <string name="kairo_help_home_key">시스템 홈 키는 Android가 사용합니다.</string>
     <!-- EN: Diagnostics -->
-    <string name="kairo_diagnostics">Diagnostics</string>
+    <string name="kairo_diagnostics">진단</string>
     <!-- EN: MACHINE STATUS -->
-    <string name="kairo_diagnostics_group">MACHINE STATUS</string>
+    <string name="kairo_diagnostics_group">머신 상태</string>
     <!-- EN: Live values from the emulator, updated four times a second. -->
-    <string name="kairo_diagnostics_live">Live values from the emulator, updated four times a second.</string>
+    <string name="kairo_diagnostics_live">에뮬레이터의 실시간 값이며 1초에 네 번 업데이트됩니다.</string>
     <!-- EN: Start a game to see live values. -->
-    <string name="kairo_diagnostics_start_game">Start a game to see live values.</string>
+    <string name="kairo_diagnostics_start_game">실시간 값을 보려면 게임을 시작하세요.</string>
 </resources>

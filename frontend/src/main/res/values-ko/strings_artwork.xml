@@ -2,93 +2,93 @@
 <!-- Korean (ko): the translation of values/strings_artwork.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Box art -->
-    <string name="kairo_artwork_box_art">Box art</string>
+    <string name="kairo_artwork_box_art">박스 아트</string>
     <!-- EN: Screenshot -->
-    <string name="kairo_artwork_screenshot">Screenshot</string>
+    <string name="kairo_artwork_screenshot">스크린샷</string>
     <!-- EN: View -->
-    <string name="kairo_artwork_view">View</string>
+    <string name="kairo_artwork_view">보기</string>
     <!-- EN: Replace… -->
-    <string name="kairo_artwork_replace">Replace…</string>
+    <string name="kairo_artwork_replace">바꾸기…</string>
     <!-- EN: Choose image… -->
-    <string name="kairo_artwork_choose">Choose image…</string>
+    <string name="kairo_artwork_choose">이미지 선택…</string>
     <!-- EN: Could not import image -->
-    <string name="kairo_artwork_import_failed">Could not import image</string>
+    <string name="kairo_artwork_import_failed">이미지를 가져올 수 없습니다</string>
     <!-- EN: Artwork reset -->
-    <string name="kairo_artwork_reset_done">Artwork reset</string>
+    <string name="kairo_artwork_reset_done">이미지 재설정됨</string>
     <!-- EN: Artwork saved -->
-    <string name="kairo_artwork_saved">Artwork saved</string>
+    <string name="kairo_artwork_saved">이미지 저장됨</string>
     <!-- EN: Could not save artwork -->
-    <string name="kairo_artwork_save_failed">Could not save artwork</string>
+    <string name="kairo_artwork_save_failed">이미지를 저장할 수 없습니다</string>
     <!-- The image's kind in lower case: kairo_artwork_box_art or kairo_artwork_screenshot. -->
     <!-- EN: No %1$s available -->
-    <string name="kairo_artwork_none_available">No %1$s available</string>
+    <string name="kairo_artwork_none_available">사용할 수 있는 %1$s 없음</string>
     <!-- EN: Image unavailable -->
-    <string name="kairo_artwork_unavailable">Image unavailable</string>
+    <string name="kairo_artwork_unavailable">이미지를 사용할 수 없음</string>
     <!-- EN: Tap image to load a larger version -->
-    <string name="kairo_artwork_tap_larger">Tap image to load a larger version</string>
+    <string name="kairo_artwork_tap_larger">이미지를 탭하면 더 큰 버전을 불러옵니다</string>
     <!-- EN: Loading larger image… -->
-    <string name="kairo_artwork_loading_larger">Loading larger image…</string>
+    <string name="kairo_artwork_loading_larger">더 큰 이미지 불러오는 중…</string>
     <!-- EN: Could not load larger image -->
-    <string name="kairo_artwork_larger_failed">Could not load larger image</string>
+    <string name="kairo_artwork_larger_failed">더 큰 이미지를 불러올 수 없습니다</string>
     <!-- EN: Larger image loaded -->
-    <string name="kairo_artwork_larger_loaded">Larger image loaded</string>
+    <string name="kairo_artwork_larger_loaded">더 큰 이미지를 불러왔습니다</string>
     <!-- EN: ARTWORK -->
-    <string name="kairo_artwork_group">ARTWORK</string>
+    <string name="kairo_artwork_group">이미지</string>
     <!-- EN: Download missing images -->
-    <string name="kairo_artwork_download">Download missing images</string>
+    <string name="kairo_artwork_download">누락된 이미지 다운로드</string>
     <!-- EN: Stopping image download… -->
-    <string name="kairo_artwork_stopping">Stopping image download…</string>
+    <string name="kairo_artwork_stopping">이미지 다운로드 중지 중…</string>
     <!-- EN: Images are already downloading -->
-    <string name="kairo_artwork_already_running">Images are already downloading</string>
+    <string name="kairo_artwork_already_running">이미지를 이미 다운로드하는 중입니다</string>
     <!-- EN: Add games to the library first -->
-    <string name="kairo_artwork_no_games">Add games to the library first</string>
+    <string name="kairo_artwork_no_games">먼저 라이브러리에 게임을 추가하세요</string>
     <!-- EN: Checking library artwork… -->
-    <string name="kairo_artwork_checking">Checking library artwork…</string>
+    <string name="kairo_artwork_checking">라이브러리 이미지 확인 중…</string>
     <!-- Images done, then images to download. -->
     <!-- EN: Downloading images %1$d/%2$d -->
-    <string name="kairo_artwork_downloading">Downloading images %1$d/%2$d</string>
+    <string name="kairo_artwork_downloading">이미지 다운로드 중 %1$d/%2$d</string>
     <!-- Images done, images to download, then images that failed. -->
     <!-- EN: Downloading images %1$d/%2$d · %3$d failed -->
-    <string name="kairo_artwork_downloading_failed">Downloading images %1$d/%2$d · %3$d failed</string>
+    <string name="kairo_artwork_downloading_failed">이미지 다운로드 중 %1$d/%2$d · %3$d개 실패</string>
     <!-- Images done, then images to download. -->
     <!-- EN: %1$d / %2$d -->
     <string name="kairo_artwork_progress">%1$d / %2$d</string>
     <!-- EN: Waiting… -->
-    <string name="kairo_artwork_waiting">Waiting…</string>
+    <string name="kairo_artwork_waiting">대기 중…</string>
     <!-- The image server's host name. -->
     <!-- EN: Waiting for %1$s\'s rate limit… -->
-    <string name="kairo_artwork_waiting_for">Waiting for %1$s\'s rate limit…</string>
+    <string name="kairo_artwork_waiting_for">%1$s의 요청 한도 대기 중…</string>
     <!-- EN: Image download failed: %1$s -->
-    <string name="kairo_artwork_download_failed">Image download failed: %1$s</string>
+    <string name="kairo_artwork_download_failed">이미지 다운로드 실패: %1$s</string>
     <!-- EN: No missing catalog images for this library -->
-    <string name="kairo_artwork_none_missing_result">No missing catalog images for this library</string>
+    <string name="kairo_artwork_none_missing_result">이 라이브러리에 누락된 카탈로그 이미지가 없습니다</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Image download stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped_result">Image download stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped_result">이미지 다운로드 중지됨 · %1$d개 저장됨</string>
     <plurals name="kairo_artwork_downloaded">
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="other">Downloaded %1$d images</item>
+        <item quantity="other">이미지 %1$d개 다운로드함</item>
     </plurals>
     <!-- Images saved, images that failed, then why they failed (kairo_artwork_reason_count, separated by semicolons). -->
     <!-- EN: Downloaded %1$d images · %2$d failed: %3$s -->
-    <string name="kairo_artwork_downloaded_failed">Downloaded %1$d images · %2$d failed: %3$s</string>
+    <string name="kairo_artwork_downloaded_failed">이미지 %1$d개 다운로드함 · %2$d개 실패: %3$s</string>
     <!-- EN: Failed -->
-    <string name="kairo_artwork_failed">Failed</string>
+    <string name="kairo_artwork_failed">실패</string>
     <!-- EN: None missing -->
-    <string name="kairo_artwork_none_missing">None missing</string>
+    <string name="kairo_artwork_none_missing">누락 없음</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped">Stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped">중지됨 · %1$d개 저장됨</string>
     <!-- EN: %1$d saved -->
-    <string name="kairo_artwork_saved_count">%1$d saved</string>
+    <string name="kairo_artwork_saved_count">%1$d개 저장됨</string>
     <!-- Images saved, then images that failed. -->
     <!-- EN: %1$d saved · %2$d failed -->
-    <string name="kairo_artwork_saved_failed">%1$d saved · %2$d failed</string>
+    <string name="kairo_artwork_saved_failed">%1$d개 저장됨 · %2$d개 실패</string>
     <!-- EN: No internet connection -->
-    <string name="kairo_artwork_no_internet">No internet connection</string>
+    <string name="kairo_artwork_no_internet">인터넷에 연결되어 있지 않습니다</string>
     <!-- EN: The image server did not respond -->
-    <string name="kairo_artwork_no_response">The image server did not respond</string>
+    <string name="kairo_artwork_no_response">이미지 서버가 응답하지 않았습니다</string>
     <!-- Why images failed, then how many failed for it. -->
     <!-- EN: %1$s (%2$d) -->
-    <string name="kairo_artwork_reason_count">%1$s (%2$d)</string>
+    <string name="kairo_artwork_reason_count">%1$s(%2$d)</string>
 </resources>

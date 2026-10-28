@@ -3,33 +3,33 @@
 <resources>
     <!-- Scan status. The path is the file the scan reads. -->
     <!-- EN: Hashing %1$d of %2$d: %3$s -->
-    <string name="kairo_scan_hashing">Hashing %1$d of %2$d: %3$s</string>
+    <string name="kairo_scan_hashing">해시 계산 중 %1$d/%2$d: %3$s</string>
     <!-- EN: Confirming %1$d of %2$d: %3$s -->
-    <string name="kairo_scan_confirming">Confirming %1$d of %2$d: %3$s</string>
+    <string name="kairo_scan_confirming">확인 중 %1$d/%2$d: %3$s</string>
     <!-- EN: Hashing %1$s -->
-    <string name="kairo_scan_hashing_file">Hashing %1$s</string>
+    <string name="kairo_scan_hashing_file">해시 계산 중: %1$s</string>
     <!-- A large file's status, then how much of it is read. -->
     <!-- EN: %1$s %2$d%% -->
     <string name="kairo_scan_percent">%1$s %2$d%%</string>
     <!-- EN: Library cache unreadable; rescanning every file -->
-    <string name="kairo_scan_cache_unreadable">Library cache unreadable; rescanning every file</string>
+    <string name="kairo_scan_cache_unreadable">라이브러리 캐시를 읽을 수 없어 모든 파일을 다시 스캔합니다</string>
     <!-- EN: Skipping unreadable folder: %1$s -->
-    <string name="kairo_scan_skipping_folder">Skipping unreadable folder: %1$s</string>
+    <string name="kairo_scan_skipping_folder">읽을 수 없는 폴더 건너뜀: %1$s</string>
     <!-- The folders listed so far, then the media files found in them (kairo_scan_folders, kairo_scan_media_files). -->
     <!-- EN: Checking the games folder: %1$s, %2$s -->
-    <string name="kairo_scan_listing">Checking the games folder: %1$s, %2$s</string>
+    <string name="kairo_scan_listing">게임 폴더 확인 중: %1$s, %2$s</string>
     <plurals name="kairo_scan_folders">
         <!-- EN: %1$d folders -->
-        <item quantity="other">%1$d folders</item>
+        <item quantity="other">폴더 %1$d개</item>
     </plurals>
     <plurals name="kairo_scan_media_files">
         <!-- EN: %1$d media files -->
-        <item quantity="other">%1$d media files</item>
+        <item quantity="other">미디어 파일 %1$d개</item>
     </plurals>
     <!-- EN: Game folder is too deep -->
-    <string name="kairo_scan_too_deep">Game folder is too deep</string>
+    <string name="kairo_scan_too_deep">게임 폴더가 너무 깊습니다</string>
     <!-- EN: Game folder has too many files -->
-    <string name="kairo_scan_too_many_files">Game folder has too many files</string>
+    <string name="kairo_scan_too_many_files">게임 폴더에 파일이 너무 많습니다</string>
     <!-- A scan's summary: kairo_library_games, then kairo_library_hashes. -->
     <!-- EN: %1$s · %2$s -->
     <string name="kairo_library_summary">%1$s · %2$s</string>
@@ -38,42 +38,42 @@
     <string name="kairo_library_summary_unreadable">%1$s · %2$s · %3$s</string>
     <plurals name="kairo_library_games">
         <!-- EN: %1$d games -->
-        <item quantity="other">%1$d games</item>
+        <item quantity="other">게임 %1$d개</item>
     </plurals>
     <plurals name="kairo_library_unreadable">
         <!-- EN: %1$d unreadable -->
-        <item quantity="other">%1$d unreadable</item>
+        <item quantity="other">읽을 수 없음 %1$d개</item>
     </plurals>
     <plurals name="kairo_library_hashes">
         <!-- EN: %1$d hashes this scan -->
-        <item quantity="other">%1$d hashes this scan</item>
+        <item quantity="other">이번 스캔에서 해시 %1$d개</item>
     </plurals>
     <!-- EN: Loading library… -->
-    <string name="kairo_library_loading">Loading library…</string>
+    <string name="kairo_library_loading">라이브러리 불러오는 중…</string>
     <!-- The reason the cached library could not be read. -->
     <!-- EN: Library cache unreadable: %1$s -->
-    <string name="kairo_library_cache_unreadable">Library cache unreadable: %1$s</string>
+    <string name="kairo_library_cache_unreadable">라이브러리 캐시를 읽을 수 없음: %1$s</string>
     <!-- EN: Could not open folder chooser -->
-    <string name="kairo_library_chooser_failed">Could not open folder chooser</string>
+    <string name="kairo_library_chooser_failed">폴더 선택기를 열 수 없습니다</string>
     <!-- EN: Cannot keep folder access: %1$s -->
-    <string name="kairo_library_access_failed">Cannot keep folder access: %1$s</string>
+    <string name="kairo_library_access_failed">폴더 접근 권한을 유지할 수 없음: %1$s</string>
     <!-- EN: Rehashing folder… -->
-    <string name="kairo_library_rehashing">Rehashing folder…</string>
+    <string name="kairo_library_rehashing">폴더 해시 다시 계산 중…</string>
     <!-- EN: Checking the games folder… -->
-    <string name="kairo_library_checking">Checking the games folder…</string>
+    <string name="kairo_library_checking">게임 폴더 확인 중…</string>
     <!-- EN: Scan failed: %1$s -->
-    <string name="kairo_library_scan_failed">Scan failed: %1$s</string>
+    <string name="kairo_library_scan_failed">스캔 실패: %1$s</string>
     <!-- EN: Unknown error -->
-    <string name="kairo_unknown_error">Unknown error</string>
+    <string name="kairo_unknown_error">알 수 없는 오류</string>
     <!-- EN: Could not save library: %1$s -->
-    <string name="kairo_library_save_failed">Could not save library: %1$s</string>
+    <string name="kairo_library_save_failed">라이브러리를 저장할 수 없음: %1$s</string>
     <!-- Library menu. -->
     <!-- EN: Refresh -->
-    <string name="kairo_library_refresh">Refresh</string>
+    <string name="kairo_library_refresh">새로고침</string>
     <!-- EN: Manage library -->
-    <string name="kairo_library_manage">Manage library</string>
+    <string name="kairo_library_manage">라이브러리 관리</string>
     <!-- EN: Choose one in Manage library -->
-    <string name="kairo_library_choose_in_manage">Choose one in Manage library</string>
+    <string name="kairo_library_choose_in_manage">라이브러리 관리에서 선택하세요</string>
     <!-- The games folder's name (kairo_games_folder or the app's own), then kairo_library_games. -->
     <!-- EN: %1$s · %2$s -->
     <string name="kairo_library_status">%1$s · %2$s</string>
@@ -81,217 +81,217 @@
     <!-- EN: %1$s · %2$s · %3$s -->
     <string name="kairo_library_status_unreadable">%1$s · %2$s · %3$s</string>
     <!-- EN: SOURCE -->
-    <string name="kairo_library_source_group">SOURCE</string>
+    <string name="kairo_library_source_group">소스</string>
     <!-- EN: Choose folder… -->
-    <string name="kairo_library_choose_folder">Choose folder…</string>
+    <string name="kairo_library_choose_folder">폴더 선택…</string>
     <!-- EN: Scanning… -->
-    <string name="kairo_library_scanning">Scanning…</string>
+    <string name="kairo_library_scanning">스캔 중…</string>
     <!-- EN: Recheck all files -->
-    <string name="kairo_library_recheck">Recheck all files</string>
+    <string name="kairo_library_recheck">모든 파일 다시 확인</string>
     <!-- EN: Checking… -->
-    <string name="kairo_checking">Checking…</string>
+    <string name="kairo_checking">확인 중…</string>
     <!-- EN: Refresh finds added and removed games. Recheck all files identifies every file again. -->
-    <string name="kairo_library_source_foot">Refresh finds added and removed games. Recheck all files identifies every file again.</string>
+    <string name="kairo_library_source_foot">새로고침은 추가되거나 삭제된 게임을 찾습니다. 모든 파일 다시 확인은 모든 파일을 다시 식별합니다.</string>
     <!-- The library screen. -->
     <!-- EN: Library menu -->
-    <string name="kairo_library_menu">Library menu</string>
+    <string name="kairo_library_menu">라이브러리 메뉴</string>
     <!-- EN: Search games -->
-    <string name="kairo_library_search">Search games</string>
+    <string name="kairo_library_search">게임 검색</string>
     <!-- An unreadable entry: its file, then why it could not be read. -->
     <!-- EN: "%1$s  ·  %2$s. Fix the source, then Refresh." -->
-    <string name="kairo_library_entry_error">"%1$s  ·  %2$s. Fix the source, then Refresh."</string>
+    <string name="kairo_library_entry_error">"%1$s  ·  %2$s. 소스를 수정한 다음 새로고침하세요."</string>
     <!-- The search text. -->
     <!-- EN: No games match “%1$s” -->
-    <string name="kairo_library_no_match">No games match “%1$s”</string>
+    <string name="kairo_library_no_match">‘%1$s’와(과) 일치하는 게임이 없습니다</string>
     <!-- EN: CONTINUE -->
-    <string name="kairo_library_continue_group">CONTINUE</string>
+    <string name="kairo_library_continue_group">이어서 하기</string>
     <!-- EN: ALL GAMES -->
-    <string name="kairo_library_all_games_group">ALL GAMES</string>
+    <string name="kairo_library_all_games_group">모든 게임</string>
     <!-- A game's page. -->
     <!-- EN: Back to game library -->
-    <string name="kairo_detail_back">Back to game library</string>
+    <string name="kairo_detail_back">게임 라이브러리로 돌아가기</string>
     <!-- EN: Library -->
-    <string name="kairo_detail_library">Library</string>
+    <string name="kairo_detail_library">라이브러리</string>
     <!-- EN: View screenshot -->
-    <string name="kairo_detail_view_screenshot">View screenshot</string>
+    <string name="kairo_detail_view_screenshot">스크린샷 보기</string>
     <!-- EN: Game screenshot -->
-    <string name="kairo_detail_screenshot">Game screenshot</string>
+    <string name="kairo_detail_screenshot">게임 스크린샷</string>
     <!-- EN: No screenshot available -->
-    <string name="kairo_detail_no_screenshot">No screenshot available</string>
+    <string name="kairo_detail_no_screenshot">사용할 수 있는 스크린샷 없음</string>
     <!-- EN: Loading screenshot… -->
-    <string name="kairo_detail_loading_screenshot">Loading screenshot…</string>
+    <string name="kairo_detail_loading_screenshot">스크린샷 불러오는 중…</string>
     <!-- EN: Screenshot unavailable -->
-    <string name="kairo_detail_screenshot_unavailable">Screenshot unavailable</string>
+    <string name="kairo_detail_screenshot_unavailable">스크린샷을 사용할 수 없음</string>
     <!-- EN: Play -->
-    <string name="kairo_detail_play">Play</string>
+    <string name="kairo_detail_play">플레이</string>
     <!-- EN: DOS prompt or run program -->
-    <string name="kairo_detail_command">DOS prompt or run program</string>
+    <string name="kairo_detail_command">DOS 프롬프트 또는 프로그램 실행</string>
     <!-- EN: No description available yet. -->
-    <string name="kairo_detail_no_description">No description available yet.</string>
+    <string name="kairo_detail_no_description">아직 설명이 없습니다.</string>
     <!-- The game's file. -->
     <!-- EN: File: %1$s -->
-    <string name="kairo_detail_file">File: %1$s</string>
+    <string name="kairo_detail_file">파일: %1$s</string>
     <!-- Why the game cannot be played (its error, or kairo_detail_unchecked). -->
     <!-- EN: Can’t play: %1$s. Fix the file, then Refresh from the library menu. -->
-    <string name="kairo_detail_unplayable">Can’t play: %1$s. Fix the file, then Refresh from the library menu.</string>
+    <string name="kairo_detail_unplayable">플레이할 수 없음: %1$s. 파일을 수정한 다음 라이브러리 메뉴에서 새로고침하세요.</string>
     <!-- EN: this file has not been checked yet -->
-    <string name="kairo_detail_unchecked">this file has not been checked yet</string>
+    <string name="kairo_detail_unchecked">이 파일은 아직 확인되지 않았습니다</string>
     <!-- A game file another app sends. The file's name. -->
     <!-- EN: Opening %1$s… -->
-    <string name="kairo_external_opening">Opening %1$s…</string>
+    <string name="kairo_external_opening">%1$s 여는 중…</string>
     <!-- The file's name, then why it could not be opened. -->
     <!-- EN: Could not open %1$s: %2$s -->
-    <string name="kairo_external_open_failed">Could not open %1$s: %2$s</string>
+    <string name="kairo_external_open_failed">%1$s을(를) 열 수 없음: %2$s</string>
     <!-- EN: Invalid game file -->
-    <string name="kairo_external_invalid">Invalid game file</string>
+    <string name="kairo_external_invalid">잘못된 게임 파일</string>
     <!-- EN: Game file has no usable name -->
-    <string name="kairo_external_no_name">Game file has no usable name</string>
+    <string name="kairo_external_no_name">게임 파일에 사용할 수 있는 이름이 없습니다</string>
     <!-- Deleting a game's source from Game settings. -->
     <!-- EN: Delete game file -->
-    <string name="kairo_delete_game_file">Delete game file</string>
+    <string name="kairo_delete_game_file">게임 파일 삭제</string>
     <!-- EN: Delete game folder -->
-    <string name="kairo_delete_game_folder">Delete game folder</string>
+    <string name="kairo_delete_game_folder">게임 폴더 삭제</string>
     <!-- EN: Exit this game before deleting its source file -->
-    <string name="kairo_delete_exit_first">Exit this game before deleting its source file</string>
+    <string name="kairo_delete_exit_first">소스 파일을 삭제하기 전에 이 게임을 종료하세요</string>
     <!-- The games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: Select the same %1$s again and grant write access before deleting game files. -->
-    <string name="kairo_delete_grant">Select the same %1$s again and grant write access before deleting game files.</string>
+    <string name="kairo_delete_grant">게임 파일을 삭제하기 전에 같은 %1$s을(를) 다시 선택하고 쓰기 권한을 허용하세요.</string>
     <!-- The games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: Choose %1$s… -->
-    <string name="kairo_choose_named">Choose %1$s…</string>
+    <string name="kairo_choose_named">%1$s 선택…</string>
     <!-- The game's path in the games folder. -->
     <!-- EN: Delete %1$s from device storage? -->
-    <string name="kairo_delete_question">Delete %1$s from device storage?</string>
+    <string name="kairo_delete_question">기기 저장소에서 %1$s을(를) 삭제할까요?</string>
     <!-- EN: This removes the folder and everything inside it. -->
-    <string name="kairo_delete_folder_warning">This removes the folder and everything inside it.</string>
+    <string name="kairo_delete_folder_warning">폴더와 그 안의 모든 항목이 삭제됩니다.</string>
     <!-- EN: This cannot be undone. Game settings and saves are kept. -->
-    <string name="kairo_delete_permanent">This cannot be undone. Game settings and saves are kept.</string>
+    <string name="kairo_delete_permanent">이 작업은 되돌릴 수 없습니다. 게임 설정과 저장 데이터는 유지됩니다.</string>
     <plurals name="kairo_delete_zip_entries">
         <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
-        <item quantity="other">This ZIP contains %1$d library entries. All of them will be removed.</item>
+        <item quantity="other">이 ZIP에는 라이브러리 항목 %1$d개가 있습니다. 모두 삭제됩니다.</item>
     </plurals>
     <!-- EN: Delete -->
-    <string name="kairo_delete">Delete</string>
+    <string name="kairo_delete">삭제</string>
     <!-- The game's path in the games folder. -->
     <!-- EN: Deleting %1$s… -->
-    <string name="kairo_deleting">Deleting %1$s…</string>
+    <string name="kairo_deleting">%1$s 삭제 중…</string>
     <!-- EN: Could not delete game file -->
-    <string name="kairo_delete_failed">Could not delete game file</string>
+    <string name="kairo_delete_failed">게임 파일을 삭제할 수 없습니다</string>
     <!-- Files the player picks. -->
     <!-- EN: Could not open file chooser -->
-    <string name="kairo_file_chooser_failed">Could not open file chooser</string>
+    <string name="kairo_file_chooser_failed">파일 선택기를 열 수 없습니다</string>
     <!-- EN: That file is empty -->
-    <string name="kairo_import_file_empty">That file is empty</string>
+    <string name="kairo_import_file_empty">빈 파일입니다</string>
     <!-- EN: Could not open that file -->
-    <string name="kairo_import_open_failed">Could not open that file</string>
+    <string name="kairo_import_open_failed">해당 파일을 열 수 없습니다</string>
     <!-- The imported file's name. -->
     <!-- EN: %1$s imported and chosen -->
-    <string name="kairo_import_chosen">%1$s imported and chosen</string>
+    <string name="kairo_import_chosen">%1$s을(를) 가져와 선택했습니다</string>
     <!-- What was imported, such as Font or TOS, then why it failed. -->
     <!-- EN: %1$s import failed: %2$s -->
-    <string name="kairo_import_failed">%1$s import failed: %2$s</string>
+    <string name="kairo_import_failed">%1$s 가져오기 실패: %2$s</string>
     <!-- EN: Retry -->
-    <string name="kairo_retry">Retry</string>
+    <string name="kairo_retry">다시 시도</string>
     <!-- EN: Loading files… -->
-    <string name="kairo_files_loading">Loading files…</string>
+    <string name="kairo_files_loading">파일 불러오는 중…</string>
     <!-- EN: No files here -->
-    <string name="kairo_files_none">No files here</string>
+    <string name="kairo_files_none">파일 없음</string>
     <!-- EN: Could not list files -->
-    <string name="kairo_files_list_failed">Could not list files</string>
+    <string name="kairo_files_list_failed">파일 목록을 불러올 수 없습니다</string>
     <!-- A newer release of the app. -->
     <!-- EN: Update available -->
-    <string name="kairo_update_available">Update available</string>
+    <string name="kairo_update_available">업데이트 가능</string>
     <!-- The app's name, the new version, then the installed version. -->
     <!-- EN: %1$s %2$s is available. You have %3$s. -->
-    <string name="kairo_update_available_text">%1$s %2$s is available. You have %3$s.</string>
+    <string name="kairo_update_available_text">%1$s %2$s 버전을 사용할 수 있습니다. 현재 버전은 %3$s입니다.</string>
     <!-- EN: Not now -->
-    <string name="kairo_update_not_now">Not now</string>
+    <string name="kairo_update_not_now">나중에</string>
     <!-- EN: Skip this version -->
-    <string name="kairo_update_skip">Skip this version</string>
+    <string name="kairo_update_skip">이 버전 건너뛰기</string>
     <!-- EN: View release -->
-    <string name="kairo_update_view">View release</string>
+    <string name="kairo_update_view">릴리스 보기</string>
     <!-- The release page's address. -->
     <!-- EN: No app can open %1$s -->
-    <string name="kairo_update_no_app">No app can open %1$s</string>
+    <string name="kairo_update_no_app">%1$s을(를) 열 수 있는 앱이 없습니다</string>
     <!-- Disk images in the games folder, and why one cannot be read or played. -->
     <!-- The disk a game needs, such as CD or boot floppy. -->
     <!-- EN: The %1$s this game needs is not in the library -->
-    <string name="kairo_companion_missing">The %1$s this game needs is not in the library</string>
+    <string name="kairo_companion_missing">이 게임에 필요한 %1$s이(가) 라이브러리에 없습니다</string>
     <!-- A game's working copy of its disk, in a list of saves to keep. -->
     <!-- EN: Disk -->
-    <string name="kairo_disk_working_copy">Disk</string>
+    <string name="kairo_disk_working_copy">디스크</string>
     <!-- The file's name. -->
     <!-- EN: %1$s needs its track data; open its folder or an archive that holds both -->
-    <string name="kairo_disk_needs_track_data">%1$s needs its track data; open its folder or an archive that holds both</string>
+    <string name="kairo_disk_needs_track_data">%1$s에는 트랙 데이터가 필요합니다. 해당 폴더나 둘 다 들어 있는 압축 파일을 여세요</string>
     <!-- The file's name. -->
     <!-- EN: %1$s runs from its folder; choose the games folder that holds it -->
-    <string name="kairo_disk_runs_from_folder">%1$s runs from its folder; choose the games folder that holds it</string>
+    <string name="kairo_disk_runs_from_folder">%1$s은(는) 자체 폴더에서 실행됩니다. 이를 포함한 게임 폴더를 선택하세요</string>
     <!-- The machine's name, such as PC-88, then the file's name. -->
     <!-- EN: Unsupported %1$s game file: %2$s -->
-    <string name="kairo_disk_unsupported_file">Unsupported %1$s game file: %2$s</string>
+    <string name="kairo_disk_unsupported_file">지원되지 않는 %1$s 게임 파일: %2$s</string>
     <!-- The machine's name, such as PC-88, then the file's name. -->
     <!-- EN: No %1$s disk image in %2$s -->
-    <string name="kairo_disk_no_image_in">No %1$s disk image in %2$s</string>
+    <string name="kairo_disk_no_image_in">%2$s에 %1$s 디스크 이미지가 없습니다</string>
     <!-- Why the folder could not be read. -->
     <!-- EN: Unreadable folder: %1$s -->
-    <string name="kairo_disk_unreadable_folder">Unreadable folder: %1$s</string>
+    <string name="kairo_disk_unreadable_folder">읽을 수 없는 폴더: %1$s</string>
     <!-- EN: Disk image unreadable -->
-    <string name="kairo_disk_image_unreadable">Disk image unreadable</string>
+    <string name="kairo_disk_image_unreadable">디스크 이미지를 읽을 수 없음</string>
     <!-- EN: Archive unreadable -->
-    <string name="kairo_disk_archive_unreadable">Archive unreadable</string>
+    <string name="kairo_disk_archive_unreadable">압축 파일을 읽을 수 없음</string>
     <!-- The descriptor's file name. -->
     <!-- EN: The track data of %1$s is missing -->
-    <string name="kairo_disk_track_data_missing">The track data of %1$s is missing</string>
+    <string name="kairo_disk_track_data_missing">%1$s의 트랙 데이터가 없습니다</string>
     <!-- The descriptor's name in the archive. -->
     <!-- EN: The track data of %1$s is missing from the archive -->
-    <string name="kairo_disk_track_data_missing_archive">The track data of %1$s is missing from the archive</string>
+    <string name="kairo_disk_track_data_missing_archive">압축 파일에 %1$s의 트랙 데이터가 없습니다</string>
     <!-- A file's name in the archive. -->
     <!-- EN: %1$s is missing from the archive -->
-    <string name="kairo_disk_member_missing">%1$s is missing from the archive</string>
+    <string name="kairo_disk_member_missing">압축 파일에 %1$s이(가) 없습니다</string>
     <!-- EN: Not enough free space for this disk image -->
-    <string name="kairo_disk_no_space_image">Not enough free space for this disk image</string>
+    <string name="kairo_disk_no_space_image">이 디스크 이미지를 저장할 여유 공간이 부족합니다</string>
     <!-- EN: Not enough free space for this game\'s folder -->
-    <string name="kairo_disk_no_space_folder">Not enough free space for this game\'s folder</string>
+    <string name="kairo_disk_no_space_folder">이 게임 폴더를 저장할 여유 공간이 부족합니다</string>
     <!-- The disk or program being copied for the game to play from. -->
     <!-- EN: Preparing %1$s -->
-    <string name="kairo_disk_preparing">Preparing %1$s</string>
+    <string name="kairo_disk_preparing">%1$s 준비 중</string>
     <!-- EN: Disk image changed since it was scanned; use Recheck all files in Manage library -->
-    <string name="kairo_disk_image_changed">Disk image changed since it was scanned; use Recheck all files in Manage library</string>
+    <string name="kairo_disk_image_changed">스캔 후 디스크 이미지가 변경되었습니다. 라이브러리 관리에서 모든 파일 다시 확인을 사용하세요</string>
     <!-- EN: Archive changed since it was scanned; use Recheck all files in Manage library -->
-    <string name="kairo_disk_archive_changed">Archive changed since it was scanned; use Recheck all files in Manage library</string>
+    <string name="kairo_disk_archive_changed">스캔 후 압축 파일이 변경되었습니다. 라이브러리 관리에서 모든 파일 다시 확인을 사용하세요</string>
     <!-- EN: The games folder\'s storage cannot read archives in place -->
-    <string name="kairo_disk_archive_not_seekable">The games folder\'s storage cannot read archives in place</string>
+    <string name="kairo_disk_archive_not_seekable">게임 폴더의 저장소에서는 압축 파일을 바로 읽을 수 없습니다</string>
     <!-- EN: Archive has too many disk images -->
-    <string name="kairo_disk_archive_too_many_images">Archive has too many disk images</string>
+    <string name="kairo_disk_archive_too_many_images">압축 파일에 디스크 이미지가 너무 많습니다</string>
     <!-- EN: Archive has too many entries -->
-    <string name="kairo_disk_archive_too_many_entries">Archive has too many entries</string>
+    <string name="kairo_disk_archive_too_many_entries">압축 파일에 항목이 너무 많습니다</string>
     <!-- EN: Duplicate archive entry -->
-    <string name="kairo_disk_archive_duplicate">Duplicate archive entry</string>
+    <string name="kairo_disk_archive_duplicate">중복된 압축 파일 항목</string>
     <!-- EN: Archive exceeds size limit -->
-    <string name="kairo_disk_archive_too_large">Archive exceeds size limit</string>
+    <string name="kairo_disk_archive_too_large">압축 파일이 크기 제한을 초과합니다</string>
     <!-- EN: Archive entry checksum mismatch -->
-    <string name="kairo_disk_archive_checksum">Archive entry checksum mismatch</string>
+    <string name="kairo_disk_archive_checksum">압축 파일 항목의 체크섬이 일치하지 않습니다</string>
     <!-- EN: Disk image exceeds size limit -->
-    <string name="kairo_disk_image_too_large">Disk image exceeds size limit</string>
+    <string name="kairo_disk_image_too_large">디스크 이미지가 크기 제한을 초과합니다</string>
     <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">Disk image exceeds expansion limit</string>
+    <string name="kairo_disk_image_expansion">디스크 이미지가 압축 해제 제한을 초과합니다</string>
     <!-- EN: Empty disk image -->
-    <string name="kairo_disk_image_empty">Empty disk image</string>
+    <string name="kairo_disk_image_empty">빈 디스크 이미지</string>
     <!-- EN: Disk image size changed during read -->
-    <string name="kairo_disk_image_size_changed">Disk image size changed during read</string>
+    <string name="kairo_disk_image_size_changed">읽는 동안 디스크 이미지 크기가 변경되었습니다</string>
     <!-- About. -->
     <!-- EN: APP -->
-    <string name="kairo_about_app_group">APP</string>
+    <string name="kairo_about_app_group">앱</string>
     <!-- EN: Version -->
-    <string name="kairo_about_version">Version</string>
+    <string name="kairo_about_version">버전</string>
     <!-- EN: SHORTCUTS -->
-    <string name="kairo_about_shortcuts_group">SHORTCUTS</string>
+    <string name="kairo_about_shortcuts_group">단축키</string>
     <!-- EN: LEGAL -->
-    <string name="kairo_about_legal_group">LEGAL</string>
+    <string name="kairo_about_legal_group">법적 고지</string>
     <!-- EN: Third-party licenses -->
-    <string name="kairo_about_licenses">Third-party licenses</string>
+    <string name="kairo_about_licenses">서드 파티 라이선스</string>
     <!-- EN: Privacy policy -->
-    <string name="kairo_about_privacy">Privacy policy</string>
+    <string name="kairo_about_privacy">개인정보처리방침</string>
     <!-- EN: This document could not be opened. -->
-    <string name="kairo_about_document_failed">This document could not be opened.</string>
+    <string name="kairo_about_document_failed">이 문서를 열 수 없습니다.</string>
 </resources>

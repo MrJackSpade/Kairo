@@ -2,170 +2,170 @@
 <!-- Indonesian (in): the translation of values/strings_session.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: No game -->
-    <string name="kairo_no_game">No game</string>
+    <string name="kairo_no_game">Tidak ada game</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: %1$s display -->
-    <string name="kairo_game_display">%1$s display</string>
+    <string name="kairo_game_display">Layar %1$s</string>
     <!-- EN: Back -->
-    <string name="kairo_back">Back</string>
+    <string name="kairo_back">Kembali</string>
     <!-- EN: Stop -->
-    <string name="kairo_task_stop">Stop</string>
+    <string name="kairo_task_stop">Hentikan</string>
     <!-- EN: PAUSED -->
-    <string name="kairo_paused_banner">PAUSED</string>
+    <string name="kairo_paused_banner">DIJEDA</string>
     <!-- EN: Resumed -->
-    <string name="kairo_resumed">Resumed</string>
+    <string name="kairo_resumed">Dilanjutkan</string>
     <!-- The menus' SETTINGS rows. -->
     <!-- EN: Configurations -->
-    <string name="kairo_configurations">Configurations</string>
+    <string name="kairo_configurations">Konfigurasi</string>
     <!-- EN: Sound -->
-    <string name="kairo_sound">Sound</string>
+    <string name="kairo_sound">Suara</string>
     <!-- EN: About -->
-    <string name="kairo_about">About</string>
+    <string name="kairo_about">Tentang</string>
     <!-- The game menu. %1$s is the app's name, such as Kairo88. -->
     <!-- EN: GAME -->
     <string name="kairo_flyout_game_group">GAME</string>
     <!-- EN: SETTINGS -->
-    <string name="kairo_flyout_settings_group">SETTINGS</string>
+    <string name="kairo_flyout_settings_group">SETELAN</string>
     <!-- EN: Game settings are available for games started from the library. -->
-    <string name="kairo_flyout_game_settings_library_only">Game settings are available for games started from the library.</string>
+    <string name="kairo_flyout_game_settings_library_only">Setelan game tersedia untuk game yang dimulai dari pustaka.</string>
     <!-- EN: Restart game -->
-    <string name="kairo_flyout_restart">Restart game</string>
+    <string name="kairo_flyout_restart">Mulai ulang game</string>
     <!-- EN: Progress since your last save is lost. -->
-    <string name="kairo_flyout_restart_confirm">Progress since your last save is lost.</string>
+    <string name="kairo_flyout_restart_confirm">Progres sejak penyimpanan terakhir akan hilang.</string>
     <!-- EN: Exit %1$s -->
-    <string name="kairo_flyout_exit">Exit %1$s</string>
+    <string name="kairo_flyout_exit">Keluar dari %1$s</string>
     <!-- EN: Exit %1$s? -->
-    <string name="kairo_flyout_exit_title">Exit %1$s?</string>
+    <string name="kairo_flyout_exit_title">Keluar dari %1$s?</string>
     <!-- EN: The machine stops. Progress since your last save is lost. -->
-    <string name="kairo_flyout_exit_confirm">The machine stops. Progress since your last save is lost.</string>
+    <string name="kairo_flyout_exit_confirm">Mesin akan berhenti. Progres sejak penyimpanan terakhir akan hilang.</string>
     <!-- EN: Return to library -->
-    <string name="kairo_return_to_library">Return to library</string>
+    <string name="kairo_return_to_library">Kembali ke pustaka</string>
     <!-- EN: Return to library? -->
-    <string name="kairo_return_to_library_title">Return to library?</string>
+    <string name="kairo_return_to_library_title">Kembali ke pustaka?</string>
     <!-- EN: This game stops. Progress since your last save is lost. -->
-    <string name="kairo_return_to_library_confirm">This game stops. Progress since your last save is lost.</string>
+    <string name="kairo_return_to_library_confirm">Game ini akan berhenti. Progres sejak penyimpanan terakhir akan hilang.</string>
     <!-- EN: Return to frontend -->
-    <string name="kairo_return_to_frontend">Return to frontend</string>
+    <string name="kairo_return_to_frontend">Kembali ke frontend</string>
     <!-- EN: Return to frontend? -->
-    <string name="kairo_return_to_frontend_title">Return to frontend?</string>
+    <string name="kairo_return_to_frontend_title">Kembali ke frontend?</string>
     <!-- EN: This game stops and %1$s closes. Progress since your last save is lost. -->
-    <string name="kairo_return_to_frontend_confirm">This game stops and %1$s closes. Progress since your last save is lost.</string>
+    <string name="kairo_return_to_frontend_confirm">Game ini akan berhenti dan %1$s akan ditutup. Progres sejak penyimpanan terakhir akan hilang.</string>
     <!-- EN: End game -->
-    <string name="kairo_end_game">End game</string>
+    <string name="kairo_end_game">Akhiri game</string>
     <!-- The machine's state on the game menu's status line. -->
     <!-- EN: Running -->
-    <string name="kairo_state_running">Running</string>
+    <string name="kairo_state_running">Berjalan</string>
     <!-- EN: Paused -->
-    <string name="kairo_state_paused">Paused</string>
+    <string name="kairo_state_paused">Dijeda</string>
     <!-- EN: Stopped -->
-    <string name="kairo_state_stopped">Stopped</string>
+    <string name="kairo_state_stopped">Berhenti</string>
     <!-- EN: Starting -->
-    <string name="kairo_state_starting">Starting</string>
+    <string name="kairo_state_starting">Memulai</string>
     <!-- EN: Error -->
     <string name="kairo_state_error">Error</string>
     <!-- EN: Loading -->
-    <string name="kairo_state_loading">Loading</string>
+    <string name="kairo_state_loading">Memuat</string>
     <!-- EN: Failed -->
-    <string name="kairo_state_failed">Failed</string>
+    <string name="kairo_state_failed">Gagal</string>
     <!-- EN: Muted -->
-    <string name="kairo_session_muted">Muted</string>
+    <string name="kairo_session_muted">Dibisukan</string>
     <!-- EN: Stopping machine… -->
-    <string name="kairo_session_stopping">Stopping machine…</string>
+    <string name="kairo_session_stopping">Menghentikan mesin…</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: No playable %1$s game found -->
-    <string name="kairo_external_no_playable">No playable %1$s game found</string>
+    <string name="kairo_external_no_playable">Tidak ditemukan game %1$s yang dapat dimainkan</string>
     <!-- EN: Choose a disk to start -->
-    <string name="kairo_external_choose_disk">Choose a disk to start</string>
+    <string name="kairo_external_choose_disk">Pilih disk untuk memulai</string>
     <!-- EN: Refresh this entry before playing -->
-    <string name="kairo_launch_refresh_first">Refresh this entry before playing</string>
+    <string name="kairo_launch_refresh_first">Muat ulang entri ini sebelum bermain</string>
     <!-- %1$s says why, often the emulator's own message. -->
     <!-- EN: Launch failed: %1$s -->
-    <string name="kairo_launch_failed">Launch failed: %1$s</string>
+    <string name="kairo_launch_failed">Peluncuran gagal: %1$s</string>
     <!-- EN: Wait for the saves to finish moving. -->
-    <string name="kairo_saves_moving_wait">Wait for the saves to finish moving.</string>
+    <string name="kairo_saves_moving_wait">Tunggu hingga data simpanan selesai dipindahkan.</string>
     <!-- EN: Return to the library to change the save folder. -->
-    <string name="kairo_saves_return_to_library">Return to the library to change the save folder.</string>
+    <string name="kairo_saves_return_to_library">Kembali ke pustaka untuk mengubah folder simpanan.</string>
     <!-- EN: Catalogs updated -->
-    <string name="kairo_catalogs_updated">Catalogs updated</string>
+    <string name="kairo_catalogs_updated">Katalog diperbarui</string>
     <!-- %1$s is the library folder's name, such as games folder. -->
     <!-- EN: Choose a %1$s from the library menu when you’re ready -->
-    <string name="kairo_first_run_choose_later">Choose a %1$s from the library menu when you’re ready</string>
+    <string name="kairo_first_run_choose_later">Pilih %1$s dari menu pustaka jika sudah siap</string>
     <!-- EN: STEP 1 OF 2 -->
-    <string name="kairo_first_run_step_1">STEP 1 OF 2</string>
+    <string name="kairo_first_run_step_1">LANGKAH 1 DARI 2</string>
     <!-- EN: STEP 2 OF 2 -->
-    <string name="kairo_first_run_step_2">STEP 2 OF 2</string>
+    <string name="kairo_first_run_step_2">LANGKAH 2 DARI 2</string>
     <!-- EN: You can choose or change it later in Menu › Manage library. -->
-    <string name="kairo_first_run_folder_later">You can choose or change it later in Menu › Manage library.</string>
+    <string name="kairo_first_run_folder_later">Anda dapat memilih atau mengubahnya nanti di Menu › Kelola pustaka.</string>
     <!-- EN: Skip for now -->
-    <string name="kairo_first_run_skip">Skip for now</string>
+    <string name="kairo_first_run_skip">Lewati untuk saat ini</string>
     <!-- EN: Continue to library -->
-    <string name="kairo_first_run_to_library">Continue to library</string>
+    <string name="kairo_first_run_to_library">Lanjut ke pustaka</string>
     <!-- EN: CONTROLS -->
-    <string name="kairo_controls_group">CONTROLS</string>
+    <string name="kairo_controls_group">KONTROL</string>
     <!-- EN: DISPLAY -->
-    <string name="kairo_display_group">DISPLAY</string>
+    <string name="kairo_display_group">TAMPILAN</string>
     <!-- EN: LIBRARY -->
-    <string name="kairo_library_group">LIBRARY</string>
+    <string name="kairo_library_group">PUSTAKA</string>
     <!-- EN: FILE -->
     <string name="kairo_file_group">FILE</string>
     <!-- EN: Landscape anchor -->
-    <string name="kairo_anchor_landscape">Landscape anchor</string>
+    <string name="kairo_anchor_landscape">Penempatan lanskap</string>
     <!-- EN: Portrait anchor -->
-    <string name="kairo_anchor_portrait">Portrait anchor</string>
+    <string name="kairo_anchor_portrait">Penempatan potret</string>
     <!-- EN: Title -->
-    <string name="kairo_title">Title</string>
+    <string name="kairo_title">Judul</string>
     <!-- EN: Game title -->
-    <string name="kairo_title_hint">Game title</string>
+    <string name="kairo_title_hint">Judul game</string>
     <!-- EN: Chosen images are copied into your library. -->
-    <string name="kairo_artwork_copied_foot">Chosen images are copied into your library.</string>
+    <string name="kairo_artwork_copied_foot">Gambar yang dipilih disalin ke pustaka Anda.</string>
     <!-- EN: Game settings reset. Machine changes apply on next launch or restart. -->
-    <string name="kairo_settings_reset_done">Game settings reset. Machine changes apply on next launch or restart.</string>
+    <string name="kairo_settings_reset_done">Setelan game direset. Perubahan mesin berlaku saat peluncuran atau mulai ulang berikutnya.</string>
     <!-- EN: Could not reset game settings -->
-    <string name="kairo_settings_reset_failed">Could not reset game settings</string>
+    <string name="kairo_settings_reset_failed">Tidak dapat mereset setelan game</string>
     <!-- %1$s says why the value was refused. -->
     <!-- EN: Could not save: %1$s -->
-    <string name="kairo_save_failed">Could not save: %1$s</string>
+    <string name="kairo_save_failed">Tidak dapat menyimpan: %1$s</string>
     <!-- EN: Invalid value -->
-    <string name="kairo_invalid_value">Invalid value</string>
+    <string name="kairo_invalid_value">Nilai tidak valid</string>
     <!-- EN: Top Left -->
-    <string name="kairo_anchor_top_left">Top Left</string>
+    <string name="kairo_anchor_top_left">Kiri Atas</string>
     <!-- EN: Top Center -->
-    <string name="kairo_anchor_top_center">Top Center</string>
+    <string name="kairo_anchor_top_center">Tengah Atas</string>
     <!-- EN: Top Right -->
-    <string name="kairo_anchor_top_right">Top Right</string>
+    <string name="kairo_anchor_top_right">Kanan Atas</string>
     <!-- EN: Center Left -->
-    <string name="kairo_anchor_center_left">Center Left</string>
+    <string name="kairo_anchor_center_left">Kiri Tengah</string>
     <!-- EN: Center -->
-    <string name="kairo_anchor_center">Center</string>
+    <string name="kairo_anchor_center">Tengah</string>
     <!-- EN: Center Right -->
-    <string name="kairo_anchor_center_right">Center Right</string>
+    <string name="kairo_anchor_center_right">Kanan Tengah</string>
     <!-- EN: Bottom Left -->
-    <string name="kairo_anchor_bottom_left">Bottom Left</string>
+    <string name="kairo_anchor_bottom_left">Kiri Bawah</string>
     <!-- EN: Bottom Center -->
-    <string name="kairo_anchor_bottom_center">Bottom Center</string>
+    <string name="kairo_anchor_bottom_center">Tengah Bawah</string>
     <!-- EN: Bottom Right -->
-    <string name="kairo_anchor_bottom_right">Bottom Right</string>
+    <string name="kairo_anchor_bottom_right">Kanan Bawah</string>
     <!-- EN: Open the menu -->
-    <string name="kairo_help_open_menu">Open the menu</string>
+    <string name="kairo_help_open_menu">Buka menu</string>
     <!-- EN: Mode or Home button, Back, Menu, or a swipe from the left edge -->
-    <string name="kairo_help_open_menu_how">Mode or Home button, Back, Menu, or a swipe from the left edge</string>
+    <string name="kairo_help_open_menu_how">Tombol Mode atau Home, Kembali, Menu, atau geser dari tepi kiri</string>
     <!-- EN: Open the keyboard -->
-    <string name="kairo_help_open_keyboard">Open the keyboard</string>
+    <string name="kairo_help_open_keyboard">Buka keyboard</string>
     <!-- EN: Swipe in from the right edge -->
-    <string name="kairo_help_open_keyboard_how">Swipe in from the right edge</string>
+    <string name="kairo_help_open_keyboard_how">Geser dari tepi kanan</string>
     <!-- EN: Physical keyboard -->
-    <string name="kairo_help_physical_keyboard">Physical keyboard</string>
+    <string name="kairo_help_physical_keyboard">Keyboard fisik</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: Types into the %1$s while the menu is closed -->
-    <string name="kairo_help_physical_keyboard_how">Types into the %1$s while the menu is closed</string>
+    <string name="kairo_help_physical_keyboard_how">Mengetik ke %1$s saat menu ditutup</string>
     <!-- EN: Android reserves the system Home key. -->
-    <string name="kairo_help_home_key">Android reserves the system Home key.</string>
+    <string name="kairo_help_home_key">Android mencadangkan tombol Beranda sistem.</string>
     <!-- EN: Diagnostics -->
-    <string name="kairo_diagnostics">Diagnostics</string>
+    <string name="kairo_diagnostics">Diagnostik</string>
     <!-- EN: MACHINE STATUS -->
-    <string name="kairo_diagnostics_group">MACHINE STATUS</string>
+    <string name="kairo_diagnostics_group">STATUS MESIN</string>
     <!-- EN: Live values from the emulator, updated four times a second. -->
-    <string name="kairo_diagnostics_live">Live values from the emulator, updated four times a second.</string>
+    <string name="kairo_diagnostics_live">Nilai langsung dari emulator, diperbarui empat kali per detik.</string>
     <!-- EN: Start a game to see live values. -->
-    <string name="kairo_diagnostics_start_game">Start a game to see live values.</string>
+    <string name="kairo_diagnostics_start_game">Mulai game untuk melihat nilai langsung.</string>
 </resources>

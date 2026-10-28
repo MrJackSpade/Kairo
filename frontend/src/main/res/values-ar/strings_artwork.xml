@@ -2,102 +2,102 @@
 <!-- Arabic (ar): the translation of values/strings_artwork.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Box art -->
-    <string name="kairo_artwork_box_art">Box art</string>
+    <string name="kairo_artwork_box_art">صورة العلبة</string>
     <!-- EN: Screenshot -->
-    <string name="kairo_artwork_screenshot">Screenshot</string>
+    <string name="kairo_artwork_screenshot">لقطة شاشة</string>
     <!-- EN: View -->
-    <string name="kairo_artwork_view">View</string>
+    <string name="kairo_artwork_view">عرض</string>
     <!-- EN: Replace… -->
-    <string name="kairo_artwork_replace">Replace…</string>
+    <string name="kairo_artwork_replace">استبدال…</string>
     <!-- EN: Choose image… -->
-    <string name="kairo_artwork_choose">Choose image…</string>
+    <string name="kairo_artwork_choose">اختيار صورة…</string>
     <!-- EN: Could not import image -->
-    <string name="kairo_artwork_import_failed">Could not import image</string>
+    <string name="kairo_artwork_import_failed">تعذّر استيراد الصورة</string>
     <!-- EN: Artwork reset -->
-    <string name="kairo_artwork_reset_done">Artwork reset</string>
+    <string name="kairo_artwork_reset_done">تمت إعادة تعيين الصورة</string>
     <!-- EN: Artwork saved -->
-    <string name="kairo_artwork_saved">Artwork saved</string>
+    <string name="kairo_artwork_saved">تم حفظ الصورة</string>
     <!-- EN: Could not save artwork -->
-    <string name="kairo_artwork_save_failed">Could not save artwork</string>
+    <string name="kairo_artwork_save_failed">تعذّر حفظ الصورة</string>
     <!-- The image's kind in lower case: kairo_artwork_box_art or kairo_artwork_screenshot. -->
     <!-- EN: No %1$s available -->
-    <string name="kairo_artwork_none_available">No %1$s available</string>
+    <string name="kairo_artwork_none_available">لا تتوفر %1$s</string>
     <!-- EN: Image unavailable -->
-    <string name="kairo_artwork_unavailable">Image unavailable</string>
+    <string name="kairo_artwork_unavailable">الصورة غير متاحة</string>
     <!-- EN: Tap image to load a larger version -->
-    <string name="kairo_artwork_tap_larger">Tap image to load a larger version</string>
+    <string name="kairo_artwork_tap_larger">انقر على الصورة لتحميل نسخة أكبر</string>
     <!-- EN: Loading larger image… -->
-    <string name="kairo_artwork_loading_larger">Loading larger image…</string>
+    <string name="kairo_artwork_loading_larger">جارٍ تحميل صورة أكبر…</string>
     <!-- EN: Could not load larger image -->
-    <string name="kairo_artwork_larger_failed">Could not load larger image</string>
+    <string name="kairo_artwork_larger_failed">تعذّر تحميل الصورة الأكبر</string>
     <!-- EN: Larger image loaded -->
-    <string name="kairo_artwork_larger_loaded">Larger image loaded</string>
+    <string name="kairo_artwork_larger_loaded">تم تحميل الصورة الأكبر</string>
     <!-- EN: ARTWORK -->
-    <string name="kairo_artwork_group">ARTWORK</string>
+    <string name="kairo_artwork_group">الصور</string>
     <!-- EN: Download missing images -->
-    <string name="kairo_artwork_download">Download missing images</string>
+    <string name="kairo_artwork_download">تنزيل الصور المفقودة</string>
     <!-- EN: Stopping image download… -->
-    <string name="kairo_artwork_stopping">Stopping image download…</string>
+    <string name="kairo_artwork_stopping">جارٍ إيقاف تنزيل الصور…</string>
     <!-- EN: Images are already downloading -->
-    <string name="kairo_artwork_already_running">Images are already downloading</string>
+    <string name="kairo_artwork_already_running">يجري تنزيل الصور بالفعل</string>
     <!-- EN: Add games to the library first -->
-    <string name="kairo_artwork_no_games">Add games to the library first</string>
+    <string name="kairo_artwork_no_games">أضف ألعابًا إلى المكتبة أولًا</string>
     <!-- EN: Checking library artwork… -->
-    <string name="kairo_artwork_checking">Checking library artwork…</string>
+    <string name="kairo_artwork_checking">جارٍ فحص صور المكتبة…</string>
     <!-- Images done, then images to download. -->
     <!-- EN: Downloading images %1$d/%2$d -->
-    <string name="kairo_artwork_downloading">Downloading images %1$d/%2$d</string>
+    <string name="kairo_artwork_downloading">جارٍ تنزيل الصور %1$d/%2$d</string>
     <!-- Images done, images to download, then images that failed. -->
     <!-- EN: Downloading images %1$d/%2$d · %3$d failed -->
-    <string name="kairo_artwork_downloading_failed">Downloading images %1$d/%2$d · %3$d failed</string>
+    <string name="kairo_artwork_downloading_failed">جارٍ تنزيل الصور %1$d/%2$d · فشل %3$d</string>
     <!-- Images done, then images to download. -->
     <!-- EN: %1$d / %2$d -->
     <string name="kairo_artwork_progress">%1$d / %2$d</string>
     <!-- EN: Waiting… -->
-    <string name="kairo_artwork_waiting">Waiting…</string>
+    <string name="kairo_artwork_waiting">في الانتظار…</string>
     <!-- The image server's host name. -->
     <!-- EN: Waiting for %1$s\'s rate limit… -->
-    <string name="kairo_artwork_waiting_for">Waiting for %1$s\'s rate limit…</string>
+    <string name="kairo_artwork_waiting_for">في انتظار حدّ معدل الطلبات لدى %1$s…</string>
     <!-- EN: Image download failed: %1$s -->
-    <string name="kairo_artwork_download_failed">Image download failed: %1$s</string>
+    <string name="kairo_artwork_download_failed">فشل تنزيل الصور: %1$s</string>
     <!-- EN: No missing catalog images for this library -->
-    <string name="kairo_artwork_none_missing_result">No missing catalog images for this library</string>
+    <string name="kairo_artwork_none_missing_result">لا توجد صور كتالوج مفقودة لهذه المكتبة</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Image download stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped_result">Image download stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped_result">توقّف تنزيل الصور · تم حفظ %1$d</string>
     <plurals name="kairo_artwork_downloaded">
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="zero">Downloaded %1$d images</item>
+        <item quantity="zero">تم تنزيل %1$d صورة</item>
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="one">Downloaded %1$d images</item>
+        <item quantity="one">تم تنزيل %1$d صورة</item>
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="two">Downloaded %1$d images</item>
+        <item quantity="two">تم تنزيل %1$d صورتين</item>
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="few">Downloaded %1$d images</item>
+        <item quantity="few">تم تنزيل %1$d صور</item>
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="many">Downloaded %1$d images</item>
+        <item quantity="many">تم تنزيل %1$d صورة</item>
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="other">Downloaded %1$d images</item>
+        <item quantity="other">تم تنزيل %1$d صورة</item>
     </plurals>
     <!-- Images saved, images that failed, then why they failed (kairo_artwork_reason_count, separated by semicolons). -->
     <!-- EN: Downloaded %1$d images · %2$d failed: %3$s -->
-    <string name="kairo_artwork_downloaded_failed">Downloaded %1$d images · %2$d failed: %3$s</string>
+    <string name="kairo_artwork_downloaded_failed">تم تنزيل %1$d صورة · فشل %2$d: %3$s</string>
     <!-- EN: Failed -->
-    <string name="kairo_artwork_failed">Failed</string>
+    <string name="kairo_artwork_failed">فشل</string>
     <!-- EN: None missing -->
-    <string name="kairo_artwork_none_missing">None missing</string>
+    <string name="kairo_artwork_none_missing">لا يوجد شيء مفقود</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped">Stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped">متوقف · تم حفظ %1$d</string>
     <!-- EN: %1$d saved -->
-    <string name="kairo_artwork_saved_count">%1$d saved</string>
+    <string name="kairo_artwork_saved_count">تم حفظ %1$d</string>
     <!-- Images saved, then images that failed. -->
     <!-- EN: %1$d saved · %2$d failed -->
-    <string name="kairo_artwork_saved_failed">%1$d saved · %2$d failed</string>
+    <string name="kairo_artwork_saved_failed">تم حفظ %1$d · فشل %2$d</string>
     <!-- EN: No internet connection -->
-    <string name="kairo_artwork_no_internet">No internet connection</string>
+    <string name="kairo_artwork_no_internet">لا يوجد اتصال بالإنترنت</string>
     <!-- EN: The image server did not respond -->
-    <string name="kairo_artwork_no_response">The image server did not respond</string>
+    <string name="kairo_artwork_no_response">لم يستجب خادم الصور</string>
     <!-- Why images failed, then how many failed for it. -->
     <!-- EN: %1$s (%2$d) -->
     <string name="kairo_artwork_reason_count">%1$s (%2$d)</string>

@@ -2,43 +2,43 @@
 <!-- Japanese (ja): the translation of values/strings.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: On -->
-    <string name="kairo_on">On</string>
+    <string name="kairo_on">オン</string>
     <!-- EN: Off -->
-    <string name="kairo_off">Off</string>
+    <string name="kairo_off">オフ</string>
     <!-- EN: Auto -->
-    <string name="kairo_auto">Auto</string>
+    <string name="kairo_auto">自動</string>
     <!-- EN: Empty -->
-    <string name="kairo_empty">Empty</string>
+    <string name="kairo_empty">空</string>
     <!-- EN: Default -->
-    <string name="kairo_default">Default</string>
+    <string name="kairo_default">デフォルト</string>
     <!-- EN: Cancel -->
-    <string name="kairo_cancel">Cancel</string>
+    <string name="kairo_cancel">キャンセル</string>
     <!-- EN: Remove -->
-    <string name="kairo_remove">Remove</string>
+    <string name="kairo_remove">削除</string>
     <!-- EN: Missing -->
-    <string name="kairo_missing">Missing</string>
+    <string name="kairo_missing">不足</string>
     <!-- EN: Installed -->
-    <string name="kairo_installed">Installed</string>
+    <string name="kairo_installed">インストール済み</string>
     <!-- EN: Continue -->
-    <string name="kairo_continue">Continue</string>
+    <string name="kairo_continue">続行</string>
     <!-- EN: Keyboard -->
-    <string name="kairo_keyboard">Keyboard</string>
+    <string name="kairo_keyboard">キーボード</string>
     <!-- EN: Mouse -->
-    <string name="kairo_mouse">Mouse</string>
+    <string name="kairo_mouse">マウス</string>
     <!-- EN: Joystick -->
-    <string name="kairo_joystick">Joystick</string>
+    <string name="kairo_joystick">ジョイスティック</string>
     <!-- Joins a list, and the choices within one of its items: "IPL-ROM, CG-ROM or CG-ROM (XVI)". -->
     <!-- EN: ", " -->
-    <string name="kairo_list_separator">", "</string>
+    <string name="kairo_list_separator">"、"</string>
     <!-- EN: " or " -->
-    <string name="kairo_list_or">" or "</string>
+    <string name="kairo_list_or">" または "</string>
     <!-- EN: games folder -->
-    <string name="kairo_games_folder">games folder</string>
+    <string name="kairo_games_folder">ゲームフォルダ</string>
     <!-- EN: No games folder selected -->
-    <string name="kairo_no_games_folder">No games folder selected</string>
+    <string name="kairo_no_games_folder">ゲームフォルダが選択されていません</string>
     <!-- EN: Skip memory check -->
-    <string name="kairo_option_skip_memory_check">Skip memory check</string>
+    <string name="kairo_option_skip_memory_check">メモリチェックをスキップ</string>
     <!-- A firmware file that is not installed but another installed file stands in for. -->
     <!-- EN: Covered by %1$s -->
-    <string name="kairo_firmware_covered_by">Covered by %1$s</string>
+    <string name="kairo_firmware_covered_by">%1$s で代用</string>
 </resources>

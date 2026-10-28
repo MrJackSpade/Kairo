@@ -2,92 +2,92 @@
 <!-- Indonesian (in): the translation of values/strings_artwork.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Box art -->
-    <string name="kairo_artwork_box_art">Box art</string>
+    <string name="kairo_artwork_box_art">Sampul</string>
     <!-- EN: Screenshot -->
     <string name="kairo_artwork_screenshot">Screenshot</string>
     <!-- EN: View -->
-    <string name="kairo_artwork_view">View</string>
+    <string name="kairo_artwork_view">Lihat</string>
     <!-- EN: Replace… -->
-    <string name="kairo_artwork_replace">Replace…</string>
+    <string name="kairo_artwork_replace">Ganti…</string>
     <!-- EN: Choose image… -->
-    <string name="kairo_artwork_choose">Choose image…</string>
+    <string name="kairo_artwork_choose">Pilih gambar…</string>
     <!-- EN: Could not import image -->
-    <string name="kairo_artwork_import_failed">Could not import image</string>
+    <string name="kairo_artwork_import_failed">Tidak dapat mengimpor gambar</string>
     <!-- EN: Artwork reset -->
-    <string name="kairo_artwork_reset_done">Artwork reset</string>
+    <string name="kairo_artwork_reset_done">Gambar direset</string>
     <!-- EN: Artwork saved -->
-    <string name="kairo_artwork_saved">Artwork saved</string>
+    <string name="kairo_artwork_saved">Gambar disimpan</string>
     <!-- EN: Could not save artwork -->
-    <string name="kairo_artwork_save_failed">Could not save artwork</string>
+    <string name="kairo_artwork_save_failed">Tidak dapat menyimpan gambar</string>
     <!-- The image's kind in lower case: kairo_artwork_box_art or kairo_artwork_screenshot. -->
     <!-- EN: No %1$s available -->
-    <string name="kairo_artwork_none_available">No %1$s available</string>
+    <string name="kairo_artwork_none_available">%1$s tidak tersedia</string>
     <!-- EN: Image unavailable -->
-    <string name="kairo_artwork_unavailable">Image unavailable</string>
+    <string name="kairo_artwork_unavailable">Gambar tidak tersedia</string>
     <!-- EN: Tap image to load a larger version -->
-    <string name="kairo_artwork_tap_larger">Tap image to load a larger version</string>
+    <string name="kairo_artwork_tap_larger">Ketuk gambar untuk memuat versi yang lebih besar</string>
     <!-- EN: Loading larger image… -->
-    <string name="kairo_artwork_loading_larger">Loading larger image…</string>
+    <string name="kairo_artwork_loading_larger">Memuat gambar yang lebih besar…</string>
     <!-- EN: Could not load larger image -->
-    <string name="kairo_artwork_larger_failed">Could not load larger image</string>
+    <string name="kairo_artwork_larger_failed">Tidak dapat memuat gambar yang lebih besar</string>
     <!-- EN: Larger image loaded -->
-    <string name="kairo_artwork_larger_loaded">Larger image loaded</string>
+    <string name="kairo_artwork_larger_loaded">Gambar yang lebih besar dimuat</string>
     <!-- EN: ARTWORK -->
-    <string name="kairo_artwork_group">ARTWORK</string>
+    <string name="kairo_artwork_group">GAMBAR</string>
     <!-- EN: Download missing images -->
-    <string name="kairo_artwork_download">Download missing images</string>
+    <string name="kairo_artwork_download">Download gambar yang hilang</string>
     <!-- EN: Stopping image download… -->
-    <string name="kairo_artwork_stopping">Stopping image download…</string>
+    <string name="kairo_artwork_stopping">Menghentikan download gambar…</string>
     <!-- EN: Images are already downloading -->
-    <string name="kairo_artwork_already_running">Images are already downloading</string>
+    <string name="kairo_artwork_already_running">Gambar sudah sedang didownload</string>
     <!-- EN: Add games to the library first -->
-    <string name="kairo_artwork_no_games">Add games to the library first</string>
+    <string name="kairo_artwork_no_games">Tambahkan game ke pustaka terlebih dahulu</string>
     <!-- EN: Checking library artwork… -->
-    <string name="kairo_artwork_checking">Checking library artwork…</string>
+    <string name="kairo_artwork_checking">Memeriksa gambar pustaka…</string>
     <!-- Images done, then images to download. -->
     <!-- EN: Downloading images %1$d/%2$d -->
-    <string name="kairo_artwork_downloading">Downloading images %1$d/%2$d</string>
+    <string name="kairo_artwork_downloading">Mendownload gambar %1$d/%2$d</string>
     <!-- Images done, images to download, then images that failed. -->
     <!-- EN: Downloading images %1$d/%2$d · %3$d failed -->
-    <string name="kairo_artwork_downloading_failed">Downloading images %1$d/%2$d · %3$d failed</string>
+    <string name="kairo_artwork_downloading_failed">Mendownload gambar %1$d/%2$d · %3$d gagal</string>
     <!-- Images done, then images to download. -->
     <!-- EN: %1$d / %2$d -->
     <string name="kairo_artwork_progress">%1$d / %2$d</string>
     <!-- EN: Waiting… -->
-    <string name="kairo_artwork_waiting">Waiting…</string>
+    <string name="kairo_artwork_waiting">Menunggu…</string>
     <!-- The image server's host name. -->
     <!-- EN: Waiting for %1$s\'s rate limit… -->
-    <string name="kairo_artwork_waiting_for">Waiting for %1$s\'s rate limit…</string>
+    <string name="kairo_artwork_waiting_for">Menunggu batas kecepatan %1$s…</string>
     <!-- EN: Image download failed: %1$s -->
-    <string name="kairo_artwork_download_failed">Image download failed: %1$s</string>
+    <string name="kairo_artwork_download_failed">Download gambar gagal: %1$s</string>
     <!-- EN: No missing catalog images for this library -->
-    <string name="kairo_artwork_none_missing_result">No missing catalog images for this library</string>
+    <string name="kairo_artwork_none_missing_result">Tidak ada gambar katalog yang hilang untuk pustaka ini</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Image download stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped_result">Image download stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped_result">Download gambar dihentikan · %1$d disimpan</string>
     <plurals name="kairo_artwork_downloaded">
         <!-- EN: Downloaded %1$d images -->
-        <item quantity="other">Downloaded %1$d images</item>
+        <item quantity="other">%1$d gambar didownload</item>
     </plurals>
     <!-- Images saved, images that failed, then why they failed (kairo_artwork_reason_count, separated by semicolons). -->
     <!-- EN: Downloaded %1$d images · %2$d failed: %3$s -->
-    <string name="kairo_artwork_downloaded_failed">Downloaded %1$d images · %2$d failed: %3$s</string>
+    <string name="kairo_artwork_downloaded_failed">%1$d gambar didownload · %2$d gagal: %3$s</string>
     <!-- EN: Failed -->
-    <string name="kairo_artwork_failed">Failed</string>
+    <string name="kairo_artwork_failed">Gagal</string>
     <!-- EN: None missing -->
-    <string name="kairo_artwork_none_missing">None missing</string>
+    <string name="kairo_artwork_none_missing">Tidak ada yang hilang</string>
     <!-- Images saved before the download stopped. -->
     <!-- EN: Stopped · %1$d saved -->
-    <string name="kairo_artwork_stopped">Stopped · %1$d saved</string>
+    <string name="kairo_artwork_stopped">Dihentikan · %1$d disimpan</string>
     <!-- EN: %1$d saved -->
-    <string name="kairo_artwork_saved_count">%1$d saved</string>
+    <string name="kairo_artwork_saved_count">%1$d disimpan</string>
     <!-- Images saved, then images that failed. -->
     <!-- EN: %1$d saved · %2$d failed -->
-    <string name="kairo_artwork_saved_failed">%1$d saved · %2$d failed</string>
+    <string name="kairo_artwork_saved_failed">%1$d disimpan · %2$d gagal</string>
     <!-- EN: No internet connection -->
-    <string name="kairo_artwork_no_internet">No internet connection</string>
+    <string name="kairo_artwork_no_internet">Tidak ada koneksi internet</string>
     <!-- EN: The image server did not respond -->
-    <string name="kairo_artwork_no_response">The image server did not respond</string>
+    <string name="kairo_artwork_no_response">Server gambar tidak merespons</string>
     <!-- Why images failed, then how many failed for it. -->
     <!-- EN: %1$s (%2$d) -->
     <string name="kairo_artwork_reason_count">%1$s (%2$d)</string>

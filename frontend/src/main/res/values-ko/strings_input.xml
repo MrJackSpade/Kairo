@@ -2,81 +2,81 @@
 <!-- Korean (ko): the translation of values/strings_input.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: ON-SCREEN CONTROLS -->
-    <string name="kairo_onscreen_group">ON-SCREEN CONTROLS</string>
+    <string name="kairo_onscreen_group">화면 컨트롤</string>
     <!-- EN: On-screen controls -->
-    <string name="kairo_onscreen_controls">On-screen controls</string>
+    <string name="kairo_onscreen_controls">화면 컨트롤</string>
     <!-- EN: Hidden while a controller is connected -->
-    <string name="kairo_onscreen_mode_auto_help">Hidden while a controller is connected</string>
+    <string name="kairo_onscreen_mode_auto_help">컨트롤러가 연결되어 있으면 숨김</string>
     <!-- EN: Shown -->
-    <string name="kairo_onscreen_mode_shown">Shown</string>
+    <string name="kairo_onscreen_mode_shown">표시</string>
     <!-- EN: Always shown -->
-    <string name="kairo_onscreen_mode_shown_help">Always shown</string>
+    <string name="kairo_onscreen_mode_shown_help">항상 표시</string>
     <!-- EN: Hidden -->
-    <string name="kairo_onscreen_mode_hidden">Hidden</string>
+    <string name="kairo_onscreen_mode_hidden">숨김</string>
     <!-- EN: Always hidden -->
-    <string name="kairo_onscreen_mode_hidden_help">Always hidden</string>
+    <string name="kairo_onscreen_mode_hidden_help">항상 숨김</string>
     <!-- EN: D-pad style -->
-    <string name="kairo_onscreen_dpad_style">D-pad style</string>
+    <string name="kairo_onscreen_dpad_style">D-pad 스타일</string>
     <!-- EN: 4 buttons -->
-    <string name="kairo_onscreen_dpad_arrows">4 buttons</string>
+    <string name="kairo_onscreen_dpad_arrows">버튼 4개</string>
     <!-- EN: Separate up, down, left, and right -->
-    <string name="kairo_onscreen_dpad_arrows_help">Separate up, down, left, and right</string>
+    <string name="kairo_onscreen_dpad_arrows_help">위, 아래, 왼쪽, 오른쪽이 따로</string>
     <!-- EN: 8-way pad -->
-    <string name="kairo_onscreen_dpad_pad">8-way pad</string>
+    <string name="kairo_onscreen_dpad_pad">8방향 패드</string>
     <!-- EN: One round pad with diagonals -->
-    <string name="kairo_onscreen_dpad_pad_help">One round pad with diagonals</string>
+    <string name="kairo_onscreen_dpad_pad_help">대각선을 지원하는 원형 패드 하나</string>
     <!-- EN: Visible buttons -->
-    <string name="kairo_onscreen_visible">Visible buttons</string>
+    <string name="kairo_onscreen_visible">표시할 버튼</string>
     <!-- %1$d is how many on-screen controls show. -->
     <!-- EN: %1$d shown -->
-    <string name="kairo_onscreen_shown_count">%1$d shown</string>
+    <string name="kairo_onscreen_shown_count">%1$d개 표시</string>
     <!-- %1$s is the orientation, such as Portrait; %2$s the controller layout, such as With sticks. -->
     <!-- EN: %1$s · %2$s -->
     <string name="kairo_onscreen_visible_scope">%1$s · %2$s</string>
     <!-- EN: Arrange layout -->
-    <string name="kairo_onscreen_arrange">Arrange layout</string>
+    <string name="kairo_onscreen_arrange">레이아웃 배치</string>
     <!-- EN: Reset positions -->
-    <string name="kairo_onscreen_reset_positions">Reset positions</string>
+    <string name="kairo_onscreen_reset_positions">위치 재설정</string>
     <!-- EN: Restore the standard positions for this layout? -->
-    <string name="kairo_onscreen_reset_positions_confirm">Restore the standard positions for this layout?</string>
+    <string name="kairo_onscreen_reset_positions_confirm">이 레이아웃의 표준 위치를 복원할까요?</string>
     <!-- EN: Positions reset -->
-    <string name="kairo_onscreen_positions_reset">Positions reset</string>
+    <string name="kairo_onscreen_positions_reset">위치 재설정됨</string>
     <!-- EN: Layouts are saved separately for portrait and landscape, and for controllers with and without sticks. -->
-    <string name="kairo_onscreen_foot">Layouts are saved separately for portrait and landscape, and for controllers with and without sticks.</string>
+    <string name="kairo_onscreen_foot">레이아웃은 세로·가로 화면, 스틱이 있는 컨트롤러와 없는 컨트롤러별로 따로 저장됩니다.</string>
     <!-- EN: Reset visible buttons -->
-    <string name="kairo_onscreen_reset_visible">Reset visible buttons</string>
+    <string name="kairo_onscreen_reset_visible">표시할 버튼 재설정</string>
     <!-- EN: Restore the standard selection for this layout? -->
-    <string name="kairo_onscreen_reset_visible_confirm">Restore the standard selection for this layout?</string>
+    <string name="kairo_onscreen_reset_visible_confirm">이 레이아웃의 표준 선택을 복원할까요?</string>
     <!-- EN: Visible buttons reset -->
-    <string name="kairo_onscreen_visible_reset">Visible buttons reset</string>
+    <string name="kairo_onscreen_visible_reset">표시할 버튼 재설정됨</string>
     <!-- EN: Drag controls to reposition -->
-    <string name="kairo_onscreen_drag">Drag controls to reposition</string>
+    <string name="kairo_onscreen_drag">컨트롤을 드래그하여 위치 변경</string>
     <!-- EN: STICKS -->
-    <string name="kairo_onscreen_group_sticks">STICKS</string>
+    <string name="kairo_onscreen_group_sticks">스틱</string>
     <!-- EN: Left stick -->
-    <string name="kairo_onscreen_left_stick">Left stick</string>
+    <string name="kairo_onscreen_left_stick">왼쪽 스틱</string>
     <!-- EN: Right stick -->
-    <string name="kairo_onscreen_right_stick">Right stick</string>
+    <string name="kairo_onscreen_right_stick">오른쪽 스틱</string>
     <!-- EN: Done -->
-    <string name="kairo_done">Done</string>
+    <string name="kairo_done">완료</string>
     <!-- EN: Controller mapping -->
-    <string name="kairo_keyboard_mapping">Controller mapping</string>
+    <string name="kairo_keyboard_mapping">컨트롤러 매핑</string>
     <!-- EN: Tap a key, then press the controller button that should send it. Tap a selected key again to clear it. Tap the controller button again to finish. -->
-    <string name="kairo_keyboard_mapping_help">Tap a key, then press the controller button that should send it. Tap a selected key again to clear it. Tap the controller button again to finish.</string>
+    <string name="kairo_keyboard_mapping_help">키를 탭한 다음 그 키를 보낼 컨트롤러 버튼을 누르세요. 선택한 키를 다시 탭하면 지워집니다. 컨트롤러 버튼을 다시 누르면 완료됩니다.</string>
     <!-- EN: Swap game and keyboard screens -->
-    <string name="kairo_keyboard_swap">Swap game and keyboard screens</string>
+    <string name="kairo_keyboard_swap">게임 화면과 키보드 화면 바꾸기</string>
     <!-- EN: Mouse touchpad mode -->
-    <string name="kairo_keyboard_touchpad_mode">Mouse touchpad mode</string>
+    <string name="kairo_keyboard_touchpad_mode">마우스 터치패드 모드</string>
     <!-- EN: Close × -->
-    <string name="kairo_keyboard_close">Close ×</string>
+    <string name="kairo_keyboard_close">닫기 ×</string>
     <!-- EN: OK -->
-    <string name="kairo_ok">OK</string>
+    <string name="kairo_ok">확인</string>
     <!-- EN: Guest mouse touchpad. Drag to move, tap to click, hold to drag. -->
-    <string name="kairo_touchpad_description">Guest mouse touchpad. Drag to move, tap to click, hold to drag.</string>
+    <string name="kairo_touchpad_description">에뮬레이션된 머신의 마우스 터치패드입니다. 드래그하여 이동하고, 탭하여 클릭하고, 길게 눌러 드래그합니다.</string>
     <!-- EN: Drag to move · Tap to click -->
-    <string name="kairo_touchpad_hint_drag">Drag to move · Tap to click</string>
+    <string name="kairo_touchpad_hint_drag">드래그하여 이동 · 탭하여 클릭</string>
     <!-- EN: Hold to drag -->
-    <string name="kairo_touchpad_hint_hold">Hold to drag</string>
+    <string name="kairo_touchpad_hint_hold">길게 눌러 드래그</string>
     <!-- EN: Search by title or file name -->
-    <string name="kairo_search_hint">Search by title or file name</string>
+    <string name="kairo_search_hint">제목 또는 파일 이름으로 검색</string>
 </resources>

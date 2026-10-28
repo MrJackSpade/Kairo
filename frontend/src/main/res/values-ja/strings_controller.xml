@@ -2,327 +2,327 @@
 <!-- Japanese (ja): the translation of values/strings_controller.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Controls -->
-    <string name="kairo_controls">Controls</string>
+    <string name="kairo_controls">操作</string>
     <!-- EN: Button mapping -->
-    <string name="kairo_button_mapping">Button mapping</string>
+    <string name="kairo_button_mapping">ボタン割り当て</string>
     <!-- EN: Controller inputs -->
-    <string name="kairo_controller_inputs">Controller inputs</string>
+    <string name="kairo_controller_inputs">コントローラー入力</string>
     <!-- EN: Controller layout -->
-    <string name="kairo_controller_layout">Controller layout</string>
+    <string name="kairo_controller_layout">コントローラーのレイアウト</string>
     <!-- EN: Custom -->
-    <string name="kairo_custom">Custom</string>
+    <string name="kairo_custom">カスタム</string>
     <!-- EN: Standard -->
-    <string name="kairo_standard">Standard</string>
+    <string name="kairo_standard">標準</string>
     <!-- EN: Unassigned -->
-    <string name="kairo_unassigned">Unassigned</string>
+    <string name="kairo_unassigned">未割り当て</string>
     <!-- EN: None -->
-    <string name="kairo_none">None</string>
+    <string name="kairo_none">なし</string>
     <!-- EN: Clear -->
-    <string name="kairo_clear">Clear</string>
+    <string name="kairo_clear">クリア</string>
     <!-- EN: Save -->
-    <string name="kairo_save">Save</string>
+    <string name="kairo_save">保存</string>
     <!-- EN: Reset -->
-    <string name="kairo_reset">Reset</string>
+    <string name="kairo_reset">リセット</string>
     <!-- EN: %1$d%% -->
     <string name="kairo_percent">%1$d%%</string>
     <!-- EN: Up -->
-    <string name="kairo_up">Up</string>
+    <string name="kairo_up">上</string>
     <!-- EN: Down -->
-    <string name="kairo_down">Down</string>
+    <string name="kairo_down">下</string>
     <!-- EN: Left -->
-    <string name="kairo_left">Left</string>
+    <string name="kairo_left">左</string>
     <!-- EN: Right -->
-    <string name="kairo_right">Right</string>
+    <string name="kairo_right">右</string>
     <!-- %1$s is the running game's title. -->
     <!-- EN: %1$s uses its own button mapping, not the all-games one. -->
-    <string name="kairo_controls_foot_own_mapping">%1$s uses its own button mapping, not the all-games one.</string>
+    <string name="kairo_controls_foot_own_mapping">%1$s は全ゲーム共通ではなく、独自のボタン割り当てを使用しています。</string>
     <!-- EN: %1$s uses the all-games mapping. It can have its own in Game settings. -->
-    <string name="kairo_controls_foot_all_games_mapping">%1$s uses the all-games mapping. It can have its own in Game settings.</string>
+    <string name="kairo_controls_foot_all_games_mapping">%1$s は全ゲーム共通の割り当てを使用しています。ゲーム設定で独自の割り当てを設定できます。</string>
     <!-- EN: CONTROLLER -->
-    <string name="kairo_controls_group_controller">CONTROLLER</string>
+    <string name="kairo_controls_group_controller">コントローラー</string>
     <!-- EN: %1$s mapping -->
-    <string name="kairo_controls_game_mapping">%1$s mapping</string>
+    <string name="kairo_controls_game_mapping">%1$s の割り当て</string>
     <!-- EN: All-games mapping -->
-    <string name="kairo_controls_all_games_mapping">All-games mapping</string>
+    <string name="kairo_controls_all_games_mapping">全ゲーム共通の割り当て</string>
     <!-- EN: Stick dead zone -->
-    <string name="kairo_controls_dead_zone">Stick dead zone</string>
+    <string name="kairo_controls_dead_zone">スティックのデッドゾーン</string>
     <!-- EN: Hash this game before editing its controls -->
-    <string name="kairo_controls_hash_first">Hash this game before editing its controls</string>
+    <string name="kairo_controls_hash_first">操作を編集する前にこのゲームのハッシュを計算してください</string>
     <!-- EN: With sticks -->
-    <string name="kairo_layout_with_sticks">With sticks</string>
+    <string name="kairo_layout_with_sticks">スティックあり</string>
     <!-- EN: Without sticks -->
-    <string name="kairo_layout_without_sticks">Without sticks</string>
+    <string name="kairo_layout_without_sticks">スティックなし</string>
     <!-- EN: with sticks -->
-    <string name="kairo_layout_detected_with_sticks">with sticks</string>
+    <string name="kairo_layout_detected_with_sticks">スティックあり</string>
     <!-- EN: without sticks -->
-    <string name="kairo_layout_detected_without_sticks">without sticks</string>
+    <string name="kairo_layout_detected_without_sticks">スティックなし</string>
     <!-- %1$s is kairo_layout_detected_with_sticks or kairo_layout_detected_without_sticks. -->
     <!-- EN: Auto (%1$s) -->
-    <string name="kairo_layout_auto_detected">Auto (%1$s)</string>
+    <string name="kairo_layout_auto_detected">自動（%1$s）</string>
     <!-- EN: Detected: %1$s -->
-    <string name="kairo_controller_layout_detected">Detected: %1$s</string>
+    <string name="kairo_controller_layout_detected">検出: %1$s</string>
     <!-- EN: No controller detected. Choose a layout to continue. -->
-    <string name="kairo_layout_setup_no_controller">No controller detected. Choose a layout to continue.</string>
+    <string name="kairo_layout_setup_no_controller">コントローラーが検出されません。続行するにはレイアウトを選択してください。</string>
     <!-- EN: You can change this later in Menu › Controls › Controller layout. -->
-    <string name="kairo_layout_setup_foot">You can change this later in Menu › Controls › Controller layout.</string>
+    <string name="kairo_layout_setup_foot">後から メニュー › 操作 › コントローラーのレイアウト で変更できます。</string>
     <!-- EN: Choose a layout to continue -->
-    <string name="kairo_layout_setup_choose">Choose a layout to continue</string>
+    <string name="kairo_layout_setup_choose">続行するにはレイアウトを選択してください</string>
     <!-- %1$s is what the left stick's matching D-pad direction does. -->
     <!-- EN: %1$s (follows D-pad) -->
-    <string name="kairo_mapping_follows_dpad">%1$s (follows D-pad)</string>
+    <string name="kairo_mapping_follows_dpad">%1$s（D-pad に連動）</string>
     <!-- EN: LEGACY DIRECT INPUTS -->
-    <string name="kairo_mapping_group_legacy">LEGACY DIRECT INPUTS</string>
+    <string name="kairo_mapping_group_legacy">旧形式の直接入力</string>
     <!-- EN: These saved assignments still work. Reset this mapping to use virtual controls. -->
-    <string name="kairo_mapping_legacy_foot">These saved assignments still work. Reset this mapping to use virtual controls.</string>
+    <string name="kairo_mapping_legacy_foot">これらの保存済み割り当ては引き続き動作します。仮想コントロールを使うには、この割り当てをリセットしてください。</string>
     <!-- EN: Reset to defaults -->
-    <string name="kairo_mapping_reset">Reset to defaults</string>
+    <string name="kairo_mapping_reset">デフォルトに戻す</string>
     <!-- EN: Restore the built-in mapping for all games? -->
-    <string name="kairo_mapping_reset_all_confirm">Restore the built-in mapping for all games?</string>
+    <string name="kairo_mapping_reset_all_confirm">すべてのゲームの割り当てを内蔵の割り当てに戻しますか？</string>
     <!-- EN: Remove this game’s changes and use its catalog or global mapping? -->
-    <string name="kairo_mapping_reset_game_confirm">Remove this game’s changes and use its catalog or global mapping?</string>
+    <string name="kairo_mapping_reset_game_confirm">このゲームの変更を削除し、カタログまたは全体の割り当てを使用しますか？</string>
     <!-- EN: Mapping reset -->
-    <string name="kairo_mapping_reset_done">Mapping reset</string>
+    <string name="kairo_mapping_reset_done">割り当てをリセットしました</string>
     <!-- EN: Could not save mapping -->
-    <string name="kairo_mapping_save_failed">Could not save mapping</string>
+    <string name="kairo_mapping_save_failed">割り当てを保存できませんでした</string>
     <!-- EN: D-PAD -->
     <string name="kairo_control_group_dpad">D-PAD</string>
     <!-- EN: FACE BUTTONS -->
-    <string name="kairo_control_group_face">FACE BUTTONS</string>
+    <string name="kairo_control_group_face">フェイスボタン</string>
     <!-- EN: SHOULDERS -->
-    <string name="kairo_control_group_shoulders">SHOULDERS</string>
+    <string name="kairo_control_group_shoulders">ショルダー</string>
     <!-- EN: SYSTEM -->
-    <string name="kairo_control_group_system">SYSTEM</string>
+    <string name="kairo_control_group_system">システム</string>
     <!-- EN: LEFT STICK -->
-    <string name="kairo_control_group_left_stick">LEFT STICK</string>
+    <string name="kairo_control_group_left_stick">左スティック</string>
     <!-- EN: RIGHT STICK -->
-    <string name="kairo_control_group_right_stick">RIGHT STICK</string>
+    <string name="kairo_control_group_right_stick">右スティック</string>
     <!-- EN: D-pad up -->
-    <string name="kairo_control_dpad_up">D-pad up</string>
+    <string name="kairo_control_dpad_up">D-pad 上</string>
     <!-- EN: D-pad down -->
-    <string name="kairo_control_dpad_down">D-pad down</string>
+    <string name="kairo_control_dpad_down">D-pad 下</string>
     <!-- EN: D-pad left -->
-    <string name="kairo_control_dpad_left">D-pad left</string>
+    <string name="kairo_control_dpad_left">D-pad 左</string>
     <!-- EN: D-pad right -->
-    <string name="kairo_control_dpad_right">D-pad right</string>
+    <string name="kairo_control_dpad_right">D-pad 右</string>
     <!-- EN: A button -->
-    <string name="kairo_control_a_button">A button</string>
+    <string name="kairo_control_a_button">A ボタン</string>
     <!-- EN: B button -->
-    <string name="kairo_control_b_button">B button</string>
+    <string name="kairo_control_b_button">B ボタン</string>
     <!-- EN: X button -->
-    <string name="kairo_control_x_button">X button</string>
+    <string name="kairo_control_x_button">X ボタン</string>
     <!-- EN: Y button -->
-    <string name="kairo_control_y_button">Y button</string>
+    <string name="kairo_control_y_button">Y ボタン</string>
     <!-- EN: L1 button -->
-    <string name="kairo_control_l1_button">L1 button</string>
+    <string name="kairo_control_l1_button">L1 ボタン</string>
     <!-- EN: R1 button -->
-    <string name="kairo_control_r1_button">R1 button</string>
+    <string name="kairo_control_r1_button">R1 ボタン</string>
     <!-- EN: L2 button -->
-    <string name="kairo_control_l2_button">L2 button</string>
+    <string name="kairo_control_l2_button">L2 ボタン</string>
     <!-- EN: R2 button -->
-    <string name="kairo_control_r2_button">R2 button</string>
+    <string name="kairo_control_r2_button">R2 ボタン</string>
     <!-- EN: Start -->
     <string name="kairo_control_start">Start</string>
     <!-- EN: Select -->
     <string name="kairo_control_select">Select</string>
     <!-- EN: Menu -->
-    <string name="kairo_control_menu">Menu</string>
+    <string name="kairo_control_menu">メニュー</string>
     <!-- EN: Start button -->
-    <string name="kairo_control_start_button">Start button</string>
+    <string name="kairo_control_start_button">Start ボタン</string>
     <!-- EN: Select button -->
-    <string name="kairo_control_select_button">Select button</string>
+    <string name="kairo_control_select_button">Select ボタン</string>
     <!-- EN: Menu button -->
-    <string name="kairo_control_menu_button">Menu button</string>
+    <string name="kairo_control_menu_button">メニューボタン</string>
     <!-- EN: Left stick up -->
-    <string name="kairo_control_left_stick_up">Left stick up</string>
+    <string name="kairo_control_left_stick_up">左スティック上</string>
     <!-- EN: Left stick down -->
-    <string name="kairo_control_left_stick_down">Left stick down</string>
+    <string name="kairo_control_left_stick_down">左スティック下</string>
     <!-- EN: Left stick left -->
-    <string name="kairo_control_left_stick_left">Left stick left</string>
+    <string name="kairo_control_left_stick_left">左スティック左</string>
     <!-- EN: Left stick right -->
-    <string name="kairo_control_left_stick_right">Left stick right</string>
+    <string name="kairo_control_left_stick_right">左スティック右</string>
     <!-- EN: Right stick up -->
-    <string name="kairo_control_right_stick_up">Right stick up</string>
+    <string name="kairo_control_right_stick_up">右スティック上</string>
     <!-- EN: Right stick down -->
-    <string name="kairo_control_right_stick_down">Right stick down</string>
+    <string name="kairo_control_right_stick_down">右スティック下</string>
     <!-- EN: Right stick left -->
-    <string name="kairo_control_right_stick_left">Right stick left</string>
+    <string name="kairo_control_right_stick_left">右スティック左</string>
     <!-- EN: Right stick right -->
-    <string name="kairo_control_right_stick_right">Right stick right</string>
+    <string name="kairo_control_right_stick_right">右スティック右</string>
     <!-- EN: BUTTONS -->
-    <string name="kairo_input_group_buttons">BUTTONS</string>
+    <string name="kairo_input_group_buttons">ボタン</string>
     <!-- EN: D-PAD BUTTONS -->
-    <string name="kairo_input_group_dpad_buttons">D-PAD BUTTONS</string>
+    <string name="kairo_input_group_dpad_buttons">D-PAD ボタン</string>
     <!-- EN: TRIGGERS -->
-    <string name="kairo_input_group_triggers">TRIGGERS</string>
+    <string name="kairo_input_group_triggers">トリガー</string>
     <!-- EN: D-PAD HAT -->
-    <string name="kairo_input_group_hat">D-PAD HAT</string>
+    <string name="kairo_input_group_hat">D-PAD ハット</string>
     <!-- %1$s is the button's name, such as A or THUMBL. -->
     <!-- EN: Button %1$s -->
-    <string name="kairo_input_button">Button %1$s</string>
+    <string name="kairo_input_button">ボタン %1$s</string>
     <!-- EN: Mode -->
-    <string name="kairo_input_mode">Mode</string>
+    <string name="kairo_input_mode">モード</string>
     <!-- EN: Left stick press -->
-    <string name="kairo_input_left_stick_press">Left stick press</string>
+    <string name="kairo_input_left_stick_press">左スティック押し込み</string>
     <!-- EN: Right stick press -->
-    <string name="kairo_input_right_stick_press">Right stick press</string>
+    <string name="kairo_input_right_stick_press">右スティック押し込み</string>
     <!-- EN: Left trigger -->
-    <string name="kairo_input_left_trigger">Left trigger</string>
+    <string name="kairo_input_left_trigger">左トリガー</string>
     <!-- EN: Right trigger -->
-    <string name="kairo_input_right_trigger">Right trigger</string>
+    <string name="kairo_input_right_trigger">右トリガー</string>
     <!-- EN: Hat up -->
-    <string name="kairo_input_hat_up">Hat up</string>
+    <string name="kairo_input_hat_up">ハット上</string>
     <!-- EN: Hat down -->
-    <string name="kairo_input_hat_down">Hat down</string>
+    <string name="kairo_input_hat_down">ハット下</string>
     <!-- EN: Hat left -->
-    <string name="kairo_input_hat_left">Hat left</string>
+    <string name="kairo_input_hat_left">ハット左</string>
     <!-- EN: Hat right -->
-    <string name="kairo_input_hat_right">Hat right</string>
+    <string name="kairo_input_hat_right">ハット右</string>
     <!-- %1$s is Android's axis name, such as GAS; %2$s its direction, + or -. -->
     <!-- EN: Axis %1$s %2$s -->
-    <string name="kairo_input_axis_code">Axis %1$s %2$s</string>
+    <string name="kairo_input_axis_code">軸 %1$s %2$s</string>
     <!-- EN: Hat %1$s %2$s -->
-    <string name="kairo_input_hat_code">Hat %1$s %2$s</string>
+    <string name="kairo_input_hat_code">ハット %1$s %2$s</string>
     <!-- EN: CONNECTED -->
-    <string name="kairo_inputs_group_connected">CONNECTED</string>
+    <string name="kairo_inputs_group_connected">接続中</string>
     <!-- EN: Controller -->
-    <string name="kairo_inputs_controller">Controller</string>
+    <string name="kairo_inputs_controller">コントローラー</string>
     <!-- EN: None connected -->
-    <string name="kairo_inputs_none_connected">None connected</string>
+    <string name="kairo_inputs_none_connected">接続なし</string>
     <!-- %1$s is the first input's name; %2$d how many more drive the same control. -->
     <plurals name="kairo_inputs_and_more">
         <!-- EN: %1$s + %2$d more -->
-        <item quantity="other">%1$s + %2$d more</item>
+        <item quantity="other">%1$s ほか%2$d件</item>
     </plurals>
     <!-- EN: Add alternate input -->
-    <string name="kairo_inputs_add_alternate">Add alternate input</string>
+    <string name="kairo_inputs_add_alternate">代替入力を追加</string>
     <!-- EN: Reset to standard layout -->
-    <string name="kairo_inputs_reset">Reset to standard layout</string>
+    <string name="kairo_inputs_reset">標準レイアウトに戻す</string>
     <!-- EN: Restore the standard controller layout? -->
-    <string name="kairo_inputs_reset_confirm">Restore the standard controller layout?</string>
+    <string name="kairo_inputs_reset_confirm">コントローラーのレイアウトを標準に戻しますか？</string>
     <!-- EN: Controller inputs reset -->
-    <string name="kairo_inputs_reset_done">Controller inputs reset</string>
+    <string name="kairo_inputs_reset_done">コントローラー入力をリセットしました</string>
     <!-- EN: Listening. Press the extra button, then choose the control it acts as. -->
-    <string name="kairo_inputs_listening_alternate">Listening. Press the extra button, then choose the control it acts as.</string>
+    <string name="kairo_inputs_listening_alternate">入力待ちです。追加のボタンを押してから、そのボタンが担当するコントロールを選択してください。</string>
     <!-- EN: Listening. Press a button, or move a stick, trigger, or D-pad. -->
-    <string name="kairo_inputs_listening">Listening. Press a button, or move a stick, trigger, or D-pad.</string>
+    <string name="kairo_inputs_listening">入力待ちです。ボタンを押すか、スティック、トリガー、D-pad を動かしてください。</string>
     <!-- EN: Choose input -->
-    <string name="kairo_inputs_choose_input">Choose input</string>
+    <string name="kairo_inputs_choose_input">入力を選択</string>
     <!-- EN: Enter code -->
-    <string name="kairo_inputs_enter_code">Enter code</string>
+    <string name="kairo_inputs_enter_code">コードを入力</string>
     <!-- EN: Android key and axis codes, such as button:96, axis:0:+, or hat:15:-. -->
-    <string name="kairo_inputs_code_help">Android key and axis codes, such as button:96, axis:0:+, or hat:15:-.</string>
+    <string name="kairo_inputs_code_help">Android のキーコードと軸コード（例: button:96、axis:0:+、hat:15:-）。</string>
     <!-- EN: Assign -->
-    <string name="kairo_inputs_assign">Assign</string>
+    <string name="kairo_inputs_assign">割り当て</string>
     <!-- EN: Invalid input code -->
-    <string name="kairo_inputs_invalid_code">Invalid input code</string>
+    <string name="kairo_inputs_invalid_code">無効な入力コードです</string>
     <!-- EN: Alternate input -->
-    <string name="kairo_inputs_alternate_input">Alternate input</string>
+    <string name="kairo_inputs_alternate_input">代替入力</string>
     <!-- EN: Acts as -->
-    <string name="kairo_inputs_acts_as">Acts as</string>
+    <string name="kairo_inputs_acts_as">担当するコントロール</string>
     <!-- %1$s is the input's name; %2$s the control it now acts as. -->
     <!-- EN: Added %1$s as %2$s -->
-    <string name="kairo_inputs_added">Added %1$s as %2$s</string>
+    <string name="kairo_inputs_added">%1$s を %2$s として追加しました</string>
     <!-- EN: Open menu -->
-    <string name="kairo_action_menu">Open menu</string>
+    <string name="kairo_action_menu">メニューを開く</string>
     <!-- EN: Pause or resume -->
-    <string name="kairo_action_pause">Pause or resume</string>
+    <string name="kairo_action_pause">一時停止／再開</string>
     <!-- EN: Fast forward while held -->
-    <string name="kairo_action_fast_forward">Fast forward while held</string>
+    <string name="kairo_action_fast_forward">押している間早送り</string>
     <!-- EN: Restart -->
-    <string name="kairo_action_restart">Restart</string>
+    <string name="kairo_action_restart">リスタート</string>
     <!-- EN: Exit -->
-    <string name="kairo_action_exit">Exit</string>
+    <string name="kairo_action_exit">終了</string>
     <!-- What a binding sends. %1$s is the keys it steps through, joined by arrows. -->
     <!-- EN: Cycle previous %1$s -->
-    <string name="kairo_binding_cycle_previous">Cycle previous %1$s</string>
+    <string name="kairo_binding_cycle_previous">前へ切り替え %1$s</string>
     <!-- EN: Cycle next %1$s -->
-    <string name="kairo_binding_cycle_next">Cycle next %1$s</string>
+    <string name="kairo_binding_cycle_next">次へ切り替え %1$s</string>
     <!-- EN: Mouse up -->
-    <string name="kairo_binding_mouse_up">Mouse up</string>
+    <string name="kairo_binding_mouse_up">マウス上</string>
     <!-- EN: Mouse down -->
-    <string name="kairo_binding_mouse_down">Mouse down</string>
+    <string name="kairo_binding_mouse_down">マウス下</string>
     <!-- EN: Mouse left -->
-    <string name="kairo_binding_mouse_left">Mouse left</string>
+    <string name="kairo_binding_mouse_left">マウス左</string>
     <!-- EN: Mouse right -->
-    <string name="kairo_binding_mouse_right">Mouse right</string>
+    <string name="kairo_binding_mouse_right">マウス右</string>
     <!-- EN: Mouse left button -->
-    <string name="kairo_binding_mouse_left_button">Mouse left button</string>
+    <string name="kairo_binding_mouse_left_button">マウス左ボタン</string>
     <!-- EN: Mouse right button -->
-    <string name="kairo_binding_mouse_right_button">Mouse right button</string>
+    <string name="kairo_binding_mouse_right_button">マウス右ボタン</string>
     <!-- %1$s is a mouse control the app does not name. -->
     <!-- EN: Mouse %1$s -->
-    <string name="kairo_binding_mouse_other">Mouse %1$s</string>
+    <string name="kairo_binding_mouse_other">マウス %1$s</string>
     <!-- %1$s is a mouse direction, such as Mouse up; %2$.1f its speed. -->
     <!-- EN: %1$s · %2$.1f× -->
     <string name="kairo_binding_mouse_speed">%1$s · %2$.1f×</string>
     <!-- %1$s is the guest's name for a joystick control, such as Fire 1. -->
     <!-- EN: Joystick %1$s -->
-    <string name="kairo_binding_joystick">Joystick %1$s</string>
+    <string name="kairo_binding_joystick">ジョイスティック %1$s</string>
     <!-- EN: Keys -->
-    <string name="kairo_target_tab_keys">Keys</string>
+    <string name="kairo_target_tab_keys">キー</string>
     <!-- EN: Key cycle -->
-    <string name="kairo_target_tab_cycle">Key cycle</string>
+    <string name="kairo_target_tab_cycle">キーサイクル</string>
     <!-- EN: Action -->
-    <string name="kairo_target_tab_action">Action</string>
+    <string name="kairo_target_tab_action">アクション</string>
     <!-- EN: Other -->
-    <string name="kairo_target_keys_other">Other</string>
+    <string name="kairo_target_keys_other">その他</string>
     <!-- EN: Move up -->
-    <string name="kairo_target_mouse_up">Move up</string>
+    <string name="kairo_target_mouse_up">上に移動</string>
     <!-- EN: Move down -->
-    <string name="kairo_target_mouse_down">Move down</string>
+    <string name="kairo_target_mouse_down">下に移動</string>
     <!-- EN: Move left -->
-    <string name="kairo_target_mouse_left">Move left</string>
+    <string name="kairo_target_mouse_left">左に移動</string>
     <!-- EN: Move right -->
-    <string name="kairo_target_mouse_right">Move right</string>
+    <string name="kairo_target_mouse_right">右に移動</string>
     <!-- EN: Left button -->
-    <string name="kairo_target_mouse_left_button">Left button</string>
+    <string name="kairo_target_mouse_left_button">左ボタン</string>
     <!-- EN: Right button -->
-    <string name="kairo_target_mouse_right_button">Right button</string>
+    <string name="kairo_target_mouse_right_button">右ボタン</string>
     <!-- EN: Stick directions use analog speed. Buttons and D-pad directions move at full speed. -->
-    <string name="kairo_target_mouse_foot">Stick directions use analog speed. Buttons and D-pad directions move at full speed.</string>
+    <string name="kairo_target_mouse_foot">スティックの方向はアナログ速度で動きます。ボタンと D-pad の方向は最高速度で動きます。</string>
     <!-- EN: Speed -->
-    <string name="kairo_target_mouse_speed">Speed</string>
+    <string name="kairo_target_mouse_speed">速度</string>
     <!-- EN: %1$.1f× -->
     <string name="kairo_target_mouse_speed_value">%1$.1f×</string>
     <!-- EN: Speed at full stick deflection. -->
-    <string name="kairo_target_mouse_speed_foot">Speed at full stick deflection.</string>
+    <string name="kairo_target_mouse_speed_foot">スティックを最大まで倒したときの速度。</string>
     <!-- EN: Save keys -->
-    <string name="kairo_target_save_keys">Save keys</string>
+    <string name="kairo_target_save_keys">キーを保存</string>
     <plurals name="kairo_target_save_n_keys">
         <!-- EN: Save %1$d keys -->
-        <item quantity="other">Save %1$d keys</item>
+        <item quantity="other">%1$d個のキーを保存</item>
     </plurals>
     <plurals name="kairo_target_save_keys_and_joystick">
         <!-- EN: Save %1$d keys + joystick -->
-        <item quantity="other">Save %1$d keys + joystick</item>
+        <item quantity="other">%1$d個のキー + ジョイスティックを保存</item>
     </plurals>
     <!-- EN: Save key cycle -->
-    <string name="kairo_target_save_cycle">Save key cycle</string>
+    <string name="kairo_target_save_cycle">キーサイクルを保存</string>
     <!-- EN: Modifiers are pressed before the other keys. -->
-    <string name="kairo_target_keys_foot">Modifiers are pressed before the other keys.</string>
+    <string name="kairo_target_keys_foot">修飾キーは他のキーより先に押されます。</string>
     <!-- %1$s and %2$s are the controls that step back and forward, such as L1 and R1. -->
     <!-- EN: %1$s cycles backward and %2$s forward, wrapping around. This sends keys, so it cannot see the game’s current selection. -->
-    <string name="kairo_target_cycle_foot">%1$s cycles backward and %2$s forward, wrapping around. This sends keys, so it cannot see the game’s current selection.</string>
+    <string name="kairo_target_cycle_foot">%1$s で前へ、%2$s で次へ切り替わり、端で一周します。キー入力を送るだけなので、ゲーム内の現在の選択は把握できません。</string>
     <!-- EN: A key cycle holds up to 16 keys -->
-    <string name="kairo_target_cycle_limit">A key cycle holds up to 16 keys</string>
+    <string name="kairo_target_cycle_limit">キーサイクルには最大16個のキーを登録できます</string>
     <!-- EN: Choose up to four keys -->
-    <string name="kairo_target_keys_limit">Choose up to four keys</string>
+    <string name="kairo_target_keys_limit">キーは4個まで選択できます</string>
     <!-- EN: No keys selected -->
-    <string name="kairo_target_no_keys">No keys selected</string>
+    <string name="kairo_target_no_keys">キーが選択されていません</string>
     <!-- EN: 2 to 16 keys, in order -->
-    <string name="kairo_target_cycle_hint">2 to 16 keys, in order</string>
+    <string name="kairo_target_cycle_hint">2〜16個のキーを順番に</string>
     <!-- EN: Up to 4 keys -->
-    <string name="kairo_target_keys_hint">Up to 4 keys</string>
+    <string name="kairo_target_keys_hint">最大4個のキー</string>
     <!-- EN: Nothing selected -->
-    <string name="kairo_target_nothing">Nothing selected</string>
+    <string name="kairo_target_nothing">何も選択されていません</string>
     <!-- EN: Choose at least one key -->
-    <string name="kairo_target_choose_key">Choose at least one key</string>
+    <string name="kairo_target_choose_key">キーを1つ以上選択してください</string>
     <!-- EN: Choose a joystick control -->
-    <string name="kairo_target_choose_joystick">Choose a joystick control</string>
+    <string name="kairo_target_choose_joystick">ジョイスティックのコントロールを選択してください</string>
     <!-- EN: Choose 2 to 16 keys -->
-    <string name="kairo_target_choose_cycle">Choose 2 to 16 keys</string>
+    <string name="kairo_target_choose_cycle">2〜16個のキーを選択してください</string>
     <!-- EN: Choose a mouse control -->
-    <string name="kairo_target_choose_mouse">Choose a mouse control</string>
+    <string name="kairo_target_choose_mouse">マウスのコントロールを選択してください</string>
     <!-- EN: Choose an action -->
-    <string name="kairo_target_choose_action">Choose an action</string>
+    <string name="kairo_target_choose_action">アクションを選択してください</string>
 </resources>

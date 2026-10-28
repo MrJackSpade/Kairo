@@ -3,222 +3,222 @@
 <resources>
     <!-- Where a value comes from, on a row's tag and a page's scope. -->
     <!-- EN: Custom -->
-    <string name="kairo_source_custom">Custom</string>
+    <string name="kairo_source_custom">Свое</string>
     <!-- EN: All games -->
-    <string name="kairo_source_all_games">All games</string>
+    <string name="kairo_source_all_games">Все игры</string>
     <!-- EN: Built-in -->
-    <string name="kairo_source_built_in">Built-in</string>
+    <string name="kairo_source_built_in">Встроенное</string>
     <!-- EN: Shipped catalog -->
-    <string name="kairo_source_shipped_catalog">Shipped catalog</string>
+    <string name="kairo_source_shipped_catalog">Поставляемый каталог</string>
     <!-- EN: Updated catalog -->
-    <string name="kairo_source_updated_catalog">Updated catalog</string>
+    <string name="kairo_source_updated_catalog">Обновленный каталог</string>
     <!-- EN: User catalog -->
-    <string name="kairo_source_user_catalog">User catalog</string>
+    <string name="kairo_source_user_catalog">Пользовательский каталог</string>
     <!-- EN: Filename -->
-    <string name="kairo_source_filename">Filename</string>
+    <string name="kairo_source_filename">Имя файла</string>
     <!-- EN: Game settings -->
-    <string name="kairo_game_settings">Game settings</string>
+    <string name="kairo_game_settings">Настройки игры</string>
     <!-- EN: This file needs a successful hash before settings can be saved -->
-    <string name="kairo_settings_no_hash">This file needs a successful hash before settings can be saved</string>
+    <string name="kairo_settings_no_hash">Чтобы сохранять настройки, для этого файла нужно успешно вычислить хеш</string>
     <!-- The Default choice's description: %1$s is where the default comes from, %2$s its value. -->
     <!-- EN: %1$s: %2$s -->
     <string name="kairo_settings_default_from">%1$s: %2$s</string>
     <!-- EN: Reset all game settings -->
-    <string name="kairo_settings_reset_all">Reset all game settings</string>
+    <string name="kairo_settings_reset_all">Сбросить все настройки игры</string>
     <!-- EN: Remove every custom setting for this game and use its catalog and global defaults. -->
-    <string name="kairo_settings_reset_all_confirm">Remove every custom setting for this game and use its catalog and global defaults.</string>
+    <string name="kairo_settings_reset_all_confirm">Удаляет все свои настройки этой игры и использует значения по умолчанию из каталога и общих настроек.</string>
     <!-- EN: Location -->
-    <string name="kairo_file_location">Location</string>
+    <string name="kairo_file_location">Расположение</string>
     <!-- EN: ZIP entry -->
-    <string name="kairo_file_zip_entry">ZIP entry</string>
+    <string name="kairo_file_zip_entry">Запись ZIP</string>
     <!-- EN: Content ID -->
-    <string name="kairo_file_content_id">Content ID</string>
+    <string name="kairo_file_content_id">ID содержимого</string>
     <!-- EN: Not hashed -->
-    <string name="kairo_file_not_hashed">Not hashed</string>
+    <string name="kairo_file_not_hashed">Хеш не вычислен</string>
     <!-- EN: Saved -->
-    <string name="kairo_saved">Saved</string>
+    <string name="kairo_saved">Сохранено</string>
     <!-- EN: Saved. Machine changes apply on next launch or restart. -->
-    <string name="kairo_saved_machine">Saved. Machine changes apply on next launch or restart.</string>
+    <string name="kairo_saved_machine">Сохранено. Изменения машины вступят в силу при следующем запуске или перезапуске.</string>
     <!-- %1$s is the setting's name, in lower case; %2$s what the player typed. -->
     <!-- EN: Not a valid %1$s: %2$s -->
-    <string name="kairo_setting_invalid">Not a valid %1$s: %2$s</string>
+    <string name="kairo_setting_invalid">Недопустимое значение (%1$s): %2$s</string>
     <!-- EN: Machine -->
-    <string name="kairo_machine">Machine</string>
+    <string name="kairo_machine">Машина</string>
     <!-- EN: MACHINE -->
-    <string name="kairo_machine_group">MACHINE</string>
+    <string name="kairo_machine_group">МАШИНА</string>
     <!-- EN: Machine changes apply on the next launch or restart. -->
-    <string name="kairo_machine_group_foot">Machine changes apply on the next launch or restart.</string>
+    <string name="kairo_machine_group_foot">Изменения машины вступят в силу при следующем запуске или перезапуске.</string>
     <!-- EN: ALL GAMES -->
-    <string name="kairo_machine_all_games_group">ALL GAMES</string>
+    <string name="kairo_machine_all_games_group">ВСЕ ИГРЫ</string>
     <!-- EN: A game\'s own settings come first. Changes apply on the next launch or restart. -->
-    <string name="kairo_machine_all_games_foot">A game\'s own settings come first. Changes apply on the next launch or restart.</string>
+    <string name="kairo_machine_all_games_foot">Собственные настройки игры имеют приоритет. Изменения вступят в силу при следующем запуске или перезапуске.</string>
     <!-- EN: Not in library -->
-    <string name="kairo_drive_not_in_library">Not in library</string>
+    <string name="kairo_drive_not_in_library">Нет в библиотеке</string>
     <!-- EN: Disk image -->
-    <string name="kairo_disk_image">Disk image</string>
+    <string name="kairo_disk_image">Образ диска</string>
     <!-- EN: Other -->
-    <string name="kairo_disks_other">Other</string>
+    <string name="kairo_disks_other">Другие</string>
     <!-- EN: THIS GAME -->
-    <string name="kairo_disks_this_game">THIS GAME</string>
+    <string name="kairo_disks_this_game">ЭТА ИГРА</string>
     <!-- One of several disk images in an archive: %1$s is the archive, %2$s the image. -->
     <!-- EN: %1$s: %2$s -->
     <string name="kairo_disk_in_archive">%1$s: %2$s</string>
     <!-- EN: Follows what the game reads -->
-    <string name="kairo_touch_auto_help">Follows what the game reads</string>
+    <string name="kairo_touch_auto_help">Следует тому, что читает игра</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: Tap opens the %1$s keyboard -->
-    <string name="kairo_touch_tap_keyboard_help">Tap opens the %1$s keyboard</string>
+    <string name="kairo_touch_tap_keyboard_help">Нажатие открывает клавиатуру %1$s</string>
     <!-- EN: Direct tap lands on the touched point in games that move the cursor one pixel per mouse count and stop it at the screen’s top-left edge. -->
-    <string name="kairo_touch_direct_explanation">Direct tap lands on the touched point in games that move the cursor one pixel per mouse count and stop it at the screen’s top-left edge.</string>
+    <string name="kairo_touch_direct_explanation">Прямое касание попадает в точку касания в играх, которые сдвигают курсор на один пиксель за шаг мыши и останавливают его у верхнего левого края экрана.</string>
     <!-- EN: TOUCH SCREEN -->
-    <string name="kairo_touch_group">TOUCH SCREEN</string>
+    <string name="kairo_touch_group">СЕНСОРНЫЙ ЭКРАН</string>
     <!-- EN: Screen tap -->
-    <string name="kairo_touch_screen_tap">Screen tap</string>
+    <string name="kairo_touch_screen_tap">Касание экрана</string>
     <!-- EN: Mouse touch -->
-    <string name="kairo_touch_mouse_touch">Mouse touch</string>
+    <string name="kairo_touch_mouse_touch">Касание мышью</string>
     <!-- EN: Touchpad -->
-    <string name="kairo_touch_touchpad">Touchpad</string>
+    <string name="kairo_touch_touchpad">Сенсорная панель</string>
     <!-- EN: Drag to move, tap to click -->
-    <string name="kairo_touch_touchpad_help">Drag to move, tap to click</string>
+    <string name="kairo_touch_touchpad_help">Проведите для перемещения, нажмите для щелчка</string>
     <!-- EN: Direct tap -->
-    <string name="kairo_touch_direct">Direct tap</string>
+    <string name="kairo_touch_direct">Прямое касание</string>
     <!-- EN: Click where you touch -->
-    <string name="kairo_touch_direct_help">Click where you touch</string>
+    <string name="kairo_touch_direct_help">Щелчок в месте касания</string>
     <!-- EN: Second screen starts with -->
-    <string name="kairo_touch_second_screen">Second screen starts with</string>
+    <string name="kairo_touch_second_screen">Второй экран открывается с</string>
     <!-- EN: Mouse touchpad -->
-    <string name="kairo_touch_mouse_touchpad">Mouse touchpad</string>
+    <string name="kairo_touch_mouse_touchpad">Сенсорная панель мыши</string>
     <!-- EN: Using Without Sticks fallback -->
-    <string name="kairo_mapping_without_sticks_fallback">Using Without Sticks fallback</string>
+    <string name="kairo_mapping_without_sticks_fallback">Используется запасная раскладка «Без стиков»</string>
     <!-- EN: Reset disk -->
-    <string name="kairo_disk_reset">Reset disk</string>
+    <string name="kairo_disk_reset">Сбросить диск</string>
     <!-- EN: Exit this game before resetting its disk -->
-    <string name="kairo_disk_reset_exit_first">Exit this game before resetting its disk</string>
+    <string name="kairo_disk_reset_exit_first">Выйдите из этой игры, прежде чем сбрасывать ее диск</string>
     <!-- %1$s is the disk image's name. -->
     <!-- EN: Replace %1$s\'s working copy with its disk image? Saves the game wrote to the disk are removed. -->
-    <string name="kairo_disk_reset_confirm">Replace %1$s\'s working copy with its disk image? Saves the game wrote to the disk are removed.</string>
+    <string name="kairo_disk_reset_confirm">Заменить рабочую копию %1$s ее образом диска? Сохранения, записанные игрой на диск, будут удалены.</string>
     <!-- EN: Disk reset -->
-    <string name="kairo_disk_reset_done">Disk reset</string>
+    <string name="kairo_disk_reset_done">Диск сброшен</string>
     <!-- EN: Could not reset the disk -->
-    <string name="kairo_disk_reset_failed">Could not reset the disk</string>
+    <string name="kairo_disk_reset_failed">Не удалось сбросить диск</string>
     <!-- %1$s is the state slot's number. -->
     <!-- EN: Slot %1$s -->
-    <string name="kairo_save_slot">Slot %1$s</string>
+    <string name="kairo_save_slot">Слот %1$s</string>
     <!-- EN: Save states are available for games started from the library. -->
-    <string name="kairo_states_library_only">Save states are available for games started from the library.</string>
+    <string name="kairo_states_library_only">Сохраненные состояния доступны для игр, запущенных из библиотеки.</string>
     <!-- EN: the machine is not running -->
-    <string name="kairo_state_error_not_running">the machine is not running</string>
+    <string name="kairo_state_error_not_running">машина не запущена</string>
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
-    <string name="kairo_launch_preparing">Preparing %1$s…</string>
+    <string name="kairo_launch_preparing">Подготовка %1$s…</string>
     <!-- EN: Starting %1$s… -->
-    <string name="kairo_launch_starting">Starting %1$s…</string>
+    <string name="kairo_launch_starting">Запуск %1$s…</string>
     <!-- EN: %1$s stopped -->
-    <string name="kairo_session_stopped">%1$s stopped</string>
+    <string name="kairo_session_stopped">Остановлено: %1$s</string>
     <!-- %2$s is the emulator's own error message. -->
     <!-- EN: %1$s stopped: %2$s -->
-    <string name="kairo_session_stopped_error">%1$s stopped: %2$s</string>
+    <string name="kairo_session_stopped_error">Остановлено: %1$s — %2$s</string>
     <!-- EN: State -->
-    <string name="kairo_diagnostics_state">State</string>
+    <string name="kairo_diagnostics_state">Состояние</string>
     <!-- EN: Stopped -->
-    <string name="kairo_diagnostics_stopped">Stopped</string>
+    <string name="kairo_diagnostics_stopped">Остановлена</string>
     <!-- EN: Error -->
-    <string name="kairo_diagnostics_error">Error</string>
+    <string name="kairo_diagnostics_error">Ошибка</string>
     <!-- EN: Frames -->
-    <string name="kairo_diagnostics_frames">Frames</string>
+    <string name="kairo_diagnostics_frames">Кадры</string>
     <!-- EN: Audio -->
-    <string name="kairo_diagnostics_audio">Audio</string>
+    <string name="kairo_diagnostics_audio">Звук</string>
     <!-- EN: Xruns -->
     <string name="kairo_diagnostics_xruns">Xruns</string>
     <!-- EN: Audio config -->
-    <string name="kairo_diagnostics_audio_config">Audio config</string>
+    <string name="kairo_diagnostics_audio_config">Конфигурация звука</string>
     <!-- EN: Disks -->
-    <string name="kairo_media_disks">Disks</string>
+    <string name="kairo_media_disks">Диски</string>
     <!-- EN: DRIVES -->
-    <string name="kairo_media_drives_group">DRIVES</string>
+    <string name="kairo_media_drives_group">ДИСКОВОДЫ</string>
     <!-- EN: A disk keeps what the game writes to it. -->
-    <string name="kairo_media_drives_foot">A disk keeps what the game writes to it.</string>
+    <string name="kairo_media_drives_foot">Диск сохраняет то, что игра на него записывает.</string>
     <!-- EN: Wait for the disk change to finish -->
-    <string name="kairo_media_wait">Wait for the disk change to finish</string>
+    <string name="kairo_media_wait">Дождитесь завершения смены диска</string>
     <!-- EN: Start a game before changing disks -->
-    <string name="kairo_media_start_first">Start a game before changing disks</string>
+    <string name="kairo_media_start_first">Запустите игру, прежде чем менять диски</string>
     <!-- EN: The disk could not be inserted -->
-    <string name="kairo_media_insert_failed">The disk could not be inserted</string>
+    <string name="kairo_media_insert_failed">Не удалось вставить диск</string>
     <!-- EN: Disk change failed -->
-    <string name="kairo_media_change_failed">Disk change failed</string>
+    <string name="kairo_media_change_failed">Ошибка смены диска</string>
     <!-- %1$s is the drive, such as Drive 1; %2$s the disk now in it, or Empty. -->
     <!-- EN: %1$s: %2$s -->
     <string name="kairo_media_changed">%1$s: %2$s</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: %1$s BIOS -->
-    <string name="kairo_firmware_title">%1$s BIOS</string>
+    <string name="kairo_firmware_title">BIOS %1$s</string>
     <!-- EN: Pick each file below, or import them all from a folder. -->
-    <string name="kairo_firmware_description">Pick each file below, or import them all from a folder.</string>
+    <string name="kairo_firmware_description">Выберите каждый файл ниже или импортируйте все из папки.</string>
     <!-- EN: Files marked Required are needed to start games. -->
-    <string name="kairo_firmware_required_note">Files marked Required are needed to start games.</string>
+    <string name="kairo_firmware_required_note">Файлы с пометкой «Обязательный» нужны для запуска игр.</string>
     <!-- EN: FIRMWARE -->
-    <string name="kairo_firmware_group">FIRMWARE</string>
+    <string name="kairo_firmware_group">ПРОШИВКА</string>
     <!-- EN: Import all from a folder… -->
-    <string name="kairo_firmware_import_folder">Import all from a folder…</string>
+    <string name="kairo_firmware_import_folder">Импортировать все из папки…</string>
     <!-- EN: Finds the files below in a folder you choose and imports every one it recognizes -->
-    <string name="kairo_firmware_import_folder_description">Finds the files below in a folder you choose and imports every one it recognizes</string>
+    <string name="kairo_firmware_import_folder_description">Ищет файлы ниже в выбранной папке и импортирует все распознанные</string>
     <!-- EN: Wait for the current import to finish -->
-    <string name="kairo_firmware_wait">Wait for the current import to finish</string>
+    <string name="kairo_firmware_wait">Дождитесь завершения текущего импорта</string>
     <!-- EN: Return to the library to change firmware. -->
-    <string name="kairo_firmware_return_to_library">Return to the library to change firmware.</string>
+    <string name="kairo_firmware_return_to_library">Вернитесь в библиотеку, чтобы изменить прошивку.</string>
     <!-- EN: Required -->
-    <string name="kairo_firmware_required">Required</string>
+    <string name="kairo_firmware_required">Обязательный</string>
     <!-- EN: Optional -->
-    <string name="kairo_firmware_optional">Optional</string>
+    <string name="kairo_firmware_optional">Необязательный</string>
     <!-- EN: Replace… -->
-    <string name="kairo_firmware_replace">Replace…</string>
+    <string name="kairo_firmware_replace">Заменить…</string>
     <!-- EN: Choose file… -->
-    <string name="kairo_choose_file">Choose file…</string>
+    <string name="kairo_choose_file">Выбрать файл…</string>
     <!-- %1$s is the machine's name; %2$s the files still missing. -->
     <!-- EN: Import the %1$s firmware in Menu › Machine first (missing %2$s) -->
-    <string name="kairo_firmware_missing">Import the %1$s firmware in Menu › Machine first (missing %2$s)</string>
+    <string name="kairo_firmware_missing">Сначала импортируйте прошивку %1$s в разделе Меню › Машина (отсутствует: %2$s)</string>
     <!-- EN: No %1$s firmware files in that folder -->
-    <string name="kairo_firmware_none_in_folder">No %1$s firmware files in that folder</string>
+    <string name="kairo_firmware_none_in_folder">В этой папке нет файлов прошивки %1$s</string>
     <plurals name="kairo_firmware_imported">
         <!-- EN: Imported %1$d firmware file -->
-        <item quantity="one">Imported %1$d firmware file</item>
+        <item quantity="one">Импортирован %1$d файл прошивки</item>
         <!-- EN: Imported %1$d firmware files -->
-        <item quantity="few">Imported %1$d firmware files</item>
+        <item quantity="few">Импортировано %1$d файла прошивки</item>
         <!-- EN: Imported %1$d firmware files -->
-        <item quantity="many">Imported %1$d firmware files</item>
+        <item quantity="many">Импортировано %1$d файлов прошивки</item>
         <!-- EN: Imported %1$d firmware files -->
-        <item quantity="other">Imported %1$d firmware files</item>
+        <item quantity="other">Импортировано %1$d файла прошивки</item>
     </plurals>
     <!-- %1$s is the firmware file's name, such as N88-BASIC. -->
     <!-- EN: %1$s imported -->
-    <string name="kairo_firmware_part_imported">%1$s imported</string>
+    <string name="kairo_firmware_part_imported">%1$s импортирован</string>
     <!-- EN: Firmware import failed: %1$s -->
-    <string name="kairo_firmware_import_failed">Firmware import failed: %1$s</string>
+    <string name="kairo_firmware_import_failed">Ошибка импорта прошивки: %1$s</string>
     <!-- EN: Could not remove %1$s -->
-    <string name="kairo_firmware_remove_failed">Could not remove %1$s</string>
+    <string name="kairo_firmware_remove_failed">Не удалось удалить %1$s</string>
     <!-- EN: That file is not a known %1$s dump -->
-    <string name="kairo_firmware_unknown_dump">That file is not a known %1$s dump</string>
+    <string name="kairo_firmware_unknown_dump">Этот файл не является известным дампом %1$s</string>
     <!-- EN: Could not open the folder chooser -->
-    <string name="kairo_folder_chooser_failed">Could not open the folder chooser</string>
+    <string name="kairo_folder_chooser_failed">Не удалось открыть выбор папки</string>
     <!-- A picked file's checks. %1$s names the file, such as N88-BASIC. -->
     <!-- EN: %1$s is %2$s; it must be %3$s -->
-    <string name="kairo_import_wrong_size">%1$s is %2$s; it must be %3$s</string>
+    <string name="kairo_import_wrong_size">Размер %1$s — %2$s; должен быть %3$s</string>
     <!-- EN: %1$s must be exactly %2$s -->
-    <string name="kairo_import_exact_size">%1$s must be exactly %2$s</string>
+    <string name="kairo_import_exact_size">Размер %1$s должен быть ровно %2$s</string>
     <!-- EN: %1$s is too large -->
-    <string name="kairo_import_too_large">%1$s is too large</string>
+    <string name="kairo_import_too_large">%1$s слишком большой</string>
     <!-- EN: %1$s is empty -->
-    <string name="kairo_import_empty">%1$s is empty</string>
+    <string name="kairo_import_empty">%1$s пустой</string>
     <!-- EN: %1$d KiB -->
-    <string name="kairo_size_kib">%1$d KiB</string>
+    <string name="kairo_size_kib">%1$d КиБ</string>
     <plurals name="kairo_size_bytes">
         <!-- EN: %1$d bytes -->
-        <item quantity="one">%1$d bytes</item>
+        <item quantity="one">%1$d байт</item>
         <!-- EN: %1$d bytes -->
-        <item quantity="few">%1$d bytes</item>
+        <item quantity="few">%1$d байта</item>
         <!-- EN: %1$d bytes -->
-        <item quantity="many">%1$d bytes</item>
+        <item quantity="many">%1$d байт</item>
         <!-- EN: %1$d bytes -->
-        <item quantity="other">%1$d bytes</item>
+        <item quantity="other">%1$d байта</item>
     </plurals>
 </resources>
