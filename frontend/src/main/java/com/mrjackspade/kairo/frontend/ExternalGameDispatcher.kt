@@ -1,7 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
 import java.util.concurrent.atomic.AtomicBoolean
@@ -15,14 +14,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class ExternalGameDispatcher<T : LibraryItem>(
     private val activity: Activity,
-    private val resolver: ContentResolver,
     private val knownEntries: () -> List<T>,
     private val libraryTree: () -> Uri?,
     private val sourceUri: (T) -> Uri,
     private val inspect: (ExternalGameFile, AtomicBoolean) -> List<T>,
     private val claim: (ExternalGameFile, List<T>) -> List<T>,
     private val onResolved: (List<T>, Boolean) -> Unit,
-    private val showStatus: (String) -> Unit,
+    private val showStatus: (String, LibraryScreen.StatusKind) -> Unit,
     private val threadName: String
 ) {
     private var generation = 0
@@ -33,9 +31,9 @@ class ExternalGameDispatcher<T : LibraryItem>(
         cancellation?.set(true)
         cancellation = null
         val requestGeneration = ++generation
-        val request = try { ExternalGameIntent.file(intent, resolver, libraryTree()) }
+        val request = try { ExternalGameIntent.file(intent, activity, libraryTree()) }
         catch (failure: Exception) {
-            showStatus(failure.message ?: "Invalid game file")
+            showStatus(failure.message ?: activity.getString(R.string.kairo_external_invalid), LibraryScreen.StatusKind.MESSAGE)
             return
         } ?: return
         val library = knownEntries().filter {
@@ -43,7 +41,7 @@ class ExternalGameDispatcher<T : LibraryItem>(
         }
         val cancelled = AtomicBoolean(false)
         cancellation = cancelled
-        showStatus("Opening ${request.name}…")
+        showStatus(activity.getString(R.string.kairo_external_opening, request.name), LibraryScreen.StatusKind.WORK)
         Thread {
             val result = runCatching {
                 val entries = library.ifEmpty { inspect(request, cancelled) }
@@ -54,7 +52,10 @@ class ExternalGameDispatcher<T : LibraryItem>(
                     return@runOnUiThread
                 cancellation = null
                 result.onSuccess { (entries, inspected) -> onResolved(entries, inspected) }
-                    .onFailure { failure -> showStatus("Could not open ${request.name}: ${failure.message}") }
+                    .onFailure { failure ->
+                        showStatus(activity.getString(R.string.kairo_external_open_failed, request.name, failure.message.toString()),
+                            LibraryScreen.StatusKind.MESSAGE)
+                    }
             }
         }.apply { name = threadName; start() }
     }

@@ -16,7 +16,7 @@ object DocumentPicker {
         }, requestCode)
         true
     } catch (error: Exception) {
-        failed(error.message ?: "Could not open file chooser")
+        failed(error.message ?: activity.getString(R.string.kairo_file_chooser_failed))
         false
     }
 

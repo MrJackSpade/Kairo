@@ -36,10 +36,10 @@ class DirectoryPicker private constructor(
 
     override fun groups(): List<RowGroup> {
         failure?.let { message ->
-            return listOf(RowGroup(null, listOf(SettingsRow.action("retry", "Retry", run = ::reload)), message))
+            return listOf(RowGroup(null, listOf(SettingsRow.action("retry", context.getString(R.string.kairo_retry), run = ::reload)), message))
         }
-        if (loading) return listOf(RowGroup(null, listOf(SettingsRow.info("loading", "Loading files…") { "" })))
-        if (entries.isEmpty()) return listOf(RowGroup(null, listOf(SettingsRow.info("empty", "No files here") { "" })))
+        if (loading) return listOf(RowGroup(null, listOf(SettingsRow.info("loading", context.getString(R.string.kairo_files_loading)) { "" })))
+        if (entries.isEmpty()) return listOf(RowGroup(null, listOf(SettingsRow.info("empty", context.getString(R.string.kairo_files_none)) { "" })))
         return listOf(RowGroup(null, entries.mapIndexed { index, entry ->
             if (entry.directory) SettingsRow.nav("entry$index:${entry.id}", entry.label) { open(entry) }
             else SettingsRow.action("entry$index:${entry.id}", entry.label) { open(entry) }
@@ -102,7 +102,7 @@ class DirectoryPicker private constructor(
                 loading = false
                 result.onSuccess { loaded ->
                     entries = (if (history.size == 1) rootEntries else emptyList()) + loaded
-                }.onFailure { error -> failure = error.message ?: "Could not list files" }
+                }.onFailure { error -> failure = error.message ?: context.getString(R.string.kairo_files_list_failed) }
                 super.refresh()
                 renav(first = true)
             }

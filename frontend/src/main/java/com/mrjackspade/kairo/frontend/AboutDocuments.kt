@@ -16,21 +16,21 @@ object AboutDocuments {
              shortcutNote: String?, credits: String, privacyAsset: String, noticesAsset: String,
              diagnostics: (() -> Page)? = null): GroupsPage {
         val version = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName ?: ""
-        return GroupsPage("About", content = {
+        return GroupsPage(activity.getString(R.string.kairo_about), content = {
             listOf(
-                RowGroup("APP", listOfNotNull(
-                    SettingsRow.info("version", "Version") { version },
-                    diagnostics?.let { open -> SettingsRow.nav("diagnostics", "Diagnostics") { pages.push(open()) } })),
-                RowGroup("SHORTCUTS", shortcuts.mapIndexed { index, (label, value) ->
+                RowGroup(activity.getString(R.string.kairo_about_app_group), listOfNotNull(
+                    SettingsRow.info("version", activity.getString(R.string.kairo_about_version)) { version },
+                    diagnostics?.let { open -> SettingsRow.nav("diagnostics", activity.getString(R.string.kairo_diagnostics)) { pages.push(open()) } })),
+                RowGroup(activity.getString(R.string.kairo_about_shortcuts_group), shortcuts.mapIndexed { index, (label, value) ->
                     SettingsRow.info("shortcut$index", label) { value }
                 }, shortcutNote),
-                RowGroup("LEGAL", listOf(
-                    SettingsRow.nav("licenses", "Third-party licenses") {
-                        pages.push(document(activity, "Third-party licenses",
+                RowGroup(activity.getString(R.string.kairo_about_legal_group), listOf(
+                    SettingsRow.nav("licenses", activity.getString(R.string.kairo_about_licenses)) {
+                        pages.push(document(activity, activity.getString(R.string.kairo_about_licenses),
                             listOf(noticesAsset) + FRONTEND_NOTICES, Ui.LABEL))
                     },
-                    SettingsRow.nav("privacy", "Privacy policy") {
-                        pages.push(document(activity, "Privacy policy", listOf(privacyAsset), Ui.SECONDARY))
+                    SettingsRow.nav("privacy", activity.getString(R.string.kairo_about_privacy)) {
+                        pages.push(document(activity, activity.getString(R.string.kairo_about_privacy), listOf(privacyAsset), Ui.SECONDARY))
                     }), credits))
         })
     }
@@ -41,7 +41,7 @@ object AboutDocuments {
                 activity.assets.open(asset).bufferedReader().use { it.readText() }
             }
         } catch (_: Exception) {
-            "This document could not be opened."
+            activity.getString(R.string.kairo_about_document_failed)
         }
         return DocumentPage(title, content, textSize)
     }

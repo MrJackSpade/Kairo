@@ -48,27 +48,29 @@ class GameDetailView<T : LibraryItem>(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             isClickable = true
-            contentDescription = "Back to game library"
+            contentDescription = context.getString(R.string.kairo_detail_back)
             setPadding(dp(4), 0, dp(14), 0)
             background = Ui.focusable(context, Color.TRANSPARENT, null)
             setOnClickListener { action() }
             addView(Ui.icon(context, R.drawable.ic_back, Ui.ACCENT_SOFT, 20))
-            addView(Ui.text(context, "Library", Ui.BODY, Ui.ACCENT_SOFT).apply { setPadding(dp(4), 0, 0, 0) })
+            addView(Ui.text(context, context.getString(R.string.kairo_detail_library), Ui.BODY, Ui.ACCENT_SOFT).apply {
+                setPadding(dp(4), 0, 0, 0)
+            })
         }.testId("back")
     }
     private val hero = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
     val imagePanel = FrameLayout(context).apply {
         background = Ui.focusable(context, Ui.SURFACE, null)
         setPadding(dp(3), dp(3), dp(3), dp(3))
-        contentDescription = "View screenshot"
+        contentDescription = context.getString(R.string.kairo_detail_view_screenshot)
         setOnClickListener { current?.let(viewScreenshot) }
     }.testId("image")
     private val image = ImageView(context).apply {
         scaleType = ImageView.ScaleType.FIT_CENTER
         visibility = View.GONE
-        contentDescription = "Game screenshot"
+        contentDescription = context.getString(R.string.kairo_detail_screenshot)
     }
-    private val imageFallback = Ui.text(context, "No screenshot available", Ui.SECONDARY, Ui.TEXT_MUTED).apply {
+    private val imageFallback = Ui.text(context, context.getString(R.string.kairo_detail_no_screenshot), Ui.SECONDARY, Ui.TEXT_MUTED).apply {
         gravity = Gravity.CENTER
     }
     private val right = LinearLayout(context).apply {
@@ -79,7 +81,7 @@ class GameDetailView<T : LibraryItem>(
     private val cover = ImageView(context).apply {
         scaleType = ImageView.ScaleType.CENTER_CROP
         visibility = View.GONE
-        contentDescription = "Box art"
+        contentDescription = context.getString(R.string.kairo_artwork_box_art)
         background = Ui.rounded(context, Ui.RAISED, 4)
         clipToOutline = true
     }
@@ -88,14 +90,16 @@ class GameDetailView<T : LibraryItem>(
         ellipsize = android.text.TextUtils.TruncateAt.END
     }
     private val tags = WrapLayout(context, dp(6)).apply { alignEnd = false }
-    val playButton: LinearLayout = Ui.primaryButton(context, "Play", R.drawable.ic_play) { playSelected() }.testId("play")
-    val commandButton: FrameLayout = Ui.iconButton(context, R.drawable.ic_terminal, "DOS prompt or run program") {
+    val playButton: LinearLayout = Ui.primaryButton(context, context.getString(R.string.kairo_detail_play), R.drawable.ic_play) {
+        playSelected()
+    }.testId("play")
+    val commandButton: FrameLayout = Ui.iconButton(context, R.drawable.ic_terminal, context.getString(R.string.kairo_detail_command)) {
         launchCommand()
     }.apply {
         visibility = if (commandLaunch == null) View.GONE else View.VISIBLE
         background = Ui.focusable(context, Color.TRANSPARENT, Ui.LINE)
     }.testId("command")
-    val settingsButton: LinearLayout = Ui.secondaryButton(context, "Game settings", R.drawable.ic_tune) {
+    val settingsButton: LinearLayout = Ui.secondaryButton(context, context.getString(R.string.kairo_game_settings), R.drawable.ic_tune) {
         current?.let(settings)
     }.testId("settings")
     private val launchRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
@@ -179,21 +183,22 @@ class GameDetailView<T : LibraryItem>(
             background = Ui.rounded(context, Color.TRANSPARENT, 4, Ui.LINE)
             setPadding(dp(6), dp(2), dp(6), dp(2))
         }) }
-        description.text = game.description ?: "No description available yet."
-        file.text = "File: " + fileLabel(entry)
+        description.text = game.description ?: context.getString(R.string.kairo_detail_no_description)
+        file.text = context.getString(R.string.kairo_detail_file, fileLabel(entry))
         commandButton.isEnabled = entry.playable
         commandButton.alpha = if (entry.playable) 1f else 0.4f
         playButton.isEnabled = entry.playable
         playButton.alpha = if (entry.playable) 1f else 0.4f
         unavailable.text = if (entry.playable) "" else
-            "Can’t play: ${entry.error ?: "this file has not been checked yet"}. Fix the file, then Refresh from the library menu."
+            context.getString(R.string.kairo_detail_unplayable, entry.error ?: context.getString(R.string.kairo_detail_unchecked))
         unavailable.visibility = if (entry.playable) View.GONE else View.VISIBLE
         image.setImageDrawable(null)
         image.visibility = View.GONE
         cover.setImageDrawable(null)
         cover.visibility = View.GONE
         imageFallback.visibility = View.VISIBLE
-        imageFallback.text = if (game.preview == null) "No screenshot available" else "Loading screenshot…"
+        imageFallback.text = context.getString(if (game.preview == null) R.string.kairo_detail_no_screenshot
+            else R.string.kairo_detail_loading_screenshot)
         imagePanel.isEnabled = game.preview != null
         if (!refresh) scrollView.scrollTo(0, 0)
         shown(refresh)
@@ -203,7 +208,7 @@ class GameDetailView<T : LibraryItem>(
             cover.setImageBitmap(bitmap)
             cover.visibility = View.VISIBLE
         }
-        loadImage(game.preview, generation, 1, { imageFallback.text = "Screenshot unavailable" }) { bitmap ->
+        loadImage(game.preview, generation, 1, { imageFallback.text = context.getString(R.string.kairo_detail_screenshot_unavailable) }) { bitmap ->
             image.setImageBitmap(bitmap)
             image.visibility = View.VISIBLE
             imageFallback.visibility = View.GONE

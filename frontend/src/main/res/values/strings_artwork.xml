@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Box art and screenshots: a game's images, and downloading the catalog's missing ones. -->
+<resources>
+    <string name="kairo_artwork_box_art">Box art</string>
+    <string name="kairo_artwork_screenshot">Screenshot</string>
+    <string name="kairo_artwork_view">View</string>
+    <string name="kairo_artwork_replace">Replace…</string>
+    <string name="kairo_artwork_choose">Choose image…</string>
+    <string name="kairo_artwork_import_failed">Could not import image</string>
+    <string name="kairo_artwork_reset_done">Artwork reset</string>
+    <string name="kairo_artwork_saved">Artwork saved</string>
+    <string name="kairo_artwork_save_failed">Could not save artwork</string>
+    <!-- The image's kind in lower case: kairo_artwork_box_art or kairo_artwork_screenshot. -->
+    <string name="kairo_artwork_none_available">No %1$s available</string>
+    <string name="kairo_artwork_unavailable">Image unavailable</string>
+    <string name="kairo_artwork_tap_larger">Tap image to load a larger version</string>
+    <string name="kairo_artwork_loading_larger">Loading larger image…</string>
+    <string name="kairo_artwork_larger_failed">Could not load larger image</string>
+    <string name="kairo_artwork_larger_loaded">Larger image loaded</string>
+
+    <string name="kairo_artwork_group">ARTWORK</string>
+    <string name="kairo_artwork_download">Download missing images</string>
+    <string name="kairo_artwork_stopping">Stopping image download…</string>
+    <string name="kairo_artwork_already_running">Images are already downloading</string>
+    <string name="kairo_artwork_no_games">Add games to the library first</string>
+    <string name="kairo_artwork_checking">Checking library artwork…</string>
+    <!-- Images done, then images to download. -->
+    <string name="kairo_artwork_downloading">Downloading images %1$d/%2$d</string>
+    <!-- Images done, images to download, then images that failed. -->
+    <string name="kairo_artwork_downloading_failed">Downloading images %1$d/%2$d · %3$d failed</string>
+    <!-- Images done, then images to download. -->
+    <string name="kairo_artwork_progress">%1$d / %2$d</string>
+    <string name="kairo_artwork_waiting">Waiting…</string>
+    <!-- The image server's host name. -->
+    <string name="kairo_artwork_waiting_for">Waiting for %1$s\'s rate limit…</string>
+    <string name="kairo_artwork_download_failed">Image download failed: %1$s</string>
+    <string name="kairo_artwork_none_missing_result">No missing catalog images for this library</string>
+    <!-- Images saved before the download stopped. -->
+    <string name="kairo_artwork_stopped_result">Image download stopped · %1$d saved</string>
+    <plurals name="kairo_artwork_downloaded">
+        <item quantity="one">Downloaded %1$d images</item>
+        <item quantity="other">Downloaded %1$d images</item>
+    </plurals>
+    <!-- Images saved, images that failed, then why they failed (kairo_artwork_reason_count, separated by semicolons). -->
+    <string name="kairo_artwork_downloaded_failed">Downloaded %1$d images · %2$d failed: %3$s</string>
+    <string name="kairo_artwork_failed">Failed</string>
+    <string name="kairo_artwork_none_missing">None missing</string>
+    <!-- Images saved before the download stopped. -->
+    <string name="kairo_artwork_stopped">Stopped · %1$d saved</string>
+    <string name="kairo_artwork_saved_count">%1$d saved</string>
+    <!-- Images saved, then images that failed. -->
+    <string name="kairo_artwork_saved_failed">%1$d saved · %2$d failed</string>
+    <string name="kairo_artwork_no_internet">No internet connection</string>
+    <string name="kairo_artwork_no_response">The image server did not respond</string>
+    <!-- Why images failed, then how many failed for it. -->
+    <string name="kairo_artwork_reason_count">%1$s (%2$d)</string>
+</resources>

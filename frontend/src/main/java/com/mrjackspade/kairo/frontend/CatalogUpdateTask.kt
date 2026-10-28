@@ -1,15 +1,16 @@
 package com.mrjackspade.kairo.frontend
 
+import androidx.annotation.StringRes
 import java.util.concurrent.CancellationException
 
-enum class CatalogUpdateState(val label: String, val busy: Boolean) {
-    CHECKING("Checking catalogs…", true),
-    DOWNLOADING("Downloading catalogs…", true),
-    IMPORTING("Importing catalog…", true),
-    APPLYING("Applying catalogs…", true),
-    CURRENT("Catalogs are current", false),
-    UPDATED("Catalogs updated", false),
-    FAILED("Catalog check failed", false)
+enum class CatalogUpdateState(@StringRes val label: Int, val busy: Boolean) {
+    CHECKING(R.string.kairo_catalogs_checking, true),
+    DOWNLOADING(R.string.kairo_catalogs_downloading, true),
+    IMPORTING(R.string.kairo_catalogs_importing, true),
+    APPLYING(R.string.kairo_catalogs_applying, true),
+    CURRENT(R.string.kairo_catalogs_current, false),
+    UPDATED(R.string.kairo_catalogs_updated, false),
+    FAILED(R.string.kairo_catalogs_check_failed, false)
 }
 
 /** Per-check cancellation and progress, shared by the UI and snapshot downloader. */

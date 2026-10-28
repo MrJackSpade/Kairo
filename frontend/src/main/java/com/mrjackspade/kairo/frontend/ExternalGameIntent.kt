@@ -1,6 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
-import android.content.ContentResolver
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -18,7 +18,8 @@ object ExternalGameIntent {
     fun hasRequest(intent: Intent): Boolean = intent.data != null || intent.hasExtra("ROM")
 
     /** The file [intent] names; [tree] is the library folder, which its key is relative to. */
-    fun file(intent: Intent?, resolver: ContentResolver, tree: Uri?): ExternalGameFile? {
+    fun file(intent: Intent?, context: Context, tree: Uri?): ExternalGameFile? {
+        val resolver = context.contentResolver
         if (intent == null || intent.action !in listOf(Intent.ACTION_VIEW,
                 Intent.ACTION_MAIN, null)) return null
         val supplied = intent.data ?: intent.getStringExtra("ROM")?.let(Uri::parse)
@@ -54,7 +55,7 @@ object ExternalGameIntent {
         }
         val label = (name ?: uri.lastPathSegment ?: "")
             .substringAfterLast('/').substringAfterLast('\\').substringAfterLast(':')
-        require(label.isNotBlank() && label.length <= 255) { "Game file has no usable name" }
+        require(label.isNotBlank() && label.length <= 255) { context.getString(R.string.kairo_external_no_name) }
         return ExternalGameFile(uri, label, size, modified, key(uri, tree))
     }
 

@@ -131,7 +131,8 @@ class GamePathMigrationTest {
         val migration = migration { error("Saves were not moved; choose which to keep the next time the library opens") }
         val errors = migration.claim(listOf(GamePathMigration.Claim(star), GamePathMigration.Claim(other)), every = true)
         assertEquals(setOf(star.key), errors.keys)
-        assertTrue(errors.getValue(star.key).contains("choose which to keep"))
+        assertEquals(UiText.res(R.string.kairo_migration_failed,
+            "Saves were not moved; choose which to keep the next time the library opens"), errors.getValue(star.key))
         assertEquals("current", saveAt(star, "state1").readText())
         assertTrue(File(saves.root, "${star.key.hashName}/slot1").isDirectory)
         assertEquals("other", saveAt(other, "state1").readText())
@@ -148,7 +149,7 @@ class GamePathMigrationTest {
         }
         val migration = migration(listOf(failing, saveStore()))
         val errors = migration.claim(listOf(GamePathMigration.Claim(star)), every = true)
-        assertEquals("Saved data from an earlier version did not move: storage full", errors[star.key])
+        assertEquals(UiText.res(R.string.kairo_migration_failed, "storage full"), errors[star.key])
         assertEquals("one", saveAt(star, "state1").readText())
         assertTrue(migration.pending)
     }

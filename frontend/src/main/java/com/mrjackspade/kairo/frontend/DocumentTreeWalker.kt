@@ -1,6 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
-import android.content.ContentResolver
+import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import java.util.concurrent.CancellationException
@@ -14,7 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * does not relist, a folder whose last-modified time is unchanged keeps its remembered listing
  * instead (ScanDepth).
  */
-class DocumentTreeWalker(private val resolver: ContentResolver) {
+class DocumentTreeWalker(private val context: Context) {
+    private val resolver = context.contentResolver
     data class FileEntry(val uri: Uri, val path: String, val size: Long, val modified: Long)
     data class FolderError(val uri: Uri, val path: String, val message: String)
     data class Result(val files: List<FileEntry>, val folders: List<FolderError>)
@@ -51,11 +52,13 @@ class DocumentTreeWalker(private val resolver: ContentResolver) {
                 listing.remembered?.let { read[folder.id] = it }
                 listing.error?.let {
                     errors.add(it)
-                    progress("Skipping unreadable folder: ${it.path}")
+                    progress(context.getString(R.string.kairo_scan_skipping_folder, it.path))
                 }
             }
             listed += level.size
-            progress("Checking the games folder: $listed folders, ${files.size} media files")
+            progress(context.getString(R.string.kairo_scan_listing,
+                context.resources.getQuantityString(R.plurals.kairo_scan_folders, listed, listed),
+                context.resources.getQuantityString(R.plurals.kairo_scan_media_files, files.size, files.size)))
             level = next
         }
         memory?.write(tree.toString(), read)
@@ -68,7 +71,7 @@ class DocumentTreeWalker(private val resolver: ContentResolver) {
      */
     private fun list(tree: Uri, folder: Folder, cancelled: AtomicBoolean, include: (String) -> Boolean,
                      visited: AtomicInteger, known: FolderListings.Listing?): Listing {
-        require(folder.path.count { it == '/' } <= MAX_DEPTH) { "Game folder is too deep" }
+        require(folder.path.count { it == '/' } <= MAX_DEPTH) { context.getString(R.string.kairo_scan_too_deep) }
         val remembered = try {
             val modified = modified(tree, folder.id)
             if (known != null && modified != 0L && known.modified == modified) known
@@ -85,7 +88,7 @@ class DocumentTreeWalker(private val resolver: ContentResolver) {
         val folders = ArrayList<Folder>()
         for (child in remembered.children) {
             if (cancelled.get()) throw CancellationException("Cancelled")
-            require(visited.incrementAndGet() <= MAX_DOCUMENTS) { "Game folder has too many files" }
+            require(visited.incrementAndGet() <= MAX_DOCUMENTS) { context.getString(R.string.kairo_scan_too_many_files) }
             val path = if (folder.path.isEmpty()) child.name else "${folder.path}/${child.name}"
             if (child.folder) folders.add(Folder(child.id, path))
             else if (include(child.name))

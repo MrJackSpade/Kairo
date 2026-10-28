@@ -51,9 +51,9 @@ class GameKeyMigration<T : LibraryItem>(
     val pending: Boolean get() = !preferences.getBoolean(DONE, false)
 
     /** Moves everything held for [games]. Returns an error message for each game whose data did not move. */
-    @Synchronized fun claim(games: List<Claim<T>>): Map<GameKey, String> {
+    @Synchronized fun claim(games: List<Claim<T>>): Map<GameKey, UiText> {
         if (!pending) return emptyMap()
-        val errors = LinkedHashMap<GameKey, String>()
+        val errors = LinkedHashMap<GameKey, UiText>()
         for (store in entryStores) {
             store.refresh()
             for (game in games) {
@@ -78,7 +78,7 @@ class GameKeyMigration<T : LibraryItem>(
     }
 
     private fun message(error: Exception) =
-        "Saved data from an earlier version did not move: ${error.message ?: error.javaClass.simpleName}"
+        UiText.res(R.string.kairo_migration_failed, error.message ?: error.javaClass.simpleName)
 
     /** Per-game preferences. [legacyPrefix] + content ID, then `_name` when [named]. */
     class PreferenceFamily(val legacyPrefix: String, val prefix: String, val named: Boolean)

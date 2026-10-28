@@ -27,18 +27,18 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
     fun cancel() {
         if (!running || cancelled.get()) return
         cancelled.set(true)
-        screen.tasks.show(TASK, "Stopping image download…", PRIORITY)
+        screen.tasks.show(TASK, activity.getString(R.string.kairo_artwork_stopping), PRIORITY)
         changed()
     }
 
     fun start() {
-        if (running) { Ui.message(activity, "Images are already downloading"); return }
+        if (running) { Ui.message(activity, activity.getString(R.string.kairo_artwork_already_running)); return }
         val games = entries().toList()
-        if (games.none { it.playable }) { Ui.message(activity, "Add games to the library first"); return }
+        if (games.none { it.playable }) { Ui.message(activity, activity.getString(R.string.kairo_artwork_no_games)); return }
         running = true
         val stop = AtomicBoolean(false)
         cancelled = stop
-        show("Checking…", "Checking library artwork…")
+        show(activity.getString(R.string.kairo_checking), activity.getString(R.string.kairo_artwork_checking))
         Thread {
             val completed = AtomicInteger()
             val saved = AtomicInteger()
@@ -54,14 +54,15 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                     if (latest != null && !activity.isDestroyed && !stop.get()) show(latest.first, latest.second)
                 }
             }
-            fun counted() = "Downloading images ${completed.get()}/$total" +
-                (if (failed.get() == 0) "" else " · ${failed.get()} failed")
+            fun counted() = if (failed.get() == 0) activity.getString(R.string.kairo_artwork_downloading, completed.get(), total)
+                else activity.getString(R.string.kairo_artwork_downloading_failed, completed.get(), total, failed.get())
+            fun done() = activity.getString(R.string.kairo_artwork_progress, completed.get(), total)
             // A server that asks us to wait holds every worker until then.
             val resumeAt = AtomicLong(0)
             try {
                 val sources = missing(games)
                 total = sources.size
-                post("0 / $total", counted())
+                post(done(), counted())
                 // Each image is downloaded, decoded and encoded again: one at a time left the
                 // network and the other cores idle, about one image a second (KairoDos#83).
                 ParallelScanWork.map(sources, stop, WORKERS) { _, source ->
@@ -77,7 +78,8 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                                 ?: (System.currentTimeMillis() + backoff).also { backoff = (backoff * 2).coerceAtMost(LAST_BACKOFF_MILLIS) }
                             resumeAt.accumulateAndGet(resume, ::maxOf)
                             Log.i("Kairo", "Artwork: ${throttled.host} is limiting requests; waiting until $resume")
-                            post("Waiting…", "Waiting for ${throttled.host}'s rate limit…")
+                            post(activity.getString(R.string.kairo_artwork_waiting),
+                                activity.getString(R.string.kairo_artwork_waiting_for, throttled.host))
                             continue
                         } catch (cancel: CancellationException) {
                             throw cancel
@@ -90,27 +92,27 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
                         break
                     }
                     completed.incrementAndGet()
-                    post("${completed.get()} / $total", counted())
+                    post(done(), counted())
                 }
             } catch (_: CancellationException) {
             } catch (error: Exception) {
-                errorMessage = error.message ?: "Unknown error"
+                errorMessage = error.message ?: activity.getString(R.string.kairo_unknown_error)
             }
             val downloaded = saved.get()
             val failures = failed.get()
             val result = when {
-                errorMessage != null -> "Image download failed: $errorMessage"
-                total == 0 -> "No missing catalog images for this library"
-                stop.get() -> "Image download stopped · $downloaded saved"
-                failures == 0 -> "Downloaded $downloaded images"
-                else -> "Downloaded $downloaded images · $failures failed: " + breakdown(reasons)
+                errorMessage != null -> activity.getString(R.string.kairo_artwork_download_failed, errorMessage)
+                total == 0 -> activity.getString(R.string.kairo_artwork_none_missing_result)
+                stop.get() -> activity.getString(R.string.kairo_artwork_stopped_result, downloaded)
+                failures == 0 -> activity.resources.getQuantityString(R.plurals.kairo_artwork_downloaded, downloaded, downloaded)
+                else -> activity.getString(R.string.kairo_artwork_downloaded_failed, downloaded, failures, breakdown(reasons))
             }
             val value = when {
-                errorMessage != null -> "Failed"
-                total == 0 -> "None missing"
-                stop.get() -> "Stopped · $downloaded saved"
-                failures == 0 -> "$downloaded saved"
-                else -> "$downloaded saved · $failures failed"
+                errorMessage != null -> activity.getString(R.string.kairo_artwork_failed)
+                total == 0 -> activity.getString(R.string.kairo_artwork_none_missing)
+                stop.get() -> activity.getString(R.string.kairo_artwork_stopped, downloaded)
+                failures == 0 -> activity.getString(R.string.kairo_artwork_saved_count, downloaded)
+                else -> activity.getString(R.string.kairo_artwork_saved_failed, downloaded, failures)
             }
             activity.runOnUiThread {
                 running = false
@@ -127,14 +129,16 @@ class CatalogArtworkDownloadController<Game : LibraryItem, Source>(
 
     /** The cause a person can act on: no connection, or the error itself. */
     private fun reason(error: Exception): String = when (error) {
-        is java.net.UnknownHostException, is java.net.NoRouteToHostException -> "No internet connection"
-        is java.net.SocketTimeoutException -> "The image server did not respond"
+        is java.net.UnknownHostException, is java.net.NoRouteToHostException -> activity.getString(R.string.kairo_artwork_no_internet)
+        is java.net.SocketTimeoutException -> activity.getString(R.string.kairo_artwork_no_response)
         else -> error.message ?: error.javaClass.simpleName
     }
 
     /** Every reason with its count, most common first. */
     private fun breakdown(reasons: Map<String, Int>): String =
-        reasons.entries.sortedByDescending { it.value }.joinToString("; ") { "${it.key} (${it.value})" }
+        reasons.entries.sortedByDescending { it.value }.joinToString("; ") {
+            activity.getString(R.string.kairo_artwork_reason_count, it.key, it.value)
+        }
 
     private fun show(row: String, task: String) {
         progress = row

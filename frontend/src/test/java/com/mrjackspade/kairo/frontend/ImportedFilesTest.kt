@@ -46,6 +46,14 @@ class ImportedFilesTest {
     }
 
     @Test
+    fun anEmptyFileIsNotKept() {
+        val files = files()
+        val failure = assertThrows(ImportedFiles.Refused::class.java) { files.add(ByteArray(0).inputStream()) }
+        assertEquals(UiText.res(R.string.kairo_import_file_empty), failure.reason)
+        assertTrue(files.items().isEmpty())
+    }
+
+    @Test
     fun filesListInTheirOrderThenByLabel() {
         val files = files()
         files.add("2".byteInputStream(), "second.bmp")

@@ -4,8 +4,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ScanProgressTest {
-    private val messages = ArrayList<String>()
+    private val messages = ArrayList<UiText>()
     private val progress = ScanProgress(toHash = 2, toConfirm = 3) { messages += it }
+
+    private fun hashing(count: Int, path: String) = UiText.res(R.string.kairo_scan_hashing, count, 2, path)
+    private fun confirming(count: Int, path: String) = UiText.res(R.string.kairo_scan_confirming, count, 3, path)
+    private fun percent(label: UiText, percent: Int) = UiText.res(R.string.kairo_scan_percent, label, percent)
 
     @Test
     fun newFilesCountAgainstTheFilesToHashAndKnownOnesAgainstTheKnown() {
@@ -13,22 +17,22 @@ class ScanProgressTest {
         progress.start("B/new.st", hash = true)
         progress.start("A/two.zip", hash = false)
         progress.start("C/other.st", hash = true)
-        assertEquals(listOf("Confirming 1 of 3: A/one.zip", "Hashing 1 of 2: B/new.st",
-            "Confirming 2 of 3: A/two.zip", "Hashing 2 of 2: C/other.st"), messages)
+        assertEquals(listOf(confirming(1, "A/one.zip"), hashing(1, "B/new.st"),
+            confirming(2, "A/two.zip"), hashing(2, "C/other.st")), messages)
     }
 
     @Test
     fun anArchiveMemberKeepsTheFilesCount() {
         progress.start("Games/set.zip", hash = true)
         progress.hashing("Games/set.zip/Disk 2.st")
-        assertEquals("Hashing 1 of 2: Games/set.zip/Disk 2.st", messages.last())
+        assertEquals(hashing(1, "Games/set.zip/Disk 2.st"), messages.last())
     }
 
     @Test
     fun aKnownFileHashedAfterAllSaysSo() {
         progress.start("Games/a.st", hash = false)
         progress.hashing("Games/a.st")
-        assertEquals("Hashing Games/a.st", messages.last())
+        assertEquals(UiText.res(R.string.kairo_scan_hashing_file, "Games/a.st"), messages.last())
     }
 
     @Test
@@ -39,14 +43,14 @@ class ScanProgressTest {
         progress.read(128 * 1024, total)
         progress.read(total / 2, total)
         progress.read(total, total)
-        assertEquals(listOf("Hashing 1 of 2: Towns/disc.bin", "Hashing 1 of 2: Towns/disc.bin 0%",
-            "Hashing 1 of 2: Towns/disc.bin 50%", "Hashing 1 of 2: Towns/disc.bin 100%"), messages)
+        val label = hashing(1, "Towns/disc.bin")
+        assertEquals(listOf(label, percent(label, 0), percent(label, 50), percent(label, 100)), messages)
     }
 
     @Test
     fun aSmallFileReportsNoPercent() {
         progress.start("C64/game.d64", hash = true)
         progress.read(174_848, 174_848)
-        assertEquals(listOf("Hashing 1 of 2: C64/game.d64"), messages)
+        assertEquals(listOf(hashing(1, "C64/game.d64")), messages)
     }
 }

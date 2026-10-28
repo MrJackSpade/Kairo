@@ -30,7 +30,7 @@ class SaveFolderSettings(
     /** The chosen folder, or null for app storage. */
     val folder: FolderSaveLocation? get() = preferences.getString(PREFERENCE, null)?.let(Uri::parse)?.let { uri ->
         check(FolderGrants.has(activity, uri, write = true)) {
-            "Access to the save folder was lost. Choose it again in Configurations › Save folder."
+            activity.getString(R.string.kairo_saves_access_lost)
         }
         FolderSaveLocation(activity.contentResolver, uri)
     }
@@ -46,18 +46,18 @@ class SaveFolderSettings(
         DocumentsContract.getTreeDocumentId(Uri.parse(stored)).substringAfterLast('/').substringAfterLast(':')
     }
 
-    fun row() = SettingsRow.choice("save-folder", "Save folder", ChoiceSpec("Save folder",
-        { GameSource.ALL_GAMES }, {
-            listOf(ChoiceGroup(null, listOf(ChoiceOption(PRIVATE, "Private app storage"),
-                ChoiceOption(FOLDER, "Custom folder"))))
+    fun row() = SettingsRow.choice("save-folder", activity.getString(R.string.kairo_saves_folder),
+        ChoiceSpec(activity.getString(R.string.kairo_saves_folder), { GameSource.ALL_GAMES }, {
+            listOf(ChoiceGroup(null, listOf(ChoiceOption(PRIVATE, UiText.res(R.string.kairo_saves_private)),
+                ChoiceOption(FOLDER, UiText.res(R.string.kairo_saves_custom_folder)))))
         }, { if (label == null) PRIVATE else FOLDER }, select = { id ->
             if (id == FOLDER) chooseFolder()
             else if (label != null) change(app) { check(preferences.edit().remove(PREFERENCE).commit()) {
-                "Could not remember the save folder"
+                activity.getString(R.string.kairo_saves_remember_failed)
             } }
-        }, cycles = false), value = { status ?: label ?: "Private app storage" },
+        }, cycles = false), value = { status ?: label ?: activity.getString(R.string.kairo_saves_private) },
         enabled = { !busy && blocked() == null },
-        disabledReason = { if (busy) "Wait for the saves to finish moving." else blocked() })
+        disabledReason = { if (busy) activity.getString(R.string.kairo_saves_moving_wait) else blocked() })
 
     /** Returns true when the result belongs to the save folder picker. */
     fun handleActivityResult(code: Int, result: Int, data: Intent?): Boolean {
@@ -68,7 +68,7 @@ class SaveFolderSettings(
         FolderGrants.take(activity, uri, write = true)
         change(FolderSaveLocation(activity.contentResolver, uri)) {
             check(preferences.edit().putString(PREFERENCE, uri.toString()).commit()) {
-                "Could not remember the save folder"
+                activity.getString(R.string.kairo_saves_remember_failed)
             }
         }
         return true
@@ -84,7 +84,7 @@ class SaveFolderSettings(
     private fun change(target: SaveLocation, remember: () -> Unit) {
         blocked()?.let { Ui.message(activity, it); return }
         busy = true
-        show("Checking saves…")
+        show(activity.getString(R.string.kairo_saves_checking))
         Thread({
             val result = runCatching {
                 prepare(::show)
@@ -95,23 +95,25 @@ class SaveFolderSettings(
                 result.fold({ (migration, conflicts) ->
                     if (conflicts.isEmpty()) move(migration, emptySet(), remember)
                     else pages.push(conflictPage(migration, conflicts, target === app, remember))
-                }, { error -> finish("Could not change the save folder: ${error.message ?: "storage error"}") })
+                }, { error -> finish(activity.getString(R.string.kairo_saves_change_failed, reason(error))) })
             }
         }, "Kairo-save-folder").start()
     }
 
     private fun move(migration: SaveMigration, keepNew: Set<SaveUnit>, remember: () -> Unit) {
-        show("Moving saves…")
+        show(activity.getString(R.string.kairo_saves_moving))
         Thread({
             val result = runCatching {
-                migration.run(keepNew, { done, total -> show("Moving $done of $total…") }, remember)
+                migration.run(keepNew, { done, total -> show(activity.getString(R.string.kairo_saves_moving_count, done, total)) }, remember)
             }
             activity.runOnUiThread {
-                finish(result.fold({ "Save folder changed" },
-                    { error -> "Could not move saves: ${error.message ?: "storage error"}" }))
+                finish(result.fold({ activity.getString(R.string.kairo_saves_folder_changed) },
+                    { error -> activity.getString(R.string.kairo_saves_move_failed, reason(error)) }))
             }
         }, "Kairo-save-folder").start()
     }
+
+    private fun reason(error: Throwable) = error.message ?: activity.getString(R.string.kairo_saves_storage_error)
 
     private fun show(text: String) {
         status = text
@@ -128,13 +130,13 @@ class SaveFolderSettings(
     /** Lists each save in both places and lets the user keep one copy of each. */
     private fun conflictPage(migration: SaveMigration, conflicts: List<SaveMigration.Conflict>,
                              toPrivate: Boolean, remember: () -> Unit): GroupsPage {
-        val newName = if (toPrivate) "Private app storage" else "New folder"
+        val newName = activity.getString(if (toPrivate) R.string.kairo_saves_private else R.string.kairo_saves_new_folder)
         var moving = false
         return choicePage(conflicts.map { conflict ->
-            Choice(conflict.unit, "${gameTitle(conflict.unit)} · ${label(conflict.unit.kind)}",
-                "Current", conflict.currentSavedAt, newName, conflict.newSavedAt)
-        }, "Move saves", { moving = true; move(migration, it, remember) }) {
-            if (!moving) finish("Save folder not changed")
+            Choice(conflict.unit, activity.getString(R.string.kairo_saves_conflict_title, gameTitle(conflict.unit), label(conflict.unit.kind)),
+                activity.getString(R.string.kairo_saves_current), conflict.currentSavedAt, newName, conflict.newSavedAt)
+        }, activity.getString(R.string.kairo_saves_move), { moving = true; move(migration, it, remember) }) {
+            if (!moving) finish(activity.getString(R.string.kairo_saves_folder_unchanged))
         }
     }
 
@@ -149,14 +151,15 @@ class SaveFolderSettings(
         var chosen: Set<GameKeyMigration.SaveStore.Conflict>? = null
         activity.runOnUiThread {
             pages.push(choicePage(conflicts.map { conflict ->
-                Choice(conflict, "${title(conflict.game)} · ${label(conflict.unit)}",
-                    "Earlier version", conflict.earlierSavedAt, "This version", conflict.keyedSavedAt)
-            }, "Keep saves", { keptNewer -> chosen = conflicts.toSet() - keptNewer; latch.countDown() }) {
+                Choice(conflict, activity.getString(R.string.kairo_saves_conflict_title, title(conflict.game), label(conflict.unit)),
+                    activity.getString(R.string.kairo_saves_earlier_version), conflict.earlierSavedAt,
+                    activity.getString(R.string.kairo_saves_this_version), conflict.keyedSavedAt)
+            }, activity.getString(R.string.kairo_saves_keep), { keptNewer -> chosen = conflicts.toSet() - keptNewer; latch.countDown() }) {
                 latch.countDown()
             })
         }
         latch.await()
-        return checkNotNull(chosen) { "Saves were not moved; choose which to keep the next time the library opens" }
+        return checkNotNull(chosen) { activity.getString(R.string.kairo_saves_not_moved) }
     }
 
     /**
@@ -171,15 +174,17 @@ class SaveFolderSettings(
         var chosen: Set<GamePathMigration.Conflict>? = null
         activity.runOnUiThread {
             pages.push(choicePage(conflicts.map { conflict ->
-                Choice(conflict, "${title(conflict.game)} · ${conflict.label}",
-                    if (conflict.external) "From the library" else "This version", conflict.currentSavedAt,
-                    if (conflict.external) "Opened from another app" else "Earlier version", conflict.earlierSavedAt)
-            }, "Keep saves", { keptEarlier -> chosen = keptEarlier; latch.countDown() }) {
+                Choice(conflict, activity.getString(R.string.kairo_saves_conflict_title, title(conflict.game), conflict.label),
+                    activity.getString(if (conflict.external) R.string.kairo_saves_from_library else R.string.kairo_saves_this_version),
+                    conflict.currentSavedAt,
+                    activity.getString(if (conflict.external) R.string.kairo_saves_from_other_app else R.string.kairo_saves_earlier_version),
+                    conflict.earlierSavedAt)
+            }, activity.getString(R.string.kairo_saves_keep), { keptEarlier -> chosen = keptEarlier; latch.countDown() }) {
                 latch.countDown()
             })
         }
         latch.await()
-        return checkNotNull(chosen) { "Saves were not moved; choose which to keep the next time the library opens" }
+        return checkNotNull(chosen) { activity.getString(R.string.kairo_saves_not_moved) }
     }
 
     /** A kind's name for the player; a v1.4.0 kind is named as the kind it became. */
@@ -201,14 +206,19 @@ class SaveFolderSettings(
                         ChoiceOption(CURRENT, choice.currentName, format.format(Date(choice.currentSavedAt))),
                         ChoiceOption(NEW, choice.otherName, format.format(Date(choice.otherSavedAt))))))
                 }, { keep[choice.id] }, select = { keep[choice.id] = it }, cycles = false),
-                value = { when (keep[choice.id]) { CURRENT -> choice.currentName; NEW -> choice.otherName; else -> "Choose" } },
+                value = { when (keep[choice.id]) {
+                    CURRENT -> choice.currentName
+                    NEW -> choice.otherName
+                    else -> activity.getString(R.string.kairo_saves_choose)
+                } },
                 tone = { if (keep[choice.id] == null) ValueTone.EMPTY else ValueTone.CURRENT })
         }
-        return object : GroupsPage("Save conflicts", { GameSource.ALL_GAMES }, { listOf(RowGroup("KEEP", rows)) }, {
+        return object : GroupsPage(activity.getString(R.string.kairo_saves_conflicts), { GameSource.ALL_GAMES },
+            { listOf(RowGroup(activity.getString(R.string.kairo_saves_keep_group), rows)) }, {
             listOf(
-                FooterButton("cancel", { "Cancel" }) { pages.pop() },
+                FooterButton("cancel", { activity.getString(R.string.kairo_cancel) }) { pages.pop() },
                 FooterButton("move", { confirmLabel }, ButtonTone.PRIMARY, { keep.values.all { it != null } },
-                    "Choose which save to keep for each game.") {
+                    activity.getString(R.string.kairo_saves_choose_each)) {
                     confirmed = true
                     pages.pop()
                     confirm(keep.filterValues { it == NEW }.keys)

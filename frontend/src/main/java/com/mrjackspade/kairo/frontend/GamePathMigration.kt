@@ -61,8 +61,8 @@ class GamePathMigration<T : LibraryItem>(
      * not move. A library load claims [every] game while [pending]; a game a frontend opened
      * claims only its own earlier names, every time, as nothing else knows them.
      */
-    @Synchronized fun claim(claims: List<Claim<T>>, every: Boolean): Map<GameKey, String> {
-        val errors = LinkedHashMap<GameKey, String>()
+    @Synchronized fun claim(claims: List<Claim<T>>, every: Boolean): Map<GameKey, UiText> {
+        val errors = LinkedHashMap<GameKey, UiText>()
         stores.forEach { it.refresh(claims, every) }
         val work = stores.flatMap { store -> claims.filter { store.has(it.from) }.map { store to it } }
         val conflicts = LinkedHashMap<Pair<Store<T>, Claim<T>>, List<Conflict>>()
@@ -86,7 +86,7 @@ class GamePathMigration<T : LibraryItem>(
     }
 
     private fun message(error: Exception) =
-        "Saved data from an earlier version did not move: ${error.message ?: error.javaClass.simpleName}"
+        UiText.res(R.string.kairo_migration_failed, error.message ?: error.javaClass.simpleName)
 
     /**
      * Save units: `<hash name>/<v1 kind>` to `<savePath>.<kind>` in [location], for each of

@@ -24,6 +24,8 @@ class ImportedFiles(
     private val describe: (file: File, importedName: String?) -> Described,
 ) {
     class Described(val label: String, val order: Int = 0)
+    /** A file refused before it is kept, for [reason] as the player reads it. */
+    class Refused(val reason: UiText) : IllegalArgumentException()
     class Item(val id: String, val file: File, val label: String)
 
     /** An ID of one of these files, kept or not. */
@@ -68,7 +70,7 @@ class ImportedFiles(
                     digest.update(buffer, 0, count)
                     output.write(buffer, 0, count)
                 }
-                require(size > 0) { "That file is empty" }
+                if (size == 0L) throw Refused(UiText.res(R.string.kairo_import_file_empty))
             }
             validate(partial)
             val hash = digest.digest().copyOf(8).toHex()
@@ -121,13 +123,17 @@ class ImportedFilePicker(
         Thread {
             val result = runCatching {
                 val name = displayName(uri)
-                (activity.contentResolver.openInputStream(uri) ?: error("Could not open that file")).use { files.add(it, name) }
+                (activity.contentResolver.openInputStream(uri) ?: error(activity.getString(R.string.kairo_import_open_failed))).use { files.add(it, name) }
             }
             activity.runOnUiThread {
                 result.onSuccess { item ->
                     select(item.id)
-                    toast("${item.label} imported and chosen")
-                }.onFailure { error -> toast("$what import failed: ${error.message ?: error.javaClass.simpleName}") }
+                    toast(activity.getString(R.string.kairo_import_chosen, item.label))
+                }.onFailure { error ->
+                    val reason = if (error is ImportedFiles.Refused) activity.text(error.reason)
+                        else error.message ?: error.javaClass.simpleName
+                    toast(activity.getString(R.string.kairo_import_failed, what, reason))
+                }
             }
         }.apply { name = "kairo-import-$rowId"; start() }
         return true

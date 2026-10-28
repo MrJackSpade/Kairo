@@ -122,7 +122,7 @@ class GameKeyMigrationTest {
         val migration = GameKeyMigration<Item>(memoryPreferences(), listOf(failing, saveStore()))
         val errors = migration.claim(claim(first, copy, other))
         assertEquals(setOf(first.key, copy.key), errors.keys)
-        assertTrue(errors.getValue(first.key).contains("storage full"))
+        assertEquals(UiText.res(R.string.kairo_migration_failed, "storage full"), errors.getValue(first.key))
         assertEquals("keen", keyedSave(other, "overlay").readText())
         assertTrue(migration.pending)
     }

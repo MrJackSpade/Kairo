@@ -78,15 +78,21 @@ fun mediaFor(contentId: String, source: DiskImageEntry, entries: List<DiskImageE
 
 /**
  * A disk a game uses beside the one it starts from, such as a hard disk game's CD: the one its
- * catalog names by [catalogId], which the library must have, else the one disk of that [kind] in
- * [source]'s archive or folder; null when there is none, or several to choose from.
+ * catalog names by [catalogId], which the library must have ([MissingDisk] when it does not), else
+ * the one disk of that [kind] in [source]'s archive or folder; null when there is none, or several
+ * to choose from. [label] names the disk, such as "CD".
  */
-fun companionFor(catalogId: String?, source: DiskImageEntry, entries: List<DiskImageEntry>, label: String,
+fun companionFor(catalogId: String?, source: DiskImageEntry, entries: List<DiskImageEntry>, label: UiText,
                  kind: (DiskImageEntry) -> Boolean): DiskImageEntry? {
     catalogId?.let { id ->
-        return mediaFor(id, source, entries, kind) ?: error("The $label this game needs is not in the library")
+        return mediaFor(id, source, entries, kind) ?: throw MissingDisk(label)
     }
     return entries.filter { it.playable && kind(it) && sameSource(source, it) }.singleOrNull()
+}
+
+/** The disk named [label] that a game needs is not in the library; [text] says so to the player. */
+class MissingDisk(val label: UiText) : IllegalStateException() {
+    val text: UiText get() = UiText.res(R.string.kairo_companion_missing, label)
 }
 
 /**
@@ -173,7 +179,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     /** The games folder's listings, so a launch lists only the folders that changed (ScanDepth). */
     private val folderListings = FolderListings(File(context.filesDir, "folder-listings-v1.json"))
     private val scanPipeline by lazy {
-        LibraryScanPipeline(storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
+        LibraryScanPipeline(context, storeCache, DiskImageEntry::id, ::planScan, ::inspectSource, ::failedSource,
             Source::path, ::known, DiskImageEntry::path,
             displayOrder = { entries -> entries.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { it.path + (it.zipEntry ?: "") }) },
@@ -292,7 +298,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         override fun conflicts(claim: GamePathMigration.Claim<DiskImageEntry>): List<GamePathMigration.Conflict> {
             val (from, to) = files(claim).lastOrNull() ?: return emptyList()
             if (!to.exists()) return emptyList()
-            return listOf(GamePathMigration.Conflict(claim.to, WORKING_COPY, "Disk", newest(from), newest(to), claim.external))
+            return listOf(GamePathMigration.Conflict(claim.to, WORKING_COPY, context.getString(R.string.kairo_disk_working_copy), newest(from), newest(to), claim.external))
         }
 
         override fun move(claim: GamePathMigration.Claim<DiskImageEntry>, keep: Set<GamePathMigration.Conflict>) {
@@ -321,10 +327,10 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean): List<DiskImageEntry> {
         val source = Source(file.uri, file.name, file.size, file.modified)
         require(!format.isDescriptor(file.name)) {
-            "${file.name} needs its track data; open its folder or an archive that holds both"
+            context.getString(R.string.kairo_disk_needs_track_data, file.name)
         }
         require(!format.isProgram(file.name)) {
-            "${file.name} runs from its folder; choose the games folder that holds it"
+            context.getString(R.string.kairo_disk_runs_from_folder, file.name)
         }
         if (format.isImage(file.name)) {
             val candidate = entry(source, null, file.size, -1, null, key = GameKey(file.key))
@@ -333,10 +339,10 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             } ?: error("Unable to open ${file.name}")
             return listOf(candidate.copy(contentId = id, catalogId = id))
         }
-        require(format.isArchive(file.name)) { "Unsupported ${format.guestName} game file: ${file.name}" }
+        require(format.isArchive(file.name)) { context.getString(R.string.kairo_disk_unsupported_file, format.guestName, file.name) }
         return openArchive(source).use { archive ->
             val images = archive.images { checkCancelled(cancelled) }
-            require(images.isNotEmpty()) { "No ${format.guestName} disk image in ${file.name}" }
+            require(images.isNotEmpty()) { context.getString(R.string.kairo_disk_no_image_in, format.guestName, file.name) }
             images.map { image ->
                 val data = image.data ?: error(image.missing())
                 val id = archive.open(data).use { contentId(it, data.size, data.crc, cancelled, image.name) }
@@ -348,7 +354,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     private fun planScan(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean,
                          progress: (String) -> Unit): LibraryScanPipeline.Plan<Source, DiskImageEntry> {
-        val result = DocumentTreeWalker(context.contentResolver).scan(tree, cancelled,
+        val result = DocumentTreeWalker(context).scan(tree, cancelled,
             { name -> format.listsEveryFile || format.isImage(name) || format.isArchive(name) || format.isData(name) },
             progress, folderListings, depth)
         val everyFile = result.files.map { Source(it.uri, it.path, it.size, it.modified) }
@@ -361,7 +367,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 else if (format.isProgram(source.path)) source.copy(folder = folderOf(source, everyFile))
                 else source
             }, initialEntries = result.folders.map { folder ->
-            entry(Source(folder.uri, folder.path, -1, 0), null, -1, -1, null, "Unreadable folder: ${folder.message}")
+            entry(Source(folder.uri, folder.path, -1, 0), null, -1, -1, null, context.getString(R.string.kairo_disk_unreadable_folder, folder.message))
         })
     }
 
@@ -438,13 +444,13 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     } catch (cancel: CancellationException) { throw cancel }
                     catch (error: Exception) {
                         scan.checkCancelled()
-                        candidate.copy(error = error.message ?: "Disk image unreadable")
+                        candidate.copy(error = error.message ?: context.getString(R.string.kairo_disk_image_unreadable))
                     }
                 }
             }
         }
         if (format.isDescriptor(source.path)) {
-            val data = source.data ?: error("The track data of ${source.path.substringAfterLast('/')} is missing")
+            val data = source.data ?: error(context.getString(R.string.kairo_disk_track_data_missing, source.path.substringAfterLast('/')))
             val candidate = entry(source, null, data.size, -1, null, companions = listOf(data.uri.toString()))
             reuse(scan.prior[candidate.id], candidate, scan)?.let { return listOf(it) }
             scan.hashStarted(data.path)
@@ -475,7 +481,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     private fun failedSource(source: Source, scan: LibraryScanPipeline.ScanContext<DiskImageEntry>,
                              error: Exception): List<DiskImageEntry> = listOf(
         entry(source, null, source.size, -1, null,
-            error.message ?: if (format.isArchive(source.path)) "Archive unreadable" else "Disk image unreadable",
+            error.message ?: context.getString(if (format.isArchive(source.path)) R.string.kairo_disk_archive_unreadable
+                else R.string.kairo_disk_image_unreadable),
             catalogId = scan.earlier[source.path]?.catalogId))
 
     /**
@@ -494,7 +501,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             "${file.name.substringBeforeLast('.')}.${format.extension(entry.companions.single())}") else file
         if (file.isFile && file.length() > 0 && data.isFile && data.length() > 0) return file
         if (entry.imageSize > 0) require(workingDirectory.usableSpace > entry.imageSize + 16L * 1024 * 1024) {
-            "Not enough free space for this disk image"
+            context.getString(R.string.kairo_disk_no_space_image)
         }
         check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs()) { "Unable to create the working copy's folder" }
         val partialData = File(file.parentFile, "${data.name}.part")
@@ -502,7 +509,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         partialData.delete()
         partialDescriptor.delete()
         try {
-            progress("Preparing ${entry.displayName}")
+            progress(context.getString(R.string.kairo_disk_preparing, entry.displayName))
             if (entry.zipEntry == null) {
                 val dataUri = if (descriptor) Uri.parse(entry.companions.single()) else Uri.parse(entry.uri)
                 context.contentResolver.openInputStream(dataUri)?.use { input ->
@@ -514,7 +521,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             } else {
                 openArchive(sourceOf(entry)).use { archive ->
                     val image = archive.images { checkCancelled(cancelled) }.firstOrNull { it.name == entry.zipEntry }
-                        ?: error("${entry.zipEntry} is missing from the archive")
+                        ?: error(context.getString(R.string.kairo_disk_member_missing, entry.zipEntry))
                     val member = image.data ?: error(image.missing())
                     archive.open(member).use { input ->
                         partialData.outputStream().use { output -> copyVerified(entry, input, member.crc, cancelled, output) }
@@ -544,7 +551,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         // The working copy holds what the game saves in its folder, so it stays when the source is edited.
         if (program.isFile && program.length() > 0) return program
         require(workingDirectory.usableSpace > maxOf(entry.sourceSize, entry.imageSize) + 16L * 1024 * 1024) {
-            "Not enough free space for this game's folder"
+            context.getString(R.string.kairo_disk_no_space_folder)
         }
         check(folder.parentFile!!.isDirectory || folder.parentFile!!.mkdirs()) { "Unable to create the working copy's folder" }
         val partial = File(folder.parentFile, "${folder.name}.part")
@@ -556,7 +563,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             return file
         }
         try {
-            progress("Preparing ${entry.displayName}")
+            progress(context.getString(R.string.kairo_disk_preparing, entry.displayName))
             if (entry.zipEntry == null) {
                 context.contentResolver.openInputStream(Uri.parse(entry.uri))?.use { input ->
                     target(entry.displayName).outputStream().use { output -> copyVerified(entry, input, -1, cancelled, output) }
@@ -570,7 +577,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             } else {
                 openArchive(sourceOf(entry)).use { archive ->
                     val image = archive.images { checkCancelled(cancelled) }.firstOrNull { it.name == entry.zipEntry }
-                        ?: error("${entry.zipEntry} is missing from the archive")
+                        ?: error(context.getString(R.string.kairo_disk_member_missing, entry.zipEntry))
                     val member = image.data ?: error(image.missing())
                     archive.open(member).use { input ->
                         target(entry.displayName).outputStream().use { output -> copyVerified(entry, input, member.crc, cancelled, output) }
@@ -593,7 +600,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     private fun copyVerified(entry: DiskImageEntry, input: InputStream, crc: Long, cancelled: AtomicBoolean,
                              output: OutputStream) {
         require(contentId(input, entry.imageSize, crc, cancelled, entry.displayName, output) == entry.contentId) {
-            "Disk image changed since it was scanned; use Recheck all files in Manage library"
+            context.getString(R.string.kairo_disk_image_changed)
         }
     }
 
@@ -638,7 +645,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             val directory = name.substringBeforeLast('/', "")
             return folder.map { FolderFile(if (directory.isEmpty()) it.name else it.name.removePrefix("$directory/"), it.name) }
         }
-        fun missing() = "The track data of $name is missing from the archive"
+        fun missing() = context.getString(R.string.kairo_disk_track_data_missing_archive, name)
     }
 
     /** A ZIP or 7z archive's members, read in place from its document. */
@@ -662,10 +669,10 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             val members = members(checkCancelled)
             val byName = members.associateBy { it.name.lowercase(Locale.ROOT) }
             val images = members.filter { format.isImage(it.name) && !format.superseded(it.name, byName.keys) }
-            require(images.size <= MAX_ARCHIVE_IMAGES) { "Archive has too many disk images" }
+            require(images.size <= MAX_ARCHIVE_IMAGES) { context.getString(R.string.kairo_disk_archive_too_many_images) }
             return images.map { member ->
                 val data = if (format.isDescriptor(member.name)) format.dataOf(member.name, byName) else member
-                if (data != null) require(data.size in 1..format.limit(member.name)) { "Disk image exceeds size limit" }
+                if (data != null) require(data.size in 1..format.limit(member.name)) { context.getString(R.string.kairo_disk_image_too_large) }
                 if (format.isProgram(member.name)) {
                     val directory = member.name.substringBeforeLast('/', "")
                     Image(member, data, members.filter { other ->
@@ -681,16 +688,16 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
      * readers fetch only the bytes they need and nothing is copied.
      */
     private fun openArchive(source: Source): Archive {
-        require(source.size <= MAX_ARCHIVE_BYTES) { "Archive exceeds size limit" }
+        require(source.size <= MAX_ARCHIVE_BYTES) { context.getString(R.string.kairo_disk_archive_too_large) }
         val document = context.contentResolver.openFileDescriptor(source.uri, "r") ?: error("Unable to open archive")
         try {
             if (source.size >= 0) require(document.statSize == source.size) {
-                "Archive changed since it was scanned; use Recheck all files in Manage library"
+                context.getString(R.string.kairo_disk_archive_changed)
             }
             val channel = FileInputStream(document.fileDescriptor).channel
             // A provider that streams the document through a pipe cannot be read in place.
             require(document.statSize >= 0 && runCatching { channel.position(0) }.isSuccess) {
-                "The games folder's storage cannot read archives in place"
+                context.getString(R.string.kairo_disk_archive_not_seekable)
             }
             return if (format.extension(source.path) == "7z") SevenZArchive(document, channel) else ZipArchive(document, channel)
         } catch (error: Exception) {
@@ -709,13 +716,13 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             var inspected = 0
             for (item in zip.entries.asSequence()) {
                 checkCancelled()
-                require(++inspected <= MAX_ARCHIVE_ENTRIES) { "Archive has too many entries" }
+                require(++inspected <= MAX_ARCHIVE_ENTRIES) { context.getString(R.string.kairo_disk_archive_too_many_entries) }
                 val name = safeEntryName(item.name)
-                require(names.add(name.lowercase(Locale.ROOT))) { "Duplicate archive entry" }
+                require(names.add(name.lowercase(Locale.ROOT))) { context.getString(R.string.kairo_disk_archive_duplicate) }
                 if (item.isDirectory || !(format.listsEveryFile || format.isImage(name) || format.isData(name))) continue
                 // An empty file (some program folders have them) expands to nothing.
                 require(item.size == 0L || (item.compressedSize > 0 && item.size / item.compressedSize <= MAX_EXPANSION_RATIO)) {
-                    "Disk image exceeds expansion limit"
+                    context.getString(R.string.kairo_disk_image_expansion)
                 }
                 byName[item.name] = item
                 members.add(Member(item.name, item.size, item.crc))
@@ -724,12 +731,12 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
 
         override fun open(member: Member): InputStream =
-            zip.getInputStream(byName[member.name] ?: error("${member.name} is missing from the archive"))
+            zip.getInputStream(byName[member.name] ?: error(context.getString(R.string.kairo_disk_member_missing, member.name)))
 
         override fun allFiles() = zip.entries.asSequence().filter { !it.isDirectory }.associate { it.name to it.size }
 
         override fun openFile(name: String): InputStream =
-            zip.getInputStream(zip.getEntry(name) ?: error("$name is missing from the archive"))
+            zip.getInputStream(zip.getEntry(name) ?: error(context.getString(R.string.kairo_disk_member_missing, name)))
 
         override fun closeReader() = zip.close()
     }
@@ -744,9 +751,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             var inspected = 0
             for (item in archive.entries) {
                 checkCancelled()
-                require(++inspected <= MAX_ARCHIVE_ENTRIES) { "Archive has too many entries" }
+                require(++inspected <= MAX_ARCHIVE_ENTRIES) { context.getString(R.string.kairo_disk_archive_too_many_entries) }
                 val name = safeEntryName(item.name)
-                require(names.add(name.lowercase(Locale.ROOT))) { "Duplicate archive entry" }
+                require(names.add(name.lowercase(Locale.ROOT))) { context.getString(R.string.kairo_disk_archive_duplicate) }
                 if (item.isDirectory || !item.hasStream() ||
                     !(format.listsEveryFile || format.isImage(name) || format.isData(name))) continue
                 byName[item.name] = item
@@ -756,12 +763,12 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
 
         override fun open(member: Member): InputStream =
-            archive.getInputStream(byName[member.name] ?: error("${member.name} is missing from the archive"))
+            archive.getInputStream(byName[member.name] ?: error(context.getString(R.string.kairo_disk_member_missing, member.name)))
 
         override fun allFiles() = archive.entries.filter { !it.isDirectory && it.hasStream() }.associate { it.name to it.size }
 
         override fun openFile(name: String): InputStream =
-            archive.getInputStream(archive.entries.firstOrNull { it.name == name } ?: error("$name is missing from the archive"))
+            archive.getInputStream(archive.entries.firstOrNull { it.name == name } ?: error(context.getString(R.string.kairo_disk_member_missing, name)))
 
         override fun closeReader() = archive.close()
     }
@@ -779,15 +786,15 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             val read = input.read(buffer)
             if (read < 0) break
             count += read
-            require(count <= limit) { "Disk image exceeds size limit" }
+            require(count <= limit) { context.getString(R.string.kairo_disk_image_too_large) }
             digest.update(buffer, 0, read)
             crc.update(buffer, 0, read)
             output?.write(buffer, 0, read)
             onRead(count, expectedSize)
         }
-        require(count > 0) { "Empty disk image" }
-        if (expectedSize >= 0) require(count == expectedSize) { "Disk image size changed during read" }
-        if (expectedCrc >= 0) require(crc.value == expectedCrc) { "Archive entry checksum mismatch" }
+        require(count > 0) { context.getString(R.string.kairo_disk_image_empty) }
+        if (expectedSize >= 0) require(count == expectedSize) { context.getString(R.string.kairo_disk_image_size_changed) }
+        if (expectedCrc >= 0) require(crc.value == expectedCrc) { context.getString(R.string.kairo_disk_archive_checksum) }
         return "sha256-${format.kind(name)}-v1:${digest.digest().toHex()}"
     }
 

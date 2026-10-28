@@ -70,6 +70,7 @@ class LibraryScreen<T : LibraryItem>(
     /** The latest status, shown in the empty state and the library flyout. */
     var status: String = ""
         private set
+    private var statusKind = StatusKind.MESSAGE
     /** The selected folder's name, or null when there is none. */
     var folderName: String? = null
         private set
@@ -82,12 +83,18 @@ class LibraryScreen<T : LibraryItem>(
     private val list = ListView(context).testId("library.list")
     private val emptyState = LinearLayout(context)
     private val emptyText = Ui.text(context, "", Ui.BODY, Ui.TEXT_MUTED).testId("library.status")
-    private val emptyButton = Ui.primaryButton(context, "Choose ${strings.folder.resolve(context)}…") { chooseFolder() }.testId("library.choose-folder")
+    private val emptyButton = Ui.primaryButton(context, context.getString(R.string.kairo_choose_named, strings.folder.resolve(context))) {
+        chooseFolder()
+    }.testId("library.choose-folder")
     private val scanProgress = Ui.spinner(context, 24, 3).testId("library.scanning")
     val tasks = TaskStrip(context)
     private var detailPage: GameDetailPage<T>? = null
-    private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, "Library menu") { openMenu() }.testId("library.menu")
-    private val searchButton = Ui.iconButton(context, R.drawable.ic_search, "Search games") { toggleSearch() }.testId("library.search")
+    private val menuButton = Ui.iconButton(context, R.drawable.ic_menu, context.getString(R.string.kairo_library_menu)) {
+        openMenu()
+    }.testId("library.menu")
+    private val searchButton = Ui.iconButton(context, R.drawable.ic_search, context.getString(R.string.kairo_library_search)) {
+        toggleSearch()
+    }.testId("library.search")
     /** Header focus: 0 menu, 1 search, 2 the task strip's Stop. -1 is the game list. */
     private var headerSelection = -1
     private var lastHeaderSelection = 0
@@ -247,7 +254,7 @@ class LibraryScreen<T : LibraryItem>(
         holder.title.text = game.title
         // Keep the source filename intact; the marker is only a prefix on its display row.
         val file = (if ("♥" in game.tags) "♥ " else "") + fileLabel(entry, entry.uri in sharedSources)
-        holder.detail.text = entry.error?.let { "$file  ·  $it. Fix the source, then Refresh." }
+        holder.detail.text = entry.error?.let { context.getString(R.string.kairo_library_entry_error, file, it) }
             ?: file
         holder.detail.setTextColor(if (entry.error != null) Ui.DANGER else Ui.TEXT_MUTED)
         val artwork = listOfNotNull(game.boxArt, game.preview).takeIf { it.isNotEmpty() }
@@ -297,7 +304,7 @@ class LibraryScreen<T : LibraryItem>(
         body.addView(header, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         search.apply {
             visibility = View.GONE
-            hint = "Search by title or file name"
+            hint = context.getString(R.string.kairo_search_hint)
             textSize = Ui.BODY
             isSingleLine = true
             setTextColor(Ui.TEXT)
@@ -414,19 +421,32 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     /** Whether a scan, hash, or launch is running, which the header spinner shows. */
-    val working: Boolean get() = BUSY.any { status.startsWith(it) }
+    val working: Boolean get() = statusKind == StatusKind.WORK
+
+    /** What a status is, which decides where it shows. */
+    enum class StatusKind {
+        /** Shown in the empty state; it also reaches the message bar while the library lists games. */
+        MESSAGE,
+        /** A scan's result, such as "7 games": shown in the empty state and the flyout only. */
+        SUMMARY,
+        /** Work the task strip and the header spinner show, such as a scan. */
+        WORK,
+        /** Work only the task strip shows, such as deleting a file. */
+        TASK
+    }
 
     /**
      * Progress goes to the task strip and the header spinner. Other text becomes the status
      * the empty state shows, and errors also reach the message bar.
      */
-    fun showStatus(message: String) {
+    fun showStatus(message: String, kind: StatusKind = StatusKind.MESSAGE) {
         status = message
-        val busy = working || message.startsWith("Deleting")
+        statusKind = kind
+        val busy = kind == StatusKind.WORK || kind == StatusKind.TASK
         scanProgress.visibility = if (working) View.VISIBLE else View.GONE
         if (busy) tasks.show("status", message, 1) else tasks.hide("status")
         updateEmptyState()
-        if (!busy && entries.isNotEmpty() && message.isNotEmpty() && !SUMMARY.containsMatchIn(message))
+        if (!busy && entries.isNotEmpty() && message.isNotEmpty() && kind != StatusKind.SUMMARY)
             (context as? android.app.Activity)?.let { Ui.message(it, message, long = true) }
         // An open page's rows can depend on whether a task runs; the flyout's status line follows
         // each message by itself (its tick). A scan sends a message per file, and rebuilding the
@@ -446,7 +466,7 @@ class LibraryScreen<T : LibraryItem>(
             return
         }
         val query = search.text.toString().trim()
-        emptyText.text = if (query.isNotEmpty() && allEntries.isNotEmpty()) "No games match \u201c$query\u201d"
+        emptyText.text = if (query.isNotEmpty() && allEntries.isNotEmpty()) context.getString(R.string.kairo_library_no_match, query)
             else status
         emptyButton.visibility = if (query.isEmpty() && needsFolder()) View.VISIBLE else View.GONE
         emptyState.visibility = if (emptyText.text.isNullOrEmpty() && emptyButton.visibility != View.VISIBLE)
@@ -803,8 +823,8 @@ class LibraryScreen<T : LibraryItem>(
         }
         selectedIndex = if (selectedMatch >= 0) selectedMatch else
             selectedIndex.coerceIn(0, (entries.size - 1).coerceAtLeast(0))
-        items = if (pinned != null && entries.isNotEmpty()) listOf(Header("CONTINUE", true), Game(0)) +
-            (if (entries.size > 1) listOf(Header("ALL GAMES", false)) else emptyList()) +
+        items = if (pinned != null && entries.isNotEmpty()) listOf(Header(context.getString(R.string.kairo_library_continue_group), true), Game(0)) +
+            (if (entries.size > 1) listOf(Header(context.getString(R.string.kairo_library_all_games_group), false)) else emptyList()) +
             (1 until entries.size).map(::Game)
             else entries.indices.map(::Game)
         adapter.notifyDataSetChanged()
@@ -878,10 +898,4 @@ class LibraryScreen<T : LibraryItem>(
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
-    private companion object {
-        val BUSY = listOf("Loading", "Scanning", "Rehashing", "Hashing", "Confirming", "Checking the games folder",
-            "Found", "Skipping", "Preparing", "Opening")
-        /** Scan summaries such as "7 games ready" stay in the flyout, not the message bar. */
-        val SUMMARY = Regex("^\\d+ games")
-    }
 }

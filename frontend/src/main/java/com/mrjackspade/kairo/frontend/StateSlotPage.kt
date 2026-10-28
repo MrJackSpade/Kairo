@@ -49,7 +49,8 @@ class StateSlotPage(
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Ui.BG)
         }
-        page.addView(header(if (saving) "Save state" else "Load state", title), LinearLayout.LayoutParams(-1, dp(56)))
+        page.addView(header(context.getString(if (saving) R.string.kairo_state_save else R.string.kairo_state_load), title),
+            LinearLayout.LayoutParams(-1, dp(56)))
         grid = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(8), 0, 0)
@@ -87,7 +88,8 @@ class StateSlotPage(
             setPadding(dp(10), dp(10), dp(10), dp(10))
             background = Ui.focusable(context, Ui.SURFACE, null)
             isClickable = true
-            contentDescription = "Slot ${slot.index}" + (slot.savedAt?.let { ", ${format.format(Date(it))}" } ?: ", empty")
+            contentDescription = slot.savedAt?.let { context.getString(R.string.kairo_state_slot_saved_at, slot.index, format.format(Date(it))) }
+                ?: context.getString(R.string.kairo_state_slot_empty, slot.index)
             setOnClickListener { activate(slot) }
         }
         val thumbnail = object : FrameLayout(context) {
@@ -107,7 +109,7 @@ class StateSlotPage(
             scaleType = ImageView.ScaleType.CENTER_CROP
             setImageBitmap(slot.thumbnail)
         }, FrameLayout.LayoutParams(-1, -1))
-        else thumbnail.addView(Ui.text(context, "Empty", Ui.SECONDARY, Ui.TEXT_FAINT),
+        else thumbnail.addView(Ui.text(context, context.getString(R.string.kairo_empty), Ui.SECONDARY, Ui.TEXT_FAINT),
             FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
         val spinner = Ui.spinner(context, 24, 3).apply { visibility = View.GONE }
         thumbnail.addView(spinner, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
@@ -116,7 +118,7 @@ class StateSlotPage(
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        labels.addView(Ui.text(context, "Slot ${slot.index}", Ui.BODY))
+        labels.addView(Ui.text(context, context.getString(R.string.kairo_save_slot, slot.index), Ui.BODY))
         labels.addView(Ui.text(context, slot.savedAt?.let { format.format(Date(it)) } ?: "", Ui.SECONDARY, Ui.TEXT_MUTED).apply {
             gravity = Gravity.END
             maxLines = 1
@@ -144,12 +146,13 @@ class StateSlotPage(
         if (busy()) return
         val savedAt = slot.savedAt
         when {
-            !saving && savedAt == null -> Ui.message(stack.activity, "This slot is empty")
+            !saving && savedAt == null -> Ui.message(stack.activity, context.getString(R.string.kairo_state_slot_is_empty))
             saving && savedAt == null -> start(slot.index) { onSave(slot.index) }
-            saving -> openConfirm(slot, "Replace the save from ${format.format(Date(savedAt!!))}?", "Overwrite") {
+            saving -> openConfirm(slot, context.getString(R.string.kairo_state_replace_confirm, format.format(Date(savedAt!!))),
+                context.getString(R.string.kairo_state_overwrite)) {
                 start(slot.index) { onSave(slot.index) }
             }
-            else -> openConfirm(slot, "Progress since your last save is lost.", "Load") {
+            else -> openConfirm(slot, context.getString(R.string.kairo_state_load_confirm), context.getString(R.string.kairo_state_load_verb)) {
                 start(slot.index) { onLoad(slot.index) }
             }
         }
@@ -196,7 +199,7 @@ class StateSlotPage(
         overlay.addView(Ui.text(context, message, Ui.SECONDARY, Ui.TEXT_BODY).apply { gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(-1, -2))
         val buttons = WrapLayout(context, dp(8)).apply { alignEnd = false }
-        val cancel = Ui.toneButton(context, "Cancel", ButtonTone.SECONDARY, minWidth = 96) { closeConfirm() }
+        val cancel = Ui.toneButton(context, context.getString(R.string.kairo_cancel), ButtonTone.SECONDARY, minWidth = 96) { closeConfirm() }
             .testId("confirm.cancel")
         val primary = Ui.toneButton(context, verb, ButtonTone.PRIMARY, minWidth = 96) {
             closeConfirm()

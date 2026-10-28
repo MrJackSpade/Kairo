@@ -297,7 +297,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         if (!external && !pathMigration.pending) return entries
         claimingPaths = entries
         val errors = pathMigration.claim(entries.map { GamePathMigration.Claim(it, from(it)) }, every = !external)
-        return if (errors.isEmpty()) entries else entries.map { entry -> errors[entry.key]?.let { withError(entry, it) } ?: entry }
+        return if (errors.isEmpty()) entries else entries.map { entry -> errors[entry.key]?.let { withError(entry, text(it)) } ?: entry }
     }
     protected val muted: Boolean get() = preferences.getBoolean("muted", false)
     /** Advances with each launch and each end of a session; work for an earlier one stops. */
@@ -472,7 +472,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** Whether the external file being opened came from a frontend app, rather than the player's pick in this app. */
     private var externalFromFrontend = true
     private val externalDispatcher by lazy {
-        ExternalGameDispatcher(this, contentResolver, { libraryEntries }, { tree },
+        ExternalGameDispatcher(this, { libraryEntries }, { tree },
             { entry: E -> Uri.parse(entry.uri) }, ::inspectExternal,
             { file, entries ->
                 // v1.4.0 keyed a game a frontend opened by the URI it sent (Kairo#56).
@@ -570,7 +570,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { folder -> movedToPaths(cachedLibrary(folder)) },
             { folder, depth, cancelled, progress -> movedToPaths(scanLibrary(folder, depth, cancelled, progress)) },
             text(identity.emptyStatus), text(identity.expiredStatus),
-            { entries -> LibraryScanSummary.format(entries, hashCount) },
+            { entries -> LibraryScanSummary.format(this, entries, hashCount) },
             ::libraryLoaded,
             { _ ->
                 if (firstRunSetup.isChoosingRomFolder && firmware != null) advanceFirstRunFirmware(folderChosen = true)

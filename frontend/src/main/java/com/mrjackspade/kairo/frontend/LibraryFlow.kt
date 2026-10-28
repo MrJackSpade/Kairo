@@ -73,7 +73,7 @@ class LibraryFlow<T : LibraryItem>(
                 // A large cache takes too long to read on the main thread at every launch.
                 loading = true
                 val generation = ++loadGeneration
-                screen.showStatus("Loading library\u2026")
+                screen.showStatus(activity.getString(R.string.kairo_library_loading), LibraryScreen.StatusKind.WORK)
                 Thread {
                     val result = runCatching { cached(saved) }
                     activity.runOnUiThread { finishLoad(generation, saved, result) }
@@ -97,10 +97,10 @@ class LibraryFlow<T : LibraryItem>(
             entries = edited
             screen.showEntries(edited)
             displayedEntries = edited
-            if (!scanning) screen.showStatus(scanSummary(edited))
+            if (!scanning) screen.showStatus(scanSummary(edited), LibraryScreen.StatusKind.SUMMARY)
         }.onFailure { failure ->
             // The cache only saves rescanning; the startup scan rebuilds one that cannot be read.
-            screen.showStatus("Library cache unreadable: ${failure.message ?: failure.javaClass.simpleName}")
+            screen.showStatus(activity.getString(R.string.kairo_library_cache_unreadable, failure.message ?: failure.javaClass.simpleName))
         }
         loadEdits.clear()
         runAfterLoad()
@@ -131,11 +131,11 @@ class LibraryFlow<T : LibraryItem>(
             screen.refreshPin()
             screen.reannounceSelection()
         }
-        screen.showStatus(when {
-            tree == null -> emptyStatus
-            !hasGrant(tree!!) -> expiredStatus
-            else -> scanSummary(entries)
-        })
+        when {
+            tree == null -> screen.showStatus(emptyStatus)
+            !hasGrant(tree!!) -> screen.showStatus(expiredStatus)
+            else -> screen.showStatus(scanSummary(entries), LibraryScreen.StatusKind.SUMMARY)
+        }
     }
 
     fun chooseFolder() {
@@ -149,7 +149,7 @@ class LibraryFlow<T : LibraryItem>(
                 tree?.let(FolderStart::beside)?.let { putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
             }, requestCode)
         } catch (error: Exception) {
-            val message = error.message ?: "Could not open folder chooser"
+            val message = error.message ?: activity.getString(R.string.kairo_library_chooser_failed)
             screen.showStatus(message)
             onFolderError(message)
         }
@@ -178,7 +178,7 @@ class LibraryFlow<T : LibraryItem>(
             runAfterLoad()
             onFolderSelected?.invoke(selected) ?: refresh(ScanDepth.EVERY_FOLDER)
         } catch (failure: Exception) {
-            val message = "Cannot keep folder access: ${failure.message}"
+            val message = activity.getString(R.string.kairo_library_access_failed, failure.message.toString())
             screen.showStatus(message)
             onFolderError(message)
         }
@@ -196,7 +196,8 @@ class LibraryFlow<T : LibraryItem>(
         scanEdits.clear()
         scanning = true
         rehashing = depth.rehash
-        screen.showStatus(if (depth.rehash) "Rehashing folder…" else "Checking the games folder…")
+        screen.showStatus(activity.getString(if (depth.rehash) R.string.kairo_library_rehashing else R.string.kairo_library_checking),
+            LibraryScreen.StatusKind.WORK)
         fun finished() {
             if (scanCancelled !== cancelled) return
             scanning = false
@@ -211,7 +212,7 @@ class LibraryFlow<T : LibraryItem>(
                 val scanned = scan(selected, depth, cancelled) { message ->
                     if (pendingStatus.getAndSet(message) == null) activity.runOnUiThread {
                         val latest = pendingStatus.getAndSet(null)
-                        if (latest != null && !cancelled.get() && tree == selected) screen.showStatus(latest)
+                        if (latest != null && !cancelled.get() && tree == selected) screen.showStatus(latest, LibraryScreen.StatusKind.WORK)
                     }
                 }
                 activity.runOnUiThread {
@@ -228,7 +229,7 @@ class LibraryFlow<T : LibraryItem>(
                         runAfterLoad()
                         onScanComplete(found)
                         val summary = scanSummary(found)
-                        screen.showStatus(summary)
+                        screen.showStatus(summary, LibraryScreen.StatusKind.SUMMARY)
                         if (announce) Ui.message(activity, summary)
                     }
                 }
@@ -238,7 +239,8 @@ class LibraryFlow<T : LibraryItem>(
                 activity.runOnUiThread {
                     finished()
                     if (!cancelled.get() && tree == selected && !activity.isDestroyed)
-                        screen.showStatus("Scan failed: ${failure.message ?: "Unknown error"}")
+                        screen.showStatus(activity.getString(R.string.kairo_library_scan_failed,
+                            failure.message ?: activity.getString(R.string.kairo_unknown_error)))
                 }
             }
         }.apply { name = "Kairo-library-scan"; start() }
@@ -262,7 +264,7 @@ class LibraryFlow<T : LibraryItem>(
         entries = edited
         screen.showEntries(edited)
         displayedEntries = edited
-        if (!scanning) screen.showStatus(scanSummary(edited))
+        if (!scanning) screen.showStatus(scanSummary(edited), LibraryScreen.StatusKind.SUMMARY)
     }
 
     /** The document [entry] came from was removed: drop every entry read from it. */
@@ -275,7 +277,7 @@ class LibraryFlow<T : LibraryItem>(
                 write(folder, list)
             } catch (failure: Exception) {
                 activity.runOnUiThread {
-                    val message = "Could not save library: ${failure.message ?: failure.javaClass.simpleName}"
+                    val message = activity.getString(R.string.kairo_library_save_failed, failure.message ?: failure.javaClass.simpleName)
                     screen.showStatus(message)
                     Ui.message(activity, message, long = true)
                 }

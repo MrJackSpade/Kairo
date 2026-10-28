@@ -35,8 +35,10 @@ class StateSlotCoordinator(
 
     /** The GAME rows of the game flyout. */
     fun rows() = listOf(
-        SettingsRow.nav("f-save", "Save state", enabled = { available }, disabledReason = { unavailable }) { show(true) },
-        SettingsRow.nav("f-load", "Load state", enabled = { available }, disabledReason = { unavailable }) { show(false) })
+        SettingsRow.nav("f-save", activity.getString(R.string.kairo_state_save), enabled = { available },
+            disabledReason = { unavailable }) { show(true) },
+        SettingsRow.nav("f-load", activity.getString(R.string.kairo_state_load), enabled = { available },
+            disabledReason = { unavailable }) { show(false) })
 
     fun show(saving: Boolean) {
         if (isBusy) return
@@ -54,7 +56,7 @@ class StateSlotCoordinator(
                     pages.push(StateSlotPage(saving, title(), ::pageSlots, { isBusy },
                         { save(id, store, it) }, { load(id, store, it) }))
                 }, { error ->
-                    message("Could not open save states: ${error.message ?: "storage error"}")
+                    message(activity.getString(R.string.kairo_state_open_failed, reason(error)))
                 })
             }
         }, "Kairo-save-slots").start()
@@ -82,7 +84,7 @@ class StateSlotCoordinator(
                     val candidate = store.beginSave(index)
                     scratch = candidate
                     val code = nativeSave(candidate)
-                    if (code != 0) "Save failed: ${stateError(code)}"
+                    if (code != 0) activity.getString(R.string.kairo_state_save_failed, stateError(code))
                     else {
                         thumbnail?.let { bitmap ->
                             store.thumbnailFileIn(candidate).outputStream().use {
@@ -93,9 +95,9 @@ class StateSlotCoordinator(
                         }
                         store.commitSave(index, candidate)
                         saved = true
-                        "Saved to slot $index"
+                        activity.getString(R.string.kairo_state_saved, index)
                     }
-                } catch (error: Exception) { "Save failed: ${error.message ?: "storage error"}" }
+                } catch (error: Exception) { activity.getString(R.string.kairo_state_save_failed, reason(error)) }
                 finally {
                     scratch?.let { store.abandonSave(index, it) }
                     thumbnail?.recycle()
@@ -124,17 +126,19 @@ class StateSlotCoordinator(
             activity.runOnUiThread {
                 isBusy = false
                 if (!activity.isDestroyed) result.fold({ code ->
-                    if (code == 0) { loaded(); message("Loaded slot $index") }
+                    if (code == 0) { loaded(); message(activity.getString(R.string.kairo_state_loaded, index)) }
                     else {
-                        message("Load failed: ${stateError(code)}")
+                        message(activity.getString(R.string.kairo_state_load_failed, stateError(code)))
                         pages.refresh()
                         rejectedLoad(code)
                     }
                 }, { error ->
-                    message("Load failed: ${error.message ?: "storage error"}")
+                    message(activity.getString(R.string.kairo_state_load_failed, reason(error)))
                     pages.refresh()
                 })
             }
         }, "Kairo-load-state").start()
     }
+
+    private fun reason(error: Throwable) = error.message ?: activity.getString(R.string.kairo_saves_storage_error)
 }

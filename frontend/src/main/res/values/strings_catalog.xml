@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Catalogs: checking for updates, and installing and removing catalog files. -->
+<resources>
+    <string name="kairo_catalogs_group">CATALOGS</string>
+    <string name="kairo_catalogs_update">Update catalogs</string>
+    <string name="kairo_catalogs_failed">Failed</string>
+    <string name="kairo_catalogs_updated_value">Updated</string>
+    <string name="kairo_catalogs_up_to_date">Up to date</string>
+    <string name="kairo_catalogs_import">Import catalog file…</string>
+    <string name="kairo_catalogs_wait">Wait for the current catalog change to finish</string>
+    <string name="kairo_catalogs_remove">Remove catalog</string>
+    <string name="kairo_catalogs_none_installed">None installed</string>
+    <plurals name="kairo_catalogs_installed">
+        <item quantity="one">%1$d installed</item>
+        <item quantity="other">%1$d installed</item>
+    </plurals>
+    <string name="kairo_catalogs_none">No installed catalogs</string>
+    <string name="kairo_catalogs_installed_group">INSTALLED</string>
+    <string name="kairo_catalogs_remove_confirm">Removes this catalog’s metadata and artwork. Your games and personal settings are kept.</string>
+
+    <!-- A catalog check's progress and result. -->
+    <string name="kairo_catalogs_checking">Checking catalogs…</string>
+    <string name="kairo_catalogs_downloading">Downloading catalogs…</string>
+    <string name="kairo_catalogs_importing">Importing catalog…</string>
+    <string name="kairo_catalogs_applying">Applying catalogs…</string>
+    <string name="kairo_catalogs_current">Catalogs are current</string>
+    <string name="kairo_catalogs_check_failed">Catalog check failed</string>
+    <string name="kairo_catalogs_already_running">Catalog update is already running</string>
+    <!-- The reasons the update failed, separated by semicolons. -->
+    <string name="kairo_catalogs_update_partial">Catalog update partially completed: %1$s</string>
+    <string name="kairo_catalogs_update_failed">Catalog update failed: %1$s</string>
+    <string name="kairo_catalogs_already_current">Catalogs are already current</string>
+
+    <!-- The installed catalog's name. -->
+    <string name="kairo_catalogs_installed_name">Installed %1$s</string>
+    <string name="kairo_catalogs_removing">Removing catalog…</string>
+    <string name="kairo_catalogs_removed">Catalog removed</string>
+    <string name="kairo_catalogs_operation_failed">Catalog operation failed: %1$s</string>
+    <string name="kairo_catalogs_already_installed">Catalog already installed or source/revision changed</string>
+</resources>

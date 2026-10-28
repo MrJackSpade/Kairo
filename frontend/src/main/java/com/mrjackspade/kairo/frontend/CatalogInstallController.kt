@@ -27,21 +27,21 @@ class CatalogInstallController(private val activity: Activity, private val store
 
     fun handleActivityResult(request: Int, result: Int, data: Intent?): Boolean {
         if (request != REQUEST) return false
-        if (result == Activity.RESULT_OK) data?.data?.let { uri -> run("Importing catalog…", CatalogUpdateState.IMPORTING) {
+        if (result == Activity.RESULT_OK) data?.data?.let { uri -> run(activity.getString(R.string.kairo_catalogs_importing), CatalogUpdateState.IMPORTING) {
             val input = activity.contentResolver.openInputStream(uri) ?: error("Cannot open catalog file")
             val update = CatalogUpdateTask { state -> activity.runOnUiThread {
                 if (!activity.isDestroyed) progress(state)
             } }
-            "Installed ${store.importFile(input, update)}"
+            activity.getString(R.string.kairo_catalogs_installed_name, store.importFile(input, update))
         } }
         return true
     }
 
     /** Confirmed on the Remove catalog page. */
     fun remove(catalog: InstalledCatalogs.Catalog, removed: () -> Unit = {}) {
-        run("Removing catalog…", done = removed) {
+        run(activity.getString(R.string.kairo_catalogs_removing), done = removed) {
             store.remove(catalog.id)
-            "Catalog removed"
+            activity.getString(R.string.kairo_catalogs_removed)
         }
     }
 
@@ -53,7 +53,7 @@ class CatalogInstallController(private val activity: Activity, private val store
         progress(initial)
         worker.execute {
             val result = runCatching(action)
-            val message = result.getOrElse { "Catalog operation failed: ${it.message}" }
+            val message = result.getOrElse { activity.getString(R.string.kairo_catalogs_operation_failed, it.message.toString()) }
             activity.runOnUiThread {
                 busy = false
                 task(null)

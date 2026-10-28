@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
+import android.content.Context
 import android.net.Uri
 import org.json.JSONObject
 import java.util.concurrent.CancellationException
@@ -8,6 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /** Coordinates a library scan while the emulator supplies media recognition and hashing. */
 class LibraryScanPipeline<Work : Any, Entry : Any>(
+    /** Puts the scan's status into the player's language. */
+    private val context: Context,
     private val cache: VersionedLibraryCache<Entry>,
     private val entryId: (Entry) -> String,
     private val enumerate: (Uri, ScanDepth, AtomicBoolean, (String) -> Unit) -> Plan<Work, Entry>,
@@ -95,40 +98,40 @@ class LibraryScanPipeline<Work : Any, Entry : Any>(
         } catch (failure: Exception) {
             // The cache only saves rehashing: an unreadable one is reported, then replaced by this scan.
             android.util.Log.e("KairoLibrary", "Library cache unreadable; rescanning without it", failure)
-            progress("Library cache unreadable; rescanning every file")
+            progress(context.getString(R.string.kairo_scan_cache_unreadable))
             null
         }
         val earlier = previous?.entries?.associateBy(entryId).orEmpty()
         val prior = if (forceHash) emptyMap() else earlier
         hashes.set(0)
         // Workers report concurrently, so [progress] must be thread-safe (LibraryFlow keeps only the newest).
-        val report: (String) -> Unit = { message -> if (!cancelled.get()) progress(message) }
-        val context = ScanContext(previous, prior, earlier, forceHash, cancelled, sourceOf) { hashes.incrementAndGet(); Unit }
+        val report: (UiText) -> Unit = { message -> if (!cancelled.get()) progress(context.text(message)) }
+        val scan = ScanContext(previous, prior, earlier, forceHash, cancelled, sourceOf) { hashes.incrementAndGet(); Unit }
         val read = android.os.SystemClock.elapsedRealtime()
         val plan = enumerate(tree, depth, cancelled, progress)
         val walked = android.os.SystemClock.elapsedRealtime()
-        context.checkCancelled()
+        scan.checkCancelled()
         val entries = ArrayList<Entry>()
         entries.addAll(plan.initialEntries)
-        val hash = plan.work.map { forceHash || !known(it, context) }
+        val hash = plan.work.map { forceHash || !known(it, scan) }
         val toHash = hash.count { it }
-        context.status = ScanProgress(toHash, hash.size - toHash, report)
+        scan.status = ScanProgress(toHash, hash.size - toHash, report)
         val inspected = ParallelScanWork.map(plan.work, cancelled) { index, work ->
-            context.checkCancelled()
-            context.status!!.start(describe(work), hash[index])
+            scan.checkCancelled()
+            scan.status!!.start(describe(work), hash[index])
             try {
-                inspect(work, context)
+                inspect(work, scan)
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (error: Exception) {
-                context.checkCancelled()
-                failed(work, context, error)
+                scan.checkCancelled()
+                failed(work, scan, error)
             }
         }
         val checked = android.os.SystemClock.elapsedRealtime()
         inspected.forEach(entries::addAll)
         entries.addAll(plan.finalEntries)
-        context.checkCancelled()
+        scan.checkCancelled()
         val saved = cacheOrder(entries)
         synchronized(writeLock) { cache.write(tree.toString(), saved, metadata()) }
         val written = android.os.SystemClock.elapsedRealtime()

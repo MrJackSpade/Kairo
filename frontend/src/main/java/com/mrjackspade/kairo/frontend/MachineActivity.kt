@@ -228,7 +228,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun gameSettingChanged(entry: E) {
         if (currentEntry?.id == entry.id) currentGame = catalog.resolve(entry)
     }
-    override fun deletePrompt(entry: E) = GameDeletionFlow.Prompt(entry.path, "file")
+    override fun deletePrompt(entry: E) = GameDeletionFlow.Prompt(entry.path)
     override fun deleteSource(entry: E) = library.deleteSource(entry, libraryEntries)
 
     /**
@@ -352,7 +352,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 }
                 null
             } catch (error: Exception) {
-                error.message ?: error.javaClass.simpleName
+                if (error is MissingDisk) text(error.text) else error.message ?: error.javaClass.simpleName
             }
             runOnUiThread {
                 if (!current(generation)) return@runOnUiThread

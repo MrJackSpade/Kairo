@@ -108,7 +108,7 @@ class FirmwareSet(
      */
     fun importFolder(context: Context, tree: Uri, cancelled: AtomicBoolean): List<Part> {
         val resolver = context.contentResolver
-        val files = DocumentTreeWalker(resolver).scan(tree, cancelled,
+        val files = DocumentTreeWalker(context).scan(tree, cancelled,
             { name -> hashed.isNotEmpty() || headed.isNotEmpty() || partFor(name) != null }, {}).files
         val byName = parts.mapNotNull { part ->
             files.firstOrNull { partFor(it.path.substringAfterLast('/')) === part }?.let { part to it.uri }

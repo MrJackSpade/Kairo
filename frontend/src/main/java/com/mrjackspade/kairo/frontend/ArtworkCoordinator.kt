@@ -47,9 +47,9 @@ class ArtworkCoordinator<Game : Any>(
         fun custom() = record().source == "User override"
         return SettingsRow.action(kind, label(kind),
             value = { when {
-                custom() -> GameSource.CUSTOM
-                record().path != null -> GameSource.label(record().source ?: GameSource.BUILT_IN)
-                else -> "None"
+                custom() -> GameSource.text(activity, GameSource.CUSTOM)
+                record().path != null -> GameSource.text(activity, GameSource.label(record().source ?: GameSource.BUILT_IN))
+                else -> activity.getString(R.string.kairo_none)
             } },
             tone = { when {
                 custom() -> ValueTone.CUSTOM
@@ -60,9 +60,10 @@ class ArtworkCoordinator<Game : Any>(
             tray = {
                 val available = record().path != null
                 TraySpec(buttons = listOfNotNull(
-                    if (available) TrayButton("View") { view(game, kind) } else null,
-                    if (custom()) TrayButton("Reset") { save(game, kind, null) } else null,
-                    TrayButton(if (available) "Replace…" else "Choose image…", ButtonTone.PRIMARY) {
+                    if (available) TrayButton(activity.getString(R.string.kairo_artwork_view)) { view(game, kind) } else null,
+                    if (custom()) TrayButton(activity.getString(R.string.kairo_reset)) { save(game, kind, null) } else null,
+                    TrayButton(activity.getString(if (available) R.string.kairo_artwork_replace else R.string.kairo_artwork_choose),
+                        ButtonTone.PRIMARY) {
                         choose(game, kind)
                     }))
             })
@@ -86,7 +87,7 @@ class ArtworkCoordinator<Game : Any>(
             activity.runOnUiThread {
                 if (!activity.isFinishing && !activity.isDestroyed) imported.fold(
                     { save(pending.game, pending.kind, it) },
-                    { message(it.message ?: "Could not import image") })
+                    { message(it.message ?: activity.getString(R.string.kairo_artwork_import_failed)) })
             }
         }, "Kairo-artwork-import").start()
         return true
@@ -99,9 +100,9 @@ class ArtworkCoordinator<Game : Any>(
             require(path == null || validPath(path)) { "Invalid artwork path" }
             saveOverride(game, kind, path)
             changed(game)
-            message(if (path == null) "Artwork reset" else "Artwork saved")
+            message(activity.getString(if (path == null) R.string.kairo_artwork_reset_done else R.string.kairo_artwork_saved))
         } catch (error: Exception) {
-            message(error.message ?: "Could not save artwork")
+            message(error.message ?: activity.getString(R.string.kairo_artwork_save_failed))
         }
         pages.refresh()
     }
@@ -110,27 +111,30 @@ class ArtworkCoordinator<Game : Any>(
     fun view(game: Game, kind: String = "preview") {
         requireKind(kind)
         val record = resolve(game, kind)
-        val path = record.path ?: run { message("No ${label(kind).lowercase()} available"); return }
+        val path = record.path ?: run {
+            message(activity.getString(R.string.kairo_artwork_none_available, label(kind).lowercase()))
+            return
+        }
         val bitmap = runCatching { store.open(path).use { ArtworkImages.decode(ArtworkImages.read(it)) } }
-            .getOrNull() ?: run { message("Image unavailable"); return }
+            .getOrNull() ?: run { message(activity.getString(R.string.kairo_artwork_unavailable)); return }
         val url = record.largerUrl?.takeIf(validImageUrl)
         var loading = false
         pages.push(ImagePage(label(kind), title(game), bitmap,
-            if (url == null) null else "Tap image to load a larger version",
+            if (url == null) null else activity.getString(R.string.kairo_artwork_tap_larger),
             url?.let { address -> { page: ImagePage ->
                 if (!loading) {
                     loading = true
-                    page.setHint("Loading larger image…")
+                    page.setHint(activity.getString(R.string.kairo_artwork_loading_larger))
                     Thread({
                         val larger = runCatching { ArtworkImages.fetch(address, validImageUrl) }.getOrNull()
                         activity.runOnUiThread {
                             if (page.inStack && !activity.isDestroyed) {
                                 if (larger == null) {
-                                    page.setHint("Could not load larger image")
+                                    page.setHint(activity.getString(R.string.kairo_artwork_larger_failed))
                                     loading = false
                                 } else {
                                     page.setImage(larger)
-                                    page.setHint("Larger image loaded")
+                                    page.setHint(activity.getString(R.string.kairo_artwork_larger_loaded))
                                 }
                             } else larger?.recycle()
                         }
@@ -139,7 +143,8 @@ class ArtworkCoordinator<Game : Any>(
             } }))
     }
 
-    private fun label(kind: String) = if (kind == "preview") "Screenshot" else "Box art"
+    private fun label(kind: String) =
+        activity.getString(if (kind == "preview") R.string.kairo_artwork_screenshot else R.string.kairo_artwork_box_art)
     private fun requireKind(kind: String) = require(kind in setOf("boxArt", "preview"))
 
     companion object { private const val REQUEST_IMAGE = 6106 }

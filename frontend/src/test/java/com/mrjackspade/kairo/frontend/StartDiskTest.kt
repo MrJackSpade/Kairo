@@ -51,14 +51,15 @@ class StartDiskTest {
     @Test
     fun aCompanionIsTheOneOfItsKindBesideTheDisk() {
         val entries = listOf(cd, userDisk, hardDisk, disk("Other.cue", "CD-ROM", "Games/Other.zip"))
-        assertEquals(cd, companionFor(null, hardDisk, entries, "CD") { it.mediaLabel == "CD-ROM" })
-        assertNull(companionFor(null, cd, entries, "hard disk") { it.mediaLabel == "Floppy disk" && it.id.endsWith(".d77") })
+        assertEquals(cd, companionFor(null, hardDisk, entries, UiText.fixed("CD")) { it.mediaLabel == "CD-ROM" })
+        assertNull(companionFor(null, cd, entries, UiText.fixed("hard disk")) { it.mediaLabel == "Floppy disk" && it.id.endsWith(".d77") })
     }
 
     @Test
     fun aCompanionTheCatalogNamesMustBeThere() {
-        assertThrows(IllegalStateException::class.java) {
-            companionFor("sha256-x-v1:missing", cd, listOf(cd, userDisk), "boot floppy") { it.mediaLabel == "Floppy disk" }
+        val missing = assertThrows(MissingDisk::class.java) {
+            companionFor("sha256-x-v1:missing", cd, listOf(cd, userDisk), UiText.fixed("boot floppy")) { it.mediaLabel == "Floppy disk" }
         }
+        assertEquals(UiText.res(R.string.kairo_companion_missing, UiText.fixed("boot floppy")), missing.text)
     }
 }

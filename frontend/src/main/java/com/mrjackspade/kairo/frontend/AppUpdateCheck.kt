@@ -54,18 +54,18 @@ class AppUpdateCheck(
         if (!ready() || pages.top != null) return
         pending = null
         if (preferences.getString(SKIPPED_VERSION, null) == release.tag) return
-        pages.push(ModalPage("Update available",
-            "${identity.appName} ${release.version} is available. You have $installed.", listOf(
-                ModalButton("Not now"),
-                ModalButton("Skip this version") { preferences.edit().putString(SKIPPED_VERSION, release.tag).apply() },
-                ModalButton("View release", ButtonTone.PRIMARY) { open(release.url) })))
+        pages.push(ModalPage(activity.getString(R.string.kairo_update_available),
+            activity.getString(R.string.kairo_update_available_text, identity.appName, release.version, installed), listOf(
+                ModalButton(activity.getString(R.string.kairo_update_not_now)),
+                ModalButton(activity.getString(R.string.kairo_update_skip)) { preferences.edit().putString(SKIPPED_VERSION, release.tag).apply() },
+                ModalButton(activity.getString(R.string.kairo_update_view), ButtonTone.PRIMARY) { open(release.url) })))
     }
 
     private fun open(url: String) {
         try {
             activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (error: ActivityNotFoundException) {
-            showStatus("No app can open $url")
+            showStatus(activity.getString(R.string.kairo_update_no_app, url))
         }
     }
 

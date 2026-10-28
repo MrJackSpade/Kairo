@@ -12,7 +12,7 @@ import java.util.zip.ZipFile
 
 /** Data archives selected by the user. No registry, discovery endpoint, or built-in sources. */
 class InstalledCatalogs(
-    context: Context,
+    private val context: Context,
     private val product: String,
     private val validateData: (JSONObject) -> Unit,
     private val changed: () -> Unit
@@ -67,7 +67,7 @@ class InstalledCatalogs(
             val candidate = inspect(temporary)
             installed[candidate.id]?.let { previous ->
                 require(candidate.source == previous.source && candidate.revision > previous.revision) {
-                    "Catalog already installed or source/revision changed"
+                    context.getString(R.string.kairo_catalogs_already_installed)
                 }
             }
             activate(candidate)

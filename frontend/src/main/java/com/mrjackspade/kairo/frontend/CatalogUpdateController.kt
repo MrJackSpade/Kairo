@@ -25,7 +25,7 @@ class CatalogUpdateController(
 
     fun check(silent: Boolean) {
         if (task != null) {
-            if (!silent) showStatus("Catalog update is already running")
+            if (!silent) showStatus(activity.getString(R.string.kairo_catalogs_already_running))
             return
         }
         lateinit var current: CatalogUpdateTask
@@ -34,19 +34,19 @@ class CatalogUpdateController(
         } }
         task = current
         showProgress(CatalogUpdateState.CHECKING)
-        if (!silent) showStatus("Checking catalogs…")
+        if (!silent) showStatus(activity.getString(R.string.kairo_catalogs_checking))
         worker = Thread {
             var changed = false
             var failure: String? = null
             try { changed = fetch(current) }
-            catch (error: Exception) { failure = error.message ?: "Unknown error" }
+            catch (error: Exception) { failure = error.message ?: activity.getString(R.string.kairo_unknown_error) }
             // A failed core feed must not prevent an installed catalog from updating.
             // Preserve partial successes so their metadata is refreshed in the UI.
             try {
                 current.ensureActive()
                 if (fetchInstalled?.invoke(current) == true) changed = true
             } catch (error: Exception) {
-                failure = listOfNotNull(failure, error.message ?: "Unknown error").joinToString("; ")
+                failure = listOfNotNull(failure, error.message ?: activity.getString(R.string.kairo_unknown_error)).joinToString("; ")
             }
             activity.runOnUiThread {
                 if (task !== current) return@runOnUiThread
@@ -60,9 +60,10 @@ class CatalogUpdateController(
                         else -> CatalogUpdateState.CURRENT
                     })
                     if (!silent) showStatus(when {
-                        failure != null -> "Catalog update ${if (changed) "partially completed" else "failed"}: $failure"
-                        changed -> "Catalogs updated"
-                        else -> "Catalogs are already current"
+                        failure != null -> activity.getString(if (changed) R.string.kairo_catalogs_update_partial
+                            else R.string.kairo_catalogs_update_failed, failure)
+                        changed -> activity.getString(R.string.kairo_catalogs_updated)
+                        else -> activity.getString(R.string.kairo_catalogs_already_current)
                     })
                     else if (changed) onSilentChanged()
                 }

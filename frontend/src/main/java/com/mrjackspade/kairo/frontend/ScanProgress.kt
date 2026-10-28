@@ -13,19 +13,20 @@ class ScanProgress(
     val toHash: Int,
     /** Files the library knows, which keep their identity. */
     val toConfirm: Int,
-    private val report: (String) -> Unit
+    private val report: (UiText) -> Unit
 ) {
     private val hashing = AtomicInteger()
     private val confirming = AtomicInteger()
-    private class Current(var label: String, var percent: Int = -1)
+    /** A worker's file: [count] is its number among the files hashed, when it was hashed from the start. */
+    private class Current(val label: UiText, val count: Int? = null, var percent: Int = -1)
     private val current = ThreadLocal<Current?>()
 
     /** A worker starts on [path]: one the scan hashes when [hash], or else one it confirms. */
     fun start(path: String, hash: Boolean) {
-        val label = if (hash) "Hashing ${hashing.incrementAndGet()} of $toHash: $path"
-            else "Confirming ${confirming.incrementAndGet()} of $toConfirm: $path"
-        current.set(Current(label))
-        report(label)
+        val state = if (hash) hashing.incrementAndGet().let { Current(counted(it, path), it) }
+            else Current(UiText.res(R.string.kairo_scan_confirming, confirming.incrementAndGet(), toConfirm, path))
+        current.set(state)
+        report(state.label)
     }
 
     /**
@@ -33,12 +34,14 @@ class ScanProgress(
      * member, or a file a confirmation found new.
      */
     fun hashing(detail: String) {
-        val state = current.get()
-        val label = if (state != null && state.label.startsWith("Hashing ")) "${state.label.substringBefore(": ")}: $detail"
-            else "Hashing $detail"
-        current.set(Current(label))
-        report(label)
+        val count = current.get()?.count
+        val state = if (count != null) Current(counted(count, detail), count)
+            else Current(UiText.res(R.string.kairo_scan_hashing_file, detail))
+        current.set(state)
+        report(state.label)
     }
+
+    private fun counted(count: Int, detail: String) = UiText.res(R.string.kairo_scan_hashing, count, toHash, detail)
 
     /** [read] of [total] bytes of the current hash are done; a large file reports each percent. */
     fun read(read: Long, total: Long) {
@@ -47,7 +50,7 @@ class ScanProgress(
         val percent = (read * 100 / total).toInt().coerceIn(0, 100)
         if (percent == state.percent) return
         state.percent = percent
-        report("${state.label} $percent%")
+        report(UiText.res(R.string.kairo_scan_percent, state.label, percent))
     }
 
     companion object {
