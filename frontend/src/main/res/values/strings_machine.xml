@@ -72,6 +72,7 @@
 
     <!-- %1$s is the game's name. -->
     <string name="kairo_launch_preparing">Preparing %1$s…</string>
+    <string name="kairo_preparing_emulator">Preparing the emulator</string>
     <string name="kairo_launch_starting">Starting %1$s…</string>
     <string name="kairo_session_stopped">%1$s stopped</string>
     <!-- %2$s is the emulator's own error message. -->

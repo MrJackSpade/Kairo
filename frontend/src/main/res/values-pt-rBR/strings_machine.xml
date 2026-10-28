@@ -121,6 +121,8 @@
     <!-- %1$s is the game's name. -->
     <!-- EN: Preparing %1$s… -->
     <string name="kairo_launch_preparing">Preparando %1$s…</string>
+    <!-- EN: Preparing the emulator -->
+    <string name="kairo_preparing_emulator">Preparando o emulador</string>
     <!-- EN: Starting %1$s… -->
     <string name="kairo_launch_starting">Iniciando %1$s…</string>
     <!-- EN: %1$s stopped -->
