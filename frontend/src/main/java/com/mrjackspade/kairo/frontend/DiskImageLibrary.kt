@@ -79,23 +79,25 @@ fun mediaFor(contentId: String, source: DiskImageEntry, entries: List<DiskImageE
 }
 
 /**
- * A disk a game uses beside the one it starts from, such as a hard disk game's CD: the one its
- * catalog names by [catalogId], which the library must have ([MissingDisk] when it does not), else
- * the one disk of that [kind] in [source]'s archive or folder; null when there is none, or several
- * to choose from. [label] names the disk, such as "CD".
+ * A disk a game uses beside the one it starts from, the one rule every app finds it by: a hard disk
+ * game's CD, a CD game's floppy, the second disk of a two-disk set. It is the one its catalog names
+ * by [catalogId], which the library must have ([MissingDisk] saying [missing] when it does not),
+ * else the one other disk of that [kind] in [source]'s archive or folder; null when there is none,
+ * or several to choose from.
  */
-fun companionFor(catalogId: String?, source: DiskImageEntry, entries: List<DiskImageEntry>, label: UiText,
+fun companionFor(catalogId: String?, source: DiskImageEntry, entries: List<DiskImageEntry>, missing: UiText,
                  kind: (DiskImageEntry) -> Boolean): DiskImageEntry? {
     catalogId?.let { id ->
-        return mediaFor(id, source, entries, kind) ?: throw MissingDisk(label)
+        return mediaFor(id, source, entries, kind) ?: throw MissingDisk(missing)
     }
-    return entries.filter { it.playable && kind(it) && sameSource(source, it) }.singleOrNull()
+    return entries.filter { it.playable && kind(it) && it.id != source.id && sameSource(source, it) }.singleOrNull()
 }
 
-/** The disk named [label] that a game needs is not in the library; [text] says so to the player. */
-class MissingDisk(val label: UiText) : IllegalStateException() {
-    val text: UiText get() = UiText.res(R.string.kairo_companion_missing, label)
-}
+/** The disk named [label], such as "CD", that a game needs is not in the library, as [MissingDisk] says it. */
+fun missingDisk(label: UiText): UiText = UiText.res(R.string.kairo_companion_missing, label)
+
+/** A disk a game needs is not in the library; [text] says so to the player. */
+class MissingDisk(val text: UiText) : IllegalStateException()
 
 /**
  * A product's disk images in its games folder: loose, or inside ZIP and 7z archives. Each image is

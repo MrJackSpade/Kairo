@@ -51,14 +51,23 @@ class StartDiskTest {
     @Test
     fun aCompanionIsTheOneOfItsKindBesideTheDisk() {
         val entries = listOf(cd, userDisk, hardDisk, disk("Other.cue", "CD-ROM", "Games/Other.zip"))
-        assertEquals(cd, companionFor(null, hardDisk, entries, UiText.fixed("CD")) { it.mediaText == "CD-ROM" })
-        assertNull(companionFor(null, cd, entries, UiText.fixed("hard disk")) { it.mediaText == "Floppy disk" && it.id.endsWith(".d77") })
+        assertEquals(cd, companionFor(null, hardDisk, entries, missingDisk(UiText.fixed("CD"))) { it.mediaText == "CD-ROM" })
+        assertNull(companionFor(null, cd, entries, missingDisk(UiText.fixed("hard disk"))) { it.mediaText == "Floppy disk" && it.id.endsWith(".d77") })
+    }
+
+    @Test
+    fun aSecondDiskIsTheSetsOtherDiskNotTheOneStarted() {
+        val diskA = disk("Game (Disk A).d88", "Floppy disk")
+        val diskB = disk("Game (Disk B).d88", "Floppy disk")
+        val floppy: (DiskImageEntry) -> Boolean = { it.mediaText == "Floppy disk" }
+        assertEquals(diskB, companionFor(null, diskA, listOf(diskA, diskB), UiText.fixed("second disk missing"), floppy))
+        assertNull(companionFor(null, diskA, listOf(diskA), UiText.fixed("second disk missing"), floppy))
     }
 
     @Test
     fun aCompanionTheCatalogNamesMustBeThere() {
         val missing = assertThrows(MissingDisk::class.java) {
-            companionFor("sha256-x-v1:missing", cd, listOf(cd, userDisk), UiText.fixed("boot floppy")) { it.mediaText == "Floppy disk" }
+            companionFor("sha256-x-v1:missing", cd, listOf(cd, userDisk), missingDisk(UiText.fixed("boot floppy"))) { it.mediaText == "Floppy disk" }
         }
         assertEquals(UiText.res(R.string.kairo_companion_missing, UiText.fixed("boot floppy")), missing.text)
     }

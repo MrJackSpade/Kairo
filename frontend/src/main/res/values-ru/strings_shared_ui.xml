@@ -15,6 +15,8 @@
     <string name="kairo_companion_cd">CD</string>
     <!-- EN: Drive 2 -->
     <string name="kairo_drive_2">Дисковод 2</string>
+    <!-- EN: Drive B -->
+    <string name="kairo_drive_b">Дисковод B</string>
     <!-- EN: Dictionary -->
     <string name="kairo_firmware_dictionary">Словарь</string>
     <!-- A firmware file's description: %1$s is its file name; %2$s what it does. -->
