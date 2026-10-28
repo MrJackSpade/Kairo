@@ -30,10 +30,13 @@ Run research.py afterwards to carry the descriptions into games-v1.json.
 """
 
 import argparse
+import contextlib
 import html
 import json
+import os
 import re
 import subprocess
+import time
 from pathlib import Path
 
 EXCERPT = 360
@@ -158,8 +161,31 @@ def rewritten(root, language, output, adult, limit, after):
     print(f"{len(batch)} of {len(left)} left after {after} ({len(changed)} of {len(done)} rewritten) -> {output}")
 
 
+@contextlib.contextmanager
+def locked(path):
+    """Hold <path>.lock while reading and rewriting <path>, so workers sharing a file keep each other's work."""
+    lock = path.with_name(path.name + ".lock")
+    while True:
+        try:
+            handle = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError:
+            print(f"waiting for {lock.name} (delete it if no translate is running)", flush=True)
+            time.sleep(1)
+    try:
+        yield
+    finally:
+        os.close(handle)
+        os.remove(lock)
+
+
 def translate(root, language, batch_path, adult, replace=False):
     source, target = translation_paths(root, language, adult)
+    with locked(target):
+        merge(target, source, language, batch_path, replace)
+
+
+def merge(target, source, language, batch_path, replace):
     english = read(source, {"descriptions": {}})["descriptions"]
     document = read(target, {"schemaVersion": 1, "descriptions": {}})
     batch = read(batch_path)
