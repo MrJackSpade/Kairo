@@ -13,9 +13,11 @@
       an adult game's frank description into descriptions-adult-v1.json). Each key must be a game
       in games-v1.json (with --adult, one marked adult) that has no such description yet.
 
-  descriptions.py pending <app root> <language> <out.json> [--adult] [--limit N]
+  descriptions.py pending <app root> <language> <out.json> [--adult] [--limit N] [--from KEY] [--to KEY]
       Up to N of the English descriptions (or with --adult, the frank adult descriptions) not yet
-      translated into <language> (catalog_languages.LANGUAGES), as {"<game key>": "English"}.
+      translated into <language> (catalog_languages.LANGUAGES), as {"<game key>": "English"};
+      --from and --to keep to game keys from KEY up to, not including, KEY, so several workers
+      can share a language.
   descriptions.py translate <app root> <language> <batch.json> [--adult]
       Merge {"<game key>": "translation"} into catalog/research/descriptions[-adult]-<language>-v1.json.
       Each key must have that English description and no translation yet.
@@ -141,11 +143,12 @@ def translation_paths(root, language, adult):
     return research / f"descriptions{kind}-v1.json", research / f"descriptions{kind}-{language}-v1.json"
 
 
-def pending(root, language, output, adult, limit):
+def pending(root, language, output, adult, limit, start=None, end=None):
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
     done = read(target, {"descriptions": {}})["descriptions"]
-    left = {key: text for key, text in sorted(english.items()) if key not in done}
+    left = {key: text for key, text in sorted(english.items()) if key not in done and
+            (start is None or key >= start) and (end is None or key < end)}
     batch = dict(list(left.items())[:limit] if limit else left.items())
     output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{len(batch)} of {len(left)} untranslated ({len(done)} of {len(english)} done) -> {output}")
@@ -240,6 +243,8 @@ def main():
     todo.add_argument("output", type=Path)
     todo.add_argument("--adult", action="store_true")
     todo.add_argument("--limit", type=int)
+    todo.add_argument("--from", dest="start")
+    todo.add_argument("--to", dest="end")
     done = commands.add_parser("translate")
     done.add_argument("root", type=Path)
     done.add_argument("language")
@@ -266,7 +271,7 @@ def main():
     elif args.command == "add":
         add(args.root.resolve(), args.batch, args.adult)
     elif args.command == "pending":
-        pending(args.root.resolve(), args.language, args.output, args.adult, args.limit)
+        pending(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.start, args.end)
     elif args.command == "revise":
         revise(args.root.resolve(), args.language, args.output, args.adult, args.limit, args.after)
     elif args.command == "rewritten":
