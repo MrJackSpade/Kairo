@@ -66,6 +66,7 @@ from launchbox import BOX_TYPES, SCREENSHOT_TYPES, TitleIndex, key as title_key
 from moby_art import MobyArt
 from disk_sets import disk_sets, group as disk_group, ungrouped_sets
 from catalog_languages import LANGUAGES
+import catalog_descriptions
 import art_verdicts
 from launchbox_artwork import URL
 
@@ -472,29 +473,7 @@ def assemble(root, moby_root):
     review_path = root / "catalog/core-review-v1.json"
     relocate(review_path, "excluded", moved, games)
 
-    descriptions = read(research / "descriptions-v1.json", {"schemaVersion": 1, "descriptions": {}})["descriptions"]
-    unknown = descriptions.keys() - games.keys()
-    if unknown:
-        raise SystemExit(f"descriptions for unknown games: {sorted(unknown)[:5]}")
-    for key, text in descriptions.items():
-        games[key]["description"] = text
-    adult_descriptions = read(research / "descriptions-adult-v1.json",
-                              {"schemaVersion": 1, "descriptions": {}})["descriptions"]
-    unknown = adult_descriptions.keys() - games.keys()
-    if unknown:
-        raise SystemExit(f"adult descriptions for unknown games: {sorted(unknown)[:5]}")
-    for key, text in adult_descriptions.items():
-        games[key]["adultDescription"] = text
-    for kind, english, field in (("", "description", "descriptions"), ("-adult", "adultDescription", "adultDescriptions")):
-        for language in LANGUAGES:
-            texts = read(research / f"descriptions{kind}-{language}-v1.json",
-                         {"schemaVersion": 1, "descriptions": {}})["descriptions"]
-            untranslatable = [key for key in texts if not games.get(key, {}).get(english)]
-            if untranslatable:
-                raise SystemExit(f"descriptions{kind}-{language}-v1.json: translations of no {english}: "
-                                 f"{sorted(untranslatable)[:5]}")
-            for key, text in texts.items():
-                games[key].setdefault(field, {})[language] = text
+    catalog_descriptions.apply(research, games)
 
     overrides = read(research / "overrides-v1.json", {"schemaVersion": 1, "games": {}})["games"]
     for key, fields in overrides.items():

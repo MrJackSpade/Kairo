@@ -259,11 +259,13 @@ def generate(root, check=False):
     require(policy["excluded"].keys() <= games.keys(), "core review excludes unknown games")
     unique_names = {name: next(iter(keys)) for name, keys in sorted(names.items()) if len(keys) == 1}
     name_index = {"schemaVersion": 1, "games": games, "names": unique_names}
-    source = {"schemaVersion": 1, "datasets": [{"id": f"{config.APP}-research",
-        "provenance": {"source": f"{config.APP} research catalog: LaunchBox Games Database and MobyGames references, local media scans",
-                       "license": "Original descriptions; titles and image references from LaunchBox; artwork used under fair use",
-                       "attribution": "LaunchBox Games Database contributors; MobyGames contributors; original descriptions"},
-        "games": source_games}]}
+    # An app names where its research comes from when it is not LaunchBox and MobyGames (KairoDos: eXoDOS).
+    provenance = getattr(config, "PROVENANCE", {
+        "source": f"{config.APP} research catalog: LaunchBox Games Database and MobyGames references, local media scans",
+        "license": "Original descriptions; titles and image references from LaunchBox; artwork used under fair use",
+        "attribution": "LaunchBox Games Database contributors; MobyGames contributors; original descriptions"})
+    source = {"schemaVersion": 1, "datasets": [{"id": f"{config.APP}-research", "provenance": provenance,
+                                                "games": source_games}]}
     manifest, shards = catalog_documents.build(source, validate_record)
     system = json.loads((root / "catalog/system-v1.json").read_text(encoding="utf-8"))
     validate_system(system)
