@@ -140,7 +140,7 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
             controller = record["controller"]
             defaults = controller.get("defaults") if isinstance(controller, dict) else None
             profile = controller.get("profile") if isinstance(controller, dict) else None
-            require(profile is None or (isinstance(profile, str) and 0 < len(profile) <= 64), "invalid controller profile")
+            require(profile is None or (isinstance(profile, str) and 0 < len(profile) <= 128), "invalid controller profile")
             require(isinstance(controller, dict) and set(controller) - {"profile"} == {"defaults"} and isinstance(defaults, dict) and
                     "withoutSticks" in defaults and set(defaults) <= {"withoutSticks", "withSticks"} and
                     all(isinstance(bindings, list) and all(isinstance(b, dict) and isinstance(b.get("input"), str)

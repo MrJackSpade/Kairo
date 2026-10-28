@@ -298,7 +298,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             artwork?.optString("preview")?.takeIf { it.isNotEmpty() },
             artwork?.optString("boxArtUrl")?.takeIf { it.isNotEmpty() },
             artwork?.optString("previewUrl")?.takeIf { it.isNotEmpty() },
-            controller?.optString("profile")?.takeIf { it.length in 1..64 },
+            controller?.optString("profile")?.takeIf { it.length in 1..128 },
             controller?.optJSONArray("bindings")?.toString(),
             (controller?.optJSONObject("defaults")
                 ?: controller?.optJSONArray("bindings")?.takeIf {
@@ -434,7 +434,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         "controller" -> value is JSONObject &&
             value.keys().asSequence().all { it in objectFields.getValue("controller") } &&
             (!value.has("profile") ||
-                (value.opt("profile") is String && value.optString("profile").length in 1..64)) &&
+                (value.opt("profile") is String && value.optString("profile").length in 1..128)) &&
             (!value.has("bindings") || value.optJSONArray("bindings")?.let(schema::validBindings) == true) &&
             (!value.has("layer") || value.optJSONArray("layer")?.let(schema::validBindings) == true) &&
             (!value.has("defaults") || value.optJSONObject("defaults")?.let { defaults ->
