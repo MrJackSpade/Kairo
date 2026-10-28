@@ -13,18 +13,23 @@ For each name (a game, series, company, person, character, place or work) prints
              redirect of that exact title, such as ja "Wizardry" -> ウィザードリィ)
   search     <language> Wikipedia's top search hits for the name, when neither found an article
 
-"-" marks nothing found. None of these is proof alone: a name can lead to an article about something
+"-" marks nothing found. Answers are kept in ~/.cache/kairo-name-forms/<language>.json; delete it to
+ask Wikipedia again. None of these is proof alone: a name can lead to an article about something
 else (a common word, another game of the same name, a company's later owner). Use a form only when
 its article is about the thing the description names; with nothing confirmed, keep the Latin name.
 """
 
 import argparse
 import json
+import os
 import re
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 AGENT = "KairoCatalog/1.0 (https://github.com/MrJackSpade)"
+# Answers already fetched, per language: Wikipedia's search refuses work when asked too often.
+CACHE = Path.home() / ".cache/kairo-name-forms"
 BATCH = 50
 HITS = 3
 
@@ -60,10 +65,30 @@ def resolve(language, names, extra):
     return pages
 
 
-def forms(language, names):
+def cached(language, names):
+    """forms() through a per-language cache shared by every caller, so each name is asked once."""
+    path = CACHE / f"{language}.json"
+    known = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    def keep(name, row):
+        # Each answer as it arrives, so a refused search later keeps the ones before it. Another
+        # caller may have written meanwhile: merge into the file as it is now.
+        current = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+        current[name] = list(row)
+        CACHE.mkdir(parents=True, exist_ok=True)
+        scratch = path.with_suffix(f".{os.getpid()}.tmp")
+        scratch.write_text(json.dumps(current, ensure_ascii=False, indent=0), encoding="utf-8")
+        os.replace(scratch, path)
+        known[name] = list(row)
+
+    missing = [name for name in names if name not in known]
+    if missing:
+        forms(language, missing, keep)
+    return {name: tuple(known[name]) for name in names}
+
+
+def forms(language, names, keep):
     english = resolve("en", names, {"prop": "langlinks", "lllang": language, "lllimit": "max"})
     native = resolve(language, names, {})
-    rows = {}
     for name in names:
         page = english[name]
         links = page.get("langlinks", []) if page else []
@@ -72,8 +97,7 @@ def forms(language, names):
         # Search only for names neither title found: Wikipedia's search refuses work when busy.
         hits = [] if links or native[name] else query(language, {
             "action": "query", "list": "search", "srsearch": name, "srlimit": HITS})["query"]["search"]
-        rows[name] = (linked, direct, " | ".join(hit["title"] for hit in hits) or "-")
-    return rows
+        keep(name, (linked, direct, " | ".join(hit["title"] for hit in hits) or "-"))
 
 
 def main():
@@ -88,7 +112,7 @@ def main():
             names += [line.strip() for line in lines if line.strip()]
     if not names:
         raise SystemExit("no names given")
-    for name, (linked, direct, search) in forms(args.language, list(dict.fromkeys(names))).items():
+    for name, (linked, direct, search) in cached(args.language, list(dict.fromkeys(names))).items():
         print(f"{name}\tlinked: {linked}\tdirect: {direct}\tsearch: {search}")
 
 
