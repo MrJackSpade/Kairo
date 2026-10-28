@@ -44,7 +44,7 @@ class GameOrientation(private val activity: Activity, private val preferences: S
         launch = false
         if (!matches()) {
             warned = true
-            Ui.message(activity, BLOCKED, long = true)
+            Ui.message(activity, activity.getString(R.string.kairo_orientation_blocked), long = true)
         }
     }
 
@@ -67,7 +67,7 @@ class GameOrientation(private val activity: Activity, private val preferences: S
 
     /** A rotation that lands after the warning withdraws it. */
     fun configurationChanged() {
-        if (warned && matches()) Ui.dismissMessage(activity, BLOCKED)
+        if (warned && matches()) Ui.dismissMessage(activity, activity.getString(R.string.kairo_orientation_blocked))
         if (matches()) warned = false
     }
 
@@ -96,6 +96,5 @@ class GameOrientation(private val activity: Activity, private val preferences: S
         private const val AUTO = "auto"
         private const val LANDSCAPE = "landscape"
         private const val PORTRAIT = "portrait"
-        private const val BLOCKED = "Rotation was attempted but did not apply. A system setting is likely blocking it."
     }
 }

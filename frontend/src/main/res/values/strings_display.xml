@@ -17,6 +17,7 @@
     <string name="kairo_orientation_game">Game orientation</string>
     <string name="kairo_orientation_landscape">Landscape</string>
     <string name="kairo_orientation_portrait">Portrait</string>
+    <string name="kairo_orientation_blocked">Rotation was attempted but did not apply. A system setting is likely blocking it.</string>
 
     <string name="kairo_shader_group">SHADER</string>
     <string name="kairo_shader">Shader</string>

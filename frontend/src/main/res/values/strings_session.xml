@@ -2,6 +2,8 @@
 <!-- The app shell: launching and leaving games, the game menu, game settings, About and Diagnostics. -->
 <resources>
     <string name="kairo_no_game">No game</string>
+    <!-- %1$s is the machine's name, such as PC-88. -->
+    <string name="kairo_game_display">%1$s display</string>
     <string name="kairo_back">Back</string>
     <string name="kairo_task_stop">Stop</string>
     <string name="kairo_paused_banner">PAUSED</string>

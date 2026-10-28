@@ -131,7 +131,7 @@ class ShaderOptions(
                 activity.assets.open("retroarch/$relative").use { input ->
                     temporary.outputStream().use { output -> input.copyTo(output) }
                 }
-                if (!temporary.renameTo(target)) throw IOException("Could not prepare built-in shader")
+                if (!temporary.renameTo(target)) throw IOException(str(R.string.kairo_shader_builtin_failed))
             } finally {
                 temporary.delete()
             }

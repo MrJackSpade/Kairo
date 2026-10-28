@@ -741,7 +741,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         testId("game.surface")
         holder.addCallback(this@KairoActivity)
         isFocusableInTouchMode = true
-        contentDescription = "${identity.guestName} display"
+        contentDescription = getString(R.string.kairo_game_display, identity.guestName)
         setOnTouchListener { view, event -> handleScreenTouch(event, view.width, view.height) }
     }
 
