@@ -11,7 +11,7 @@ For each name (a game, series, company, person, character, place or work) prints
              same article in <language>'s Wikipedia (ja, ko, ...)
   direct     the <language> Wikipedia article the name itself leads to there (an article or a
              redirect of that exact title, such as ja "Wizardry" -> ウィザードリィ)
-  search     <language> Wikipedia's top search hits for the name
+  search     <language> Wikipedia's top search hits for the name, when neither found an article
 
 "-" marks nothing found. None of these is proof alone: a name can lead to an article about something
 else (a common word, another game of the same name, a company's later owner). Use a form only when
@@ -69,8 +69,9 @@ def forms(language, names):
         links = page.get("langlinks", []) if page else []
         linked = f"{page['title']} -> {bare(links[0]['*'])}" if links else (f"{page['title']} -> -" if page else "-")
         direct = native[name]["title"] if native[name] else "-"
-        hits = query(language, {"action": "query", "list": "search", "srsearch": name,
-                                "srlimit": HITS})["query"]["search"]
+        # Search only for names neither title found: Wikipedia's search refuses work when busy.
+        hits = [] if links or native[name] else query(language, {
+            "action": "query", "list": "search", "srsearch": name, "srlimit": HITS})["query"]["search"]
         rows[name] = (linked, direct, " | ".join(hit["title"] for hit in hits) or "-")
     return rows
 
