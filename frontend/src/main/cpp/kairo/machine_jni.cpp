@@ -23,6 +23,11 @@ namespace {
 
 kairo::FrameMachine<kairo::MachineCore> machine;
 
+// Direct-touch warps asked for, and the last whose point the guest's pointer reached
+// (nativeMouseWarpDone). Each warp and each check runs on the emulation thread in order.
+std::atomic<uint32_t> warps_asked{0};
+std::atomic<uint32_t> warps_reached{0};
+
 // The launch setting with a game's startup commands, newline-separated (StartupCommands.SETTING).
 constexpr const char *kCommands = "commands";
 
@@ -52,6 +57,8 @@ public:
     void joystick(int control, bool down) override { core_->joystick(control, down); }
     void mouse_move(int dx, int dy) override { core_->mouse_move(dx, dy); }
     void mouse_button(int button, bool down) override { core_->mouse_button(button, down); }
+    void mouse_warp(int x, int y) override { core_->mouse_warp(x, y); }
+    bool mouse_warp_done() override { return core_->mouse_warp_done(); }
     int locks() override { return core_->locks(); }
     bool guest_input(GuestInput &input) override { return core_->guest_input(input); }
     // While a line goes in, so typing does not take the guest's real time.
@@ -155,6 +162,28 @@ extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeJoystick)(JNIEnv *, jobje
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMouseMove)(JNIEnv *, jobject, jint dx, jint dy) {
     machine.post([dx, dy](kairo::MachineCore &core) { core.mouse_move(dx, dy); });
+}
+
+// A direct tap at (x, y) in 1/65536ths of the picture's width and height: the view shows the core's
+// whole frame, whose size the machine's nominal screen size need not be (a cropped picture).
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMouseWarp)(JNIEnv *, jobject, jint x, jint y) {
+    warps_asked.fetch_add(1);
+    machine.post([x, y](kairo::MachineCore &core) {
+        uint32_t width = 0, height = 0;
+        if (!core.frame(width, height)) return;  // nothing shown yet, so nothing was tapped on
+        core.mouse_warp(int(int64_t(x) * width >> 16), int(int64_t(y) * height >> 16));
+    });
+}
+
+// Whether the last warp has reached the guest. When it has not yet, asks the core again before the
+// next frame, after that warp, so the UI's next poll sees the answer without waiting for a frame.
+extern "C" JNIEXPORT jboolean JNICALL NATIVE_MACHINE(nativeMouseWarpDone)(JNIEnv *, jobject) {
+    const uint32_t asked = warps_asked.load();
+    if (warps_reached.load() == asked) return JNI_TRUE;
+    machine.post([asked](kairo::MachineCore &core) {
+        if (core.mouse_warp_done()) warps_reached.store(asked);
+    });
+    return JNI_FALSE;
 }
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMouseButton)(JNIEnv *, jobject, jint button, jboolean down) {

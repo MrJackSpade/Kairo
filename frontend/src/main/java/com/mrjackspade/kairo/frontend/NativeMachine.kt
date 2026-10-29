@@ -34,6 +34,8 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     override fun joystick(control: Int, down: Boolean) = nativeJoystick(control, down)
     override fun mouseMove(dx: Int, dy: Int) = nativeMouseMove(dx, dy)
     override fun mouseButton(button: Int, down: Boolean) = nativeMouseButton(button, down)
+    override fun warpMouse(x: Int, y: Int) = nativeMouseWarp(x, y)
+    override fun mouseWarpDone(): Boolean = nativeMouseWarpDone()
     override fun saveState(directory: String) = nativeSaveState(directory)
     override fun loadState(directory: String, moved: Map<String, String>): Int {
         val entries = moved.entries.toList()
@@ -63,6 +65,8 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeJoystick(control: Int, down: Boolean)
     private external fun nativeMouseMove(dx: Int, dy: Int)
     private external fun nativeMouseButton(button: Int, down: Boolean)
+    private external fun nativeMouseWarp(x: Int, y: Int)
+    private external fun nativeMouseWarpDone(): Boolean
     private external fun nativeMedia(slot: Int, path: String?): Int
     private external fun nativeMediaPaths(): Array<String>?
     private external fun nativeSaveState(directory: String): Int

@@ -1083,6 +1083,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             MotionEvent.ACTION_DOWN -> {
                 pendingMouseRelease?.let(handler::removeCallbacks)
                 pendingMouseRelease = null
+                cancelMouseWarp()
                 releaseMouseTouch()
                 mouseRouter.release("touch")
                 mouseDragging = false
@@ -1137,6 +1138,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             MotionEvent.ACTION_CANCEL -> {
                 pendingMouseHold?.let(handler::removeCallbacks)
                 pendingMouseHold = null
+                cancelMouseWarp()
                 releaseMouseTouch()
                 mouseRouter.release("touch")
                 mouseDragging = false
@@ -1150,8 +1152,36 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         error("${identity.appName} has no direct mouse touch")
     }
 
-    /** Runs a click once a direct-tap warp has reached the guest; touchpad clicks run now. */
-    protected open fun afterMouseWarp(action: () -> Unit) = action()
+    /** Whether the guest's pointer has reached the last [warpMouse] point; true for a product without warps. */
+    protected open fun mouseWarpDone(): Boolean = true
+
+    private var pendingMouseWarp: Runnable? = null
+
+    /** Runs a click once the last direct-tap warp has reached the guest ([mouseWarpDone]). */
+    private fun afterMouseWarp(action: () -> Unit) {
+        cancelMouseWarp()
+        if (mouseWarpDone()) {
+            action()
+            return
+        }
+        val deadline = android.os.SystemClock.uptimeMillis() + 2000
+        val poll = object : Runnable {
+            override fun run() {
+                if (mouseWarpDone()) {
+                    pendingMouseWarp = null
+                    action()
+                } else if (android.os.SystemClock.uptimeMillis() < deadline) handler.postDelayed(this, 8)
+                else pendingMouseWarp = null
+            }
+        }
+        pendingMouseWarp = poll
+        handler.postDelayed(poll, 8)
+    }
+
+    private fun cancelMouseWarp() {
+        pendingMouseWarp?.let(handler::removeCallbacks)
+        pendingMouseWarp = null
+    }
 
     private fun moveGuestMouse(event: MotionEvent, width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
@@ -1278,6 +1308,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         pendingMouseRelease?.let(handler::removeCallbacks)
         pendingMouseRelease = null
         mouseRouter.releasePrefix("touch")
+        cancelMouseWarp()
         releaseMouseTouch()
         mouseTouchActive = false
         mouseDragging = false

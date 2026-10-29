@@ -95,6 +95,12 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun sendJoystick(control: Int, down: Boolean) = bridge.joystick(control, down)
     override fun sendMouseMove(dx: Int, dy: Int) = bridge.mouseMove(dx, dy)
     override fun sendMouseButton(button: Int, down: Boolean) = bridge.mouseButton(button, down)
+    /** The point in [videoSize] terms goes to the core as a fraction of the picture, which the view shows whole. */
+    override fun warpMouse(x: Int, y: Int) {
+        val (width, height) = videoSize()
+        bridge.warpMouse(((x + 0.5) * 65536 / width).toInt(), ((y + 0.5) * 65536 / height).toInt())
+    }
+    override fun mouseWarpDone(): Boolean = bridge.mouseWarpDone()
     override fun inputTelemetry(): LongArray? = bridge.inputTelemetry()
     override fun pauseGuest(paused: Boolean) = bridge.pause(paused)
     override fun stopGuest() = bridge.stop()

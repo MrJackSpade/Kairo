@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -70,6 +71,15 @@ public:
     virtual void mouse_move(int dx, int dy) = 0;
     // Button 1 (left) or 2 (right).
     virtual void mouse_button(int button, bool down) = 0;
+    // Direct touch: moves the guest's pointer to frame point (x, y) over the next frames. Only a
+    // product whose catalog sets directTouch asks; any other core has none.
+    virtual void mouse_warp(int x, int y) {
+        (void) x;
+        (void) y;
+        throw std::logic_error("This core has no direct touch");
+    }
+    // Whether the guest's pointer has reached the last warp's point, so a click lands there.
+    virtual bool mouse_warp_done() { throw std::logic_error("This core has no direct touch"); }
     // The lock keys the guest has on, one bit each in the order the product's NativeMachine lists them.
     virtual int locks() { return 0; }
 

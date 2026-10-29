@@ -23,6 +23,13 @@ interface MachineBridge {
     /** Relative guest mouse movement, and button 1 (left) or 2 (right). */
     fun mouseMove(dx: Int, dy: Int)
     fun mouseButton(button: Int, down: Boolean)
+    /**
+     * Direct touch: the guest's pointer to the point ([x], [y]) in 1/65536ths of the picture's width and
+     * height, for a machine whose catalog sets directTouch.
+     */
+    fun warpMouse(x: Int, y: Int): Unit = error("This machine has no direct touch")
+    /** Whether the guest's pointer has reached the last [warpMouse] point. */
+    fun mouseWarpDone(): Boolean = error("This machine has no direct touch")
     /** Saves the machine into [directory]; 0, [FAILED], [UNSUPPORTED] or [NOT_RUNNING]. */
     fun saveState(directory: String): Int
     /**
