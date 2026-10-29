@@ -514,9 +514,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         override fun run() {
             if (::pages.isInitialized && pages.isActive) pages.tick()
             if (currentEntry != null && !libraryVisible && !transitioning) inputTelemetry()?.let { values ->
-                InputModeDecider.GuestInput.fromNative(values)?.let {
-                    inputModeDecider.observe(it, android.os.SystemClock.elapsedRealtime())
-                }
+                inputModeDecider.observe(InputModeDecider.GuestInput.fromNative(values),
+                    android.os.SystemClock.elapsedRealtime())
             }
             handler.postDelayed(this, 250)
         }

@@ -40,6 +40,7 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
         return nativeLoadState(directory, entries.map { it.key }.toTypedArray(), entries.map { it.value }.toTypedArray())
     }
     override fun stateErrorReason(): String = nativeStateError()
+    override fun inputTelemetry(): LongArray? = nativeGuestInput()
     override fun lockedKeys(): Set<Int> {
         if (lockKeys.isEmpty()) return emptySet()
         val locks = nativeLocks()
@@ -67,6 +68,7 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeSaveState(directory: String): Int
     private external fun nativeLoadState(directory: String, from: Array<String>, to: Array<String>): Int
     private external fun nativeLocks(): Int
+    private external fun nativeGuestInput(): LongArray?
     private external fun nativeStateError(): String
     private external fun nativeStatus(): String
     private external fun nativeSetSurface(surface: Surface?)

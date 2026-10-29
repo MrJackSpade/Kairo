@@ -72,6 +72,19 @@ public:
     virtual void mouse_button(int button, bool down) = 0;
     // The lock keys the guest has on, one bit each in the order the product's NativeMachine lists them.
     virtual int locks() { return 0; }
+
+    // How the guest reads its input, for Auto touch mode (InputModeDecider.GuestInput): counts since
+    // the machine started of the guest waiting for a key and reading the keyboard, and of it reading
+    // the mouse; whether it waits for a key now; and whether it set its mouse up, for a core that
+    // cannot see its mouse reads. False for a core that does not count them.
+    struct GuestInput {
+        uint64_t keyboard_waits = 0;
+        uint64_t keyboard_polls = 0;
+        uint64_t mouse_reads = 0;
+        bool keyboard_waiting = false;
+        bool mouse_enabled = false;
+    };
+    virtual bool guest_input(GuestInput &input) { (void) input; return false; }
     // True while the guest boots or loads from its media (a drive or tape motor running, a CD
     // read), which then runs as fast as the host can, as in fast-forward (Kairo#82).
     virtual bool loading() { return false; }

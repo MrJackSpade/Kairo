@@ -4,15 +4,21 @@ package com.mrjackspade.kairo.frontend
 class InputModeDecider {
     enum class Mode { AUTO, KEYBOARD, MOUSE }
 
+    /**
+     * How the guest reads its input. [mouseEnabled]: the guest set its mouse up, for a core that
+     * cannot see the reads themselves (Kairo68: a program reading the mouse's data from RAM).
+     */
     data class GuestInput(
         val keyboardWaits: Long,
         val keyboardPolls: Long,
         val mouseReads: Long,
-        val keyboardWaiting: Boolean
+        val keyboardWaiting: Boolean,
+        val mouseEnabled: Boolean = false
     ) {
         companion object {
-            fun fromNative(values: LongArray): GuestInput? = values.takeIf { it.size == 4 }?.let {
-                GuestInput(it[0], it[1], it[2], it[3] != 0L)
+            fun fromNative(values: LongArray): GuestInput {
+                require(values.size == 5) { "Guest input has ${values.size} values, not 5" }
+                return GuestInput(values[0], values[1], values[2], values[3] != 0L, values[4] != 0L)
             }
         }
     }
@@ -48,7 +54,7 @@ class InputModeDecider {
 
         // A resident driver may poll the mouse while a keyboard menu runs. Require
         // sustained recent mouse reads without recent keyboard activity.
-        if (mouse >= 4 && nowMs - lastKeyboardSignalAt >= 750) automatic = Mode.MOUSE
+        if ((mouse >= 4 || sample.mouseEnabled) && nowMs - lastKeyboardSignalAt >= 750) automatic = Mode.MOUSE
     }
 
     fun resolve(configured: Mode): Mode = if (configured == Mode.AUTO) automatic else configured

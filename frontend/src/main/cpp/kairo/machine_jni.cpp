@@ -53,6 +53,7 @@ public:
     void mouse_move(int dx, int dy) override { core_->mouse_move(dx, dy); }
     void mouse_button(int button, bool down) override { core_->mouse_button(button, down); }
     int locks() override { return core_->locks(); }
+    bool guest_input(GuestInput &input) override { return core_->guest_input(input); }
     // While a line goes in, so typing does not take the guest's real time.
     bool loading() override { return core_->loading() || typer_.typing(); }
     std::string details() override { return core_->details(); }
@@ -237,6 +238,20 @@ extern "C" JNIEXPORT jstring JNICALL NATIVE_MACHINE(nativeStateError)(JNIEnv *en
         return 0;
     });
     return env->NewStringUTF(reason.c_str());
+}
+
+// The guest's input reads (MachineCore::guest_input) as InputModeDecider.GuestInput.fromNative takes
+// them; null when the core does not count them or no machine runs.
+extern "C" JNIEXPORT jlongArray JNICALL NATIVE_MACHINE(nativeGuestInput)(JNIEnv *env, jobject) {
+    kairo::MachineCore::GuestInput input;
+    const int counted = machine.call([&input](kairo::MachineCore &core) { return core.guest_input(input) ? 1 : 0; });
+    if (counted != 1) return nullptr;
+    const jlong values[5] = {static_cast<jlong>(input.keyboard_waits), static_cast<jlong>(input.keyboard_polls),
+                             static_cast<jlong>(input.mouse_reads), input.keyboard_waiting ? 1 : 0,
+                             input.mouse_enabled ? 1 : 0};
+    jlongArray array = env->NewLongArray(5);
+    env->SetLongArrayRegion(array, 0, 5, values);
+    return array;
 }
 
 extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLocks)(JNIEnv *, jobject) {
