@@ -82,7 +82,7 @@ class SecondaryTouchpadView(
                     release = Runnable {
                         mouse.release(owner)
                         release = null
-                    }.also { handler.postDelayed(it, 700) }
+                    }.also { handler.postDelayed(it, mouse.tapClickMillis) }
                 }
                 dragging = false
                 performClick()

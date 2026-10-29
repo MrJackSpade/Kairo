@@ -81,6 +81,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected open fun inputTelemetry(): LongArray? = null
     /** The frame size the keyboard's touchpad tab, which every app has, scales its movement to. */
     protected open fun touchpadReferenceSize(): Pair<Int, Int> = videoSize().let { it.first to it.second }
+    /**
+     * How long a tap in Mouse mode, or on the keyboard's touchpad, holds the guest's left button. A
+     * guest that polls a bus mouse slowly (Kairo98) needs a long press to see it at all; one that
+     * gets the button as an event (KairoST's IKBD) takes a long press as the start of a drag.
+     */
+    protected open val tapClickMillis: Long = 700
 
     // The library and its catalog ---------------------------------------------------------------
 
@@ -321,7 +327,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         if (::secondaryKeyboard.isInitialized) secondaryKeyboard.setLayout(layout)
     }
     protected val joystickRouter by lazy { JoystickInputRouter(::recordedJoystick, joystickControls) }
-    protected val mouseRouter by lazy { MouseInputRouter(::recordedMove, ::recordedButton) }
+    protected val mouseRouter by lazy { MouseInputRouter(::recordedMove, ::recordedButton, tapClickMillis) }
     protected val gamepadMapper by lazy {
         GamepadMapper(inputRouter, joystickRouter, mouseRouter, ::controllerAction, ::controllerActionReleased,
             emptyList())
@@ -1143,7 +1149,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                         pendingMouseRelease = null
                     }
                     pendingMouseRelease = release
-                    handler.postDelayed(release, 700)
+                    handler.postDelayed(release, mouseRouter.tapClickMillis)
                 }
                 mouseDragging = false
                 mouseMoved = false

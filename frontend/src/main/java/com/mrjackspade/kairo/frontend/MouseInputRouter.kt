@@ -3,9 +3,13 @@ package com.mrjackspade.kairo.frontend
 import kotlin.math.max
 import kotlin.math.sqrt
 
-/** Combines controller and touch owners before sending guest mouse input. */
+/**
+ * Combines controller and touch owners before sending guest mouse input. [tapClickMillis] is how
+ * long a touch surface's tap holds the left button (KairoActivity.tapClickMillis).
+ */
 class MouseInputRouter(private val move: (Int, Int) -> Unit,
-                       private val button: (Int, Boolean) -> Unit) {
+                       private val button: (Int, Boolean) -> Unit,
+                       val tapClickMillis: Long) {
     @Synchronized fun moveBy(dx: Int, dy: Int) {
         if (dx != 0 || dy != 0) move(dx, dy)
     }
