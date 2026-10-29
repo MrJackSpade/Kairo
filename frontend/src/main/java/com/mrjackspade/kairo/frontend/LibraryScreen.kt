@@ -835,8 +835,9 @@ class LibraryScreen<T : LibraryItem>(
             else entries.indices.map(::Game)
         adapter.notifyDataSetChanged()
         // In touch mode ListView keeps a row it was told to select for its next layout, and a data
-        // change does not move it (Kairo#99): one past the new rows becomes the selected game's row.
-        if (requestedRow >= items.size) selectRow(positionOf(selectedIndex).coerceAtLeast(0))
+        // change does not move it (Kairo#99): one past the new rows becomes the selected game's row,
+        // or -1 (none kept) when there are no rows (Kairo#100).
+        if (requestedRow >= items.size) selectRow(positionOf(selectedIndex))
         requestSelectionVisibility()
         notifySelection()
     }
