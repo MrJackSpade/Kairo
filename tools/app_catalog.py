@@ -3,8 +3,9 @@
 
 Usage: app_catalog.py <app root> [--check]
 
-The app's tools/catalog_config.py names its APP (a catalog_parts.APPS key), its media KINDS and
-its ARTWORK references. catalog/research/games-v1.json holds one record per game:
+The app's tools/catalog_config.py names its APP (a catalog_parts.APPS key), its media KINDS, its
+ARTWORK references and its MEDIA_EXTENSIONS, the file extensions the app removes from a file's name
+before looking it up (Schema.mediaExtensions, the same pattern). catalog/research/games-v1.json holds one record per game:
 
   {"schemaVersion": 1, "games": {"<platform>:<id>": {
       "title": "...", "aliases": [...], "description": "...",   shipped display metadata
@@ -31,6 +32,11 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "hidden": true,                                           not a game: never listed in the library
       "controller": {"profile": "...", "defaults": {"withoutSticks": [...], "withSticks": [...]}}
                                                                 the game's own controls and the preset they are
+      "machine": {...}, "launch": {...}, "input": {...}         the game's own machine settings (MACHINE_OPTIONS),
+                                                                launch fields and touch input, for all its disks
+      "named": false,                                           never recognized by file name (a game known only
+                                                                by its disks): left out of the name index
+      "lookupNames": [...],                                     more names it is recognized by, not shipped
       "launchbox": "...", "mobygames": 0, "year": 0, ...         research only, never shipped
   }}}
 
@@ -67,7 +73,9 @@ from catalog_package import filter_artwork, image_paths
 from catalog_parts import artwork_split, generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
-SHIPPED = ("title", "description", "aliases", "tags", "controller")
+SHIPPED = ("title", "description", "aliases", "tags", "controller", "machine", "launch", "input")
+# A game's touch input, as the apps read it (LayeredGameCatalog).
+INPUT = {"mode": {"auto", "keyboard", "mouse"}, "touch": {"touchpad", "direct"}, "secondary": {"keyboard", "touchpad"}}
 MAX_IDS = 64
 
 
@@ -78,12 +86,17 @@ def load_config(root):
     return config
 
 
-def lookup_name(value):
-    """A name's index form: annotations, disk labels and a file extension removed, then NFKC,
+# The disk numbers the apps take out of a file's name (LayeredGameCatalog.DISK_NUMBER).
+DISK_NUMBER = re.compile(r"\((?:disk|disc|fd)\s*\d+[^)]*\)", re.I)
+
+
+def lookup_name(value, media_extensions):
+    """A name's index form, as the app looks a file's name up (LayeredGameCatalog.normalizedName):
+    bracketed annotations, disk numbers and the app's own [media_extensions] removed, then NFKC,
     lower-case, letters and digits only."""
     value = re.sub(r"\[[^]]*]", "", value)
-    value = re.sub(r"\((?:disk|disc|fd|side)\s*[0-9a-z]{1,3}[^)]*\)", "", value, flags=re.I)
-    value = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", value)
+    value = DISK_NUMBER.sub("", value)
+    value = media_extensions.sub("", value)
     return "".join(char.lower() for char in unicodedata.normalize("NFKC", value) if char.isalnum())
 
 
@@ -103,7 +116,7 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
         require(isinstance(record, dict), "game must be an object")
         require(set(record) <= {"game", "title", "description", "descriptions", "aliases", "tags", "artwork", "heart",
                                 "hidden", "setDisks", "media", "machine", "launch", "controller", "variants",
-                                "contentIds", "startupChoices", "diskSwaps"},
+                                "contentIds", "startupChoices", "diskSwaps", "input"},
                 "unknown game field")
         variants = record.get("variants", {})
         require(isinstance(variants, dict) and len(variants) <= 16 and
@@ -168,6 +181,10 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
                         "invalid startup commands")
             for field, valid in launch_fields.items():
                 require(field not in launch or valid(launch[field]), f"invalid launch {field}")
+        if "input" in record:
+            touch = record["input"]
+            require(isinstance(touch, dict) and touch and all(value in INPUT.get(name, ()) for name, value in touch.items()),
+                    "invalid input")
         if "startupChoices" in record:
             startup_automation.validate_choices(record["startupChoices"])
         if "diskSwaps" in record:
@@ -231,9 +248,12 @@ def meta(name, content):
 
 def generate(root, check=False):
     config = load_config(root)
-    validate_record = validator(config.KINDS, config.ARTWORK, {rule[1] for rule in config.COMPANION.values()},
+    # The media roles a game's disks fill: its companions', or MEDIA_ROLES for an app without disk sets.
+    media_roles = getattr(config, "MEDIA_ROLES", {rule[1] for rule in config.COMPANION.values()})
+    validate_record = validator(config.KINDS, config.ARTWORK, media_roles,
                                 getattr(config, "MACHINE_OPTIONS", None), getattr(config, "LAUNCH_FIELDS", None),
                                 getattr(config, "DISK_SWAPS", None))
+    media_extensions = re.compile(config.MEDIA_EXTENSIONS, re.I)
     research = json.loads((root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))
     require(research.get("schemaVersion") == 1, "unsupported research schema")
     policy = json.loads((root / "catalog/core-review-v1.json").read_text(encoding="utf-8"))
@@ -272,9 +292,11 @@ def generate(root, check=False):
         ids = sorted(set(entry.get("contentIds", [])) - own.keys())
         for start in range(0, len(ids), MAX_IDS):
             source_games.append({"contentIds": ids[start:start + MAX_IDS], "game": key})
-        for candidate in (entry["title"], *entry.get("aliases", []),
+        if entry.get("named", True) is False:
+            continue
+        for candidate in (entry["title"], *entry.get("aliases", []), *entry.get("lookupNames", []),
                           *(group.rsplit(":", 1)[-1] for group in entry.get("sourceGroups", []))):
-            normalized = lookup_name(candidate)
+            normalized = lookup_name(candidate, media_extensions)
             if 4 <= len(normalized) <= 128:
                 names.setdefault(normalized, set()).add(key)
     require(policy["excluded"].keys() <= games.keys(), "core review excludes unknown games")
