@@ -98,4 +98,29 @@
     <string name="kairo_diagnostics_group">MACHINE STATUS</string>
     <string name="kairo_diagnostics_live">Live values from the emulator, updated four times a second.</string>
     <string name="kairo_diagnostics_start_game">Start a game to see live values.</string>
+    <!-- Startup automation (StartupAutomation): a game's startup choices and disk swaps. -->
+    <string name="kairo_startup_choices">Startup choices</string>
+    <string name="kairo_startup_choices_on">Ask</string>
+    <string name="kairo_disk_swaps">Disk swaps</string>
+    <string name="kairo_disk_swaps_on">Automatic</string>
+    <!-- %1$s is the app's name. -->
+    <string name="kairo_startup_choice_foot">%1$s enters your choice when the game reaches this screen. Play manually leaves it to you.</string>
+    <string name="kairo_play_manually">Play manually</string>
+    <!-- A startup choice's step: the choice's title, the option, and which of its keys. -->
+    <string name="kairo_startup_step_choice">%1$s: %2$s (%3$d/%4$d)</string>
+    <!-- %1$s is the drive, such as Floppy A; %2$s the disk. -->
+    <string name="kairo_disk_swapping">Swapping %1$s: %2$s</string>
+    <string name="kairo_disk_swap_failed">Automatic disk swap failed</string>
+    <!-- %1$s is the drive, such as Floppy A; %2$s why the swap failed. -->
+    <string name="kairo_disk_swap_failed_drive_message">%1$s: %2$s. The game is still running.</string>
+    <!-- %1$s is why the swap failed. -->
+    <string name="kairo_disk_swap_failed_message">%1$s. The game is still running.</string>
+    <string name="kairo_continue_manually">Continue manually</string>
+    <string name="kairo_choose_disk">Choose disk</string>
+    <string name="kairo_startup_not_recognized">Startup screen not recognized</string>
+    <!-- %1$s is the step the game has not reached. -->
+    <string name="kairo_startup_waiting">Waiting for %1$s. The game is still running.</string>
+    <string name="kairo_open_keyboard">Open keyboard</string>
+    <!-- %1$s is the game; %2$s what is wrong with its data. -->
+    <string name="kairo_launch_data_unreadable">%1$s can\'t start: its catalog launch data is unreadable (%2$s)</string>
 </resources>

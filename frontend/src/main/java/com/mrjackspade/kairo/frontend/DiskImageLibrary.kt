@@ -72,8 +72,7 @@ fun sameSource(entry: LibraryItem, other: LibraryItem): Boolean =
  * archive or folder; null when the library has none. A disk keeps the catalog record it was first
  * scanned with through later edits, so its catalog ID matches too.
  */
-fun mediaFor(contentId: String, source: DiskImageEntry, entries: List<DiskImageEntry>,
-             kind: (DiskImageEntry) -> Boolean = { true }): DiskImageEntry? {
+fun <E : LibraryItem> mediaFor(contentId: String, source: E, entries: List<E>, kind: (E) -> Boolean = { true }): E? {
     val candidates = entries.filter { it.playable && kind(it) && (it.contentId == contentId || it.catalogId == contentId) }
     return candidates.firstOrNull { sameSource(source, it) } ?: candidates.firstOrNull()
 }

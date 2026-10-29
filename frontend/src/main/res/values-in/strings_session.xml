@@ -172,4 +172,46 @@
     <string name="kairo_diagnostics_live">Nilai langsung dari emulator, diperbarui empat kali per detik.</string>
     <!-- EN: Start a game to see live values. -->
     <string name="kairo_diagnostics_start_game">Mulai game untuk melihat nilai langsung.</string>
+    <!-- Startup automation (StartupAutomation): a game's startup choices and disk swaps. -->
+    <!-- EN: Startup choices -->
+    <string name="kairo_startup_choices">Pilihan startup</string>
+    <!-- EN: Ask -->
+    <string name="kairo_startup_choices_on">Tanyakan</string>
+    <!-- EN: Disk swaps -->
+    <string name="kairo_disk_swaps">Penukaran disk</string>
+    <!-- EN: Automatic -->
+    <string name="kairo_disk_swaps_on">Otomatis</string>
+    <!-- %1$s is the app's name. -->
+    <!-- EN: %1$s enters your choice when the game reaches this screen. Play manually leaves it to you. -->
+    <string name="kairo_startup_choice_foot">%1$s memasukkan pilihan Anda saat game mencapai layar ini. Main manual menyerahkannya kepada Anda.</string>
+    <!-- EN: Play manually -->
+    <string name="kairo_play_manually">Main manual</string>
+    <!-- A startup choice's step: the choice's title, the option, and which of its keys. -->
+    <!-- EN: %1$s: %2$s (%3$d/%4$d) -->
+    <string name="kairo_startup_step_choice">%1$s: %2$s (%3$d/%4$d)</string>
+    <!-- %1$s is the drive, such as Floppy A; %2$s the disk. -->
+    <!-- EN: Swapping %1$s: %2$s -->
+    <string name="kairo_disk_swapping">Menukar %1$s: %2$s</string>
+    <!-- EN: Automatic disk swap failed -->
+    <string name="kairo_disk_swap_failed">Penukaran disk otomatis gagal</string>
+    <!-- %1$s is the drive, such as Floppy A; %2$s why the swap failed. -->
+    <!-- EN: %1$s: %2$s. The game is still running. -->
+    <string name="kairo_disk_swap_failed_drive_message">%1$s: %2$s. Game masih berjalan.</string>
+    <!-- %1$s is why the swap failed. -->
+    <!-- EN: %1$s. The game is still running. -->
+    <string name="kairo_disk_swap_failed_message">%1$s. Game masih berjalan.</string>
+    <!-- EN: Continue manually -->
+    <string name="kairo_continue_manually">Lanjutkan secara manual</string>
+    <!-- EN: Choose disk -->
+    <string name="kairo_choose_disk">Pilih disk</string>
+    <!-- EN: Startup screen not recognized -->
+    <string name="kairo_startup_not_recognized">Layar startup tidak dikenali</string>
+    <!-- %1$s is the step the game has not reached. -->
+    <!-- EN: Waiting for %1$s. The game is still running. -->
+    <string name="kairo_startup_waiting">Menunggu %1$s. Game masih berjalan.</string>
+    <!-- EN: Open keyboard -->
+    <string name="kairo_open_keyboard">Buka keyboard</string>
+    <!-- %1$s is the game; %2$s what is wrong with its data. -->
+    <!-- EN: %1$s can\'t start: its catalog launch data is unreadable (%2$s) -->
+    <string name="kairo_launch_data_unreadable">%1$s tidak dapat dimulai: data peluncuran katalognya tidak dapat dibaca (%2$s)</string>
 </resources>

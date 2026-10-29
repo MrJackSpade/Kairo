@@ -88,6 +88,8 @@ public:
 
     // The step the typer gave up waiting for, or -1. It types nothing more until resume().
     int stalled() const { return stalled_; }
+    // How many steps it has been given since it started, typed or not.
+    size_t steps() const { return lines_.size(); }
 
     // Waits for the stalled step again, for as long as it allows.
     void resume() {

@@ -54,6 +54,21 @@ interface MachineBridge {
     /** The guest's keyboard and mouse reads for Auto touch mode ([InputModeDecider.GuestInput]), or null when it has none. */
     fun inputTelemetry(): LongArray? = null
 
+    /**
+     * Types [steps] while the game runs (cpp/kairo/startup_typer.h): after those still to type, or in
+     * their place with [replace], where none stops typing. A step that cannot be typed stops the
+     * machine with why.
+     */
+    fun startupSteps(steps: List<StartupStep>, replace: Boolean): Unit = error("This machine has no startup typer")
+    /** Types [text], then Return with [enter], at once, after the steps still to type. */
+    fun startupKeys(text: String, enter: Boolean): Unit = error("This machine has no startup typer")
+    /** Waits for the step the typer stalled on again. */
+    fun startupResume(): Unit = error("This machine has no startup typer")
+    /** What the typer is doing now. */
+    fun startupStatus(): StartupStatus = error("This machine has no startup typer")
+    /** The screen the guest shows, as its signature (MachineCore::screen_signature); null when no machine runs. */
+    fun screenSignature(): Long? = error("This machine has no screen signatures")
+
     companion object {
         /** A state call made while no machine runs, or one that stopped before answering. */
         const val NOT_RUNNING = -1000
@@ -67,6 +82,21 @@ interface MachineBridge {
          */
         const val LOST = 3
     }
+}
+
+/**
+ * A line the startup typer types: Return after [text] with [enter]; when the guest shows one of
+ * [screens] (signatures), or at its prompt for none; giving up after [timeoutMs] (0: waiting as long
+ * as it takes).
+ */
+class StartupStep(val text: String, val enter: Boolean, val screens: Set<Long>, val timeoutMs: Int)
+
+sealed class StartupStatus {
+    /** Nothing left to type. */
+    object Idle : StartupStatus()
+    object Typing : StartupStatus()
+    /** It gave up waiting for step [index] of those it was given; it types nothing more until resumed. */
+    class Stalled(val index: Int) : StartupStatus()
 }
 
 /** A machine's state as [MachineBridge.status] reports it. */

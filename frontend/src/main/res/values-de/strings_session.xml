@@ -172,4 +172,46 @@
     <string name="kairo_diagnostics_live">Live-Werte des Emulators, viermal pro Sekunde aktualisiert.</string>
     <!-- EN: Start a game to see live values. -->
     <string name="kairo_diagnostics_start_game">Starten Sie ein Spiel, um Live-Werte zu sehen.</string>
+    <!-- Startup automation (StartupAutomation): a game's startup choices and disk swaps. -->
+    <!-- EN: Startup choices -->
+    <string name="kairo_startup_choices">Startauswahl</string>
+    <!-- EN: Ask -->
+    <string name="kairo_startup_choices_on">Fragen</string>
+    <!-- EN: Disk swaps -->
+    <string name="kairo_disk_swaps">Diskettenwechsel</string>
+    <!-- EN: Automatic -->
+    <string name="kairo_disk_swaps_on">Automatisch</string>
+    <!-- %1$s is the app's name. -->
+    <!-- EN: %1$s enters your choice when the game reaches this screen. Play manually leaves it to you. -->
+    <string name="kairo_startup_choice_foot">%1$s gibt Ihre Auswahl ein, wenn das Spiel diesen Bildschirm erreicht. „Manuell spielen“ überlässt es Ihnen.</string>
+    <!-- EN: Play manually -->
+    <string name="kairo_play_manually">Manuell spielen</string>
+    <!-- A startup choice's step: the choice's title, the option, and which of its keys. -->
+    <!-- EN: %1$s: %2$s (%3$d/%4$d) -->
+    <string name="kairo_startup_step_choice">%1$s: %2$s (%3$d/%4$d)</string>
+    <!-- %1$s is the drive, such as Floppy A; %2$s the disk. -->
+    <!-- EN: Swapping %1$s: %2$s -->
+    <string name="kairo_disk_swapping">%1$s wird gewechselt: %2$s</string>
+    <!-- EN: Automatic disk swap failed -->
+    <string name="kairo_disk_swap_failed">Automatischer Diskettenwechsel fehlgeschlagen</string>
+    <!-- %1$s is the drive, such as Floppy A; %2$s why the swap failed. -->
+    <!-- EN: %1$s: %2$s. The game is still running. -->
+    <string name="kairo_disk_swap_failed_drive_message">%1$s: %2$s. Das Spiel läuft weiter.</string>
+    <!-- %1$s is why the swap failed. -->
+    <!-- EN: %1$s. The game is still running. -->
+    <string name="kairo_disk_swap_failed_message">%1$s. Das Spiel läuft weiter.</string>
+    <!-- EN: Continue manually -->
+    <string name="kairo_continue_manually">Manuell fortfahren</string>
+    <!-- EN: Choose disk -->
+    <string name="kairo_choose_disk">Datenträger auswählen</string>
+    <!-- EN: Startup screen not recognized -->
+    <string name="kairo_startup_not_recognized">Startbildschirm nicht erkannt</string>
+    <!-- %1$s is the step the game has not reached. -->
+    <!-- EN: Waiting for %1$s. The game is still running. -->
+    <string name="kairo_startup_waiting">Warten auf %1$s. Das Spiel läuft weiter.</string>
+    <!-- EN: Open keyboard -->
+    <string name="kairo_open_keyboard">Tastatur öffnen</string>
+    <!-- %1$s is the game; %2$s what is wrong with its data. -->
+    <!-- EN: %1$s can\'t start: its catalog launch data is unreadable (%2$s) -->
+    <string name="kairo_launch_data_unreadable">%1$s kann nicht starten: seine Katalog-Startdaten sind nicht lesbar (%2$s)</string>
 </resources>

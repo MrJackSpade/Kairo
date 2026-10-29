@@ -20,6 +20,9 @@ its ARTWORK references. catalog/research/games-v1.json holds one record per game
       "diskMachine": {"<disk>": {"<option>": "<value>"}},       the machine a disk asks for, its "commands" (the
                                                                 lines typed at the machine's prompt to start it) and
                                                                 "launch" (other launch fields, LAUNCH_FIELDS)
+      "diskAutomation": {"<disk>": {"startupChoices": [...], "diskSwaps": [...]}},
+                                                                the disk's startup menus and disk swaps
+                                                                (startup_automation.py; swaps need DISK_SWAPS)
       "diskHidden": [...],                                      disks behind a set entry other games share
       "diskVariants": {"<disk>": {"<file name>": {...}}},       one medium holding several games: the game and
                                                                 launch a library file's name picks (its
@@ -57,6 +60,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import catalog_documents
+import startup_automation
 from catalog_documents import compact, require
 from catalog_languages import LANGUAGES, valid_translations
 from catalog_package import filter_artwork, image_paths
@@ -86,9 +90,10 @@ def lookup_name(value):
 COMMAND_LINE = re.compile(r"[ -~]{1,40}")
 
 
-def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, launch_fields=None):
+def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, launch_fields=None, disk_swaps=None):
     """[launch_fields] maps each launch field an app has besides "commands" to the pattern its value
-    matches, or to a function that says whether a value is valid."""
+    matches, or to a function that says whether a value is valid. [disk_swaps] is the app's
+    DISK_SWAPS, the media slots its disk swaps use and the kinds of disk each takes."""
     launch_fields = {name: rule if callable(rule) else
                      (lambda value, pattern=re.compile(rule): isinstance(value, str) and bool(pattern.fullmatch(value)))
                      for name, rule in (launch_fields or {}).items()}
@@ -98,7 +103,7 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
         require(isinstance(record, dict), "game must be an object")
         require(set(record) <= {"game", "title", "description", "descriptions", "aliases", "tags", "artwork", "heart",
                                 "hidden", "setDisks", "media", "machine", "launch", "controller", "variants",
-                                "contentIds"},
+                                "contentIds", "startupChoices", "diskSwaps"},
                 "unknown game field")
         variants = record.get("variants", {})
         require(isinstance(variants, dict) and len(variants) <= 16 and
@@ -163,6 +168,11 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
                         "invalid startup commands")
             for field, valid in launch_fields.items():
                 require(field not in launch or valid(launch[field]), f"invalid launch {field}")
+        if "startupChoices" in record:
+            startup_automation.validate_choices(record["startupChoices"])
+        if "diskSwaps" in record:
+            require(disk_swaps is not None, "disk swaps need the app's DISK_SWAPS")
+            startup_automation.validate_swaps(record["diskSwaps"], disk_swaps, content_id)
         machine = record.get("machine", {})
         require(isinstance(machine, dict) and ("machine" not in record or machine_options) and
                 all(value in machine_options.get(option, ()) for option, value in machine.items()),
@@ -222,7 +232,8 @@ def meta(name, content):
 def generate(root, check=False):
     config = load_config(root)
     validate_record = validator(config.KINDS, config.ARTWORK, {rule[1] for rule in config.COMPANION.values()},
-                                getattr(config, "MACHINE_OPTIONS", None), getattr(config, "LAUNCH_FIELDS", None))
+                                getattr(config, "MACHINE_OPTIONS", None), getattr(config, "LAUNCH_FIELDS", None),
+                                getattr(config, "DISK_SWAPS", None))
     research = json.loads((root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))
     require(research.get("schemaVersion") == 1, "unsupported research schema")
     policy = json.loads((root / "catalog/core-review-v1.json").read_text(encoding="utf-8"))
@@ -238,6 +249,10 @@ def generate(root, check=False):
         own = {disk: dict(fields) for disk, fields in entry.get("diskSets", {}).items()}
         for disk in entry.get("diskHidden", []):
             own.setdefault(disk, {})["hidden"] = True
+        for disk, automation in entry.get("diskAutomation", {}).items():
+            require(isinstance(automation, dict) and automation and set(automation) <= {"startupChoices", "diskSwaps"},
+                    f"{key}: invalid diskAutomation for {disk}")
+            own.setdefault(disk, {}).update(automation)
         for disk, variants in entry.get("diskVariants", {}).items():
             own.setdefault(disk, {})["variants"] = variants
         for disk, settings in entry.get("diskMachine", {}).items():

@@ -62,6 +62,17 @@ sealed class CatalogSetting(val field: String, val subfield: String,
         fun value(game: CatalogGame): String = game.section(field)?.optString(subfield, "") ?: ""
     }
 
+    /** The game's startup menus the player picks options for before it starts (`startupChoices`, [StartupAutomation]). */
+    object StartupChoices : CatalogSetting(StartupAutomation.CHOICES, "")
+
+    /**
+     * Disks the frontend changes for the player when the game asks for them (`diskSwaps`,
+     * [StartupAutomation]): each into one of the machine's first [drives] media slots, a disk the
+     * slot [accepts].
+     */
+    class DiskSwaps(val drives: Int, val accepts: (drive: Int, contentId: String) -> Boolean = { _, _ -> true }) :
+        CatalogSetting(StartupAutomation.SWAPS, "")
+
     /**
      * A setting whose row the product builds itself ([MachineActivity.customSettingRow]), named by
      * [id]: it changes [subfields] of [field], or the whole field when null.
@@ -78,12 +89,24 @@ sealed class CatalogSetting(val field: String, val subfield: String,
         /** The catalog fields [settings] fill, other than media: each field with its subfields. */
         fun fields(settings: List<CatalogSetting>): Map<String, Set<String>?> =
             settings.filter { it !is Drive }.groupBy { it.field }.mapValues { (_, list) ->
-                if (list.any { it is Custom && it.subfields == null }) null
+                if (list.any { (it is Custom && it.subfields == null) || it is StartupChoices || it is DiskSwaps }) null
                 else list.flatMap { if (it is Custom) it.subfields!! else listOf(it.subfield) }.toSet()
             }
 
         /** The media roles [settings] fill. */
         fun roles(settings: List<CatalogSetting>): Set<String> = settings.filterIsInstance<Drive>().map { it.role }.toSet()
+
+        /**
+         * Whether [value] is a valid [field] of [settings] for a catalog of [contentId]s: startup
+         * automation ([StartupChoices], [DiskSwaps]), or a section ([validSection]).
+         */
+        fun valid(settings: List<CatalogSetting>, contentId: Regex, field: String, value: Any): Boolean {
+            settings.filterIsInstance<DiskSwaps>().firstOrNull { it.field == field }?.let { swaps ->
+                return StartupAutomation.validSwaps(value, swaps.drives, contentId, swaps.accepts)
+            }
+            if (settings.any { it is StartupChoices && it.field == field }) return StartupAutomation.validChoices(value)
+            return validSection(settings, field, value)
+        }
 
         /** Whether [value] is a [field] section holding only valid values of [settings]. */
         fun validSection(settings: List<CatalogSetting>, field: String, value: Any): Boolean = value is JSONObject &&

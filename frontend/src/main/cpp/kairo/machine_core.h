@@ -138,9 +138,27 @@ public:
     virtual bool typed_key(char c, int &code, bool &shift) { (void) c; (void) code; (void) shift; return false; }
     virtual int special_key(SpecialKey key) { (void) key; return -1; }
     virtual bool expand_command(std::string &line) { (void) line; return true; }
-    // The screen the guest shows, as a signature of its video memory, for startup steps and disk
-    // swaps that wait for a screen (StartupStep::screens). Only a product whose catalog names screens asks.
-    virtual uint64_t screen_signature() { throw std::logic_error("This core has no screen signatures"); }
+    // The screen the guest shows, for startup steps and disk swaps that wait for a screen
+    // (StartupStep::screens, Kairo#83): by default FNV-1a 64 over the colour bytes of every pixel of
+    // frame(), row by row. A core may sign its video memory instead, as Kairo98 does, so its
+    // signatures do not change with what draws the picture; a core with a gpu_picture() must.
+    virtual uint64_t screen_signature() {
+        if (gpu_picture()) throw std::logic_error("A core with a GPU picture signs its screen itself");
+        uint32_t width = 0, height = 0;
+        const uint8_t *pixels = frame(width, height);
+        // Nothing shown yet: a screen no catalog names.
+        if (!pixels) return 0;
+        const size_t row = static_cast<size_t>(width) * 4;
+        const size_t stride = frame_stride() ? frame_stride() : row;
+        uint64_t hash = 14695981039346656037ULL;
+        for (uint32_t y = 0; y < height; ++y) {
+            const uint8_t *line = pixels + y * stride;
+            // The alpha byte is not part of the picture (frame_bgra).
+            for (size_t i = 0; i < row; i += 4)
+                for (size_t c = 0; c < 3; ++c) hash = (hash ^ line[i + c]) * 1099511628211ULL;
+        }
+        return hash;
+    }
 };
 
 // The product's machine for a launch; null with error set when it cannot start.

@@ -59,10 +59,16 @@ public:
     // The steps to type, replacing any still to type; none stops typing.
     void start_steps(std::vector<kairo::StartupStep> steps) {
         typer_.start(std::move(steps));
+        batch_ = 0;
         publish();
     }
     void add_step(kairo::StartupStep step) {
         typer_.add(std::move(step));
+        publish();
+    }
+    void add_steps(std::vector<kairo::StartupStep> steps) {
+        batch_ = typer_.steps();
+        for (auto &step : steps) typer_.add(std::move(step));
         publish();
     }
     void resume() {
@@ -105,13 +111,16 @@ public:
     kairo::GpuPicture *gpu_picture() override { return core_->gpu_picture(); }
 
 private:
+    // The stalled step by its place in the last steps given (the launch's commands come before them).
     void publish() {
-        startup_stalled.store(typer_.stalled());
+        startup_stalled.store(typer_.stalled() >= 0 ? typer_.stalled() - static_cast<int>(batch_) : -1);
         startup_state.store(typer_.stalled() >= 0 ? StartupStalled : typer_.active() ? StartupTyping : StartupIdle);
     }
 
     std::unique_ptr<kairo::MachineCore> core_;
     kairo::StartupTyper typer_;
+    // Where the last steps given start among the typer's.
+    size_t batch_ = 0;
     std::string error_;
 };
 
@@ -352,10 +361,11 @@ extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeSetFastForward)(JNIEnv *,
 
 // Startup steps (startup_typer.h) as the product gives them while the game runs: each text, whether
 // Return follows, the screen signatures it waits for (none: the guest's prompt) and how long it may
-// wait in milliseconds (0: as long as it takes). They replace any still to type; none stops typing.
+// wait in milliseconds (0: as long as it takes). They follow those still to type, or with replace
+// take their place; none then stops typing.
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStartupSteps)(JNIEnv *env, jobject, jobjectArray texts,
                                                                      jbooleanArray enters, jobjectArray screens,
-                                                                     jintArray timeouts_ms) {
+                                                                     jintArray timeouts_ms, jboolean replace) {
     const std::vector<std::string> lines = kairo::utf8_strings(env, texts);
     const jsize count = static_cast<jsize>(lines.size());
     std::vector<jboolean> enter(count);
@@ -374,13 +384,19 @@ extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStartupSteps)(JNIEnv *env
         steps[i].screens.assign(values.begin(), values.end());
     }
     // Published before the emulation thread takes them, so the UI never reads the typer as idle in between.
-    startup_state.store(steps.empty() ? StartupIdle : StartupTyping);
-    startup_stalled.store(-1);
-    machine.post([steps = std::move(steps), timeout](kairo::MachineCore &core) mutable {
+    if (replace == JNI_TRUE) {
+        startup_state.store(steps.empty() ? StartupIdle : StartupTyping);
+        startup_stalled.store(-1);
+    } else if (!steps.empty()) {
+        startup_state.store(StartupTyping);
+    }
+    machine.post([steps = std::move(steps), timeout, replace](kairo::MachineCore &core) mutable {
         // A step's wait in the guest's own frames.
         for (size_t i = 0; i < steps.size(); ++i)
             steps[i].timeout_frames = static_cast<int>(timeout[i] / 1000.0 / core.frame_seconds());
-        static_cast<TypingCore &>(core).start_steps(std::move(steps));
+        auto &typing = static_cast<TypingCore &>(core);
+        if (replace == JNI_TRUE) typing.start_steps(std::move(steps));
+        else typing.add_steps(std::move(steps));
     });
 }
 

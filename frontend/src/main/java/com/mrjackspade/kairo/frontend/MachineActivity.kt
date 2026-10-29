@@ -360,7 +360,62 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     private fun describeStateError(code: Int) =
         if (code == MachineBridge.NOT_RUNNING) getString(R.string.kairo_state_error_not_running) else stateError(code)
 
-    override fun launch(entry: E, fromFrontend: Boolean) = startSession(entry, catalog.resolve(entry), fromFrontend)
+    /**
+     * Asks the game's startup choices, if any (one page each; Play manually starts without the rest),
+     * then starts it. Malformed startup automation in its catalog data fails the launch.
+     */
+    override fun launch(entry: E, fromFrontend: Boolean) {
+        val game = catalog.resolve(entry)
+        val choices = try {
+            game.diskSwaps
+            game.startupChoices
+        } catch (failure: RuntimeException) {
+            toast(getString(R.string.kairo_launch_data_unreadable, game.title, failure.message))
+            return
+        }
+        debugStartupOption?.let { requested ->
+            val picked = choices.mapNotNull { choice -> choice.options.firstOrNull { it.id == requested }?.let { choice to it } }
+            if (picked.size == choices.size) startWithChoices(entry, game, picked, fromFrontend)
+            else startupOptionMissing(game, requested)
+            return
+        }
+        if (choices.isNotEmpty() && !skipStartupChoices) chooseStartupOptions(entry, game, choices, 0, emptyList(), fromFrontend)
+        else startWithChoices(entry, game, emptyList(), fromFrontend)
+    }
+
+    private fun startWithChoices(entry: E, game: CatalogGame, choices: List<Pair<StartupChoice, StartupOption>>,
+                                 fromFrontend: Boolean) {
+        selectedChoices = choices
+        startSession(entry, game, fromFrontend)
+    }
+
+    /** One page per startup choice; Play manually starts without the rest, and Back cancels. */
+    private fun chooseStartupOptions(entry: E, game: CatalogGame, choices: List<StartupChoice>, index: Int,
+                                     selected: List<Pair<StartupChoice, StartupOption>>, fromFrontend: Boolean,
+                                     replace: Boolean = false) {
+        if (index == choices.size) {
+            startWithChoices(entry, game, selected, fromFrontend)
+            return
+        }
+        val choice = choices[index]
+        lateinit var page: ChoicePage
+        page = ChoicePage(ChoiceSpec(choice.title, { game.title }, {
+            listOf(ChoiceGroup(null, choice.options.map { ChoiceOption(it.id, it.label) },
+                getString(R.string.kairo_startup_choice_foot, identity.appName)))
+        }, { null }, { id ->
+            val option = choice.options.first { it.id == id }
+            pages.postDelayed({
+                // Back during the pause cancels, as it does on the page.
+                if (pages.top === page) chooseStartupOptions(entry, game, choices, index + 1,
+                    selected + (choice to option), fromFrontend, replace = true)
+            }, 150)
+        }, actions = {
+            listOf(SettingsRow.action("manual", getString(R.string.kairo_play_manually)) {
+                startWithChoices(entry, game, selected, fromFrontend)
+            })
+        }, stay = true, cycles = false))
+        if (replace) pages.replace(page) else pages.push(page)
+    }
 
     /**
      * Whether the machine has a command line a game can open at (Kairo#89), such as BASIC's prompt:
@@ -401,6 +456,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 bridge.stop()
                 if (current(generation)) {
                     inputRouter.resetLocks()
+                    // A game opened at its prompt is the player's: no automation.
+                    swaps = if (atPrompt) emptyMap() else swapSources(entry, game)
                     val progress = { message: String -> runOnUiThread { if (current(generation)) showProgress(message) } }
                     if (atPrompt) startAtPrompt(entry, game, cancelled, progress) else startGame(entry, game, cancelled, progress)
                 }
@@ -418,6 +475,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     enterSession(entry, fromFrontend, if (blank) getString(R.string.kairo_launch_starting, entry.displayName) else null)
                     if (blank) awaitPicture(generation)
                     watchEnd(generation, game.title)
+                    if (atPrompt) selectedChoices = emptyList()
+                    startAutomation(game, if (atPrompt) emptyList() else game.diskSwaps, swaps)
                     gameStarted(entry, game)
                 } else launchFailed(failure)
             }
@@ -460,6 +519,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun sessionEnded() {
         currentGame = null
         mounted.fill(null)
+        selectedChoices = emptyList()
     }
 
     /**
@@ -536,10 +596,34 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     is CatalogSetting.Lines -> linesRow(entry, setting, enabled, noHash)
                     is CatalogSetting.Text -> textRow(entry, setting, enabled, noHash)
                     is CatalogSetting.Custom -> customSettingRow(entry, setting, enabled)
+                    CatalogSetting.StartupChoices -> automationRow(entry, setting.field, R.string.kairo_startup_choices,
+                        R.string.kairo_startup_choices_on, enabled, noHash)
+                    is CatalogSetting.DiskSwaps -> automationRow(entry, setting.field, R.string.kairo_disk_swaps,
+                        R.string.kairo_disk_swaps_on, enabled, noHash)
                 }
             }
         if (rows.isEmpty()) return null
         return RowGroup(getString(R.string.kairo_machine_group), rows, getString(R.string.kairo_machine_group_foot))
+    }
+
+    /**
+     * On or Off for the catalog's startup automation in [field], for a game the catalog gives some;
+     * Off keeps an empty list as the game's own.
+     */
+    private fun automationRow(entry: E, field: String, label: Int, on: Int, enabled: () -> Boolean,
+                              noHash: () -> String): SettingsRow? {
+        val id = entry.key.takeIf { entry.contentId != null }
+        fun custom() = id != null && catalog.sourceOf(entry, field) == "User override"
+        if ((catalog.resolveDefault(entry).record.optJSONArray(field)?.length() ?: 0) == 0 && !custom()) return null
+        val value = GameValue({ if (custom()) AUTOMATION_OFF else null }, { AUTOMATION_ON },
+            { GameSource.label(catalog.defaultSourceOf(entry, field)) },
+            { picked -> saveGameSetting(entry) {
+                if (picked == AUTOMATION_OFF) catalog.setOverride(id!!, field, org.json.JSONArray())
+                else catalog.resetOverride(id!!, field)
+            } })
+        return GameSettingsRows.choice(this, field, getString(label), { titleOf(entry) },
+            listOf(ChoiceOption(AUTOMATION_ON, UiText.res(on)), ChoiceOption(AUTOMATION_OFF, UiText.res(R.string.kairo_off))),
+            value, enabled, noHash)
     }
 
     /**
@@ -779,6 +863,188 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         }.apply { name = "${identity.appName}-firmware"; start() }
     }
 
+    // Startup automation: choices typed on recognized screens, and disk swaps (StartupAutomation) -----
+
+    /**
+     * A debug build started with the extra `<preferences>.traceScreenHashes` (kairo98.traceScreenHashes)
+     * writes each new screen signature the game shows, with the time and the machine's status, to
+     * files/startup-hash-trace.txt every 100 ms: how a catalog's startup choices and disk swaps
+     * record their screens.
+     */
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (isFinishing) return
+        if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0 &&
+            intent.getBooleanExtra("${identity.preferences}.traceScreenHashes", false)) traceScreenHashes()
+    }
+
+    private fun traceScreenHashes() = Thread {
+        val trace = File(filesDir, "startup-hash-trace.txt").apply { writeText("") }
+        var last: Long? = null
+        while (!isDestroyed) {
+            val signature = if (libraryVisible) null else bridge.screenSignature()
+            if (signature != null && signature != last) {
+                last = signature
+                trace.appendText("${android.os.SystemClock.elapsedRealtime()} " +
+                    "${java.lang.Long.toUnsignedString(signature, 16).padStart(16, '0')} ${bridge.status()}\n")
+            }
+            Thread.sleep(100)
+        }
+    }.apply { name = "${identity.appName}-screen-trace"; isDaemon = true; start() }
+
+    /** A debug launch's startup option, picked for every choice instead of asking. */
+    protected open val debugStartupOption: String? get() = null
+    /** Whether a debug launch starts without asking the startup choices. */
+    protected open val skipStartupChoices: Boolean get() = false
+    /** A debug launch asked for [requested], which some startup choice lacks; the game does not start. */
+    protected open fun startupOptionMissing(game: CatalogGame, requested: String) {
+        toast(getString(R.string.kairo_launch_data_unreadable, game.title, requested))
+    }
+
+    /** A step the frontend has the machine type, and what a notice calls it when the typer stalls on it. */
+    class LabeledStep(val label: String, val step: StartupStep)
+
+    /** Steps typed as the game starts, before its startup choices, such as Kairo98's launch commands. */
+    protected open fun launchSteps(game: CatalogGame): List<LabeledStep> = emptyList()
+
+    /** The typer typed every step the frontend gave it for the session started at [generation]. */
+    protected open fun startupTyped(generation: Int) {}
+
+    private var selectedChoices = emptyList<Pair<StartupChoice, StartupOption>>()
+    /** The disks the session's swaps put in, by content ID, found as it launched. */
+    @Volatile private var swaps: Map<String, E> = emptyMap()
+    @Volatile private var automationCancelled = AtomicBoolean(false)
+    /** Whether the typer still has steps the frontend gave it, which cancelling takes back. */
+    @Volatile private var typingSteps = false
+
+    /** The disk each of [game]'s swaps needs: the library must have it. */
+    private fun swapSources(entry: E, game: CatalogGame): Map<String, E> = game.diskSwaps.associate { rule ->
+        val slot = mediaSlots.getOrNull(rule.drive) ?: error("${identity.appName} has no drive ${rule.drive} for a disk swap")
+        rule.contentId to (mediaFor(rule.contentId, entry, launchEntries) { slot.accepts(it) }
+            ?: throw MissingDisk(missingDisk(slot.label)))
+    }
+
+    /** The player took over: the typer stops, and so does the session's watching. */
+    override fun cancelAutomation() {
+        automationCancelled.set(true)
+        if (typingSteps) {
+            typingSteps = false
+            bridge.startupSteps(emptyList(), replace = true)
+        }
+    }
+
+    private fun startAutomation(game: CatalogGame, rules: List<DiskSwap>, sources: Map<String, E>) {
+        automationCancelled.set(true)
+        val cancelled = AtomicBoolean(false)
+        automationCancelled = cancelled
+        val generation = sessionGeneration
+        val steps = launchSteps(game) + selectedChoices.flatMap { (choice, option) ->
+            option.inputs.mapIndexed { index, input ->
+                LabeledStep(getString(R.string.kairo_startup_step_choice, choice.title, option.label, index + 1, option.inputs.size),
+                    StartupStep(input.key.toString(), input.enter, input.screenHashes, CHOICE_TIMEOUT_MS))
+            }
+        }
+        if (steps.isEmpty()) startupTyped(generation)
+        else {
+            typingSteps = true
+            bridge.startupSteps(steps.map { it.step }, replace = false)
+            watchStartup(steps, cancelled, generation)
+        }
+        scheduleDiskSwaps(rules, sources, generation)
+    }
+
+    /** Follows the typer until it is done or stalls on a step, when a notice offers Retry. */
+    private fun watchStartup(steps: List<LabeledStep>, cancelled: AtomicBoolean, generation: Int) {
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                if (cancelled.get() || !current(generation)) return
+                when (val status = bridge.startupStatus()) {
+                    StartupStatus.Typing -> handler.postDelayed(this, STARTUP_POLL_MILLIS)
+                    StartupStatus.Idle -> {
+                        typingSteps = false
+                        startupTyped(generation)
+                    }
+                    is StartupStatus.Stalled -> showStartupStalled(steps, steps[status.index], cancelled, generation)
+                }
+            }
+        }, STARTUP_POLL_MILLIS)
+    }
+
+    private fun showStartupStalled(steps: List<LabeledStep>, step: LabeledStep, cancelled: AtomicBoolean, generation: Int) {
+        overlay.showNotice(GameNotice(getString(R.string.kairo_startup_not_recognized),
+            getString(R.string.kairo_startup_waiting, step.label),
+            listOf(TrayButton(getString(R.string.kairo_action_restart)) { openMenu("f-restart", confirm = true) },
+                TrayButton(getString(R.string.kairo_open_keyboard)) { showKeyboard() },
+                TrayButton(getString(R.string.kairo_retry), ButtonTone.PRIMARY) {
+                    bridge.startupResume()
+                    watchStartup(steps, cancelled, generation)
+                })))
+    }
+
+    private fun scheduleDiskSwaps(rules: List<DiskSwap>, sources: Map<String, E>, generation: Int) {
+        if (rules.isEmpty()) return
+        val cancelled = automationCancelled
+        Thread {
+            var failedRule: DiskSwap? = null
+            try {
+                DiskSwapMatcher(bridge::screenSignature, { MachineStatus(bridge.status()).state == "Running" },
+                    { cancelled.get() || !current(generation) },
+                    { rule ->
+                        failedRule = rule
+                        performDiskSwap(rule, sources.getValue(rule.contentId), generation)
+                    }).run(rules)
+            } catch (error: Exception) {
+                runOnUiThread { if (current(generation)) showDiskSwapFailure(failedRule, error, rules, sources, generation) }
+            }
+        }.apply { name = "${identity.appName}-disk-swaps"; start() }
+    }
+
+    /** The information notice for a swap in progress, replaced as its progress text changes. */
+    private var swapping: GameNotice? = null
+
+    private fun performDiskSwap(rule: DiskSwap, entry: E, generation: Int) {
+        while (!beginMediaChange()) {
+            if (!current(generation)) return
+            Thread.sleep(100)
+        }
+        val notice = GameNotice(getString(R.string.kairo_disk_swapping, text(mediaSlots[rule.drive].label), entry.displayName), "")
+        var changed = false
+        try {
+            runOnUiThread { if (current(generation)) overlay.showNotice(notice) }
+            val disk = library.prepare(entry, AtomicBoolean(false)) { message ->
+                runOnUiThread {
+                    if (current(generation) && overlay.showing(notice))
+                        overlay.showNotice(GameNotice(notice.title, message).also { swapping = it })
+                }
+            }
+            if (!current(generation)) return
+            check(bridge.media(rule.drive, disk.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
+            changed = true
+            if (rule.key.isNotEmpty() || rule.enter) {
+                Thread.sleep(150)
+                if (current(generation)) bridge.startupKeys(rule.key, rule.enter)
+            }
+        } finally {
+            endMediaChange(rule.drive, entry, changed)
+            runOnUiThread {
+                if (overlay.showing(notice) || swapping?.let(overlay::showing) == true) overlay.hideNotice()
+                swapping = null
+            }
+        }
+    }
+
+    /** The game keeps running, so the notice docks at the top instead of blocking it. */
+    private fun showDiskSwapFailure(rule: DiskSwap?, error: Exception, rules: List<DiskSwap>, sources: Map<String, E>,
+                                    generation: Int) {
+        val why = error.message ?: getString(R.string.kairo_unknown_error)
+        overlay.showNotice(GameNotice(getString(R.string.kairo_disk_swap_failed),
+            rule?.let { getString(R.string.kairo_disk_swap_failed_drive_message, text(mediaSlots[it.drive].label), why) }
+                ?: getString(R.string.kairo_disk_swap_failed_message, why),
+            listOf(TrayButton(getString(R.string.kairo_continue_manually)),
+                TrayButton(getString(R.string.kairo_choose_disk)) { chooseMedia(rule?.drive ?: 0) },
+                TrayButton(getString(R.string.kairo_retry), ButtonTone.PRIMARY) { scheduleDiskSwaps(rules, sources, generation) })))
+    }
+
     // Media ------------------------------------------------------------------------------------------
 
     /** What each media slot holds, by library entry; null for an empty slot or media the library lacks. */
@@ -916,6 +1182,12 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val EMPTY_DRIVE = GameDisks.EMPTY
         /** How often a loading session checks whether the machine shows a picture yet. */
         private const val PICTURE_POLL_MILLIS = 100L
+        /** How often the frontend checks on the startup typer. */
+        private const val STARTUP_POLL_MILLIS = 100L
+        /** How long a startup choice waits for its screen before the typer stalls on it. */
+        private const val CHOICE_TIMEOUT_MS = 120000
+        private const val AUTOMATION_ON = "on"
+        private const val AUTOMATION_OFF = "off"
     }
 }
 
