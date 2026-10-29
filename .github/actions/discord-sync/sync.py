@@ -14,7 +14,8 @@ posting, editing and deleting whatever differs, so events that arrive together, 
 or superseded still end in the right post. A closed issue's post is archived and the post is
 renamed after the title, which a webhook cannot do, so the Kairo Discord bot does it
 (DISCORD_BOT_TOKEN, with Manage Threads in both forums); it also deletes posts being moved.
-The calling workflow runs one sync per issue at a time. The Discord IDs, with a digest of the GitHub text each message was made from
+The calling workflow runs one sync per issue at a time; a manual run for every issue starts a run
+for each one rather than reconciling them itself. The Discord IDs, with a digest of the GitHub text each message was made from
 and the issue state last posted, are recorded in the calling repository, in the folder
 DISCORD_SYNC_STATE names:
 
@@ -150,13 +151,17 @@ def multipart(boundary, payload, files):
     return body + b"--" + boundary.encode() + b"--\r\n"
 
 
-def github(path):
+def github(path, method="GET", payload=None):
     headers = {
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
         "User-Agent": f"{REPO} discord-sync",
     }
-    return request("GET", f"https://api.github.com/repos/{REPO}{path}", f"GitHub {path}", headers)
+    data = None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(payload).encode()
+    return request(method, f"https://api.github.com/repos/{REPO}{path}", f"GitHub {path}", headers, data)
 
 
 def download(url):
@@ -357,10 +362,14 @@ def main():
         if number:
             reconcile(int(number))
             return
-        # Every issue, oldest first; one without a post gets one.
+        # Every issue, oldest first, each in a run of its own: reconciling them here would race the
+        # runs the issues' own events start, which wait only for runs of the same issue.
+        workflow = os.environ["GITHUB_WORKFLOW_REF"].split("@")[0].rsplit("/", 1)[1]
         for issue in paged("/issues?state=all&sort=created&direction=asc"):
             if "pull_request" not in issue:
-                reconcile(issue["number"])
+                github(f"/actions/workflows/{workflow}/dispatches", "POST",
+                       {"ref": "main", "inputs": {"issue": str(issue["number"])}})
+                print(f"Issue #{issue['number']} sync started")
         return
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     reconcile(event["issue"]["number"])
