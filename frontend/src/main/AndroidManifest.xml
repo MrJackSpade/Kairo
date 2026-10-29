@@ -1,7 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- The companion screen returns controller focus to the game display. -->
     <uses-permission android:name="android.permission.REORDER_TASKS" />
-    <application>
+    <!-- Right-to-left languages (Arabic) mirror the app's own pages (Kairo#129). -->
+    <application android:supportsRtl="true">
         <!-- A recreated companion finds no pending session and closes, taking a swapped game
              display with it. It handles every declarable change in place, as MainActivity does. -->
         <activity android:name=".SecondaryDisplayActivity"

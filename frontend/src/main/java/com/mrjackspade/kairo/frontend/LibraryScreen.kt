@@ -20,16 +20,12 @@ import android.widget.ListView
 import android.widget.TextView
 import java.util.concurrent.Executors
 
-/**
- * The part of a file name that tells revisions of one game apart: its bracketed and
- * parenthesized tags, such as a translation or bug-fix credit.
- */
-fun variantLabel(name: String): String? =
-    variantTags(name).takeIf { it.isNotEmpty() }?.joinToString("  ·  ")
-
 private val VARIANT_TAG = Regex("""[\[(]([^\])]+)[\])]""")
 
-/** The tags [variantLabel] joins, one per bracketed or parenthesized part of the name. */
+/**
+ * The parts of a file name that tell revisions of one game apart: one per bracketed or
+ * parenthesized part, such as a translation or bug-fix credit.
+ */
 fun variantTags(name: String): List<String> =
     VARIANT_TAG.findAll(name.substringAfterLast('/'))
         .map { it.groupValues[1].trim() }.filter { it.isNotEmpty() }.distinct().toList()
@@ -240,7 +236,7 @@ class LibraryScreen<T : LibraryItem>(
             view.addView(cover, LinearLayout.LayoutParams(dp(48), dp(64)))
             val text = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(dp(14), 0, 0, 0)
+                setPaddingRelative(dp(14), 0, 0, 0)
             }
             val title = Ui.text(context, "", Ui.BODY).apply {
                 maxLines = 1

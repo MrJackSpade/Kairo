@@ -1,0 +1,765 @@
+{
+  "schemaVersion": 1,
+  "parts": {
+    "4X": {
+      "es": "4X",
+      "pt-BR": "4X",
+      "de": "4X",
+      "ru": "4X",
+      "ja": "4X",
+      "ko": "4X",
+      "ar": "4X",
+      "id": "4X"
+    },
+    "Action": {
+      "es": "Acción",
+      "pt-BR": "Ação",
+      "de": "Action",
+      "ru": "Экшен",
+      "ja": "アクション",
+      "ko": "액션",
+      "ar": "أكشن",
+      "id": "Aksi"
+    },
+    "Adventure": {
+      "es": "Aventura",
+      "pt-BR": "Aventura",
+      "de": "Adventure",
+      "ru": "Приключения",
+      "ja": "アドベンチャー",
+      "ko": "어드벤처",
+      "ar": "مغامرة",
+      "id": "Petualangan"
+    },
+    "Application": {
+      "es": "Aplicación",
+      "pt-BR": "Aplicativo",
+      "de": "Anwendung",
+      "ru": "Приложение",
+      "ja": "アプリケーション",
+      "ko": "응용 프로그램",
+      "ar": "تطبيق",
+      "id": "Aplikasi"
+    },
+    "Arcade": {
+      "es": "Arcade",
+      "pt-BR": "Arcade",
+      "de": "Arcade",
+      "ru": "Аркада",
+      "ja": "アーケード",
+      "ko": "아케이드",
+      "ar": "أركيد",
+      "id": "Arkade"
+    },
+    "Backgammon": {
+      "es": "Backgammon",
+      "pt-BR": "Gamão",
+      "de": "Backgammon",
+      "ru": "Нарды",
+      "ja": "バックギャモン",
+      "ko": "백개먼",
+      "ar": "طاولة الزهر",
+      "id": "Backgammon"
+    },
+    "Baseball": {
+      "es": "Béisbol",
+      "pt-BR": "Beisebol",
+      "de": "Baseball",
+      "ru": "Бейсбол",
+      "ja": "野球",
+      "ko": "야구",
+      "ar": "بيسبول",
+      "id": "Bisbol"
+    },
+    "Basketball": {
+      "es": "Baloncesto",
+      "pt-BR": "Basquete",
+      "de": "Basketball",
+      "ru": "Баскетбол",
+      "ja": "バスケットボール",
+      "ko": "농구",
+      "ar": "كرة السلة",
+      "id": "Bola basket"
+    },
+    "Battleship": {
+      "es": "Hundir la flota",
+      "pt-BR": "Batalha naval",
+      "de": "Schiffe versenken",
+      "ru": "Морской бой",
+      "ja": "海戦ゲーム",
+      "ko": "배틀십",
+      "ar": "معركة السفن",
+      "id": "Battleship"
+    },
+    "Beat 'em Up": {
+      "es": "Beat 'em up",
+      "pt-BR": "Beat 'em up",
+      "de": "Beat 'em up",
+      "ru": "Beat 'em up",
+      "ja": "ベルトスクロールアクション",
+      "ko": "벨트스크롤 액션",
+      "ar": "اضرب الجميع",
+      "id": "Beat 'em up"
+    },
+    "Board Game": {
+      "es": "Juego de mesa",
+      "pt-BR": "Jogo de tabuleiro",
+      "de": "Brettspiel",
+      "ru": "Настольная игра",
+      "ja": "ボードゲーム",
+      "ko": "보드 게임",
+      "ar": "لعبة لوحية",
+      "id": "Permainan papan"
+    },
+    "Bowling": {
+      "es": "Bolos",
+      "pt-BR": "Boliche",
+      "de": "Bowling",
+      "ru": "Боулинг",
+      "ja": "ボウリング",
+      "ko": "볼링",
+      "ar": "بولينغ",
+      "id": "Boling"
+    },
+    "Boxing": {
+      "es": "Boxeo",
+      "pt-BR": "Boxe",
+      "de": "Boxen",
+      "ru": "Бокс",
+      "ja": "ボクシング",
+      "ko": "복싱",
+      "ar": "ملاكمة",
+      "id": "Tinju"
+    },
+    "Casino": {
+      "es": "Casino",
+      "pt-BR": "Cassino",
+      "de": "Casino",
+      "ru": "Казино",
+      "ja": "カジノ",
+      "ko": "카지노",
+      "ar": "كازينو",
+      "id": "Kasino"
+    },
+    "Checkers & Draughts": {
+      "es": "Damas",
+      "pt-BR": "Damas",
+      "de": "Dame",
+      "ru": "Шашки",
+      "ja": "チェッカー",
+      "ko": "체커",
+      "ar": "الداما",
+      "id": "Dam"
+    },
+    "Chess": {
+      "es": "Ajedrez",
+      "pt-BR": "Xadrez",
+      "de": "Schach",
+      "ru": "Шахматы",
+      "ja": "チェス",
+      "ko": "체스",
+      "ar": "شطرنج",
+      "id": "Catur"
+    },
+    "City Building": {
+      "es": "Construcción de ciudades",
+      "pt-BR": "Construção de cidades",
+      "de": "Städtebau",
+      "ru": "Градостроительство",
+      "ja": "街づくり",
+      "ko": "도시 건설",
+      "ar": "بناء المدن",
+      "id": "Membangun kota"
+    },
+    "Construction and Management Simulation": {
+      "es": "Simulación de construcción y gestión",
+      "pt-BR": "Simulação de construção e gestão",
+      "de": "Aufbau- und Wirtschaftssimulation",
+      "ru": "Симулятор строительства и управления",
+      "ja": "建設・経営シミュレーション",
+      "ko": "건설 및 경영 시뮬레이션",
+      "ar": "محاكاة البناء والإدارة",
+      "id": "Simulasi konstruksi dan manajemen"
+    },
+    "Cooperative": {
+      "es": "Cooperativo",
+      "pt-BR": "Cooperativo",
+      "de": "Kooperativ",
+      "ru": "Кооператив",
+      "ja": "協力プレイ",
+      "ko": "협동",
+      "ar": "تعاوني",
+      "id": "Kooperatif"
+    },
+    "Creativity": {
+      "es": "Creatividad",
+      "pt-BR": "Criatividade",
+      "de": "Kreativität",
+      "ru": "Творчество",
+      "ja": "クリエイティブ",
+      "ko": "창작",
+      "ar": "إبداع",
+      "id": "Kreativitas"
+    },
+    "Cricket": {
+      "es": "Críquet",
+      "pt-BR": "Críquete",
+      "de": "Cricket",
+      "ru": "Крикет",
+      "ja": "クリケット",
+      "ko": "크리켓",
+      "ar": "كريكيت",
+      "id": "Kriket"
+    },
+    "Darts": {
+      "es": "Dardos",
+      "pt-BR": "Dardos",
+      "de": "Darts",
+      "ru": "Дартс",
+      "ja": "ダーツ",
+      "ko": "다트",
+      "ar": "رمي السهام",
+      "id": "Dart"
+    },
+    "Dodgeball": {
+      "es": "Balón prisionero",
+      "pt-BR": "Queimada",
+      "de": "Völkerball",
+      "ru": "Вышибалы",
+      "ja": "ドッジボール",
+      "ko": "피구",
+      "ar": "كرة المراوغة",
+      "id": "Dodgeball"
+    },
+    "Education": {
+      "es": "Educación",
+      "pt-BR": "Educação",
+      "de": "Lernspiel",
+      "ru": "Обучение",
+      "ja": "教育",
+      "ko": "교육",
+      "ar": "تعليم",
+      "id": "Edukasi"
+    },
+    "Falling block puzzle": {
+      "es": "Bloques que caen",
+      "pt-BR": "Blocos que caem",
+      "de": "Fallende Blöcke",
+      "ru": "Падающие блоки",
+      "ja": "落ち物パズル",
+      "ko": "낙하형 퍼즐",
+      "ar": "كتل متساقطة",
+      "id": "Balok jatuh"
+    },
+    "Fighting": {
+      "es": "Lucha",
+      "pt-BR": "Luta",
+      "de": "Kampfspiel",
+      "ru": "Файтинг",
+      "ja": "格闘",
+      "ko": "격투",
+      "ar": "قتال",
+      "id": "Pertarungan"
+    },
+    "First Person Shooter": {
+      "es": "Disparos en primera persona",
+      "pt-BR": "Tiro em primeira pessoa",
+      "de": "Ego-Shooter",
+      "ru": "Шутер от первого лица",
+      "ja": "ファーストパーソン・シューティング",
+      "ko": "1인칭 슈팅",
+      "ar": "تصويب من منظور الشخص الأول",
+      "id": "Tembak-menembak orang pertama"
+    },
+    "Fishing": {
+      "es": "Pesca",
+      "pt-BR": "Pesca",
+      "de": "Angeln",
+      "ru": "Рыбалка",
+      "ja": "釣り",
+      "ko": "낚시",
+      "ar": "صيد السمك",
+      "id": "Memancing"
+    },
+    "Fixed-screen shoot'em up": {
+      "es": "Matamarcianos de pantalla fija",
+      "pt-BR": "Shoot 'em up de tela fixa",
+      "de": "Fixed-Screen-Shoot-'em-up",
+      "ru": "Стрелялка с неподвижным экраном",
+      "ja": "固定画面シューティング",
+      "ko": "고정 화면 슈팅",
+      "ar": "تصويب بشاشة ثابتة",
+      "id": "Shoot 'em up layar tetap"
+    },
+    "Flight Simulator": {
+      "es": "Simulador de vuelo",
+      "pt-BR": "Simulador de voo",
+      "de": "Flugsimulator",
+      "ru": "Авиасимулятор",
+      "ja": "フライトシミュレーター",
+      "ko": "비행 시뮬레이터",
+      "ar": "محاكي طيران",
+      "id": "Simulator penerbangan"
+    },
+    "Football": {
+      "es": "Fútbol americano",
+      "pt-BR": "Futebol americano",
+      "de": "American Football",
+      "ru": "Американский футбол",
+      "ja": "アメリカンフットボール",
+      "ko": "미식축구",
+      "ar": "كرة القدم الأمريكية",
+      "id": "Sepak bola Amerika"
+    },
+    "Game Show": {
+      "es": "Concurso de televisión",
+      "pt-BR": "Game show",
+      "de": "Spielshow",
+      "ru": "Телевикторина",
+      "ja": "ゲームショー",
+      "ko": "게임 쇼",
+      "ar": "برنامج مسابقات",
+      "id": "Acara kuis"
+    },
+    "God game": {
+      "es": "Simulador de dios",
+      "pt-BR": "Simulador de deus",
+      "de": "Göttersimulation",
+      "ru": "Симулятор бога",
+      "ja": "神様ゲーム",
+      "ko": "갓 게임",
+      "ar": "محاكاة الإله",
+      "id": "Permainan dewa"
+    },
+    "Golf": {
+      "es": "Golf",
+      "pt-BR": "Golfe",
+      "de": "Golf",
+      "ru": "Гольф",
+      "ja": "ゴルフ",
+      "ko": "골프",
+      "ar": "غولف",
+      "id": "Golf"
+    },
+    "Hockey": {
+      "es": "Hockey",
+      "pt-BR": "Hóquei",
+      "de": "Eishockey",
+      "ru": "Хоккей",
+      "ja": "ホッケー",
+      "ko": "하키",
+      "ar": "هوكي",
+      "id": "Hoki"
+    },
+    "Interactive Fiction": {
+      "es": "Ficción interactiva",
+      "pt-BR": "Ficção interativa",
+      "de": "Interactive Fiction",
+      "ru": "Интерактивная литература",
+      "ja": "インタラクティブフィクション",
+      "ko": "인터랙티브 픽션",
+      "ar": "قصص تفاعلية",
+      "id": "Fiksi interaktif"
+    },
+    "Interactive Movie": {
+      "es": "Película interactiva",
+      "pt-BR": "Filme interativo",
+      "de": "Interaktiver Film",
+      "ru": "Интерактивное кино",
+      "ja": "インタラクティブムービー",
+      "ko": "인터랙티브 무비",
+      "ar": "فيلم تفاعلي",
+      "id": "Film interaktif"
+    },
+    "Jigsaw": {
+      "es": "Rompecabezas",
+      "pt-BR": "Quebra-cabeça de montar",
+      "de": "Legespiel",
+      "ru": "Пазл",
+      "ja": "ジグソーパズル",
+      "ko": "직소 퍼즐",
+      "ar": "أحجية الصور المقطوعة",
+      "id": "Jigsaw"
+    },
+    "Kart racing": {
+      "es": "Carreras de karts",
+      "pt-BR": "Corrida de kart",
+      "de": "Kartrennen",
+      "ru": "Картинг",
+      "ja": "カートレース",
+      "ko": "카트 레이싱",
+      "ar": "سباق الكارت",
+      "id": "Balap kart"
+    },
+    "Maze": {
+      "es": "Laberinto",
+      "pt-BR": "Labirinto",
+      "de": "Labyrinth",
+      "ru": "Лабиринт",
+      "ja": "迷路",
+      "ko": "미로",
+      "ar": "متاهة",
+      "id": "Labirin"
+    },
+    "Miniature Golf": {
+      "es": "Minigolf",
+      "pt-BR": "Minigolfe",
+      "de": "Minigolf",
+      "ru": "Мини-гольф",
+      "ja": "ミニゴルフ",
+      "ko": "미니 골프",
+      "ar": "غولف مصغر",
+      "id": "Golf mini"
+    },
+    "Monopoly": {
+      "es": "Monopoly",
+      "pt-BR": "Monopoly",
+      "de": "Monopoly",
+      "ru": "Монополия",
+      "ja": "モノポリー",
+      "ko": "모노폴리",
+      "ar": "مونوبولي",
+      "id": "Monopoli"
+    },
+    "Multiplayer": {
+      "es": "Multijugador",
+      "pt-BR": "Multijogador",
+      "de": "Mehrspieler",
+      "ru": "Мультиплеер",
+      "ja": "マルチプレイ",
+      "ko": "멀티플레이",
+      "ar": "متعدد اللاعبين",
+      "id": "Multipemain"
+    },
+    "Olympiad": {
+      "es": "Olimpiadas",
+      "pt-BR": "Olimpíadas",
+      "de": "Olympische Spiele",
+      "ru": "Олимпиада",
+      "ja": "オリンピック競技",
+      "ko": "올림픽 종목",
+      "ar": "ألعاب أولمبية",
+      "id": "Olimpiade"
+    },
+    "Paddle & Pong": {
+      "es": "Paletas y Pong",
+      "pt-BR": "Raquete e Pong",
+      "de": "Paddle und Pong",
+      "ru": "Пинг-понг и арканоиды",
+      "ja": "パドル・ブロック崩し",
+      "ko": "패들·퐁",
+      "ar": "المضرب وبونج",
+      "id": "Paddle & Pong"
+    },
+    "Party Game": {
+      "es": "Juego de fiesta",
+      "pt-BR": "Jogo de festa",
+      "de": "Partyspiel",
+      "ru": "Игра для вечеринок",
+      "ja": "パーティーゲーム",
+      "ko": "파티 게임",
+      "ar": "لعبة جماعية",
+      "id": "Permainan pesta"
+    },
+    "Pinball": {
+      "es": "Pinball",
+      "pt-BR": "Pinball",
+      "de": "Flipper",
+      "ru": "Пинбол",
+      "ja": "ピンボール",
+      "ko": "핀볼",
+      "ar": "بينبول",
+      "id": "Pinball"
+    },
+    "Platform": {
+      "es": "Plataformas",
+      "pt-BR": "Plataforma",
+      "de": "Jump 'n' Run",
+      "ru": "Платформер",
+      "ja": "プラットフォーム",
+      "ko": "플랫포머",
+      "ar": "منصات",
+      "id": "Platformer"
+    },
+    "Political": {
+      "es": "Política",
+      "pt-BR": "Política",
+      "de": "Politik",
+      "ru": "Политика",
+      "ja": "政治",
+      "ko": "정치",
+      "ar": "سياسية",
+      "id": "Politik"
+    },
+    "Pool & Snooker": {
+      "es": "Billar",
+      "pt-BR": "Bilhar e sinuca",
+      "de": "Billard und Snooker",
+      "ru": "Бильярд и снукер",
+      "ja": "ビリヤード",
+      "ko": "당구",
+      "ar": "بلياردو وسنوكر",
+      "id": "Biliar dan snooker"
+    },
+    "Puzzle": {
+      "es": "Puzle",
+      "pt-BR": "Quebra-cabeça",
+      "de": "Puzzle",
+      "ru": "Головоломка",
+      "ja": "パズル",
+      "ko": "퍼즐",
+      "ar": "ألغاز",
+      "id": "Teka-teki"
+    },
+    "Quiz": {
+      "es": "Preguntas",
+      "pt-BR": "Quiz",
+      "de": "Quiz",
+      "ru": "Викторина",
+      "ja": "クイズ",
+      "ko": "퀴즈",
+      "ar": "اختبار معلومات",
+      "id": "Kuis"
+    },
+    "Racing & Driving": {
+      "es": "Carreras y conducción",
+      "pt-BR": "Corrida e direção",
+      "de": "Rennspiel",
+      "ru": "Гонки",
+      "ja": "レース",
+      "ko": "레이싱",
+      "ar": "سباق وقيادة",
+      "id": "Balap dan mengemudi"
+    },
+    "Rail shooter": {
+      "es": "Disparos sobre raíles",
+      "pt-BR": "Tiro sobre trilhos",
+      "de": "Rail-Shooter",
+      "ru": "Рельсовый шутер",
+      "ja": "レールシューティング",
+      "ko": "레일 슈팅",
+      "ar": "تصويب على مسار ثابت",
+      "id": "Rail shooter"
+    },
+    "Reference": {
+      "es": "Referencia",
+      "pt-BR": "Referência",
+      "de": "Nachschlagewerk",
+      "ru": "Справочник",
+      "ja": "リファレンス",
+      "ko": "참고 자료",
+      "ar": "مرجع",
+      "id": "Referensi"
+    },
+    "Reverse or Othello": {
+      "es": "Reversi u Otelo",
+      "pt-BR": "Reversi ou Otelo",
+      "de": "Reversi oder Othello",
+      "ru": "Реверси или Отелло",
+      "ja": "リバーシ・オセロ",
+      "ko": "리버시·오델로",
+      "ar": "ريفرسي أو عطيل",
+      "id": "Reversi atau Othello"
+    },
+    "Risk": {
+      "es": "Risk",
+      "pt-BR": "Risk",
+      "de": "Risiko",
+      "ru": "Риск",
+      "ja": "リスク",
+      "ko": "리스크",
+      "ar": "ريسك",
+      "id": "Risk"
+    },
+    "Role-Playing": {
+      "es": "Rol",
+      "pt-BR": "RPG",
+      "de": "Rollenspiel",
+      "ru": "Ролевая игра",
+      "ja": "ロールプレイング",
+      "ko": "롤플레잉",
+      "ar": "لعب أدوار",
+      "id": "Permainan peran"
+    },
+    "Rugby": {
+      "es": "Rugby",
+      "pt-BR": "Rúgbi",
+      "de": "Rugby",
+      "ru": "Регби",
+      "ja": "ラグビー",
+      "ko": "럭비",
+      "ar": "رغبي",
+      "id": "Rugbi"
+    },
+    "Screensaver": {
+      "es": "Salvapantallas",
+      "pt-BR": "Protetor de tela",
+      "de": "Bildschirmschoner",
+      "ru": "Экранная заставка",
+      "ja": "スクリーンセーバー",
+      "ko": "화면 보호기",
+      "ar": "شاشة توقف",
+      "id": "Screensaver"
+    },
+    "Scrolling shoot'em up": {
+      "es": "Matamarcianos con desplazamiento",
+      "pt-BR": "Shoot 'em up com rolagem",
+      "de": "Scrolling-Shoot-'em-up",
+      "ru": "Скролл-шутер",
+      "ja": "スクロールシューティング",
+      "ko": "스크롤 슈팅",
+      "ar": "تصويب بالتمرير",
+      "id": "Shoot 'em up bergulir"
+    },
+    "Shooter": {
+      "es": "Disparos",
+      "pt-BR": "Tiro",
+      "de": "Shooter",
+      "ru": "Шутер",
+      "ja": "シューティング",
+      "ko": "슈팅",
+      "ar": "تصويب",
+      "id": "Tembak-menembak"
+    },
+    "Simulation": {
+      "es": "Simulación",
+      "pt-BR": "Simulação",
+      "de": "Simulation",
+      "ru": "Симулятор",
+      "ja": "シミュレーション",
+      "ko": "시뮬레이션",
+      "ar": "محاكاة",
+      "id": "Simulasi"
+    },
+    "Single Player": {
+      "es": "Un jugador",
+      "pt-BR": "Um jogador",
+      "de": "Einzelspieler",
+      "ru": "Одиночная игра",
+      "ja": "シングルプレイ",
+      "ko": "싱글 플레이",
+      "ar": "لاعب واحد",
+      "id": "Pemain tunggal"
+    },
+    "Skiing": {
+      "es": "Esquí",
+      "pt-BR": "Esqui",
+      "de": "Skifahren",
+      "ru": "Лыжи",
+      "ja": "スキー",
+      "ko": "스키",
+      "ar": "تزلج",
+      "id": "Ski"
+    },
+    "Sliding block & tile": {
+      "es": "Bloques y fichas deslizantes",
+      "pt-BR": "Blocos e peças deslizantes",
+      "de": "Schiebepuzzle",
+      "ru": "Пятнашки и сдвижные блоки",
+      "ja": "スライドパズル",
+      "ko": "슬라이딩 퍼즐",
+      "ar": "الكتل والقطع المنزلقة",
+      "id": "Balok dan ubin geser"
+    },
+    "Soccer": {
+      "es": "Fútbol",
+      "pt-BR": "Futebol",
+      "de": "Fußball",
+      "ru": "Футбол",
+      "ja": "サッカー",
+      "ko": "축구",
+      "ar": "كرة القدم",
+      "id": "Sepak bola"
+    },
+    "Sports": {
+      "es": "Deportes",
+      "pt-BR": "Esportes",
+      "de": "Sport",
+      "ru": "Спорт",
+      "ja": "スポーツ",
+      "ko": "스포츠",
+      "ar": "رياضة",
+      "id": "Olahraga"
+    },
+    "Strategy": {
+      "es": "Estrategia",
+      "pt-BR": "Estratégia",
+      "de": "Strategie",
+      "ru": "Стратегия",
+      "ja": "ストラテジー",
+      "ko": "전략",
+      "ar": "استراتيجية",
+      "id": "Strategi"
+    },
+    "Tennis": {
+      "es": "Tenis",
+      "pt-BR": "Tênis",
+      "de": "Tennis",
+      "ru": "Теннис",
+      "ja": "テニス",
+      "ko": "테니스",
+      "ar": "تنس",
+      "id": "Tenis"
+    },
+    "Text-Based": {
+      "es": "Basado en texto",
+      "pt-BR": "Baseado em texto",
+      "de": "Textbasiert",
+      "ru": "Текстовая",
+      "ja": "テキストベース",
+      "ko": "텍스트 기반",
+      "ar": "نصية",
+      "id": "Berbasis teks"
+    },
+    "Tile matching": {
+      "es": "Emparejar fichas",
+      "pt-BR": "Combinar peças",
+      "de": "Steine verbinden",
+      "ru": "Подбор плиток",
+      "ja": "牌合わせ",
+      "ko": "타일 맞추기",
+      "ar": "مطابقة القطع",
+      "id": "Mencocokkan ubin"
+    },
+    "Vehicle Simulation": {
+      "es": "Simulación de vehículos",
+      "pt-BR": "Simulação de veículos",
+      "de": "Fahrzeugsimulation",
+      "ru": "Симулятор техники",
+      "ja": "乗り物シミュレーション",
+      "ko": "탈것 시뮬레이션",
+      "ar": "محاكاة المركبات",
+      "id": "Simulasi kendaraan"
+    },
+    "Versus Fighting": {
+      "es": "Lucha uno contra uno",
+      "pt-BR": "Luta um contra um",
+      "de": "Versus-Kampfspiel",
+      "ru": "Поединки",
+      "ja": "対戦格闘",
+      "ko": "대전 격투",
+      "ar": "قتال ثنائي",
+      "id": "Pertarungan satu lawan satu"
+    },
+    "Volleyball": {
+      "es": "Voleibol",
+      "pt-BR": "Vôlei",
+      "de": "Volleyball",
+      "ru": "Волейбол",
+      "ja": "バレーボール",
+      "ko": "배구",
+      "ar": "كرة الطائرة",
+      "id": "Bola voli"
+    },
+    "Wrestling": {
+      "es": "Lucha libre",
+      "pt-BR": "Luta livre",
+      "de": "Wrestling",
+      "ru": "Рестлинг",
+      "ja": "プロレス",
+      "ko": "레슬링",
+      "ar": "مصارعة",
+      "id": "Gulat"
+    }
+  }
+}

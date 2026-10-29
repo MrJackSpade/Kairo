@@ -72,6 +72,18 @@ object Ui {
 
     fun dp(context: Context, value: Int) = (value * context.resources.displayMetrics.density).roundToInt()
 
+    /** Whether [view] lays out right to left (Arabic), so its rows run from the right (Kairo#129). */
+    fun rtl(view: View) = view.layoutDirection == View.LAYOUT_DIRECTION_RTL
+
+    /**
+     * D-pad Left or Right as a step along a row of [view]: 1 toward the row's end, -1 toward its
+     * start. Rows, sliders and switches mirror right to left, so Right goes toward the start there.
+     */
+    fun rowStep(view: View, direction: String): Int {
+        val right = if (direction == "right") 1 else -1
+        return if (rtl(view)) -right else right
+    }
+
     fun rounded(context: Context, color: Int, radius: Int = RADIUS_SMALL, stroke: Int? = null) =
         GradientDrawable().apply {
             setColor(color)

@@ -478,9 +478,11 @@ abstract class Page {
             return
         }
         if (direction == "left" || direction == "right") {
+            // x runs from a row's start to its end, which is right to left in Arabic.
+            val step = Ui.rowStep(view, direction)
             val row = nav.filter { it.r == current.r }.sortedBy { it.x }
-            val next = row.getOrNull(row.indexOf(current) + if (direction == "right") 1 else -1)
-            if (next != null) focus(next.id) else current.side?.invoke(if (direction == "right") 1 else -1)
+            val next = row.getOrNull(row.indexOf(current) + step)
+            if (next != null) focus(next.id) else current.side?.invoke(step)
             return
         }
         val rows = nav.map { it.r }.distinct().sorted()
@@ -516,7 +518,7 @@ abstract class Page {
         val bar = HeaderBar(context, chip).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(6), dp(4), dp(18), 0)
+            setPaddingRelative(dp(6), dp(4), dp(18), 0)
         }
         bar.addView(Ui.iconButton(context, R.drawable.ic_back, context.getString(R.string.kairo_back)) { stack.back() }.apply {
             isFocusable = false

@@ -39,7 +39,7 @@ internal object PageParts {
     fun scroll(page: Page, body: View, padding: IntArray): ScrollView {
         val context = page.context
         val column = MaxWidthColumn(context, Ui.dp(context, 640)).apply {
-            setPadding(padding[0], padding[1], padding[2], padding[3])
+            setPaddingRelative(padding[0], padding[1], padding[2], padding[3])
             addView(body, LinearLayout.LayoutParams(-1, -2))
         }
         val frame = FrameLayout(context).apply {
@@ -430,7 +430,7 @@ open class ModalPage(
         val card = MaxWidthColumn(context, dp(440)).apply {
             background = Ui.rounded(context, Ui.RAISED, Ui.RADIUS_LARGE, Ui.LINE)
             elevation = dp(24).toFloat()
-            setPadding(dp(24), dp(20), dp(20), dp(16))
+            setPaddingRelative(dp(24), dp(20), dp(20), dp(16))
             isClickable = true
         }
         card.addView(Ui.text(context, title ?: "", Ui.TITLE, bold = true))
@@ -465,7 +465,11 @@ open class ModalPage(
 
     override fun move(direction: String) {
         val current = focusedItemId?.removePrefix("button-")?.toIntOrNull() ?: initialButton
-        val step = if (direction == "up" || direction == "left") -1 else 1
+        val step = when (direction) {
+            "up" -> -1
+            "down" -> 1
+            else -> Ui.rowStep(view, direction)
+        }
         focus("button-${(current + step).coerceIn(0, views.size - 1)}")
     }
 }

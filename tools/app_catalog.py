@@ -67,6 +67,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import catalog_documents
+import catalog_tags
 import startup_automation
 from catalog_documents import compact, require
 from catalog_languages import LANGUAGES, valid_translations
@@ -80,6 +81,20 @@ SHIPPED = ("title", "description", "aliases", "tags", "controller", "machine", "
 # A game's touch input, as the apps read it (LayeredGameCatalog).
 INPUT = {"mode": {"auto", "keyboard", "mouse"}, "touch": {"touchpad", "direct"}, "secondary": {"keyboard", "touchpad"}}
 MAX_IDS = 64
+
+
+def shipped_tag_set(documents):
+    """Every tag in [documents]' records, collection members included."""
+    tags, stack = set(), list(documents)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            if isinstance(node.get("tags"), list):
+                tags.update(node["tags"])
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return tags
 
 
 def load_config(root):
@@ -321,6 +336,11 @@ def generate(root, check=False):
     # Each language's descriptions in a document of its own, beside the English records.
     translations = catalog_documents.translation_documents(
         {key: entry["descriptions"] for key, entry in research["games"].items() if entry.get("descriptions")})
+    # With them, each language's words for the tags (genre, players) the shipped records carry (KairoDos#141).
+    shipped_tags = shipped_tag_set([own_documents, name_index, *shards.values()])
+    for language, names in catalog_tags.translated_tags(shipped_tags).items():
+        if names:
+            translations.setdefault(f"descriptions/{language}.json", {"games": {}})["tags"] = names
     documents = {**own_documents, **translations, "base-v1.json": {"schemaVersion": 1, "games": {}},
                  "manifest-v1.json": manifest, "name-index-v1.json": name_index, "system-v1.json": system,
                  **{f"shards/{prefix}.json": {"schemaVersion": 1, "games": records}

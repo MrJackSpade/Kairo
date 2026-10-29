@@ -66,7 +66,8 @@ class GuestKeyboardPanel(
     }
     private val content = LinearLayout(context).apply { orientation = VERTICAL }
     /** The key rows or touchpad, with the mapping prompt over them. */
-    private val stage = FrameLayout(context)
+    /** The machine's keys, touchpad and joystick: the real keyboard's layout in every language; the tab bar above mirrors (Kairo#129). */
+    private val stage = FrameLayout(context).apply { layoutDirection = View.LAYOUT_DIRECTION_LTR }
     private val keyActions = mutableMapOf<TextView, Boolean>()
     private var mappingTab: View? = null
     private var mappingPrompt: View? = null
@@ -121,7 +122,7 @@ class GuestKeyboardPanel(
         if (onSwap != null) {
             val brand = LinearLayout(context).apply {
                 gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(14), dp(4), dp(8), dp(4))
+                setPaddingRelative(dp(14), dp(4), dp(8), dp(4))
             }
             brandText = PixelTextView(context).apply { text = layout.brand; this.brand = true }
             brand.addView(brandText, LayoutParams(0, -2, 1f))

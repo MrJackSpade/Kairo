@@ -43,8 +43,7 @@ object FrontendNavigation {
         if (event.action == KeyEvent.ACTION_DOWN) when (control) {
             "down" -> screen.moveSelection(1)
             "up" -> screen.moveSelection(-1)
-            "left" -> screen.moveHeaderSelection(-1)
-            "right" -> screen.moveHeaderSelection(1)
+            "left", "right" -> screen.moveHeaderSelection(Ui.rowStep(screen, control))
             "a" -> if (event.repeatCount == 0) screen.activateSelection()
             "menu" -> if (event.repeatCount == 0) screen.openMenu()
             "b" -> if (event.repeatCount == 0 && !screen.leaveHeader()) back()

@@ -32,11 +32,13 @@ class CatalogGame(
     val overriddenFields: Set<String>,
     /** The merged record; product sections are read as they are used, so bad data fails that use alone. */
     val record: JSONObject,
-    private val layers: CatalogFieldLayers.Result
+    private val layers: CatalogFieldLayers.Result,
+    /** A tag in the device's language (KairoDos#141); a tag no catalog translates, such as a year, as it is. */
+    private val tagText: (String) -> String = { it }
 ) : LibraryGame {
     /** The record's tags (year, genre, players), and the heart marker. */
     override val tags: List<String> get() = (record.optJSONArray("tags")?.let { array ->
-        (0 until array.length()).mapNotNull { (array.opt(it) as? String)?.takeIf(String::isNotBlank) }
+        (0 until array.length()).mapNotNull { (array.opt(it) as? String)?.takeIf(String::isNotBlank)?.let(tagText) }
     } ?: emptyList()) + if (heart == true) listOf("♥") else emptyList()
 
     fun section(name: String): JSONObject? = record.optJSONObject(name)
@@ -341,7 +343,16 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             input?.optString("touch")?.takeIf { it in INPUT_TOUCH },
             input?.optString("secondary")?.takeIf { it in INPUT_SECONDARY },
             user?.keys()?.asSequence()?.toSet() ?: emptySet(),
-            merged, layers)
+            merged, layers, tagText())
+    }
+
+    /**
+     * Tags in this device's language: each catalog language document names its tags' words
+     * ("tags"), the downloaded update's over the shipped ones (KairoDos#141).
+     */
+    private fun tagText(): (String) -> String {
+        val path = language?.let { "descriptions/$it.json" } ?: return { it }
+        return tagText(listOfNotNull(synchronized(this) { languageUpdate.value?.document(path) }, parts.main(path)))
     }
 
     override fun openArtwork(path: String): InputStream = installedCatalogs.openArtwork(path) ?: artworkStore.open(path)
@@ -601,6 +612,12 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             }
 
         /** The catalog language [locale] reads descriptions in besides English, by its tag or its language alone. */
+        /** A tag from the first of [documents] whose "tags" names it; a tag none names (a year) as it is. */
+        fun tagText(documents: List<JSONObject>): (String) -> String {
+            val names = documents.mapNotNull { it.optJSONObject("tags") }
+            return { tag -> names.firstNotNullOfOrNull { it.optString(tag).takeIf(String::isNotEmpty) } ?: tag }
+        }
+
         fun descriptionLanguage(locale: java.util.Locale): String? = locale.toLanguageTag().let { tag ->
             listOf(tag, tag.substringBefore('-')).firstOrNull { it in DESCRIPTION_LANGUAGES }
         }

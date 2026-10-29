@@ -241,7 +241,7 @@ class OnScreenControls(
         for (spec in specs.filter { states.getValue(it.id).shown }) layer.addView(controlView(spec, true))
         val bar = LinearLayout(activity).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), 0, dp(6), 0)
+            setPaddingRelative(dp(16), 0, dp(6), 0)
             setBackgroundColor(0xee10151d.toInt())
         }
         bar.addView(Ui.text(activity, str(R.string.kairo_onscreen_drag), Ui.BODY), LinearLayout.LayoutParams(0, -2, 1f))
@@ -462,9 +462,11 @@ class OnScreenControls(
         val left = (state.x * width - size / 2f).roundToInt().coerceIn(0, (width - size).coerceAtLeast(0))
         val top = (state.y * height - size / 2f).roundToInt().coerceIn(0, (height - size).coerceAtLeast(0))
         val params = view.layoutParams as? FrameLayout.LayoutParams ?: FrameLayout.LayoutParams(size, size)
-        if (params.leftMargin == left && params.topMargin == top && params.width == size) return
+        if (params.leftMargin == left && params.topMargin == top && params.width == size &&
+            params.gravity == (Gravity.TOP or Gravity.LEFT)) return
         params.width = size; params.height = size
-        params.gravity = Gravity.TOP or Gravity.START
+        // Positions are fractions of the screen from the left, in every language (Kairo#129).
+        params.gravity = Gravity.TOP or Gravity.LEFT
         params.leftMargin = left; params.topMargin = top
         view.layoutParams = params
     }

@@ -239,6 +239,8 @@ class ControllerPages<Game : Any>(
 ) {
     private fun message(text: String) = Ui.message(activity, text)
     private fun str(id: Int, vararg args: Any): String = activity.getString(id, *args)
+    /** A source key (GameSource) in the player's language, for a row's value. */
+    private fun shown(source: String) = GameSource.text(activity, source)
 
     private fun sticks() = configuration?.layout != ControllerLayout.WITHOUT_STICKS
 
@@ -256,13 +258,13 @@ class ControllerPages<Game : Any>(
             RowGroup(str(R.string.kairo_controls_group_controller), listOfNotNull(
                 configuration?.let { layoutRow(it) },
                 own?.let { game ->
-                    SettingsRow.nav("running-mapping", str(R.string.kairo_controls_game_mapping, gameTitle(game)), value = { gameSource(game) },
+                    SettingsRow.nav("running-mapping", str(R.string.kairo_controls_game_mapping, gameTitle(game)), value = { shown(gameSource(game)) },
                         tone = { if (gameSource(game) == GameSource.CUSTOM) ValueTone.CUSTOM else ValueTone.SUMMARY }) {
                         pages.push(mappingPage(game))
                     }
                 },
                 SettingsRow.nav("mapping", str(if (own != null) R.string.kairo_controls_all_games_mapping else R.string.kairo_button_mapping),
-                    value = { if (globalCustom()) GameSource.CUSTOM else GameSource.BUILT_IN },
+                    value = { shown(if (globalCustom()) GameSource.CUSTOM else GameSource.BUILT_IN) },
                     tone = { if (globalCustom()) ValueTone.CUSTOM else ValueTone.SUMMARY }) {
                     pages.push(mappingPage(null))
                 },
@@ -299,7 +301,7 @@ class ControllerPages<Game : Any>(
 
     /** Game settings › Button mapping for one game. */
     fun gameRow(game: Game, enabled: () -> Boolean, source: () -> String) =
-        SettingsRow.nav("game-mapping", str(R.string.kairo_button_mapping), value = source,
+        SettingsRow.nav("game-mapping", str(R.string.kairo_button_mapping), value = { shown(source()) },
             tone = { if (source() == GameSource.CUSTOM) ValueTone.CUSTOM else ValueTone.SUMMARY },
             enabled = enabled, disabledReason = { str(R.string.kairo_controls_hash_first) }) {
             pages.push(mappingPage(game))

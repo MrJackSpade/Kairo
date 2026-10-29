@@ -13,6 +13,15 @@ import android.widget.ScrollView
 import java.util.concurrent.Executors
 
 /**
+ * The details page's tags: the media label, the catalog's tags, then the file name's bracketed tags
+ * (the path's, else the ZIP entry's) that the catalog doesn't already show (Kairo#131).
+ */
+fun detailTags(media: String, catalogTags: List<String>, path: String, zipEntry: String?): List<String> {
+    val fileTags = variantTags(path).ifEmpty { zipEntry?.let(::variantTags) ?: emptyList() }
+    return (listOf(media) + catalogTags + fileTags).distinctBy { it.lowercase() }
+}
+
+/**
  * A game's details: screenshot, box art, title and tags, Play and Game settings, description and
  * file. The game page over the library shows one ([GameDetailPage]); on a two-screen device the
  * lower screen shows one for the game the library has selected (LowerLibraryScreen). Artwork
@@ -49,12 +58,12 @@ class GameDetailView<T : LibraryItem>(
             gravity = Gravity.CENTER_VERTICAL
             isClickable = true
             contentDescription = context.getString(R.string.kairo_detail_back)
-            setPadding(dp(4), 0, dp(14), 0)
+            setPaddingRelative(dp(4), 0, dp(14), 0)
             background = Ui.focusable(context, Color.TRANSPARENT, null)
             setOnClickListener { action() }
             addView(Ui.icon(context, R.drawable.ic_back, Ui.ACCENT_SOFT, 20))
             addView(Ui.text(context, context.getString(R.string.kairo_detail_library), Ui.BODY, Ui.ACCENT_SOFT).apply {
-                setPadding(dp(4), 0, 0, 0)
+                setPaddingRelative(dp(4), 0, 0, 0)
             })
         }.testId("back")
     }
@@ -75,7 +84,7 @@ class GameDetailView<T : LibraryItem>(
     }
     private val right = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(18), 0, 0, 0)
+        setPaddingRelative(dp(18), 0, 0, 0)
     }
     private val heading = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
     private val cover = ImageView(context).apply {
@@ -160,7 +169,7 @@ class GameDetailView<T : LibraryItem>(
         }
         imagePanel.layoutParams = if (portrait) LinearLayout.LayoutParams(-1, dp(220))
             else LinearLayout.LayoutParams(0, -1, 1.15f)
-        right.setPadding(if (portrait) 0 else dp(18), if (portrait) dp(18) else 0, 0, 0)
+        right.setPaddingRelative(if (portrait) 0 else dp(18), if (portrait) dp(18) else 0, 0, 0)
         right.layoutParams = if (portrait) LinearLayout.LayoutParams(-1, -2)
             else LinearLayout.LayoutParams(0, -1, 0.85f)
         heading.layoutParams = LinearLayout.LayoutParams(-1, if (portrait) -2 else 0,
@@ -177,9 +186,7 @@ class GameDetailView<T : LibraryItem>(
         val game = metadata(entry)
         title.text = game.title
         tags.removeAllViews()
-        val labels = listOf(entry.mediaLabel.resolve(context)) + game.tags +
-            ((variantLabel(entry.path) ?: entry.zipEntry?.let(::variantLabel))?.split("  ·  ") ?: emptyList())
-        labels.forEach { tags.addView(Ui.chip(context, it, Ui.TEXT_MUTED).apply {
+        detailTags(entry.mediaLabel.resolve(context), game.tags, entry.path, entry.zipEntry).forEach { tags.addView(Ui.chip(context, it, Ui.TEXT_MUTED).apply {
             background = Ui.rounded(context, Color.TRANSPARENT, 4, Ui.LINE)
             setPadding(dp(6), dp(2), dp(6), dp(2))
         }) }
@@ -313,10 +320,9 @@ class GameDetailPage<T : LibraryItem>(
     override fun initialFocus(items: List<NavItem>) =
         if (current?.playable == true) "play" else items.firstOrNull { it.id == "settings" }?.id ?: "back"
 
-    /** The page reads top to bottom, so Left and Up go back and Right and Down go forward. */
+    /** The page reads top to bottom, so Up and the reading direction's back go back, and Down and its forward go forward. */
     override fun move(direction: String) = super.move(when (direction) {
-        "left" -> "up"
-        "right" -> "down"
+        "left", "right" -> if (Ui.rowStep(view, direction) > 0) "down" else "up"
         else -> direction
     })
 

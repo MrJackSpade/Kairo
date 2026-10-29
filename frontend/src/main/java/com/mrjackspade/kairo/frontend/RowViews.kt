@@ -187,7 +187,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(if (next.description != null) 64 else 48)
-            setPadding(dp(14), dp(6), dp(4), dp(6))
+            setPaddingRelative(dp(14), dp(6), dp(4), dp(6))
             background = background()
             isClickable = true
             setOnClickListener { row?.let(host::activate) }
@@ -231,7 +231,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
     private fun buildInfo(): View {
         val line = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(14), dp(13), dp(28), dp(13))
+            setPaddingRelative(dp(14), dp(13), dp(28), dp(13))
         }
         label = Ui.text(context, "", Ui.BODY).testId("label")
         line.addView(label, LinearLayout.LayoutParams(-2, -2))
@@ -247,7 +247,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
     private fun buildSlider(): View {
         val line = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(14), dp(10), dp(28), dp(6))
+            setPaddingRelative(dp(14), dp(10), dp(28), dp(6))
             background = background()
             isClickable = true
         }
@@ -308,7 +308,7 @@ internal class TrayView(context: Context, val spec: TraySpec, flat: Boolean,
     init {
         orientation = VERTICAL
         background = if (flat) Ui.rounded(context, Ui.SELECTED) else GradientDrawable().apply { setColor(Ui.SELECTED) }
-        setPadding(Ui.dp(context, 14), Ui.dp(context, 2), Ui.dp(context, 18), Ui.dp(context, 12))
+        setPaddingRelative(Ui.dp(context, 14), Ui.dp(context, 2), Ui.dp(context, 18), Ui.dp(context, 12))
         isClickable = true
         spec.message?.let { message ->
             val line = LinearLayout(context).apply {
@@ -377,8 +377,11 @@ internal class WrapLayout(context: Context, private val gap: Int) : ViewGroup(co
             val used = line.sumOf { it.measuredWidth } + gap * (line.size - 1)
             var cursor = if (alignEnd) width - used else 0
             val height = line.maxOf { it.measuredHeight }
+            val rtl = Ui.rtl(this)
             for (child in line) {
-                child.layout(cursor, y, cursor + child.measuredWidth, y + child.measuredHeight)
+                // cursor runs from the start; right to left, the start is the right edge.
+                val x = if (rtl) width - cursor - child.measuredWidth else cursor
+                child.layout(x, y, x + child.measuredWidth, y + child.measuredHeight)
                 cursor += child.measuredWidth + gap
             }
             y += height + gap
@@ -386,7 +389,7 @@ internal class WrapLayout(context: Context, private val gap: Int) : ViewGroup(co
     }
 }
 
-/** Track and knob, 150 ms. Left turns it off; Right turns it on. */
+/** Track and knob, 150 ms. Toward the start turns it off, toward the end on (mirrored right to left). */
 internal class SwitchView(context: Context) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val track = RectF()
@@ -419,7 +422,8 @@ internal class SwitchView(context: Context) : View(context) {
         val inset = Ui.dp(context, 3).toFloat() + knob
         val travel = width - inset * 2
         paint.color = blend(Ui.TEXT_MUTED, Ui.ON_ACCENT, position)
-        canvas.drawCircle(inset + travel * position, height / 2f, knob, paint)
+        val along = if (Ui.rtl(this)) 1f - position else position
+        canvas.drawCircle(inset + travel * along, height / 2f, knob, paint)
     }
 
     private fun blend(from: Int, to: Int, amount: Float) =
@@ -479,12 +483,15 @@ internal class SliderBar(context: Context, private val picked: (Int) -> Unit) : 
         val center = height / 2f
         val half = Ui.dp(context, 2).toFloat()
         val fraction = (value - min).toFloat() / (max - min)
-        val end = thumb + (width - thumb * 2) * fraction
+        val rtl = Ui.rtl(this)
+        // The fill runs from the start, the right edge right to left.
+        val end = thumb + (width - thumb * 2) * (if (rtl) 1f - fraction else fraction)
         paint.color = Ui.LINE
         track.set(0f, center - half, width.toFloat(), center + half)
         canvas.drawRoundRect(track, half, half, paint)
         paint.color = Ui.ACCENT
-        track.set(0f, center - half, end, center + half)
+        if (rtl) track.set(end, center - half, width.toFloat(), center + half)
+        else track.set(0f, center - half, end, center + half)
         canvas.drawRoundRect(track, half, half, paint)
         canvas.drawCircle(end, center, thumb, paint)
     }
@@ -494,7 +501,8 @@ internal class SliderBar(context: Context, private val picked: (Int) -> Unit) : 
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
                 parent?.requestDisallowInterceptTouchEvent(event.actionMasked != MotionEvent.ACTION_UP)
                 val thumb = Ui.dp(context, 9).toFloat()
-                val fraction = ((event.x - thumb) / (width - thumb * 2)).coerceIn(0f, 1f)
+                val along = ((event.x - thumb) / (width - thumb * 2)).coerceIn(0f, 1f)
+                val fraction = if (Ui.rtl(this)) 1f - along else along
                 val next = (min + fraction * (max - min)).roundToInt()
                 if (next != value) { value = next; invalidate(); picked(next) }
             }

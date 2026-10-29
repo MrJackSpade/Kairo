@@ -832,9 +832,10 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         val params = screen.layoutParams as FrameLayout.LayoutParams
         if (params.width != viewport.width || params.height != viewport.height ||
             params.leftMargin != viewport.leftMargin || params.topMargin != viewport.topMargin ||
-            params.gravity != (Gravity.TOP or Gravity.START)) {
+            params.gravity != (Gravity.TOP or Gravity.LEFT)) {
+            // The viewport is in screen pixels from the left, in every language (Kairo#129).
             screen.layoutParams = FrameLayout.LayoutParams(viewport.width, viewport.height,
-                Gravity.TOP or Gravity.START).apply {
+                Gravity.TOP or Gravity.LEFT).apply {
                 leftMargin = viewport.leftMargin
                 topMargin = viewport.topMargin
             }

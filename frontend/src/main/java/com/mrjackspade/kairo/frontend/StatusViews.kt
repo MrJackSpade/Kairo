@@ -32,7 +32,7 @@ class TaskStrip(context: Context) : LinearLayout(context) {
         orientation = HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         minimumHeight = Ui.dp(context, 44)
-        setPadding(Ui.dp(context, 12), 0, Ui.dp(context, 6), 0)
+        setPaddingRelative(Ui.dp(context, 12), 0, Ui.dp(context, 6), 0)
         background = Ui.rounded(context, Ui.RAISED)
         visibility = View.GONE
         addView(Ui.spinner(context), LayoutParams(Ui.dp(context, 16), Ui.dp(context, 16)).apply {
@@ -88,7 +88,7 @@ class GameOverlay(context: Context) : FrameLayout(context) {
         isClickable = true
         background = Ui.rounded(context, 0xf71f2835.toInt(), Ui.RADIUS_LARGE, Ui.LINE)
         elevation = Ui.dp(context, 8).toFloat()
-        setPadding(Ui.dp(context, 16), Ui.dp(context, 14), Ui.dp(context, 14), Ui.dp(context, 12))
+        setPaddingRelative(Ui.dp(context, 16), Ui.dp(context, 14), Ui.dp(context, 14), Ui.dp(context, 12))
     }.testId("notice")
     private val noticeTitle = Ui.text(context, "", Ui.BODY, bold = true).testId("notice.title")
     private val noticeMessage = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_BODY)
