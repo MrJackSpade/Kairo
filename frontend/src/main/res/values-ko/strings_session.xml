@@ -76,6 +76,7 @@
     <string name="kairo_external_no_playable">플레이할 수 있는 %1$s 게임이 없습니다</string>
     <!-- EN: Choose a disk to start -->
     <string name="kairo_external_choose_disk">시작할 디스크를 선택하세요</string>
+    <string name="kairo_collection_choose">게임을 선택하세요</string>
     <!-- EN: Refresh this entry before playing -->
     <string name="kairo_launch_refresh_first">플레이하기 전에 이 항목을 새로고침하세요</string>
     <!-- %1$s says why, often the emulator's own message. -->

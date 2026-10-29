@@ -43,6 +43,7 @@
     <!-- %1$s is the machine's name, such as PC-88. -->
     <string name="kairo_external_no_playable">No playable %1$s game found</string>
     <string name="kairo_external_choose_disk">Choose a disk to start</string>
+    <string name="kairo_collection_choose">Choose a game</string>
     <string name="kairo_launch_refresh_first">Refresh this entry before playing</string>
     <!-- %1$s says why, often the emulator's own message. -->
     <string name="kairo_launch_failed">Launch failed: %1$s</string>

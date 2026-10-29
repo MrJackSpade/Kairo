@@ -53,7 +53,9 @@ data class DiskImageEntry(
     /** False for an archive with no disk image in it, such as one of manuals and scans. */
     override val holdsGame: Boolean = true,
     /** A program's folder: every other file in it and below it, which the program may read. */
-    val folder: List<FolderFile> = emptyList()
+    val folder: List<FolderFile> = emptyList(),
+    /** The game picked from a collection; never cached, a launch picks it. */
+    override val member: String? = null
 ) : LibraryItem {
     /** Resolved from the [DiskImageLibrary.Format] whenever the library is read, so it is fixed text here. */
     override val mediaLabel: UiText get() = UiText.fixed(mediaText)
@@ -235,6 +237,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     }
 
     override fun hasWorkingImage(entry: DiskImageEntry) = workingImage(entry).isFile
+    override fun withMember(entry: DiskImageEntry, member: String) = entry.copy(member = member)
 
     override fun withError(entry: DiskImageEntry, message: String) = entry.copy(error = message)
 

@@ -228,6 +228,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
      * with [beginLaunch], and calls [enterSession] once the guest runs.
      */
     protected abstract fun launch(entry: E, fromFrontend: Boolean)
+    /** [entry] as the game [member] of its collection ([LibraryItem.member]). */
+    protected abstract fun withMember(entry: E, member: String): E
     /** Restart game in the flyout: closes the menu first. */
     protected abstract fun restartGame()
     /** Stops the session's guest off the UI thread; the shell clears its state after. */
@@ -952,7 +954,24 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             libraryScreen.showStatus(text(identity.expiredStatus))
             return
         }
-        launch(entry, fromFrontend)
+        pickFromCollection(entry) { launch(it, fromFrontend) }
+    }
+
+    /**
+     * A collection, one medium holding several games, asks which of them to use; [then] gets that
+     * game, with saves and settings of its own. Any other game goes to [then] as it is. Back cancels.
+     */
+    private fun pickFromCollection(entry: E, then: (E) -> Unit) {
+        val members = catalog.collection(entry)
+        if (members.isEmpty()) return then(entry)
+        lateinit var page: ChoicePage
+        page = ChoicePage(ChoiceSpec(getString(R.string.kairo_collection_choose), { titleOf(entry) }, {
+            listOf(ChoiceGroup(null, members.map { ChoiceOption(it.id, it.title) }))
+        }, { null }, { member ->
+            pages.popThrough(page)
+            then(withMember(entry, member))
+        }, stay = true, cycles = false))
+        pages.push(page)
     }
 
     /** Starts a launch from [launch]: closes pages and shows [message] while the session prepares. */
@@ -1237,8 +1256,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }
 
     /** Game settings over the game page, or over the game flyout while the game runs. */
-    protected fun showGameDetails(entry: E) {
-        pages.push(gameSettingsPage(this, { titleOf(entry) }) { gameSettings(entry) })
+    protected fun showGameDetails(entry: E) = pickFromCollection(entry) { game ->
+        pages.push(gameSettingsPage(this, { titleOf(game) }) { gameSettings(game) })
     }
 
     private fun gameSettings(entry: E): List<RowGroup> {

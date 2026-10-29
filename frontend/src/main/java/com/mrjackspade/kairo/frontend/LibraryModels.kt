@@ -4,7 +4,13 @@ import java.io.InputStream
 
 /** The library screen knows only the source and identity of an imported game. */
 interface LibraryItem {
-    val key: GameKey get() = GameKey(id)
+    /** Saves and settings follow it; a collection member has its own ([GameKey.member]). */
+    val key: GameKey get() = GameKey(id).let { key -> member?.let(key::member) ?: key }
+    /**
+     * The game the player picked from a collection, one medium holding several games
+     * ([LibraryCatalog.collection]); null for any other game and for the collection itself.
+     */
+    val member: String? get() = null
     /** The game's [GameKey] path; saves and settings follow it. */
     val id: String
     /** The document the entry was read from. One archive can hold several entries. */
@@ -22,6 +28,9 @@ interface LibraryItem {
     /** False for a file the scan remembers but that holds no game, such as an archive of manuals; never listed. */
     val holdsGame: Boolean get() = true
 }
+
+/** A game of a collection: its [id] in the collection's record and its title. */
+data class CollectionMember(val id: String, val title: String)
 
 /** Metadata displayed by the shared library and game page. */
 interface LibraryGame {
@@ -46,6 +55,11 @@ interface LibraryCatalog {
      * shows the entry point alone while it is present; the disks stay available to disk swaps.
      */
     fun setDisks(item: LibraryItem): Collection<String> = emptyList()
+    /**
+     * The games of [item]'s collection, one medium holding several games, in the order the player
+     * picks from; empty for any other game and for a member already picked ([LibraryItem.member]).
+     */
+    fun collection(item: LibraryItem): List<CollectionMember> = emptyList()
     /** Whether a catalog has a record for [item], so it is a game the catalog knows. */
     fun knows(item: LibraryItem): Boolean = false
     fun openArtwork(path: String): InputStream

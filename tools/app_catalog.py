@@ -25,9 +25,10 @@ before looking it up (Schema.mediaExtensions, the same pattern). catalog/researc
                                                                 the disk's startup menus and disk swaps
                                                                 (startup_automation.py; swaps need DISK_SWAPS)
       "diskHidden": [...],                                      disks behind a set entry other games share
-      "diskVariants": {"<disk>": {"<file name>": {...}}},       one medium holding several games: the game and
-                                                                launch a library file's name picks (its
-                                                                record's "variants", Schema.variantName)
+      "diskCollection": {"<disk>": {"<member>": {...}}},       one medium holding several games, a collection: the
+                                                                player picks a member ("1", "2"...) when it
+                                                                starts, each with its game and launch (its
+                                                                record's "collection")
       "adult": true,                                            heart marker, core-review exclusion
       "hidden": true,                                           not a game: never listed in the library
       "controller": {"profile": "...", "defaults": {"withoutSticks": [...], "withSticks": [...]}}
@@ -73,6 +74,8 @@ from catalog_package import filter_artwork, image_paths
 from catalog_parts import artwork_split, generate_parts
 
 GAME_KEY = re.compile(r"[a-z0-9]+:[A-Za-z0-9._-]{1,64}\Z")
+# A collection member's key: "1", "2"... in the order the player sees them.
+COLLECTION_MEMBER = re.compile(r"[1-9][0-9]?\Z")
 SHIPPED = ("title", "description", "aliases", "tags", "controller", "machine", "launch", "input")
 # A game's touch input, as the apps read it (LayeredGameCatalog).
 INPUT = {"mode": {"auto", "keyboard", "mouse"}, "touch": {"touchpad", "direct"}, "secondary": {"keyboard", "touchpad"}}
@@ -115,19 +118,19 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
     def validate_record(record):
         require(isinstance(record, dict), "game must be an object")
         require(set(record) <= {"game", "title", "description", "descriptions", "aliases", "tags", "artwork", "heart",
-                                "hidden", "setDisks", "media", "machine", "launch", "controller", "variants",
+                                "hidden", "setDisks", "media", "machine", "launch", "controller", "collection",
                                 "contentIds", "startupChoices", "diskSwaps", "input"},
                 "unknown game field")
-        variants = record.get("variants", {})
-        require(isinstance(variants, dict) and len(variants) <= 16 and
-                all(isinstance(name, str) and 0 < len(name) <= 256 and name == name.lower() and isinstance(v, dict)
-                    and v and "variants" not in v for name, v in variants.items()), "invalid variants")
+        collection = record.get("collection", {})
+        require(isinstance(collection, dict) and len(collection) != 1 and len(collection) <= 16 and
+                all(isinstance(member, str) and COLLECTION_MEMBER.fullmatch(member) and isinstance(v, dict)
+                    and "game" in v and "collection" not in v for member, v in collection.items()), "invalid collection")
         ids = record.get("contentIds")
         require(isinstance(ids, list) and 1 <= len(ids) <= MAX_IDS and len(ids) == len(set(ids)) and
                 all(isinstance(value, str) and content_id.fullmatch(value) for value in ids),
                 "contentIds must list 1-64 distinct content IDs")
-        for variant in variants.values():
-            validate_record({**variant, "contentIds": ids})
+        for member in collection.values():
+            validate_record({**member, "contentIds": ids})
         require("game" not in record or (isinstance(record["game"], str) and GAME_KEY.fullmatch(record["game"])),
                 "invalid game reference")
         title = record.get("title")
@@ -273,8 +276,8 @@ def generate(root, check=False):
             require(isinstance(automation, dict) and automation and set(automation) <= {"startupChoices", "diskSwaps"},
                     f"{key}: invalid diskAutomation for {disk}")
             own.setdefault(disk, {}).update(automation)
-        for disk, variants in entry.get("diskVariants", {}).items():
-            own.setdefault(disk, {})["variants"] = variants
+        for disk, members in entry.get("diskCollection", {}).items():
+            own.setdefault(disk, {})["collection"] = members
         for disk, settings in entry.get("diskMachine", {}).items():
             settings = dict(settings)
             # The startup commands and other launch fields are the disk's launch; the rest are machine settings.

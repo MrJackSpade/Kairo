@@ -94,12 +94,6 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         fun validBindings(bindings: JSONArray): Boolean
         /** Subfields a layer's object replaces in lower layers when it sets one of them. */
         fun replacedSubfields(path: List<String>, record: JSONObject): Set<String> = emptySet()
-        /**
-         * The key a record's `variants` names a library entry's [fileName] by: one medium that
-         * holds several games, each picked by its file's name.
-         */
-        fun variantName(fileName: String): String =
-            fileName.substringAfterLast('/').substringAfterLast('\\').replace(mediaExtensions, "").lowercase()
         /** The title a library entry shows for the catalog's [title] and its [fileName]. */
         fun title(title: String, fileName: String): String = title
         /** A record's `artwork` references as image paths and download URLs: LaunchBox references, by default. */
@@ -123,7 +117,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     // A game's merged record and resolved metadata are reused until a catalog, override or
     // artwork change; settings pages read them for every row and every focus move.
     /** [owner] is the game whose overrides apply; null for its catalog record alone. */
-    private data class MemoKey(val contentId: String, val owner: GameKey?, val fileName: String?)
+    private data class MemoKey(val contentId: String, val owner: GameKey?, val member: String?, val fileName: String? = null)
     private val layeredMemo = HashMap<MemoKey, CatalogFieldLayers.Result>()
     private val resolvedMemo = HashMap<MemoKey, CatalogGame>()
     private fun invalidate() {
@@ -136,7 +130,6 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         layeredMemo.keys.removeAll { it.owner == owner }
         resolvedMemo.keys.removeAll { it.owner == owner }
     }
-    private val knownFileNames = HashMap<String, String>()
     private val additionsFile = File(context.filesDir, "user-catalog-v1.json")
     private val overridesFile = File(context.filesDir, "overrides-v1.json")
     /** The language this device shows descriptions in besides English, or null for English alone. */
@@ -191,66 +184,91 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
 
     @Synchronized fun sourceOf(item: LibraryItem, field: String, subfield: String? = null): String {
         val path = if (subfield == null) arrayOf(field) else arrayOf(field, subfield)
-        return layered(matchId(item) ?: "", item.key, item.displayName).sourceOf(*path)
+        return layered(matchId(item) ?: "", item.key, item.member).sourceOf(*path)
             ?: if (field == "title") "Filename" else "App default"
     }
 
     /** Where a setting would come from without the user's own change, for its Default option. */
     @Synchronized fun defaultSourceOf(item: LibraryItem, field: String, subfield: String? = null): String {
         val path = if (subfield == null) arrayOf(field) else arrayOf(field, subfield)
-        return layered(matchId(item) ?: "", null, item.displayName).sourceOf(*path)
+        return layered(matchId(item) ?: "", null, item.member).sourceOf(*path)
             ?: if (field == "title") "Filename" else "App default"
     }
 
     /** The game without the user's own changes, so each Default option can show its value. */
-    @Synchronized fun resolveDefault(item: LibraryItem): CatalogGame = resolve(matchId(item) ?: "", null, item.displayName)
+    @Synchronized fun resolveDefault(item: LibraryItem): CatalogGame =
+        resolve(matchId(item) ?: "", null, item.member, item.displayName)
 
-    private fun layered(contentId: String, owner: GameKey?, fileName: String? = null): CatalogFieldLayers.Result {
-        if (fileName != null && contentId.isNotEmpty()) knownFileNames[contentId] = fileName
-        val key = MemoKey(contentId, owner, fileName ?: knownFileNames[contentId])
+    /**
+     * The games of [item]'s collection, in the order the player sees them: one medium holding
+     * several games, which the player picks between when it starts. Empty for any other game, and
+     * for a member already picked.
+     */
+    @Synchronized override fun collection(item: LibraryItem): List<CollectionMember> {
+        if (item.member != null) return emptyList()
+        val contentId = matchId(item) ?: return emptyList()
+        val members = layered(contentId, item.key, null).record.optJSONObject("collection") ?: return emptyList()
+        return members.keys().asSequence().sortedBy { it.toInt() }.map { member ->
+            CollectionMember(member, resolve(contentId, item.key.member(member), member, item.displayName).title)
+        }.toList()
+    }
+
+    /** [member] is the collection member the player picked, whose record sits above its collection's. */
+    private fun layered(contentId: String, owner: GameKey?, member: String?): CatalogFieldLayers.Result {
+        val key = MemoKey(contentId, owner, member)
         return layeredMemo.getOrPut(key) { layeredUncached(key) }
     }
 
     private fun layeredUncached(key: MemoKey): CatalogFieldLayers.Result {
         val contentId = key.contentId
-        val fileName = key.fileName
+        val member = key.member
         val baseRecord = base.optJSONObject("games")?.optJSONObject(contentId)
         val shardRecord = shardFor(contentId)?.optJSONObject("games")?.optJSONObject(contentId)
         val updateRecord = updatedRecord(contentId)
         val userRecord = additions.optJSONObject("games")?.optJSONObject(contentId)
         val overrideRecord = key.owner?.let(overrides::record)
         val installed = installedCatalogs.catalogs()
-        val variantName = fileName?.let(schema::variantName)
         // A disk record names its game's shared record. Each layer adds its own copy of that
         // record beneath its disk records, so the disk's own fields override it in every layer.
-        val game = (listOf(overrideRecord, userRecord) +
+        // A collection member's game comes first from any layer that has the member: a layer
+        // that names only the collection's game (an update from before the collection) does not
+        // hide which game the player picked.
+        val records = listOf(overrideRecord, userRecord) +
             installed.asReversed().map { it.data.getJSONObject("games").optJSONObject(contentId) } +
-            listOf(updateRecord, shardRecord, baseRecord))
-            .flatMap { listOf(variant(it, variantName), it) }
-            .firstNotNullOfOrNull { record -> record?.optString("game")?.takeIf { it.isNotEmpty() } }
+            listOf(updateRecord, shardRecord, baseRecord)
+        fun gameOf(record: JSONObject?) = record?.optString("game")?.takeIf { it.isNotEmpty() }
+        val game = (records.map { member(it, member) } + records).firstNotNullOfOrNull(::gameOf)
+        // A collection's own game, whose shared fields (such as its controls) sit beneath its member's.
+        val collectionGame = records.firstNotNullOfOrNull(::gameOf)?.takeIf { member != null && it != game }
         fun shared(games: JSONObject?) = game?.let { games?.optJSONObject("games")?.optJSONObject(it) }
+        fun collectionShared(games: JSONObject?) = collectionGame?.let { games?.optJSONObject("games")?.optJSONObject(it) }
         // The game's description in this device's language, from a layer's language document.
         fun translated(document: JSONObject?) = language?.let { language ->
             game?.let { document?.optJSONObject("games")?.optString(it) }?.takeIf { it.isNotBlank() }
                 ?.let { JSONObject().put("descriptions", JSONObject().put(language, it)) }
         }
         val languageDocument = language?.let { "descriptions/$it.json" }
+        val updatedNames = updated("name-index-v1.json")
+        val additionalNames = parts.additional("name-index-v1.json")
         return CatalogFieldLayers.merge(listOf(
+            CatalogFieldLayers.Source("Shipped catalog", collectionShared(nameIndex)),
             CatalogFieldLayers.Source("Shipped catalog", shared(nameIndex)),
             CatalogFieldLayers.Source("Shipped catalog", translated(languageDocument?.let(parts::main))),
             CatalogFieldLayers.Source("Shipped catalog", baseRecord),
             CatalogFieldLayers.Source("Shipped catalog", shardRecord),
-            CatalogFieldLayers.Source("Updated catalog", shared(updated("name-index-v1.json"))),
+            CatalogFieldLayers.Source("Updated catalog", collectionShared(updatedNames)),
+            CatalogFieldLayers.Source("Updated catalog", shared(updatedNames)),
             CatalogFieldLayers.Source("Updated catalog", translated(languageDocument?.let { path ->
                 synchronized(this) { languageUpdate.value?.document(path) } })),
             CatalogFieldLayers.Source("Updated catalog", updateRecord),
-            CatalogFieldLayers.Source("Shipped catalog", shared(parts.additional("name-index-v1.json"))),
+            CatalogFieldLayers.Source("Shipped catalog", collectionShared(additionalNames)),
+            CatalogFieldLayers.Source("Shipped catalog", shared(additionalNames)),
             CatalogFieldLayers.Source("Shipped catalog", translated(languageDocument?.let(parts::additional))),
             CatalogFieldLayers.Source("Shipped catalog", bundledAdditional(contentId)),
-            *installedSources(installed, contentId, ::shared, ::translated, languageDocument).toTypedArray(),
+            *installedSources(installed, contentId, ::collectionShared, ::shared, ::translated, languageDocument).toTypedArray(),
             CatalogFieldLayers.Source("User catalog", userRecord),
             CatalogFieldLayers.Source("User override", overrideRecord)
-        ).let { withVariants(it, variantName) }
+        ).let { withMember(it, member) }
             .map { source -> source.copy(record = source.record?.let { record ->
                 record.optJSONObject("artwork")?.let { JsonCopy.shallow(record).put("artwork", schema.expandArtwork(it)) } ?: record
             }) },
@@ -268,14 +286,14 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             installedCatalogs.catalogs().mapNotNull { it.data.optJSONObject("documents")?.optJSONObject(name) }
 
     @Synchronized override fun resolve(item: LibraryItem): CatalogGame =
-        resolve(matchId(item) ?: "", item.key, item.displayName)
+        resolve(matchId(item) ?: "", item.key, item.member, item.displayName)
 
     /** A catalog record alone, as for a disk a game names that is not a library entry. */
-    @Synchronized fun resolve(contentId: String, fileName: String): CatalogGame = resolve(contentId, null, fileName)
+    @Synchronized fun resolve(contentId: String, fileName: String): CatalogGame = resolve(contentId, null, null, fileName)
 
-    private fun resolve(contentId: String, owner: GameKey?, fileName: String): CatalogGame =
-        resolvedMemo.getOrPut(MemoKey(contentId, owner, fileName)) {
-            resolveUncached(contentId, owner, fileName)
+    private fun resolve(contentId: String, owner: GameKey?, member: String?, fileName: String): CatalogGame =
+        resolvedMemo.getOrPut(MemoKey(contentId, owner, member, fileName)) {
+            resolveUncached(contentId, owner, member, fileName)
         }
 
     // An unedited game needs no lookup, so startup reads no shards for it.
@@ -295,8 +313,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             installedCatalogs.sources(contentId).any { it.record != null }
     }
 
-    private fun resolveUncached(contentId: String, owner: GameKey?, fileName: String): CatalogGame {
-        val layers = layered(contentId, owner, fileName)
+    private fun resolveUncached(contentId: String, owner: GameKey?, member: String?, fileName: String): CatalogGame {
+        val layers = layered(contentId, owner, member)
         val merged = layers.record
         val user = owner?.let(overrides::record)
         val title = merged.optString("title").takeIf { it.isNotBlank() }
@@ -500,11 +518,13 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             .optJSONObject("games")?.optJSONObject(contentId)
 
     private fun installedSources(catalogs: List<InstalledCatalogs.Catalog>, contentId: String,
+                                 collectionShared: (JSONObject?) -> JSONObject?,
                                  shared: (JSONObject?) -> JSONObject?, translated: (JSONObject?) -> JSONObject?,
                                  languageDocument: String?): List<CatalogFieldLayers.Source> =
         catalogs.flatMap { catalog ->
             val names = catalog.data.getJSONObject("nameIndex")
-            listOf(CatalogFieldLayers.Source(catalog.name, shared(names)),
+            listOf(CatalogFieldLayers.Source(catalog.name, collectionShared(names)),
+                CatalogFieldLayers.Source(catalog.name, shared(names)),
                 CatalogFieldLayers.Source(catalog.name, translated(languageDocument?.let {
                     catalog.data.optJSONObject("documents")?.optJSONObject(it) })),
                 CatalogFieldLayers.Source(catalog.name, catalog.data.getJSONObject("games").optJSONObject(contentId)))
@@ -570,14 +590,14 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         private val ART_FIELDS = ART_PATH_FIELDS + ART_URL_FIELDS
         private val INPUT_FIELDS = setOf("mode", "touch", "secondary")
         private val DISPLAY_FIELDS = setOf("landscapeAnchor", "portraitAnchor")
-        /** The variant of [record] that [variantName] (Schema.variantName of a file's name) picks. */
-        fun variant(record: JSONObject?, variantName: String?): JSONObject? =
-            variantName?.let { record?.optJSONObject("variants")?.optJSONObject(it) }
+        /** The [member] of [record]'s collection, the game the player picked from it. */
+        fun member(record: JSONObject?, member: String?): JSONObject? =
+            member?.let { record?.optJSONObject("collection")?.optJSONObject(it) }
 
-        /** Each layer followed by its record's variant for [variantName]: a variant sits above its record. */
-        fun withVariants(sources: List<CatalogFieldLayers.Source>, variantName: String?): List<CatalogFieldLayers.Source> =
+        /** Each layer followed by its record's collection [member]: a member sits above its collection. */
+        fun withMember(sources: List<CatalogFieldLayers.Source>, member: String?): List<CatalogFieldLayers.Source> =
             sources.flatMap { source ->
-                listOfNotNull(source, variant(source.record, variantName)?.let { source.copy(record = it) })
+                listOfNotNull(source, member(source.record, member)?.let { source.copy(record = it) })
             }
 
         /** The catalog language [locale] reads descriptions in besides English, by its tag or its language alone. */

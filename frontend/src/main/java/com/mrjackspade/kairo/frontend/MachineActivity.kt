@@ -125,6 +125,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun scanLibrary(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean, progress: (String) -> Unit) =
         library.scan(tree, depth, cancelled, progress)
     override fun storeLibrary(tree: Uri, entries: List<E>) = library.store(tree, entries)
+    override fun withMember(entry: E, member: String) = library.withMember(entry, member)
     override val hashCount: Int get() = library.hashCount
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean) = library.inspectExternal(file, cancelled)
     override fun withError(entry: E, message: String) = library.withError(entry, message)

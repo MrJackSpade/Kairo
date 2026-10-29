@@ -76,6 +76,7 @@
     <string name="kairo_external_no_playable">Tidak ditemukan game %1$s yang dapat dimainkan</string>
     <!-- EN: Choose a disk to start -->
     <string name="kairo_external_choose_disk">Pilih disk untuk memulai</string>
+    <string name="kairo_collection_choose">Pilih game</string>
     <!-- EN: Refresh this entry before playing -->
     <string name="kairo_launch_refresh_first">Muat ulang entri ini sebelum bermain</string>
     <!-- %1$s says why, often the emulator's own message. -->

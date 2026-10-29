@@ -16,6 +16,9 @@ import java.security.MessageDigest
      */
     val savePath: String get() = SavePath.of(path)
 
+    /** The game [member] of the collection this key names, which keeps saves and settings of its own. */
+    fun member(member: String) = GameKey("$path#$member")
+
     /**
      * A short ASCII name for the game, a hash of [path]: v1.4.0 and earlier stored all of a
      * game's data under it, which [GamePathMigration] moves to [savePath]. Nothing is named by it

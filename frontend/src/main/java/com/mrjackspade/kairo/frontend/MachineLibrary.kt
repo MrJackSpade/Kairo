@@ -17,6 +17,8 @@ interface MachineLibrary<E : LibraryItem> {
     fun deleteSource(entry: E, entries: List<E>)
     /** Whether the game has a working copy holding what it wrote to its disks. */
     fun hasWorkingImage(entry: E): Boolean
+    /** [entry] as the game [member] of its collection (LibraryItem.member). */
+    fun withMember(entry: E, member: String): E
     fun resetWorkingImage(entry: E)
     /** The file the machine opens for [entry]: its working copy, extracted from an archive when needed. */
     fun prepare(entry: E, cancelled: AtomicBoolean, progress: (String) -> Unit): java.io.File

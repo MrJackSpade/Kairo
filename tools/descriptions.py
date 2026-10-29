@@ -83,9 +83,9 @@ def worklist(root, output, moby_root, references_path, limit):
         for game in read(path):
             listings[game["id"]] = game
     references = read(references_path) if references_path else {}
-    # The games a medium's file name picks (diskVariants) show in the library as well.
-    picked = {variant["game"] for entry in games.values() for variants in entry.get("diskVariants", {}).values()
-              for variant in variants.values()}
+    # The games of a collection (diskCollection) show in the library as well, when the player picks one.
+    picked = {member["game"] for entry in games.values() for members in entry.get("diskCollection", {}).values()
+              for member in members.values()}
     lines = []
     for key, entry in sorted(games.items()):
         # Only games the library can show: a game no medium identifies, or a hidden one, is never seen.

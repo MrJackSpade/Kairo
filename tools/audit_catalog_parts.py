@@ -113,8 +113,8 @@ def audit(root, product, artifacts=()):
             assert image_paths(optional,expand) == withheld
             def artwork_only(records):
                 for record in records.values():
-                    assert record.keys() <= {'artwork','variants'}
-                    artwork_only(record.get('variants',{}))
+                    assert record.keys() <= {'artwork','collection'}
+                    artwork_only(record.get('collection',{}))
             artwork_only(optional['games'])
             # A name-index game also carries its adult description, the one data.nsfw holds.
             games = optional['nameIndex']['games']
