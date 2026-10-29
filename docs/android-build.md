@@ -36,6 +36,4 @@ compiler flags. Android/NDK Debug `-g` and `-fno-limit-debug-info` remain active
 KairoDos applies it to `kairodos`; its existing non-Debug `-O2` remains
 product-owned. Kairo98 applies it to `kairo98` and `np21w_core`, preserving their
 previous Debug `-O2`. Kairo98 LTO, aliasing and signed-char flags and DOSBox Staging
-core compiler/PGO flags remain in the product integrations. The optional DOS
-`presentationProfile` switch still explicitly adds `NDEBUG` and its profiling
-marker; normal Debug presentation is already optimized without that switch.
+core compiler/PGO flags remain in the product integrations.

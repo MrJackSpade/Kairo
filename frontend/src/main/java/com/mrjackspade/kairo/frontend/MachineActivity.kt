@@ -23,6 +23,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     )
 
     protected abstract val machine: Machine
+    /**
+     * Whether the machine saves and loads states (Save state and Load state in the game's flyout).
+     * A machine without them (KairoDos's DOSBox Staging) keeps its saves in [saveKinds] of its own.
+     */
+    protected open val saveStates: Boolean = true
     protected abstract val bridge: MachineBridge
     protected abstract fun createCatalog(): LayeredGameCatalog
     protected abstract fun createLibrary(catalog: LayeredGameCatalog): MachineLibrary<E>
@@ -251,7 +256,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun gameSettingChanged(entry: E) {
         if (currentEntry?.id == entry.id) currentGame = catalog.resolve(entry)
     }
-    override fun deletePrompt(entry: E) = GameDeletionFlow.Prompt(entry.path)
+    override fun deletePrompt(entry: E): GameDeletionFlow.Prompt? = GameDeletionFlow.Prompt(entry.path)
     override fun deleteSource(entry: E) = library.deleteSource(entry, libraryEntries)
 
     /**
@@ -338,7 +343,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             }, ::loadFailed, getString(R.string.kairo_states_library_only))
     }
 
-    override fun gameRows() = stateFlow.rows() + machineRows() + listOfNotNull(mediaSlots.takeIf { it.isNotEmpty() }?.let {
+    override fun gameRows() = (if (saveStates) stateFlow.rows() else emptyList()) + machineRows() + listOfNotNull(mediaSlots.takeIf { it.isNotEmpty() }?.let {
         SettingsRow.nav("f-media", text(mediaPageTitle)) { pages.push(mediaPage()) }
     })
 

@@ -82,6 +82,11 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
          * catalog setting is a per-game setting). Its drives are the media roles a game names, once each.
          */
         val settings: List<CatalogSetting>
+        /**
+         * Subfields of [fields] that say what a game is or where its files are rather than how it
+         * runs, as `field.subfield`: no game setting changes them (KairoDos's launch folder).
+         */
+        val describes: Set<String> get() = emptySet()
         /** Whether a game can choose touch that moves the guest mouse to the touched point (`input.touch`). */
         val directTouch: Boolean get() = false
         /** Whether [contentId] can fill the media [role]. */

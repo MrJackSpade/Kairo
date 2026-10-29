@@ -84,6 +84,8 @@ public:
     int32_t audio_rate() override { return core_->audio_rate(); }
     uint32_t read_audio(int16_t *stereo, uint32_t max_frames) override { return core_->read_audio(stereo, max_frames); }
     void release_inputs() override { core_->release_inputs(); }
+    void flat_out(bool enabled) override { core_->flat_out(enabled); }
+    std::string command(const std::string &line) override { return core_->command(line); }
     void key(int code, bool down) override { core_->key(code, down); }
     void joystick(int control, bool down) override { core_->joystick(control, down); }
     void mouse_move(int dx, int dy) override { core_->mouse_move(dx, dy); }
@@ -439,4 +441,17 @@ extern "C" JNIEXPORT jlongArray JNICALL NATIVE_MACHINE(nativeScreenSignature)(JN
     jlongArray array = env->NewLongArray(1);
     env->SetLongArrayRegion(array, 0, 1, &value);
     return array;
+}
+
+// A product's own request to its core (MachineCore::command), answered between frames; null when no
+// machine runs.
+extern "C" JNIEXPORT jstring JNICALL NATIVE_MACHINE(nativeCommand)(JNIEnv *env, jobject, jstring line) {
+    const std::string request = utf8(env, line);
+    std::string answer;
+    const int result = machine.call([&request, &answer](kairo::MachineCore &core) {
+        answer = core.command(request);
+        return 0;
+    });
+    if (result != 0) return nullptr;
+    return env->NewStringUTF(answer.c_str());
 }

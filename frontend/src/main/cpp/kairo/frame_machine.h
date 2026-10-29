@@ -53,7 +53,8 @@ namespace kairo {
 //                                Takes up to max_frames of the audio produced
 //                                so far; returns how many.
 //   void release_inputs();       Releases every key and control held down.
-//   std::string close();         Ends the machine before it is destroyed;
+//   void flat_out(bool enabled); Whether frames now run as fast as they can.
+//   std::string close();        Ends the machine before it is destroyed;
 //                                why that failed, or "".
 //
 // One session runs at a time. A session's core is created, run and destroyed on
@@ -327,6 +328,7 @@ private:
             const auto started = std::chrono::steady_clock::now();
             if (started < next_frame) continue;
             const bool flat_out = fast_forward_.load(std::memory_order_relaxed) || core->loading();
+            if (flat_out != was_flat_out) core->flat_out(flat_out);
             if (audio && was_flat_out && !flat_out) audio->trim_to_target();
             was_flat_out = flat_out;
             pacing.frame_started(started, started - next_frame);

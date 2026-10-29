@@ -70,6 +70,9 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     }
     override fun screenSignature(): Long? = nativeScreenSignature()?.single()
 
+    /** A product's own request to its core (MachineCore::command), answered between frames; null when no machine runs. */
+    fun command(line: String): String? = nativeCommand(line)
+
     private companion object {
         // machine_jni.cpp StartupState.
         const val STARTUP_IDLE = 0
@@ -107,4 +110,5 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeStartupResume()
     private external fun nativeStartupStatus(): IntArray
     private external fun nativeScreenSignature(): LongArray?
+    private external fun nativeCommand(line: String): String?
 }

@@ -3,6 +3,7 @@ package com.mrjackspade.kairo.frontend
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.zip.ZipFile
 
 /**
  * AGENTS.md's rule that every setting a catalog entry can give a game is also a per-game setting
@@ -26,8 +27,9 @@ interface CatalogSettingsRule {
 
 /**
  * The rule for a [LayeredGameCatalog]: its product fields are its [LayeredGameCatalog.Schema.settings],
- * each a row of the game's settings, and the shipped catalog (catalog/core-v3.json) gives games only
- * those, the common settings every game's settings have rows for, and fields that describe the game.
+ * each a row of the game's settings, and the shipped catalog (catalog/core-v4.zip, as the build bundles
+ * it) gives games only those, the common settings every game's settings have rows for, and fields that
+ * describe the game (its schema's [LayeredGameCatalog.Schema.describes] among them).
  */
 class LayeredCatalogSettings(private val schema: LayeredGameCatalog.Schema) : CatalogSettingsRule {
     private val settingPaths = schema.settings.flatMap { it.paths }.toSet()
@@ -41,14 +43,22 @@ class LayeredCatalogSettings(private val schema: LayeredGameCatalog.Schema) : Ca
         val problems = mutableListOf<String>()
         for ((field, subfields) in schema.fields) {
             if (subfields == null) { if (field !in settingPaths) problems += "$field: no game setting" }
-            else subfields.filter { "$field.$it" !in settingPaths }.forEach { problems += "$field.$it: no game setting" }
+            else subfields.filter { "$field.$it" !in settingPaths && "$field.$it" !in schema.describes }
+                .forEach { problems += "$field.$it: no game setting" }
         }
-        val catalog = File(root, "catalog/core-v3.json")
+        val catalog = File(root, "catalog/core-v4.zip")
         require(catalog.isFile) { "${catalog.path} is missing" }
-        val document = JSONObject(catalog.readText())
-        records(document.getJSONObject("games")).forEach { (id, record) -> problems += recordProblems(id, record) }
-        records(document.getJSONObject("nameIndex").getJSONObject("games"))
-            .forEach { (id, record) -> problems += recordProblems(id, record) }
+        ZipFile(catalog).use { zip ->
+            val documents = zip.entries().asSequence()
+                .filter { it.name == "name-index-v1.json" || it.name.matches(Regex("shards/[0-9a-f]{2}\\.json")) }
+                .sortedBy { it.name }.toList()
+            require(documents.size > 1) { "${catalog.path} has no records" }
+            for (entry in documents) {
+                val games = JSONObject(zip.getInputStream(entry).use { it.readBytes() }.toString(Charsets.UTF_8))
+                    .getJSONObject("games")
+                records(games).forEach { (id, record) -> problems += recordProblems(id, record) }
+            }
+        }
         // One line per kind of problem, with how many records have it and the first one.
         return problems.groupBy { it.substringAfter(": ") }.map { (problem, all) ->
             "${all.first().substringBefore(": ")}: $problem" + if (all.size > 1) " (and ${all.size - 1} more)" else ""

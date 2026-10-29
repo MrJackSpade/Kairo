@@ -73,6 +73,15 @@ public:
 
     // Releases every key, button and pad control the frontend holds.
     virtual void release_inputs() = 0;
+    // Whether the host runs frames as fast as it can (fast-forward, or loading()), for a core whose
+    // emulator also keeps to real time itself (KairoDos's DOSBox Staging), which then stops doing so.
+    // Called when it changes, before the frame.
+    virtual void flat_out(bool enabled) { (void) enabled; }
+    // A product's own request, such as listing the guest's directories, answered between frames
+    // (NativeMachine.command). Only a product whose core answers some asks.
+    virtual std::string command(const std::string &line) {
+        throw std::logic_error("This core answers no command: " + line);
+    }
     virtual void key(int code, bool down) = 0;
     // A control in JoystickInputRouter's order.
     virtual void joystick(int control, bool down) = 0;
