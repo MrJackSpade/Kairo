@@ -248,7 +248,7 @@ class FlyoutPage(private val model: FlyoutModel, private val start: String? = nu
             brand = true
             setPadding(dp(12), 0, dp(12), dp(14))
         })
-        title = Ui.text(context, "", Ui.TITLE, bold = true).apply {
+        title = Ui.startAligned(Ui.text(context, "", Ui.TITLE, bold = true)).apply {
             maxLines = 2
             ellipsize = TextUtils.TruncateAt.END
             setPadding(dp(12), 0, dp(12), 0)

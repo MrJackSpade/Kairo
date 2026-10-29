@@ -524,7 +524,7 @@ abstract class Page {
             isFocusable = false
             testId("page.back")
         }, LinearLayout.LayoutParams(dp(48), dp(48)).apply { marginEnd = dp(4) })
-        bar.addView(Ui.text(context, title, Ui.TITLE, bold = true).apply {
+        bar.addView(Ui.startAligned(Ui.text(context, title, Ui.TITLE, bold = true)).apply {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }, LinearLayout.LayoutParams(0, -2, 1f))

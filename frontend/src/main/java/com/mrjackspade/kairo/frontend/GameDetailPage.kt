@@ -94,7 +94,7 @@ class GameDetailView<T : LibraryItem>(
         background = Ui.rounded(context, Ui.RAISED, 4)
         clipToOutline = true
     }
-    private val title = Ui.text(context, "", Ui.TITLE, bold = true).apply {
+    private val title = Ui.startAligned(Ui.text(context, "", Ui.TITLE, bold = true)).apply {
         maxLines = 3
         ellipsize = android.text.TextUtils.TruncateAt.END
     }
@@ -116,8 +116,8 @@ class GameDetailView<T : LibraryItem>(
         visibility = View.GONE
         setPadding(0, dp(16), 0, 0)
     }
-    private val description = Ui.text(context, "", Ui.BODY, Ui.TEXT_BODY).apply { setLineSpacing(dp(8).toFloat(), 1f) }
-    private val file = Ui.text(context, "", Ui.LABEL, Ui.TEXT_FAINT)
+    private val description = Ui.startAligned(Ui.text(context, "", Ui.BODY, Ui.TEXT_BODY)).apply { setLineSpacing(dp(8).toFloat(), 1f) }
+    private val file = Ui.startAligned(Ui.text(context, "", Ui.LABEL, Ui.TEXT_FAINT))
 
     /** Whether Game settings shows here; not while the other screen shows the settings. */
     var settingsShown: Boolean = true

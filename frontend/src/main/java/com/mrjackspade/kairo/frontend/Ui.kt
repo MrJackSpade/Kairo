@@ -72,6 +72,12 @@ object Ui {
 
     fun dp(context: Context, value: Int) = (value * context.resources.displayMetrics.density).roundToInt()
 
+    /**
+     * Text aligned to the layout's start rather than its own direction: a game's title or file name,
+     * often English, then lines up with a right-to-left page around it (Kairo#129).
+     */
+    fun <T : TextView> startAligned(view: T): T = view.apply { textAlignment = View.TEXT_ALIGNMENT_VIEW_START }
+
     /** Whether [view] lays out right to left (Arabic), so its rows run from the right (Kairo#129). */
     fun rtl(view: View) = view.layoutDirection == View.LAYOUT_DIRECTION_RTL
 
@@ -399,12 +405,14 @@ class PixelTextView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         val size = pixel.toFloat()
+        // The text starts at the layout's start: the right edge right to left (Kairo#129).
+        val startX = if (Ui.rtl(this)) width - paddingRight - textWidth() else paddingLeft.toFloat()
         if (rightToLeft) {
             systemPaint.textSize = SYSTEM_TEXT_SIZE * size
-            canvas.drawText(text, paddingLeft.toFloat(), paddingTop + BASELINE * size, systemPaint)
+            canvas.drawText(text, startX, paddingTop + BASELINE * size, systemPaint)
             return
         }
-        var originX = paddingLeft.toFloat()
+        var originX = startX
         text.codePoints().toArray().forEachIndexed { index, code ->
             val glyph = font.glyph(code)
             val glyphPaint = if (brand && index >= BRAND_PREFIX.length) accentPaint else paint

@@ -238,11 +238,11 @@ class LibraryScreen<T : LibraryItem>(
                 orientation = LinearLayout.VERTICAL
                 setPaddingRelative(dp(14), 0, 0, 0)
             }
-            val title = Ui.text(context, "", Ui.BODY).apply {
+            val title = Ui.startAligned(Ui.text(context, "", Ui.BODY)).apply {
                 maxLines = 1
                 ellipsize = android.text.TextUtils.TruncateAt.END
             }
-            val detail = Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED).apply {
+            val detail = Ui.startAligned(Ui.text(context, "", Ui.SECONDARY, Ui.TEXT_MUTED)).apply {
                 maxLines = 2
                 ellipsize = android.text.TextUtils.TruncateAt.END
             }
