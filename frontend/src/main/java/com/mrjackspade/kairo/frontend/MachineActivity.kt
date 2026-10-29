@@ -481,7 +481,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     if (blank) awaitPicture(generation)
                     watchEnd(generation, game.title)
                     if (atPrompt) selectedChoices = emptyList()
-                    startAutomation(game, if (atPrompt) emptyList() else game.diskSwaps, swaps)
+                    startAutomation(game, atPrompt, swaps)
                     gameStarted(entry, game)
                 } else launchFailed(failure)
             }
@@ -938,12 +938,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         }
     }
 
-    private fun startAutomation(game: CatalogGame, rules: List<DiskSwap>, sources: Map<String, E>) {
+    /** At the prompt ([atPrompt]) the game is the player's: nothing typed, no disk swapped. */
+    private fun startAutomation(game: CatalogGame, atPrompt: Boolean, sources: Map<String, E>) {
         automationCancelled.set(true)
         val cancelled = AtomicBoolean(false)
         automationCancelled = cancelled
         val generation = sessionGeneration
-        val steps = launchSteps(game) + selectedChoices.flatMap { (choice, option) ->
+        val steps = if (atPrompt) emptyList() else launchSteps(game) + selectedChoices.flatMap { (choice, option) ->
             option.inputs.mapIndexed { index, input ->
                 LabeledStep(getString(R.string.kairo_startup_step_choice, choice.title, option.label, index + 1, option.inputs.size),
                     StartupStep(input.key.toString(), input.enter, input.screenHashes, CHOICE_TIMEOUT_MS))
@@ -955,7 +956,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             bridge.startupSteps(steps.map { it.step }, replace = false)
             watchStartup(steps, cancelled, generation)
         }
-        scheduleDiskSwaps(rules, sources, generation)
+        scheduleDiskSwaps(if (atPrompt) emptyList() else game.diskSwaps, sources, generation)
     }
 
     /** Follows the typer until it is done or stalls on a step, when a notice offers Retry. */
