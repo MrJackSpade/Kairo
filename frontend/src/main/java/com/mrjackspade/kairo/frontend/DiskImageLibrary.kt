@@ -322,9 +322,18 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         private fun newest(file: File) = file.walkTopDown().filter { it.isFile }.maxOfOrNull { it.lastModified() } ?: file.lastModified()
     }
 
-    /** The library entry whose working copy is [path], for a disk the machine holds. */
-    override fun entryForWorkingImage(path: String, entries: List<DiskImageEntry>): DiskImageEntry? =
-        entries.firstOrNull { workingImage(it).absolutePath == path }
+    /**
+     * The library entry whose working copy is [path], for a disk the machine holds. An emulator may
+     * report the file by another name for it (MAME gives /data/data/<package> for the
+     * /data/user/0/<package> of the app's files), so [path] is taken as the same place under
+     * [workingDirectory] whichever name of that folder it starts with.
+     */
+    override fun entryForWorkingImage(path: String, entries: List<DiskImageEntry>): DiskImageEntry? {
+        val canonicalRoot = workingDirectory.canonicalPath + File.separator
+        val held = if (path.startsWith(canonicalRoot))
+            File(workingDirectory, path.removePrefix(canonicalRoot)).absolutePath else path
+        return entries.firstOrNull { workingImage(it).absolutePath == held }
+    }
 
     /** Inspect one launcher-provided document without requiring a selected ROM tree. */
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean): List<DiskImageEntry> {
