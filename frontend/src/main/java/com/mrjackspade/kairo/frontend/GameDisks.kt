@@ -1,7 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import android.content.Context
-import java.util.Locale
 
 /**
  * A drive's disk choice while a game runs (Kairo#47): Empty, the running game's own disks, and
@@ -14,31 +13,17 @@ object GameDisks {
 
     /**
      * The disks of [current]'s game among [entries]: itself, the other images of its archive, the
-     * disks of its catalog set ([setDisks] by catalog content ID, [matchId] giving each entry's),
-     * disks beside it in its folder under the same title, and what the drives hold now ([mounted]).
+     * disks of its catalog set ([setDisks] by catalog content ID, [matchId] giving each entry's) and
+     * what the drives hold now ([mounted]). File names never decide it: a set is the catalog's.
      */
     fun <E : LibraryItem> own(current: E, entries: List<E>, mounted: Collection<E?>, setDisks: Set<String>,
-                              matchId: (E) -> String?, takes: (E) -> Boolean): List<E> {
-        val folder = current.path.substringBeforeLast('/', "")
-        val title = titleOf(current)
-        return entries.filter { entry ->
+                              matchId: (E) -> String?, takes: (E) -> Boolean): List<E> =
+        entries.filter { entry ->
             takes(entry) && (entry.id == current.id ||
                 (entry.zipEntry != null && entry.uri == current.uri) ||
                 entry in mounted ||
-                (entry.path.substringBeforeLast('/', "") == folder && titleOf(entry) == title) ||
                 (setDisks.isNotEmpty() && matchId(entry) in setDisks))
         }
-    }
-
-    /**
-     * The title a disk's file names, before its first tag: "Betrayal (1991)(Rainbird)(Disk 2 of 2).zip"
-     * is "betrayal", so the disks of one game in a folder of many games find each other.
-     */
-    fun titleOf(entry: LibraryItem): String {
-        val name = entry.path.substringAfterLast('/').substringBeforeLast('.')
-        val tag = name.indexOfAny(charArrayOf('(', '['))
-        return (if (tag > 0) name.substring(0, tag) else name).trim().lowercase(Locale.ROOT)
-    }
 
     /**
      * Options for [entries]: a loose disk by its file name, one in an archive by the archive's, and

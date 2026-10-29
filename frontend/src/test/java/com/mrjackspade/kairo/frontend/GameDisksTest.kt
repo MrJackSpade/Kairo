@@ -28,16 +28,19 @@ class GameDisksTest {
     private fun own(current: Disk, mounted: List<Disk?> = emptyList(), set: Set<String> = emptySet()) =
         GameDisks.own(current, library, mounted, set, { it.catalogId }, { true })
 
+    /** Names never make a set: disk 2 beside disk 1 is the game's only when the catalog's set names it. */
     @Test
-    fun aGameInAFolderOfThousandsHasItsOwnDisks() =
-        assertEquals(listOf(betrayal1, betrayal2), own(betrayal1))
+    fun aNeighbourWithTheSameTitleIsNotTheGamesDisk() {
+        assertEquals(listOf(betrayal1), own(betrayal1))
+        assertEquals(listOf(betrayal1, betrayal2), own(betrayal1, set = setOf(betrayal2.contentId!!)))
+    }
 
     @Test
     fun anArchiveHoldsItsGamesDisks() = assertEquals(listOf(setA, setB), own(setA))
 
     @Test
     fun theCatalogSetAndTheDrivesCount() =
-        assertEquals(listOf(betrayal1, betrayal2, other, catalogued),
+        assertEquals(listOf(betrayal1, other, catalogued),
             own(betrayal1, mounted = listOf(other, null), set = setOf(catalogued.contentId!!)))
 
     @Test
