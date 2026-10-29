@@ -5,6 +5,9 @@ in the device's language. Each app's catalog/research/descriptions-<tag>-v1.json
 """
 
 LANGUAGES = ("es", "pt-BR", "de", "ru", "ja", "ko", "ar", "id")
+# Each language's name in English, for briefs to translators.
+NAMES = {"es": "Spanish", "pt-BR": "Brazilian Portuguese", "de": "German", "ru": "Russian", "ja": "Japanese",
+         "ko": "Korean", "ar": "Arabic", "id": "Indonesian"}
 
 
 def valid_titles(value):

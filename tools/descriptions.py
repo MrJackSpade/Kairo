@@ -162,7 +162,9 @@ def done_texts(target):
     return {key: entry["text"] for key, entry in done_translations(target).items()}
 
 
-def pending(root, language, output, adult, limit, start=None, end=None):
+def untranslated(root, language, adult, start=None, end=None):
+    """The English descriptions not yet translated into <language>, or whose translation is stale, as
+    ({"<game key>": "English"}, the stale keys, the number translated, the number of English)."""
     import catalog_descriptions
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
@@ -170,10 +172,15 @@ def pending(root, language, output, adult, limit, start=None, end=None):
     outdated = set(catalog_descriptions.stale(english, done))
     left = {key: text for key, text in sorted(english.items()) if (key not in done or key in outdated) and
             (start is None or key >= start) and (end is None or key < end)}
+    return left, outdated, len(done), len(english)
+
+
+def pending(root, language, output, adult, limit, start=None, end=None):
+    left, outdated, done, english = untranslated(root, language, adult, start, end)
     batch = dict(list(left.items())[:limit] if limit else left.items())
     output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{len(batch)} of {len(left)} to translate, {len(outdated)} of them stale "
-          f"({len(done) - len(outdated)} of {len(english)} done) -> {output}")
+          f"({done - len(outdated)} of {english} done) -> {output}")
 
 
 def report_stale(root):
@@ -251,8 +258,25 @@ def names_in(text):
     return found
 
 
-def names(root, language, output, adult, limit, after):
+def name_leads(language, found):
+    """name_forms' {name: (linked, direct, search)} in the Wikipedia that writes <language>."""
     import name_forms
+    return name_forms.cached(WIKI.get(language, language), sorted(set(found)), search=False)
+
+
+def native(name, lead):
+    """The forms the language's Wikipedia gives the name (from its name_leads() lead), where they
+    differ from the English. An English article of another title (a redirect to something broader,
+    such as a year to its millennium) says nothing about the name itself; a plain number is not a name."""
+    if re.fullmatch(r"[\d\s.,x-]+", name):
+        return []
+    linked, direct, _ = lead
+    title, _, form = linked.partition(" -> ")
+    forms = [form if re.sub(r"\s*\([^()]*\)$", "", title).casefold() == name.casefold() else "-", direct]
+    return [form for form in forms if form and form != "-" and form.casefold() != name.casefold()]
+
+
+def names(root, language, output, adult, limit, after):
     source, target = translation_paths(root, language, adult)
     english = read(source, {"descriptions": {}})["descriptions"]
     done = done_texts(target)
@@ -260,23 +284,11 @@ def names(root, language, output, adult, limit, after):
     def kept(name, text):
         return re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", text) is not None
     candidates = {key: [name for name in dict.fromkeys(names_in(english[key])) if kept(name, done[key])] for key in keys}
-    leads = name_forms.cached(WIKI.get(language, language),
-                              sorted({name for found in candidates.values() for name in found}), search=False)
-
-    def native(name):
-        """The form the language's Wikipedia gives the name, when it differs from the English. An
-        English article of another title (a redirect to something broader, such as a year to its
-        millennium) says nothing about the name itself; a plain number is not a name."""
-        if re.fullmatch(r"[\d\s.,x-]+", name):
-            return []
-        linked, direct, _ = leads[name]
-        title, _, form = linked.partition(" -> ")
-        forms = [form if re.sub(r"\s*\([^()]*\)$", "", title).casefold() == name.casefold() else "-", direct]
-        return [form for form in forms if form and form != "-" and form.casefold() != name.casefold()]
+    leads = name_leads(language, {name for found in candidates.values() for name in found})
 
     flagged = {}
     for key in keys:
-        found = {name: list(leads[name][:2]) for name in candidates[key] if native(name)}
+        found = {name: list(leads[name][:2]) for name in candidates[key] if native(name, leads[name])}
         if found:
             flagged[key] = {"en": english[key], "current": done[key], "names": found}
     batch = dict(list(flagged.items())[:limit] if limit else flagged.items())
@@ -285,17 +297,21 @@ def names(root, language, output, adult, limit, after):
 
 
 def translate(root, language, batch_path, adult, replace=False):
+    store(root, language, read(batch_path), adult, replace)
+
+
+def store(root, language, batch, adult, replace=False):
+    """Merges {"<game key>": "translation"} into the language's file (see translate)."""
     source, target = translation_paths(root, language, adult)
     with locked(target):
-        merge(target, source, language, batch_path, replace)
+        merge(target, source, language, batch, replace)
 
 
-def merge(target, source, language, batch_path, replace):
+def merge(target, source, language, batch, replace):
     import catalog_descriptions
     english = read(source, {"descriptions": {}})["descriptions"]
     document = {"schemaVersion": 1, **read(target, {}), "descriptions": done_translations(target)}
     outdated = set(catalog_descriptions.stale(english, document["descriptions"]))
-    batch = read(batch_path)
     for key, text in batch.items():
         if key not in english:
             raise SystemExit(f"{key} has no English description in {source.name}")
