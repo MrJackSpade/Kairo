@@ -986,14 +986,17 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 })))
     }
 
+    /**
+     * Watches for [rules]' screens for the whole session: a swap is asked for mid-game, so the player
+     * taking over (cancelAutomation, as opening the menu) stops only the typed startup steps.
+     */
     private fun scheduleDiskSwaps(rules: List<DiskSwap>, sources: Map<String, E>, generation: Int) {
         if (rules.isEmpty()) return
-        val cancelled = automationCancelled
         Thread {
             var failedRule: DiskSwap? = null
             try {
                 DiskSwapMatcher(bridge::screenSignature, { MachineStatus(bridge.status()).state == "Running" },
-                    { cancelled.get() || !current(generation) },
+                    { !current(generation) },
                     { rule ->
                         failedRule = rule
                         performDiskSwap(rule, sources.getValue(rule.contentId), generation)
