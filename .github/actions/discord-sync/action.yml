@@ -4,8 +4,11 @@ inputs:
   webhook:
     description: The Kairo Discord forum webhook (a secret)
     required: true
+  owner-webhook:
+    description: The Kairo Discord forum webhook for issues only the repository owner has opened and commented on (a secret)
+    required: true
   bot-token:
-    description: The Kairo Discord bot's token (a secret), which archives and renames posts
+    description: The Kairo Discord bot's token (a secret), which archives, renames and deletes posts
     required: true
   state:
     description: The calling repository's folder for its Discord message IDs, such as .github/discord-sync/issues
@@ -23,6 +26,7 @@ runs:
       shell: bash
       env:
         DISCORD_FORUM_WEBHOOK: ${{ inputs.webhook }}
+        DISCORD_OWNER_WEBHOOK: ${{ inputs.owner-webhook }}
         DISCORD_BOT_TOKEN: ${{ inputs.bot-token }}
         DISCORD_SYNC_STATE: ${{ inputs.state }}
         GITHUB_TOKEN: ${{ github.token }}

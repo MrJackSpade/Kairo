@@ -15,8 +15,11 @@ on:
       webhook:
         description: The Kairo Discord forum webhook
         required: true
+      owner-webhook:
+        description: The Kairo Discord forum webhook for issues only the repository owner has opened and commented on
+        required: true
       bot-token:
-        description: The Kairo Discord bot's token, which archives and renames posts
+        description: The Kairo Discord bot's token, which archives, renames and deletes posts
         required: true
 
 jobs:
@@ -41,6 +44,7 @@ jobs:
       - uses: ./.kairo-discord-sync/.github/actions/discord-sync
         with:
           webhook: ${{ secrets.webhook }}
+          owner-webhook: ${{ secrets.owner-webhook }}
           bot-token: ${{ secrets.bot-token }}
           state: .github/discord-sync/issues
           issue: ${{ inputs.issue }}

@@ -22,4 +22,5 @@ jobs:
       issue: ${{ inputs.issue }}
     secrets:
       webhook: ${{ secrets.DISCORD_FORUM_WEBHOOK }}
+      owner-webhook: ${{ secrets.KAIRO_DISCORD_OWNER_WEBHOOK }}
       bot-token: ${{ secrets.KAIRO_DISCORD_BOT_TOKEN }}
