@@ -158,6 +158,36 @@ section 1). The issue after an item is where its lesson was learned.
 - [ ] `game_profile` with frame hashes (`check exact`), to measure speed and show two builds run
   the guest alike.
 
+### Performance
+
+Each technique as Kairo68#6 to #28 describe it (and KairoTowns#9 to #31, KairoST#9 to #31): check
+whether it applies to this core, whether the app already has it, and what it gains on the RG DS,
+with the guest run exactly as before (`check exact`).
+
+- [ ] Profiling and measurement harness: guest counters, host stage timers, a slow-frame log,
+  verify builds, repeatable runs (Kairo68#28).
+- [ ] Profile-guided optimization (Kairo68#6).
+- [ ] Link-time optimization, ThinLTO (Kairo68#7).
+- [ ] Symbol binding and visibility (Kairo68#8).
+- [ ] Compiler optimization level and target flags (Kairo68#9).
+- [ ] Interpreter exception boundary: no signal-mask system call per slice (Kairo68#10).
+- [ ] CPU timeslice fragmentation (Kairo68#11).
+- [ ] Idle and wait-loop skipping, exact in guest time (Kairo68#12, KairoTowns#33).
+- [ ] Instruction fetch and register-access fast paths (Kairo68#13).
+- [ ] Guest memory access fast paths (Kairo68#14).
+- [ ] Condition-flag evaluation (Kairo68#15).
+- [ ] Graphics-chip emulation fast paths (Kairo68#17).
+- [ ] Video rendering dirty tracking (Kairo68#18).
+- [ ] GPU composition of guest video (Kairo68#19).
+- [ ] Frame copies and pixel conversion (Kairo68#20).
+- [ ] Presentation off the emulation thread (Kairo68#21).
+- [ ] Sound synthesis off the emulation thread (Kairo68#22).
+- [ ] Audio resampler SIMD (Kairo68#23).
+- [ ] Frame pacing on a fixed grid (Kairo68#24).
+- [ ] Audio output buffering and latency (Kairo68#25).
+- [ ] Emulation thread priority and scheduling (Kairo68#26).
+- [ ] Guest CPU cycle budget (Kairo68#27).
+
 ## 5. Android module (`kairo<x>/`)
 
 - [ ] `build.gradle.kts`: `kairoProduct`, `kairoLabel`, `kairoCatalogRules`,
@@ -243,8 +273,7 @@ Each finding is its own ticket.
   (Kairo64#8).
 - [ ] **Speed.** The heaviest action games, not still screens, at the guest's frame rate with no
   audio underruns (KairoTowns#6); the flat-out speed during a load (Kairo64#1). A still screen
-  costs little; crackle is underruns, found in the frame's work (Kairo68#30). Below full speed,
-  open the performance tickets (Kairo68#6 to #28), JIT last.
+  costs little; crackle is underruns, found in the frame's work (Kairo68#30).
 - [ ] **Launches.** Play to first picture; several games in one process, a program after a disk
   and a game after a loaded state; a launch from other frontends (ES-DE, NeoStation, Daijisho)
   is the library's game, with its saves (Kairo98#63).
