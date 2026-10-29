@@ -11,5 +11,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify shared documents
         run: python3 tools/docs.py . --check
+      - name: Verify the new-system tickets and their checklist
+        run: |
+          python3 tools/init_system.py --repo MrJackSpade/KairoNew --app KairoNew --system "New System" --dry-run
+          python3 tools/init_system.py --checklist --check
       - uses: ./.github/actions/setup-android
       - run: ./gradlew --no-daemon :frontend:assembleDebug
