@@ -15,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from app_catalog import metadata
 from research import load_config
+import catalog_files
 
 
 def main():
@@ -22,7 +23,7 @@ def main():
         raise SystemExit(__doc__)
     root = Path(sys.argv[1]).resolve()
     config = load_config(root)
-    games = json.loads((root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))["games"]
+    games = catalog_files.read(root / "catalog/research/games-v1.json.gz")["games"]
     path = root / "catalog/core-review-v1.json"
     review = json.loads(path.read_text(encoding="utf-8"))
     adult = review["adultArtwork"]

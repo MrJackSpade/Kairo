@@ -5,7 +5,8 @@ Usage: app_catalog.py <app root> [--check]
 
 The app's tools/catalog_config.py names its APP (a catalog_parts.APPS key), its media KINDS, its
 ARTWORK references and its MEDIA_EXTENSIONS, the file extensions the app removes from a file's name
-before looking it up (Schema.mediaExtensions, the same pattern). catalog/research/games-v1.json holds one record per game:
+before looking it up (Schema.mediaExtensions, the same pattern). catalog/research/games-v1.json.gz (gzipped,
+catalog_files.py) holds one record per game:
 
   {"schemaVersion": 1, "games": {"<platform>:<id>": {
       "title": "...", "aliases": [...], "description": "...",   shipped display metadata
@@ -70,6 +71,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import catalog_documents
+import catalog_files
 import catalog_tags
 import startup_automation
 from catalog_documents import compact, require
@@ -275,7 +277,7 @@ def generate(root, check=False):
                                 getattr(config, "MACHINE_OPTIONS", None), getattr(config, "LAUNCH_FIELDS", None),
                                 getattr(config, "DISK_SWAPS", None))
     media_extensions = re.compile(config.MEDIA_EXTENSIONS, re.I)
-    research = json.loads((root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))
+    research = catalog_files.read(root / "catalog/research/games-v1.json.gz")
     require(research.get("schemaVersion") == 1, "unsupported research schema")
     policy = json.loads((root / "catalog/core-review-v1.json").read_text(encoding="utf-8"))
     games, names, source_games = {}, {}, []

@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import NamedTuple
 from catalog_package import compact, filter_artwork, image_paths, build_package
 from catalog_languages import LANGUAGES, valid_translations
+import catalog_files
 
 class App(NamedTuple):
     """How an app publishes its catalog. package/identity name its importable artwork package;
@@ -110,10 +111,12 @@ def generate_parts(root, app, full_documents, optional_data, adult_data, expand,
     directory = root/'catalog/parts'
     directory.mkdir(parents=True, exist_ok=True)
     for name, value in outputs.items():
+        stem = name.removesuffix('.json')
         payload, index = indexed_document(value)
-        for filename, content in ((name,payload),(name.removesuffix('.json')+'.idx',compact(index))):
-            if check: assert (directory/filename).read_bytes() == content, f'Stale {filename}'
-            else: (directory/filename).write_bytes(content)
+        # The parts that hold descriptions are gzipped (catalog_files.py); the index addresses the unzipped JSON.
+        for path, content in ((catalog_files.part(root, stem),payload),(directory/f'{stem}.idx',compact(index))):
+            if check: assert catalog_files.same(path, content), f'Stale {path.name}'
+            else: catalog_files.write_bytes(path, content)
     assert merge(data, controls, safe, extra) == full_documents
     # The importable catalog contributes only adult images and descriptions. Metadata and controls are always shipped.
     restricted = filter_artwork(optional_data, withheld, expand, compact_art)

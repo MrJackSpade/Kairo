@@ -1,9 +1,11 @@
+import gzip
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
 from research import index_snapshots, match_title, moby_match, name_forms, parse_hint, relocate
+import catalog_files
 
 
 def snapshot(*games):
@@ -74,6 +76,14 @@ class RelocateTest(unittest.TestCase):
             relocate(path, "descriptions", {"x:local-1": "x:3"}, {"x:2": {}, "x:3": {}})
             self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["descriptions"],
                              {"x:3": "text", "x:2": "kept"})
+
+    def test_a_gzipped_file_stays_gzipped(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "descriptions-v1.json.gz"
+            catalog_files.write(path, {"descriptions": {"x:local-1": "text"}})
+            relocate(path, "descriptions", {"x:local-1": "x:3"}, {"x:3": {}})
+            self.assertEqual(gzip.decompress(path.read_bytes())[:1], b"{")
+            self.assertEqual(catalog_files.read(path)["descriptions"], {"x:3": "text"})
 
     def test_a_game_with_its_own_record_is_a_conflict(self):
         with tempfile.TemporaryDirectory() as folder:

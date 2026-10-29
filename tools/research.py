@@ -3,7 +3,7 @@
 
 Usage: research.py <app root> [--mobygames <dump directory>]
 
-Writes catalog/research/games-v1.json for tools/app_catalog.py. The app's tools/catalog_config.py
+Writes catalog/research/games-v1.json.gz for tools/app_catalog.py. The app's tools/catalog_config.py
 names its PLATFORMS (LaunchBox slugs), MOBYGAMES (its MobyGames listing slug) and SCANS:
 {set name: (scan index path, LaunchBox slugs to match against, in order)}. An optional
 GROUP(archive path) names the game an archive belongs to (default: its file name, or for a disk
@@ -20,12 +20,13 @@ and the decision is recorded so it can be reviewed and corrected:
                          an archive that holds several games' disks (a "Title I + II" compilation)
                          among them, naming every disk; its local disks form one local game
   moby-matches-v1.json   {"<MobyGames ID>": "<game key>" | "own"}
-  descriptions-v1.json   {"<game key>": "original description"}
-  descriptions-adult-v1.json  {"<game key>": "frank description"} of an adult game, which replaces
+  descriptions-v1.json.gz   {"<game key>": "original description"}
+  descriptions-adult-v1.json.gz  {"<game key>": "frank description"} of an adult game, which replaces
                          its main description only in the adult data part (catalog_parts.py)
-  descriptions-<language>-v1.json, descriptions-adult-<language>-v1.json
+  descriptions-<language>-v1.json.gz, descriptions-adult-<language>-v1.json.gz
                          the same descriptions translated, for each of catalog_languages.LANGUAGES;
-                         a game's translation needs its English description
+                         a game's translation needs its English description. The description files
+                         and games-v1.json.gz are gzipped (catalog_files.py)
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork"|"controller": ...}} applied last
   titles-v1.json         {"<game key>": {"ja": "...", "source": "..."}}, the Japanese title a game was released
                          under (japanese_titles.py), shipped as its "titles" (Kairo#61)
@@ -69,6 +70,7 @@ from moby_art import MobyArt
 from disk_sets import disk_sets, group as disk_group, ungrouped_sets
 from catalog_languages import LANGUAGES
 import catalog_descriptions
+import catalog_files
 import art_verdicts
 import japanese_titles
 from launchbox_artwork import URL
@@ -87,14 +89,11 @@ def load_config(root):
 
 
 def read(path, default):
-    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else default
+    return catalog_files.read(path) if path.is_file() else default
 
 
 def write(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
-    temporary.replace(path)
+    catalog_files.write(path, value)
 
 
 def parse_hint(name):
@@ -469,8 +468,8 @@ def assemble(root, moby_root):
         raise SystemExit(f"{len(ungrouped)} multi-disk sets are more than one library entry: " +
                          "; ".join(f"{name} ({len(shown)} entries)" for name, shown in ungrouped[:10]))
 
-    translated = [f"descriptions{kind}-{language}-v1.json" for kind in ("", "-adult") for language in LANGUAGES]
-    for name, field in (("descriptions-v1.json", "descriptions"), ("descriptions-adult-v1.json", "descriptions"),
+    translated = [f"descriptions{kind}-{language}-v1.json.gz" for kind in ("", "-adult") for language in LANGUAGES]
+    for name, field in (("descriptions-v1.json.gz", "descriptions"), ("descriptions-adult-v1.json.gz", "descriptions"),
                         *((name, "descriptions") for name in translated), ("overrides-v1.json", "games"),
                         ("titles-v1.json", "games")):
         relocate(research / name, field, moved, games)
@@ -545,7 +544,7 @@ def assemble(root, moby_root):
         write(research / "moby-matches-v1.json", moby_decisions)
         write(research / "moby-artwork-v1.json", moby_art.provenance())
     write(research / "media-matches-v1.json", media_decisions)
-    write(research / "games-v1.json", {"schemaVersion": 1, "games": games, "sharedContentIds": shared})
+    write(research / "games-v1.json.gz", {"schemaVersion": 1, "games": games, "sharedContentIds": shared})
     # A split archive counts by each of its disks' decisions.
     decided = [value for decision in media_decisions["archives"].values()
                for value in (decision.values() if isinstance(decision, dict) else [decision])]

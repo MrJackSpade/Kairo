@@ -16,7 +16,7 @@ This finds the Japanese one from known sources only; it never translates or inve
 Where a source gives several, the one with kanji, then the longest, is taken; a game with none keeps
 its current title. Decisions go to catalog/research/titles-v1.json,
 {"schemaVersion": 1, "games": {"<game key>": {"ja": "...", "source": "vndb:v123" | "launchbox:123" |
-"alias"}}}, which research.py applies to games-v1.json. A recorded decision is kept on later runs, so
+"alias"}}}, which research.py applies to games-v1.json.gz. A recorded decision is kept on later runs, so
 a reviewed correction stays; one reviewed as wrong with no known replacement is kept as
 {"ja": null, "source": "...", "rejected": "<why>"} and gives the game no Japanese title. Delete a
 decision to decide it again. VNDB's platform lists are cached in
@@ -32,6 +32,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
+import catalog_files
 
 # A research key's platform -> VNDB's platform code.
 VNDB_PLATFORMS = {"pc98": "p98", "pc88": "p88", "x68000": "x68", "msx": "msx", "msx2": "msx", "fmtowns": "fmt"}
@@ -143,7 +144,7 @@ def decide(game_key, game, vndb, launchbox):
 
 
 def apply(research, games):
-    """Each game's Japanese title from [research]'s titles-v1.json, as its "titles" in games-v1.json."""
+    """Each game's Japanese title from [research]'s titles-v1.json, as its "titles" in games-v1.json.gz."""
     path = Path(research) / "titles-v1.json"
     if not path.exists():
         return
@@ -164,7 +165,7 @@ def main():
     parser.add_argument("--refresh-vndb", action="store_true")
     args = parser.parse_args()
     research = args.root / "catalog/research"
-    games = json.loads((research / "games-v1.json").read_text(encoding="utf-8"))["games"]
+    games = catalog_files.read(research / "games-v1.json.gz")["games"]
     platforms = {game_key.split(":", 1)[0] for game_key in games}
     vndb = {}
     for platform in sorted({VNDB_PLATFORMS[p] for p in platforms if p in VNDB_PLATFORMS}):

@@ -253,7 +253,7 @@ def batches(items, size):
 
 def translate(root, languages, adult, model, batch, workers, limit):
     os.environ["FIREWORKS_API_KEY"]  # fail before any work without the key
-    games = descriptions.read(root / "catalog/research/games-v1.json")["games"]
+    games = descriptions.read(root / "catalog/research/games-v1.json.gz")["games"]
     rng = random.Random()
     work = []
     for language in languages:

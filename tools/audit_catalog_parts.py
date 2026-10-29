@@ -11,6 +11,7 @@ from catalog_parts import APPS, adult_descriptions, artwork_split, merge, split,
 from catalog_package import compact
 from catalog_package import image_paths
 from catalog_binary import verify_part
+import catalog_files
 
 def audit(root, product, artifacts=()):
     app = next(name for name, spec in APPS.items() if spec.product == product)
@@ -45,11 +46,14 @@ def audit(root, product, artifacts=()):
     else:
         from artwork_references import expand
     policy = json.loads((root/'catalog/core-review-v1.json').read_text('utf8'))
-    parts = {p.name:p.read_bytes() for p in (root/'catalog/parts').glob('*.json')}
-    assert set(parts) == {'data.json','controls.json','art.json','art.nsfw.json','data.nsfw.json'}
+    # The parts that hold descriptions are gzipped (catalog_files.py); the others are plain JSON.
+    stems = ('data', 'controls', 'art', 'art.nsfw', 'data.nsfw')
+    files = {p.name for p in (root/'catalog/parts').iterdir() if not p.name.endswith('.idx')}
+    assert files == {catalog_files.part(root, stem).name for stem in stems}, f'Unexpected catalog parts: {sorted(files)}'
+    parts = {f'{stem}.json':catalog_files.read_bytes(catalog_files.part(root, stem)) for stem in stems}
     documents = {name:json.loads(data)['documents'] for name,data in parts.items()}
     for name, value in documents.items():
-        repository_file(root/'catalog/parts'/name)
+        repository_file(catalog_files.part(root, name.removesuffix('.json')))
         repository_file(root/'catalog/parts'/name.replace('.json', '.idx'))
         payload, index = indexed_document(value)
         assert payload == parts[name]

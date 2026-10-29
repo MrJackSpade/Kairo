@@ -9,27 +9,27 @@
       such as KairoDos's eXoDOS text). The excerpts are reference only; catalog descriptions are
       written fresh and never copy their wording.
   descriptions.py add <app root> <batch.json> [--adult]
-      Merge {"<game key>": "description"} into catalog/research/descriptions-v1.json (with --adult,
-      an adult game's frank description into descriptions-adult-v1.json). Each key must be a game
-      in games-v1.json (with --adult, one marked adult) that has no such description yet.
+      Merge {"<game key>": "description"} into catalog/research/descriptions-v1.json.gz (with
+      --adult, an adult game's frank description into descriptions-adult-v1.json.gz). Each key must
+      be a game in games-v1.json.gz (with --adult, one marked adult) that has no such description yet.
 
-  descriptions.py pending <app root> <language> <out.json> [--adult] [--limit N] [--from KEY] [--to KEY]
+  descriptions.py pending <app root> <language> <out.json.gz> [--adult] [--limit N] [--from KEY] [--to KEY]
       Up to N of the English descriptions (or with --adult, the frank adult descriptions) not yet
       translated into <language> (catalog_languages.LANGUAGES), or whose translation is stale (made
       from English that has since changed), as {"<game key>": "English"};
       --from and --to keep to game keys from KEY up to, not including, KEY, so several workers
       can share a language.
   descriptions.py translate <app root> <language> <batch.json> [--adult]
-      Merge {"<game key>": "translation"} into catalog/research/descriptions[-adult]-<language>-v1.json,
+      Merge {"<game key>": "translation"} into catalog/research/descriptions[-adult]-<language>-v1.json.gz,
       each stored as {"en": the English it translates, "text": translation}. Each key must have that
       English description and no translation yet, or a stale one.
-  descriptions.py revise <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
+  descriptions.py revise <app root> <language> <out.json.gz> [--adult] [--limit N] [--after KEY]
       Up to N translations, after game key KEY, that still write words in Latin letters, as
       {"<game key>": {"en": "English", "current": "translation"}}, for a pass that rewrites them.
-  descriptions.py rewritten <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
+  descriptions.py rewritten <app root> <language> <out.json.gz> [--adult] [--limit N] [--after KEY]
       The same, for the translations that differ from the committed file (git HEAD), with that
       version as "before": {"<game key>": {"en": ..., "before": ..., "current": ...}}.
-  descriptions.py names <app root> <language> <out.json> [--adult] [--limit N] [--after KEY]
+  descriptions.py names <app root> <language> <out.json.gz> [--adult] [--limit N] [--after KEY]
       Up to N translations, after game key KEY, that keep a name in its English form where the
       language's Wikipedia has an established form of it (name_forms.py): an official localized
       title, a standard exonym. {"<game key>": {"en", "current", "names": {name: [linked, direct]}}},
@@ -39,11 +39,15 @@
   descriptions.py stale <app root>
       Each language's count of stale translations, main and adult.
 
-Run research.py afterwards to carry the descriptions into games-v1.json.
+Run research.py afterwards to carry the descriptions into games-v1.json.gz.
+
+The catalog's description files are gzipped (catalog_files.py), and so is every file these commands
+write that holds descriptions: their <out> must end in .gz. Batches may be plain JSON or gzipped.
 """
 
 import argparse
 import contextlib
+import gzip
 import html
 import json
 import os
@@ -52,6 +56,8 @@ import subprocess
 import time
 from pathlib import Path
 
+import catalog_files
+
 EXCERPT = 360
 MAX_LENGTH = 400
 # The longest description the app shows (LayeredGameCatalog.validDescription).
@@ -59,7 +65,14 @@ MAX_TRANSLATION = 8000
 
 
 def read(path, default=None):
-    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else default
+    return catalog_files.read(path) if path.is_file() else default
+
+
+def write_out(output, document):
+    """Writes a file of descriptions for a pass to work from: gzipped, like the catalog's own."""
+    if not output.name.endswith(".gz"):
+        raise SystemExit(f"{output} holds descriptions: name it .gz (catalog_files.py)")
+    catalog_files.write_text(output, json.dumps(document, ensure_ascii=False, indent=1) + "\n")
 
 
 def plain(text):
@@ -73,8 +86,8 @@ def excerpt(text):
 
 
 def worklist(root, output, moby_root, references_path, limit):
-    games = read(root / "catalog/research/games-v1.json")["games"]
-    described = read(root / "catalog/research/descriptions-v1.json", {"descriptions": {}})["descriptions"]
+    games = read(root / "catalog/research/games-v1.json.gz")["games"]
+    described = read(root / "catalog/research/descriptions-v1.json.gz", {"descriptions": {}})["descriptions"]
     snapshots = {}
     for path in (root / ".downloads/launchbox").glob("*-snapshot.json"):
         snapshots.update(read(path))
@@ -117,13 +130,13 @@ def worklist(root, output, moby_root, references_path, limit):
 
 
 def add(root, batch_path, adult=False):
-    path = root / f"catalog/research/descriptions{'-adult' if adult else ''}-v1.json"
+    path = root / f"catalog/research/descriptions{'-adult' if adult else ''}-v1.json.gz"
     with locked(path):
         merge_descriptions(root, path, batch_path, adult)
 
 
 def merge_descriptions(root, path, batch_path, adult):
-    games = read(root / "catalog/research/games-v1.json")["games"]
+    games = read(root / "catalog/research/games-v1.json.gz")["games"]
     document = read(path, {"schemaVersion": 1, "descriptions": {}})
     batch = read(batch_path)
     for key, text in batch.items():
@@ -137,7 +150,7 @@ def merge_descriptions(root, path, batch_path, adult):
             raise SystemExit(f"{key}: description must be 1-{MAX_LENGTH} characters without outer spaces")
     document["descriptions"].update(batch)
     document["descriptions"] = dict(sorted(document["descriptions"].items()))
-    path.write_text(json.dumps(document, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    catalog_files.write(path, document)
     print(f"{len(batch)} added; {len(document['descriptions'])} of {len(games)} games described")
 
 
@@ -147,9 +160,9 @@ def translation_paths(root, language, adult):
         raise SystemExit(f"{language} is not one of {', '.join(LANGUAGES)}")
     kind = "-adult" if adult else ""
     research = root / "catalog/research"
-    if not (research / "descriptions-v1.json").is_file():
-        raise SystemExit(f"{root} is not an app root: it has no catalog/research/descriptions-v1.json")
-    return research / f"descriptions{kind}-v1.json", research / f"descriptions{kind}-{language}-v1.json"
+    if not (research / "descriptions-v1.json.gz").is_file():
+        raise SystemExit(f"{root} is not an app root: it has no catalog/research/descriptions-v1.json.gz")
+    return research / f"descriptions{kind}-v1.json.gz", research / f"descriptions{kind}-{language}-v1.json.gz"
 
 
 def done_translations(target):
@@ -178,7 +191,7 @@ def untranslated(root, language, adult, start=None, end=None):
 def pending(root, language, output, adult, limit, start=None, end=None):
     left, outdated, done, english = untranslated(root, language, adult, start, end)
     batch = dict(list(left.items())[:limit] if limit else left.items())
-    output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_out(output, batch)
     print(f"{len(batch)} of {len(left)} to translate, {len(outdated)} of them stale "
           f"({done - len(outdated)} of {english} done) -> {output}")
 
@@ -201,7 +214,7 @@ def revise(root, language, output, adult, limit, after):
     latin = {key: text for key, text in sorted(done.items()) if re.search(r"[A-Za-z]", text)}
     left = [key for key in latin if after is None or key > after]
     batch = {key: {"en": english[key], "current": latin[key]} for key in (left[:limit] if limit else left)}
-    output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_out(output, batch)
     print(f"{len(batch)} of {len(left)} left after {after} ({len(latin)} of {len(done)} use Latin letters) -> {output}")
 
 
@@ -211,12 +224,12 @@ def rewritten(root, language, output, adult, limit, after):
     done = done_texts(target)
     committed = subprocess.run(["git", "show", f"HEAD:{target.relative_to(root).as_posix()}"], cwd=root,
                                check=True, stdout=subprocess.PIPE).stdout
-    before = {key: entry["text"] for key, entry in json.loads(committed)["descriptions"].items()}
+    before = {key: entry["text"] for key, entry in json.loads(gzip.decompress(committed))["descriptions"].items()}
     changed = [key for key in sorted(done) if done[key] != before.get(key)]
     left = [key for key in changed if after is None or key > after]
     batch = {key: {"en": english[key], "before": before.get(key), "current": done[key]}
              for key in (left[:limit] if limit else left)}
-    output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_out(output, batch)
     print(f"{len(batch)} of {len(left)} left after {after} ({len(changed)} of {len(done)} rewritten) -> {output}")
 
 
@@ -292,7 +305,7 @@ def names(root, language, output, adult, limit, after):
         if found:
             flagged[key] = {"en": english[key], "current": done[key], "names": found}
     batch = dict(list(flagged.items())[:limit] if limit else flagged.items())
-    output.write_text(json.dumps(batch, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    write_out(output, batch)
     print(f"{len(batch)} of {len(flagged)} translations to check after {after} -> {output}")
 
 
@@ -324,7 +337,7 @@ def merge(target, source, language, batch, replace):
     # Each translation keeps the English it was made from, beside it, for reviewers and stale().
     document["descriptions"].update({key: {"en": english[key], "text": text} for key, text in batch.items()})
     document["descriptions"] = dict(sorted(document["descriptions"].items()))
-    target.write_text(json.dumps(document, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    catalog_files.write(target, document)
     print(f"{len(batch)} {'replaced' if replace else 'added'}; "
           f"{len(document['descriptions'])} of {len(english)} translated into {language}")
 

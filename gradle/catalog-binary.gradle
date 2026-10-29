@@ -1,4 +1,4 @@
-// Compiles the generated catalog parts (catalog/parts/<part>.json + .idx) into the binary form
+// Compiles the generated catalog parts (catalog/parts/<part>.json or .json.gz, + .idx) into the binary form
 // CatalogParts reads, so the app decodes documents instead of tokenizing JSON text.
 //
 // Each document is self-contained: a key table, then one value tree whose object entries name
@@ -11,6 +11,11 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPInputStream
+
+// The parts that hold game descriptions are kept gzipped, <part>.json.gz (shared/tools/catalog_files.py,
+// GZIPPED_PARTS); the others are plain <part>.json.
+def gzippedParts = ['data', 'data.nsfw']
 
 def writeText = { DataOutputStream out, String text ->
     byte[] bytes = text.getBytes(StandardCharsets.UTF_8)
@@ -71,7 +76,11 @@ def compileDocument = { Object document ->
 ext.compileCatalogParts = { File sources, File directory ->
     directory.listFiles().findAll { it.name.endsWith('.idx') }.each { indexFile ->
         def part = indexFile.name - '.idx'
-        def root = new JsonSlurper().parse(new File(sources, "${part}.json"), 'UTF-8')
+        def root = part in gzippedParts
+            ? new GZIPInputStream(new File(sources, "${part}.json.gz").newInputStream()).withCloseable {
+                new JsonSlurper().parse(it, 'UTF-8')
+            }
+            : new JsonSlurper().parse(new File(sources, "${part}.json"), 'UTF-8')
         def documents = root.documents as Map
         def index = new LinkedHashMap<String, List<Long>>()
         new File(directory, "${part}.bin").withOutputStream { stream ->

@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import art_verdicts
 from app_catalog import metadata
 from research import load_config
+import catalog_files
 
 PAGE = Path(__file__).resolve().parent / "art_review.html"
 LAUNCHBOX_PAGE = "https://gamesdb.launchbox-app.com/games/details/{}"
@@ -44,7 +45,7 @@ class App:
         self.artwork = self.root / "catalog/artwork"
         self.lock = threading.Lock()
         self.review = art_verdicts.read(self.root)
-        research = json.loads((self.root / "catalog/research/games-v1.json").read_text(encoding="utf-8"))
+        research = catalog_files.read(self.root / "catalog/research/games-v1.json.gz")
         moby = self.root / "catalog/research/moby-artwork-v1.json"
         # A self-hosted MobyGames image is judged by its MobyGames source URL.
         moby_sources = ({path: record["sourceUrl"] for path, record in
