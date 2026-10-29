@@ -13,6 +13,9 @@ before looking it up (Schema.mediaExtensions, the same pattern). catalog/researc
       "adultDescription": "...",                                an adult game's frank description, shipped
                                                                 only in the adult data part (data.nsfw)
       "descriptions": {"<language>": "..."},                    the description translated (catalog_languages)
+      "titles": {"<language>": "..."},                          the game's own title in a language, such as the
+                                                                Japanese one it was released under, shown on a
+                                                                device in that language (Kairo#61)
       "adultDescriptions": {"<language>": "..."},               the frank description translated, in data.nsfw
       "boxArtUrl": "...", "screenshotUrl": "...",               LaunchBox images, compacted
       "artwork": {...},                                         or a reviewed compact pick
@@ -70,7 +73,7 @@ import catalog_documents
 import catalog_tags
 import startup_automation
 from catalog_documents import compact, require
-from catalog_languages import LANGUAGES, valid_translations
+from catalog_languages import LANGUAGES, valid_titles, valid_translations
 from catalog_package import filter_artwork, image_paths
 from catalog_parts import artwork_split, generate_parts
 
@@ -341,6 +344,13 @@ def generate(root, check=False):
     for language, names in catalog_tags.translated_tags(shipped_tags).items():
         if names:
             translations.setdefault(f"descriptions/{language}.json", {"games": {}})["tags"] = names
+    # And each game's own title in a language, such as its Japanese title (Kairo#61).
+    for key, entry in sorted(research["games"].items()):
+        if "titles" not in entry:
+            continue
+        require(valid_titles(entry["titles"]), f"{key}: invalid titles")
+        for language, title in sorted(entry["titles"].items()):
+            translations.setdefault(f"descriptions/{language}.json", {"games": {}}).setdefault("titles", {})[key] = title
     documents = {**own_documents, **translations, "base-v1.json": {"schemaVersion": 1, "games": {}},
                  "manifest-v1.json": manifest, "name-index-v1.json": name_index, "system-v1.json": system,
                  **{f"shards/{prefix}.json": {"schemaVersion": 1, "games": records}

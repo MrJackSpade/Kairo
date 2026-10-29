@@ -39,6 +39,8 @@ interface LibraryGame {
     val boxArt: String?
     val preview: String?
     val tags: List<String>
+    /** The titles library search finds the game by. */
+    val searchTitles: List<String> get() = listOf(title)
 }
 
 interface LibraryCatalog {

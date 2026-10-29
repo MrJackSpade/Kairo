@@ -27,6 +27,8 @@ and the decision is recorded so it can be reviewed and corrected:
                          the same descriptions translated, for each of catalog_languages.LANGUAGES;
                          a game's translation needs its English description
   overrides-v1.json      {"<game key>": {"title"|"aliases"|"adult"|"artwork"|"controller": ...}} applied last
+  titles-v1.json         {"<game key>": {"ja": "...", "source": "..."}}, the Japanese title a game was released
+                         under (japanese_titles.py), shipped as its "titles" (Kairo#61)
 A game LaunchBox has no cover for takes its MobyGames cover and screenshot (moby_art.py), encoded
 into catalog/artwork; moby-artwork-v1.json records their sources.
 MobyGames fills the gaps LaunchBox leaves, so a first catalog can be built from LaunchBox alone,
@@ -68,6 +70,7 @@ from disk_sets import disk_sets, group as disk_group, ungrouped_sets
 from catalog_languages import LANGUAGES
 import catalog_descriptions
 import art_verdicts
+import japanese_titles
 from launchbox_artwork import URL
 
 YEAR = re.compile(r"(?:19|20)[0-9]{2}")
@@ -468,7 +471,8 @@ def assemble(root, moby_root):
 
     translated = [f"descriptions{kind}-{language}-v1.json" for kind in ("", "-adult") for language in LANGUAGES]
     for name, field in (("descriptions-v1.json", "descriptions"), ("descriptions-adult-v1.json", "descriptions"),
-                        *((name, "descriptions") for name in translated), ("overrides-v1.json", "games")):
+                        *((name, "descriptions") for name in translated), ("overrides-v1.json", "games"),
+                        ("titles-v1.json", "games")):
         relocate(research / name, field, moved, games)
     review_path = root / "catalog/core-review-v1.json"
     relocate(review_path, "excluded", moved, games)
@@ -488,6 +492,7 @@ def assemble(root, moby_root):
         if "artwork" in fields:
             games[key].pop("boxArtUrl", None)
             games[key].pop("screenshotUrl", None)
+    japanese_titles.apply(research, games)
     for entry in games.values():
         if "sourceGroups" in entry:
             entry["sourceGroups"] = sorted(entry["sourceGroups"])

@@ -11,7 +11,7 @@ internal class LibrarySearchIndex<T : LibraryItem>(
     private val post: (() -> Unit) -> Unit,
     private val indexed: (Map<String, LibraryGame>) -> Unit
 ) {
-    private data class Row<T>(val entry: T, val title: String, val fileName: String)
+    private data class Row<T>(val entry: T, val titles: List<String>, val fileName: String)
     private class Snapshot<T>(val entries: List<T>, val catalogGeneration: Int) {
         @Volatile var cancelled = false
         var rows: List<Row<T>>? = null // Worker-owned, never mutated after publication.
@@ -49,7 +49,7 @@ internal class LibrarySearchIndex<T : LibraryItem>(
 
     private fun build(source: Snapshot<T>): List<Row<T>>? {
         source.rows?.let { return it }
-        val titles = arrayOfNulls<String>(source.entries.size)
+        val titles = arrayOfNulls<List<String>>(source.entries.size)
         val pending = HashMap<String, LibraryGame>()
         var publishedAt = android.os.SystemClock.uptimeMillis()
         fun publishPending() {
@@ -75,7 +75,7 @@ internal class LibrarySearchIndex<T : LibraryItem>(
                     resolved[entry.id] = Resolved(entry.contentId, entry.catalogId, name,
                         source.catalogGeneration, game)
             }
-            titles[index] = game.title
+            titles[index] = game.searchTitles
             pending[entry.id] = game
             if (android.os.SystemClock.uptimeMillis() - publishedAt >= 100) publishPending()
         }
@@ -100,7 +100,7 @@ internal class LibrarySearchIndex<T : LibraryItem>(
         worker.queue.clear()
         worker.execute {
             val rows = build(source) ?: return@execute
-            val matches = rows.filter { it.title.contains(query, true) || it.fileName.contains(query, true) }
+            val matches = rows.filter { row -> row.titles.any { it.contains(query, true) } || row.fileName.contains(query, true) }
                 .map { it.entry }
             post {
                 if (snapshot === source && !source.cancelled && version == request) publish(matches)

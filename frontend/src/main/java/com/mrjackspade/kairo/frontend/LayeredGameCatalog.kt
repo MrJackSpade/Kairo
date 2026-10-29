@@ -34,8 +34,13 @@ class CatalogGame(
     val record: JSONObject,
     private val layers: CatalogFieldLayers.Result,
     /** A tag in the device's language (KairoDos#141); a tag no catalog translates, such as a year, as it is. */
-    private val tagText: (String) -> String = { it }
+    private val tagText: (String) -> String = { it },
+    /** The catalog's own title when [title] is the game's title in the device's language (Kairo#61). */
+    val catalogTitle: String? = null
 ) : LibraryGame {
+    /** Search finds the game by the title it shows and by the catalog's own. */
+    override val searchTitles: List<String> get() = listOfNotNull(title, catalogTitle)
+
     /** The record's tags (year, genre, players), and the heart marker. */
     override val tags: List<String> get() = (record.optJSONArray("tags")?.let { array ->
         (0 until array.length()).mapNotNull { (array.opt(it) as? String)?.takeIf(String::isNotBlank)?.let(tagText) }
@@ -319,7 +324,13 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         val layers = layered(contentId, owner, member)
         val merged = layers.record
         val user = owner?.let(overrides::record)
-        val title = merged.optString("title").takeIf { it.isNotBlank() }
+        val catalogTitle = merged.optString("title").takeIf { it.isNotBlank() }
+        // The game's own title in the device's language, where the catalog knows one (its Japanese
+        // title, Kairo#61), over a catalog's title but never over one the player or a catalog they
+        // installed gave it.
+        val localTitle = merged.optString("game").takeIf(String::isNotEmpty)
+            ?.let { localTitle(languageDocuments(), it) }?.takeIf { localTitleShows(layers.sourceOf("title")) }
+        val title = localTitle ?: catalogTitle
             ?: fileName.substringAfterLast('/').substringAfterLast('\\').substringBeforeLast('.')
         val artwork = merged.optJSONObject("artwork")
         val controller = merged.optJSONObject("controller")
@@ -343,17 +354,20 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             input?.optString("touch")?.takeIf { it in INPUT_TOUCH },
             input?.optString("secondary")?.takeIf { it in INPUT_SECONDARY },
             user?.keys()?.asSequence()?.toSet() ?: emptySet(),
-            merged, layers, tagText())
+            merged, layers, tagText(), catalogTitle.takeIf { localTitle != null })
+    }
+
+    /** This device's language documents, the downloaded update's before the shipped one's. */
+    private fun languageDocuments(): List<JSONObject> {
+        val path = language?.let { "descriptions/$it.json" } ?: return emptyList()
+        return listOfNotNull(synchronized(this) { languageUpdate.value?.document(path) }, parts.main(path))
     }
 
     /**
      * Tags in this device's language: each catalog language document names its tags' words
      * ("tags"), the downloaded update's over the shipped ones (KairoDos#141).
      */
-    private fun tagText(): (String) -> String {
-        val path = language?.let { "descriptions/$it.json" } ?: return { it }
-        return tagText(listOfNotNull(synchronized(this) { languageUpdate.value?.document(path) }, parts.main(path)))
-    }
+    private fun tagText(): (String) -> String = tagText(languageDocuments())
 
     override fun openArtwork(path: String): InputStream = installedCatalogs.openArtwork(path) ?: artworkStore.open(path)
 
@@ -646,6 +660,17 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             "display" to DISPLAY_FIELDS,
             // A description per language beside the English one, by BCP 47 tag; each layer replaces a language on its own.
             "descriptions" to DESCRIPTION_LANGUAGES)
+        /**
+         * Whether a game's title in the device's language shows over the title from [titleSource]: over
+         * the catalogs Kairo ships, never over a title the player or a catalog they installed gave it.
+         */
+        fun localTitleShows(titleSource: String?) = titleSource == "Shipped catalog" || titleSource == "Updated catalog"
+
+        /** [game]'s title from the first of [documents] (language documents, newest first) whose "titles" names it. */
+        fun localTitle(documents: List<JSONObject>, game: String): String? = documents.firstNotNullOfOrNull {
+            it.optJSONObject("titles")?.optString(game)?.takeIf(String::isNotBlank)
+        }
+
         private val COMMON_FIELDS = setOf("title", "description", "aliases", "tags", "heart", "hidden", "media") +
             COMMON_OBJECT_FIELDS.keys
         private fun validTitle(value: String) = value.isNotBlank() && value.length <= 256
