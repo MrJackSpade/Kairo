@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Files a new Kairo app's tickets: one milestone per version in init/, each holding its tickets.
 
-Usage: init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>" [--module <module>] [--dry-run]
+Usage: init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>" [--module <module>]
+                      [--version <x.y.z> --milestone <title>] [--dry-run]
        init_system.py --checklist [--check]
 
 --checklist writes docs/new-system.md, the same tickets as a checklist to read; with --check it
@@ -13,6 +14,9 @@ its tickets in file order. Titles and bodies use {{app}}, {{system}}, {{module}}
 {{ref:<slug>}} for another ticket's number (#N), which must be filed before the ticket naming it.
 Each ticket gets the label of its kind (implement, validation, performance, translation); a
 performance ticket that is not done gets `deferred` (docs/new-system.md).
+
+--version files one init/ version's tickets alone, into the milestone --milestone names: how an
+app that already exists takes a milestone added to init/ after it was set up (its own release version).
 
 A milestone or issue that already exists by its title is kept as it is, so a run that stopped
 part way can be run again; the run lists what it kept. --dry-run prints the plan and files
@@ -132,6 +136,8 @@ def main():
     parser.add_argument("--app", help="the app's name, such as KairoST")
     parser.add_argument("--system", help="the system's name, such as Atari ST")
     parser.add_argument("--module", help="the app module (default: the app's name in lower case)")
+    parser.add_argument("--version", help="file only this init/ version's tickets (needs --milestone)")
+    parser.add_argument("--milestone", help="with --version: the milestone to file them in, such as 1.4.4")
     parser.add_argument("--dry-run", action="store_true", help="print the plan and file nothing")
     parser.add_argument("--checklist", action="store_true", help="write docs/new-system.md from the tickets")
     parser.add_argument("--check", action="store_true", help="with --checklist: fail when docs/new-system.md is stale")
@@ -148,6 +154,13 @@ def main():
     missing = [name for name in ("repo", "app", "system") if getattr(args, name) is None]
     if missing:
         parser.error("filing needs " + ", ".join(f"--{name}" for name in missing))
+    if (args.version is None) != (args.milestone is None):
+        parser.error("--version and --milestone go together")
+    if args.version is not None:
+        plan = [ticket for ticket in plan if ticket.version == args.version]
+        if not plan:
+            parser.error(f"init/{args.version} holds no tickets")
+    milestone_of = (lambda ticket: args.milestone) if args.milestone else (lambda ticket: ticket.version)
     values = {"app": args.app, "system": args.system, "module": args.module or args.app.lower(), "repo": args.repo}
     numbers = {}
 
@@ -158,7 +171,7 @@ def main():
             title = render(ticket.title, values, numbers, where)
             render(ticket.body, values, numbers, where)
             numbers[ticket.slug] = f"<{index}>"
-            print(f"{ticket.version}  [{ticket.kind}]  {title}")
+            print(f"{milestone_of(ticket)}  [{ticket.kind}]  {title}")
         print(f"{len(plan)} tickets in {len({t.version for t in plan})} milestones; nothing filed (--dry-run)")
         return
 
@@ -174,10 +187,11 @@ def main():
     kept = []
     for ticket in plan:
         where = f"{ticket.version}/{ticket.slug}"
-        if ticket.version not in milestones:
-            milestones[ticket.version] = gh(f"repos/{repo}/milestones", "--method", "POST", "--input", "-",
-                                            payload={"title": ticket.version})["number"]
-            print(f"milestone {ticket.version}")
+        milestone = milestone_of(ticket)
+        if milestone not in milestones:
+            milestones[milestone] = gh(f"repos/{repo}/milestones", "--method", "POST", "--input", "-",
+                                       payload={"title": milestone})["number"]
+            print(f"milestone {milestone}")
         title = render(ticket.title, values, numbers, where)
         if title in issues:
             numbers[ticket.slug] = issues[title]
@@ -185,10 +199,10 @@ def main():
             continue
         body = render(ticket.body, values, numbers, where)
         issue = gh(f"repos/{repo}/issues", "--method", "POST", "--input", "-",
-                   payload={"title": title, "body": body, "milestone": milestones[ticket.version],
+                   payload={"title": title, "body": body, "milestone": milestones[milestone],
                             "labels": [ticket.kind]})
         numbers[ticket.slug] = issues[title] = issue["number"]
-        print(f"#{issue['number']} {ticket.version} {title}")
+        print(f"#{issue['number']} {milestone} {title}")
     if kept:
         print(f"Kept {len(kept)} existing issues:", *kept, sep="\n  ")
 

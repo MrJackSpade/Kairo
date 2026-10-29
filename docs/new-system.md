@@ -144,7 +144,6 @@ python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system
 - [ ] Sets that ship a hard disk or CMOS reach their game (validation)
 - [ ] A game whose files the player changed still starts (validation)
 - [ ] A file a patched game needs loads for that game (validation)
-- [ ] Create a game from its installer media (implement)
 - [ ] No text outside the string resources (validation)
 - [ ] License and release audits (validation)
 
@@ -210,6 +209,13 @@ python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system
 - [ ] Russian: translate <App>'s catalog descriptions (translation)
 - [ ] German: translate <App>'s catalog descriptions (translation)
 - [ ] Japanese: original Japanese titles in <App>'s catalog (translation)
+
+## 0.13.0
+
+- [ ] A player adds, tests and configures a game they already have (validation)
+- [ ] A player creates a new game on a blank disk (implement)
+- [ ] Document and screenshot adding a game you already have (implement)
+- [ ] Document and screenshot creating a new game (implement)
 
 ## 1.0.0
 
