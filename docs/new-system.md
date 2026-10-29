@@ -2,8 +2,17 @@
 
 Everything a new Kairo app needs built and tested, from the way KairoST and Kairo64 were added
 (Kairo commits `262a2e9` and `916e40b`, and those apps' histories) and from every issue filed
-against the Kairo apps. Each item is its own ticket in the new app's repository (or in Kairo, for
-section 1). The issue after an item is where its lesson was learned.
+against the Kairo apps. The issue after an item is where its lesson was learned.
+
+Each item is a ticket in `init/<x.y.z>/<NN-slug>.md`, with one ticket per language per function for
+the translations. Each version folder is a milestone, in version order. A ticket's body says when it
+applies, whether it is built, checked, assessed for performance or translated, and how it closes.
+`tools/init_system.py` files them in the new app's repository:
+
+```
+python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>" --dry-run
+python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>"
+```
 
 ## 0. Decisions
 
