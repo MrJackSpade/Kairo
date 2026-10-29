@@ -340,7 +340,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     private fun loadMachineState(directory: File): Int =
         bridge.loadState(directory.absolutePath, library.statePaths(launchEntries)).also { result ->
         if (result == 0) {
-            inputRouter.syncLocks(bridge.lockedKeys())
+            // A machine reports every lock it has; the keyboard in use shows those it has keys for
+            // (an international MSX has no Kana key, though its machine has the light).
+            inputRouter.syncLocks(bridge.lockedKeys() intersect inputRouter.lockCodes())
             runOnUiThread {
                 mediaAfterLoad()
                 stateLoaded()

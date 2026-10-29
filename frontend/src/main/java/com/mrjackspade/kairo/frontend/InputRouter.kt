@@ -5,7 +5,7 @@ package com.mrjackspade.kairo.frontend
  * guest toggles on each press, such as Caps Lock; the router tracks their state for every source.
  */
 class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 127,
-                  private val lockCodes: Set<Int> = emptySet()) {
+                  private var lockCodes: Set<Int> = emptySet()) {
     init { require(maxKeyCode in 0..65535) }
     private val owners = LinkedHashMap<String, List<Int>>()
     private val counts = IntArray(maxKeyCode + 1)
@@ -43,6 +43,15 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
     @Synchronized fun tap(scan: Int) {
         hold("tap:$scan", listOf(scan))
         release("tap:$scan")
+    }
+
+    /** The lock keys of the keyboard in use. */
+    @Synchronized fun lockCodes(): Set<Int> = lockCodes.toSet()
+
+    /** Another keyboard's lock keys (KairoActivity.useKeyboard); a lock it lacks is off. */
+    @Synchronized fun setLockCodes(codes: Set<Int>) {
+        lockCodes = codes.toSet()
+        if (locks.retainAll(lockCodes)) listeners.toList().forEach { it() }
     }
 
     /** A new or reset guest machine starts with every lock off. */

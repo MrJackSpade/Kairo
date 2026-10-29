@@ -32,7 +32,7 @@ import kotlin.math.roundToInt
 class SecondaryDisplayCoordinator(
     private val activity: Activity,
     private val inputs: GuestPanelInputs,
-    private val keyboardLayout: GuestKeyboardLayout,
+    private var keyboardLayout: GuestKeyboardLayout,
     private val logTag: String,
     private val onAvailabilityChanged: (Boolean) -> Unit,
     private val onGameSurface: (Surface?, Int, Int) -> Unit,
@@ -293,7 +293,16 @@ class SecondaryDisplayCoordinator(
         onAvailabilityChanged(true)
         return GuestKeyboardPanel(value, inputs, keyboardLayout, {},
             showClose = false, onSwap = ::toggleSwap,
-            ).also { it.setInitialMode(touchpadMode) }
+            ).also { it.setInitialMode(touchpadMode); panels.add(it) }
+    }
+
+    /** The keyboards this coordinator made, which a session's layout reaches ([setLayout]). */
+    private val panels = java.util.Collections.newSetFromMap(java.util.WeakHashMap<GuestKeyboardPanel, Boolean>())
+
+    /** The running machine's keyboard, on the second screen's keyboards now and later. */
+    fun setLayout(value: GuestKeyboardLayout) {
+        keyboardLayout = value
+        panels.forEach { it.setLayout(value) }
     }
 
     fun updateCompanion(value: SecondaryDisplayActivity) {
@@ -417,7 +426,7 @@ class SecondaryDisplayCoordinator(
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             content = SecondaryDisplayContent(context,
                 GuestKeyboardPanel(context, inputs, keyboardLayout, {}, showClose = false,
-                    onSwap = ::toggleSwap), ::forwardGameSurface, onGameTouch,
+                    onSwap = ::toggleSwap).also { panels.add(it) }, ::forwardGameSurface, onGameTouch,
                 gameAspect, lowerLibrary?.invoke(context))
             setContentView(content)
         }

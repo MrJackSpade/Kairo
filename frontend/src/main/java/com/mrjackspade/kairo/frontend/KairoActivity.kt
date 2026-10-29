@@ -307,6 +307,19 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private fun recordedMove(dx: Int, dy: Int) { guestInput.move(dx, dy); sendMouseMove(dx, dy) }
     private fun recordedButton(button: Int, down: Boolean) { guestInput.button(button, down); sendMouseButton(button, down) }
     protected val inputRouter by lazy { InputRouter(::recordedKey, maxKeyCode, keyboard.lockCodes) }
+
+    /**
+     * The running machine's own keyboard, where the app's machines differ ([keyboard] otherwise), on
+     * every keyboard panel and for the lock keys.
+     */
+    protected fun useKeyboard(layout: GuestKeyboardLayout) {
+        inputRouter.setLockCodes(layout.lockCodes)
+        if (::keyboardPanel.isInitialized) {
+            keyboardPanel.setLayout(layout)
+            swappedKeyboardPanel.setLayout(layout)
+        }
+        if (::secondaryKeyboard.isInitialized) secondaryKeyboard.setLayout(layout)
+    }
     protected val joystickRouter by lazy { JoystickInputRouter(::recordedJoystick, joystickControls) }
     protected val mouseRouter by lazy { MouseInputRouter(::recordedMove, ::recordedButton) }
     protected val gamepadMapper by lazy {

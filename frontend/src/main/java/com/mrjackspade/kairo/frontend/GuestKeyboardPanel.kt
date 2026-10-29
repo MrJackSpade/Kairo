@@ -26,7 +26,7 @@ import android.widget.TextView
 class GuestKeyboardPanel(
     context: Context,
     private val inputs: GuestPanelInputs,
-    private val layout: GuestKeyboardLayout,
+    layout: GuestKeyboardLayout,
     private val onClose: () -> Unit,
     private val showClose: Boolean = true,
     private val onSwap: (() -> Unit)? = null,
@@ -43,6 +43,9 @@ class GuestKeyboardPanel(
 
     private val input = inputs.keys
     private val mapping = inputs.mapping
+    /** The keys as the running machine labels them ([setLayout]). */
+    private var layout = layout
+    private var brandText: PixelTextView? = null
 
     private val handler = Handler(Looper.getMainLooper())
     private val latched = mutableSetOf<Int>()
@@ -120,7 +123,8 @@ class GuestKeyboardPanel(
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(14), dp(4), dp(8), dp(4))
             }
-            brand.addView(PixelTextView(context).apply { text = layout.brand; this.brand = true }, LayoutParams(0, -2, 1f))
+            brandText = PixelTextView(context).apply { text = layout.brand; this.brand = true }
+            brand.addView(brandText, LayoutParams(0, -2, 1f))
             mappingButton?.let { brand.addView(it, LayoutParams(dp(54), dp(40)).apply { marginEnd = dp(8) }) }
             brand.addView(TextView(context).apply {
                 text = "\u2191\u2193"
@@ -369,6 +373,24 @@ class GuestKeyboardPanel(
         pageViews.forEach { (name, view) -> view.isActivated = name == page }
         updateLegends()
         if (mapping?.active == true) updateMappingKeys()
+    }
+
+    /**
+     * The keys of another machine of the same app (a Japanese MSX's JIS keyboard), with the same pages:
+     * the page shown is drawn again with the new legends.
+     */
+    fun setLayout(value: GuestKeyboardLayout) {
+        require(value.pages.map { it.label } == layout.pages.map { it.label }) {
+            "A keyboard's layouts must have the same pages"
+        }
+        if (value == layout) return
+        for (shift in layout.shiftCodes) {
+            if (latched.remove(shift)) input.release("touch-mod:$shift")
+        }
+        latched.clear()
+        layout = value
+        brandText?.text = value.brand
+        if (page >= 0) showPage(page)
     }
 
     fun setInitialMode(touchpadMode: Boolean) {
