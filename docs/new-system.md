@@ -212,9 +212,9 @@ python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system
 
 ## 0.13.0
 
-- [ ] A player adds, tests and configures a game they already have (validation)
+- [ ] A player adds a game the catalog doesn't know, sets it up and plays it (validation)
 - [ ] A player creates a new game on a blank disk (implement)
-- [ ] Document and screenshot adding a game you already have (implement)
+- [ ] Document and screenshot adding a game the catalog doesn't know (implement)
 - [ ] Document and screenshot creating a new game (implement)
 
 ## 1.0.0
