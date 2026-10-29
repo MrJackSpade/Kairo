@@ -251,7 +251,14 @@ class GuestKeyboardPanel(
     }
 
     private fun keyList(key: KeyboardKey) =
-        if (key.chordShift) listOf(layout.chordShiftCode, key.code) else listOf(key.code)
+        if (chordsShift(key)) listOf(layout.chordShiftCode, key.code) else listOf(key.code)
+
+    /**
+     * Whether a press of [key] chords Shift: for the legend it shows, so not while the kana lock shows
+     * its kana legend, which the key types without Shift (a JIS MSX's _ key is ろ in kana).
+     */
+    private fun chordsShift(key: KeyboardKey) = key.chordShift &&
+        !(key.kana != null && layout.kanaCode?.let { it in input.lockedKeys() } == true)
 
     /** Mapping mode colors the waiting key and every mapped key; leaving it restores the normal keys. */
     private fun updateMappingKeys() {
@@ -459,9 +466,8 @@ class GuestKeyboardPanel(
     }
 
     private fun press(key: KeyboardKey) {
-        highlightUntil[key.code] = Lit(SystemClock.uptimeMillis() + 90, key.chordShift || shiftHeld())
-        input.hold("touch-key:${key.code}", if (key.chordShift) listOf(layout.chordShiftCode, key.code)
-            else listOf(key.code))
+        highlightUntil[key.code] = Lit(SystemClock.uptimeMillis() + 90, chordsShift(key) || shiftHeld())
+        input.hold("touch-key:${key.code}", keyList(key))
     }
 
     private fun release(key: KeyboardKey) {
