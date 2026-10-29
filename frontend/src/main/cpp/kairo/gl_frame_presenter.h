@@ -3,6 +3,7 @@
 
 #include "egl_context.h"
 #include "frame_shape.h"
+#include "gpu_picture.h"
 #include <GLES3/gl3.h>
 #include <android/log.h>
 #include <android/native_window.h>
@@ -18,7 +19,8 @@ namespace kairo {
 // samples the 640x400 picture the core's line doubling would have drawn, fetching each of its
 // rows from the frame row it repeats, so the result is the same to the bit. A core's native
 // B, G, R, A bytes are reordered here too. The window's layout, not the frame's size, decides
-// the shape, so a frame's size may change with the guest's mode.
+// the shape, so a frame's size may change with the guest's mode. A core's GPU picture (gpu_picture.h)
+// is drawn into the same texture and scaled the same way.
 class GlFramePresenter {
 public:
     GlFramePresenter() = default;
@@ -29,25 +31,78 @@ public:
     // Draws [rgba] (top row first) to [window]. Fails fast: a device without OpenGL ES 3 cannot
     // show games at all, so a failure here stops the app with its reason.
     void render(ANativeWindow *window, const uint8_t *rgba, const FrameShape &shape) {
-        const uint32_t width = shape.width, height = shape.height;
+        begin(window, nullptr);
+        size(shape.width, shape.height);
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, shape.width, shape.height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+        scale(shape);
+    }
+
+    // Draws a core's GPU picture (gpu_picture.h) to [window]: the picture into the frame texture,
+    // then the texture scaled as a software frame is.
+    void render(ANativeWindow *window, GpuPicture &picture) {
+        begin(window, &picture);
+        const FrameShape shape{picture.width(), picture.height(), 1, false};
+        size(shape.width, shape.height);
+        if (!framebuffer_) {
+            glGenFramebuffers(1, &framebuffer_);
+            glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_, 0);
+            require(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE, "make the picture's framebuffer");
+        }
+        picture.draw(framebuffer_, true);
+        scale(shape);
+    }
+
+    // Releases the window, as when another presenter takes it or it goes away.
+    void destroy() {
+        if (egl_.ready() && egl_.makeCurrent()) {
+            if (picture_) picture_->context_ending();
+            if (framebuffer_) glDeleteFramebuffers(1, &framebuffer_);
+            if (texture_) glDeleteTextures(1, &texture_);
+            if (vertexArray_) glDeleteVertexArrays(1, &vertexArray_);
+            if (program_) glDeleteProgram(program_);
+        }
+        egl_.destroy();
+        picture_ = nullptr;
+        texture_ = vertexArray_ = program_ = framebuffer_ = 0;
+        width_ = height_ = 0;
+    }
+
+private:
+    // The context and window, and the picture's GL objects in that context.
+    void begin(ANativeWindow *window, GpuPicture *picture) {
         if (!egl_.ready()) {
             require(egl_.create(3, 0), "create an OpenGL ES 3 context");
             createProgram();
         }
         require(egl_.attach(window), "attach the game window");
+        if (picture != picture_) {
+            if (picture_) picture_->context_ending();
+            picture_ = picture;
+            if (picture_) picture_->context_created();
+        }
+    }
+
+    // Gives the frame texture [width] x [height] pixels, and leaves it bound.
+    void size(uint32_t width, uint32_t height) {
         GLint maxTexture = 0;
         glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxTexture);
         if (width > static_cast<uint32_t>(maxTexture) || height > static_cast<uint32_t>(maxTexture))
             __android_log_assert("size", "KairoPresent", "Frame %ux%u exceeds the GPU's %d texture size",
                                  width, height, maxTexture);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture_);
         if (width != width_ || height != height_) {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
             width_ = width;
             height_ = height;
         }
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+    }
+
+    // Draws the frame texture, of [shape], to the whole window and shows it.
+    void scale(const FrameShape &shape) {
+        const uint32_t width = shape.width, height = shape.height;
         EGLint screenWidth = 0, screenHeight = 0;
         require(eglQuerySurface(egl_.display(), egl_.surface(), EGL_WIDTH, &screenWidth) &&
                 eglQuerySurface(egl_.display(), egl_.surface(), EGL_HEIGHT, &screenHeight) &&
@@ -76,19 +131,6 @@ public:
         }
     }
 
-    // Releases the window, as when another presenter takes it or it goes away.
-    void destroy() {
-        if (egl_.ready() && egl_.makeCurrent()) {
-            if (texture_) glDeleteTextures(1, &texture_);
-            if (vertexArray_) glDeleteVertexArrays(1, &vertexArray_);
-            if (program_) glDeleteProgram(program_);
-        }
-        egl_.destroy();
-        texture_ = vertexArray_ = program_ = 0;
-        width_ = height_ = 0;
-    }
-
-private:
     static void require(bool ok, const char *what) {
         if (!ok) __android_log_assert("present", "KairoPresent", "Could not %s (EGL 0x%x, GL 0x%x)", what,
                                       eglGetError(), glGetError());
@@ -174,7 +216,9 @@ void main() {
     }
 
     EglContext egl_;
-    GLuint program_ = 0, texture_ = 0, vertexArray_ = 0;
+    // The picture whose GL objects the context holds, or null.
+    GpuPicture *picture_ = nullptr;
+    GLuint program_ = 0, texture_ = 0, vertexArray_ = 0, framebuffer_ = 0;
     GLint frame_ = -1, sourceSize_ = -1, outputSize_ = -1, repeat_ = -1, bgra_ = -1;
     uint32_t width_ = 0, height_ = 0;
 };

@@ -55,6 +55,50 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     override fun setMuted(muted: Boolean) = nativeSetMuted(muted)
     override fun setFastForward(enabled: Boolean) = nativeSetFastForward(enabled)
 
+    /**
+     * Types [steps] while the game runs (cpp/kairo/startup_typer.h), replacing any still to type; none
+     * stops typing. A step that cannot be typed stops the machine with why.
+     */
+    fun startupSteps(steps: List<StartupStep>) = nativeStartupSteps(steps.map { it.text }.toTypedArray(),
+        BooleanArray(steps.size) { steps[it].enter }, steps.map { it.screens.toLongArray() }.toTypedArray(),
+        IntArray(steps.size) { steps[it].timeoutMs })
+    /** Types [text], then Return with [enter], at once, after the steps still to type. */
+    fun startupKeys(text: String, enter: Boolean) = nativeStartupKeys(text, enter)
+    /** Waits for the step the typer stalled on again. */
+    fun startupResume() = nativeStartupResume()
+    /** What the typer is doing now. */
+    fun startupStatus(): StartupStatus = nativeStartupStatus().let { (state, stalled) ->
+        when (state) {
+            STARTUP_IDLE -> StartupStatus.Idle
+            STARTUP_TYPING -> StartupStatus.Typing
+            STARTUP_STALLED -> StartupStatus.Stalled(stalled)
+            else -> error("Unknown startup typer state $state")
+        }
+    }
+    /** The screen the guest shows, as its signature (MachineCore::screen_signature); null when no machine runs. */
+    fun screenSignature(): Long? = nativeScreenSignature()?.single()
+
+    /**
+     * A line the typer types: Return after [text] with [enter]; when the guest shows one of [screens]
+     * (signatures), or at its prompt for none; giving up after [timeoutMs] (0: waiting as long as it takes).
+     */
+    class StartupStep(val text: String, val enter: Boolean, val screens: Set<Long>, val timeoutMs: Int)
+
+    sealed class StartupStatus {
+        /** Nothing left to type. */
+        object Idle : StartupStatus()
+        object Typing : StartupStatus()
+        /** It gave up waiting for step [index]; it types nothing more until [startupResume]. */
+        class Stalled(val index: Int) : StartupStatus()
+    }
+
+    private companion object {
+        // machine_jni.cpp StartupState.
+        const val STARTUP_IDLE = 0
+        const val STARTUP_TYPING = 1
+        const val STARTUP_STALLED = 2
+    }
+
     private external fun nativeStart(firmware: String, home: String, media: Array<String>,
                                      settings: Array<String>): Boolean
     private external fun nativeStop()
@@ -79,4 +123,10 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeSetShaderPreset(path: String?)
     private external fun nativeSetMuted(muted: Boolean)
     private external fun nativeSetFastForward(enabled: Boolean)
+    private external fun nativeStartupSteps(texts: Array<String>, enters: BooleanArray, screens: Array<LongArray>,
+                                            timeoutsMs: IntArray)
+    private external fun nativeStartupKeys(text: String, enter: Boolean)
+    private external fun nativeStartupResume()
+    private external fun nativeStartupStatus(): IntArray
+    private external fun nativeScreenSignature(): LongArray?
 }

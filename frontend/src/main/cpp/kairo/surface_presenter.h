@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <string>
 #include "frame_shape.h"
+#include "gpu_picture.h"
 
 namespace kairo {
 
@@ -22,6 +23,7 @@ public:
             __android_log_assert("preset", "KairoShaders", "Shader preset %s in a build without shaders", path.c_str());
     }
     bool render(ANativeWindow *, const uint8_t *, const FrameShape &) { return false; }
+    bool render(ANativeWindow *, GpuPicture &) { return false; }
     void destroy() {}
 };
 

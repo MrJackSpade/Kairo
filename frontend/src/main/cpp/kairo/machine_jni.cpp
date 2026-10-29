@@ -7,6 +7,7 @@
 #include <android/native_window_jni.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <cstdio>
 #include <fstream>
 #include <map>
@@ -31,18 +32,42 @@ std::atomic<uint32_t> warps_reached{0};
 // The launch setting with a game's startup commands, newline-separated (StartupCommands.SETTING).
 constexpr const char *kCommands = "commands";
 
-// A core whose launch has startup commands: the typer types them after each frame, and the machine
-// runs flat out while a line goes in (startup_typer.h). Every MachineCore member goes to the core.
+// The startup typer's state for the UI (NativeMachine.startupStatus): Idle with nothing left to
+// type, Typing while steps remain, Stalled when it gave up waiting for the step in startup_stalled.
+enum StartupState { StartupIdle, StartupTyping, StartupStalled };
+std::atomic<int> startup_state{StartupIdle};
+std::atomic<int> startup_stalled{-1};
+
+// The product's core with the startup typer (startup_typer.h): it types the launch's startup
+// commands, and steps the product gives it while the game runs (nativeStartupSteps), after each
+// frame; the machine runs flat out while a line goes in. A line that cannot be typed stops the
+// machine with why. Every MachineCore member goes to the core.
 class TypingCore : public kairo::MachineCore {
 public:
     TypingCore(std::unique_ptr<kairo::MachineCore> core, const std::string &commands) : core_(std::move(core)) {
         typer_.start(commands);
+        publish();
     }
 
     bool run_frame() override {
         if (!core_->run_frame()) return false;
         if (!typer_.frame(*core_, error_)) return false;
+        publish();
         return true;
+    }
+
+    // The steps to type, replacing any still to type; none stops typing.
+    void start_steps(std::vector<kairo::StartupStep> steps) {
+        typer_.start(std::move(steps));
+        publish();
+    }
+    void add_step(kairo::StartupStep step) {
+        typer_.add(std::move(step));
+        publish();
+    }
+    void resume() {
+        typer_.resume();
+        publish();
     }
     std::string error() override { return error_.empty() ? core_->error() : error_; }
     const uint8_t *frame(uint32_t &width, uint32_t &height) override { return core_->frame(width, height); }
@@ -65,6 +90,7 @@ public:
     bool loading() override { return core_->loading() || typer_.typing(); }
     std::string details() override { return core_->details(); }
     void reset() override { core_->reset(); }
+    std::string close() override { return core_->close(); }
     int save_state(const std::string &directory) override { return core_->save_state(directory); }
     int load_state(const std::string &directory) override { return core_->load_state(directory); }
     std::string state_error() override { return core_->state_error(); }
@@ -75,19 +101,36 @@ public:
     bool typed_key(char c, int &code, bool &shift) override { return core_->typed_key(c, code, shift); }
     int special_key(kairo::SpecialKey key) override { return core_->special_key(key); }
     bool expand_command(std::string &line) override { return core_->expand_command(line); }
+    uint64_t screen_signature() override { return core_->screen_signature(); }
+    kairo::GpuPicture *gpu_picture() override { return core_->gpu_picture(); }
 
 private:
+    void publish() {
+        startup_stalled.store(typer_.stalled());
+        startup_state.store(typer_.stalled() >= 0 ? StartupStalled : typer_.active() ? StartupTyping : StartupIdle);
+    }
+
     std::unique_ptr<kairo::MachineCore> core_;
     kairo::StartupTyper typer_;
     std::string error_;
 };
 
-// The product's core for a launch, typing the game's startup commands when it has any.
+// The product's core for a launch, with the typer, which types the game's startup commands when it has any.
 std::unique_ptr<kairo::MachineCore> launch_core(const kairo::Launch &launch, std::string &error) {
     auto core = kairo::create_core(launch, error);
+    if (!core) return core;
     const auto commands = launch.settings.find(kCommands);
-    if (!core || commands == launch.settings.end() || commands->second.empty()) return core;
-    return std::make_unique<TypingCore>(std::move(core), commands->second);
+    return std::make_unique<TypingCore>(std::move(core), commands == launch.settings.end() ? "" : commands->second);
+}
+
+// The size of the picture the core shows, the GPU's or its last frame; false before it shows one.
+bool picture_size(kairo::MachineCore &core, uint32_t &width, uint32_t &height) {
+    if (kairo::GpuPicture *picture = core.gpu_picture()) {
+        width = picture->width();
+        height = picture->height();
+        return true;
+    }
+    return core.frame(width, height) != nullptr;
 }
 
 using kairo::utf8;
@@ -170,7 +213,7 @@ extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMouseWarp)(JNIEnv *, jobj
     warps_asked.fetch_add(1);
     machine.post([x, y](kairo::MachineCore &core) {
         uint32_t width = 0, height = 0;
-        if (!core.frame(width, height)) return;  // nothing shown yet, so nothing was tapped on
+        if (!picture_size(core, width, height)) return;  // nothing shown yet, so nothing was tapped on
         core.mouse_warp(int(int64_t(x) * width >> 16), int(int64_t(y) * height >> 16));
     });
 }
@@ -305,4 +348,79 @@ extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeSetMuted)(JNIEnv *, jobje
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeSetFastForward)(JNIEnv *, jobject, jboolean enabled) {
     machine.set_fast_forward(enabled == JNI_TRUE);
+}
+
+// Startup steps (startup_typer.h) as the product gives them while the game runs: each text, whether
+// Return follows, the screen signatures it waits for (none: the guest's prompt) and how long it may
+// wait in milliseconds (0: as long as it takes). They replace any still to type; none stops typing.
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStartupSteps)(JNIEnv *env, jobject, jobjectArray texts,
+                                                                     jbooleanArray enters, jobjectArray screens,
+                                                                     jintArray timeouts_ms) {
+    const std::vector<std::string> lines = kairo::utf8_strings(env, texts);
+    const jsize count = static_cast<jsize>(lines.size());
+    std::vector<jboolean> enter(count);
+    std::vector<jint> timeout(count);
+    env->GetBooleanArrayRegion(enters, 0, count, enter.data());
+    env->GetIntArrayRegion(timeouts_ms, 0, count, timeout.data());
+    std::vector<kairo::StartupStep> steps(count);
+    for (jsize i = 0; i < count; ++i) {
+        steps[i].text = lines[i];
+        steps[i].enter = enter[i] == JNI_TRUE;
+        auto hashes = static_cast<jlongArray>(env->GetObjectArrayElement(screens, i));
+        const jsize hash_count = env->GetArrayLength(hashes);
+        std::vector<jlong> values(hash_count);
+        env->GetLongArrayRegion(hashes, 0, hash_count, values.data());
+        env->DeleteLocalRef(hashes);
+        steps[i].screens.assign(values.begin(), values.end());
+    }
+    // Published before the emulation thread takes them, so the UI never reads the typer as idle in between.
+    startup_state.store(steps.empty() ? StartupIdle : StartupTyping);
+    startup_stalled.store(-1);
+    machine.post([steps = std::move(steps), timeout](kairo::MachineCore &core) mutable {
+        // A step's wait in the guest's own frames.
+        for (size_t i = 0; i < steps.size(); ++i)
+            steps[i].timeout_frames = static_cast<int>(timeout[i] / 1000.0 / core.frame_seconds());
+        static_cast<TypingCore &>(core).start_steps(std::move(steps));
+    });
+}
+
+// Types text, then Return with enter, at once, after the steps still to type: as keys after a disk swap.
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStartupKeys)(JNIEnv *env, jobject, jstring text, jboolean enter) {
+    kairo::StartupStep step;
+    step.text = utf8(env, text);
+    step.enter = enter == JNI_TRUE;
+    step.now = true;
+    machine.post([step = std::move(step)](kairo::MachineCore &core) mutable {
+        static_cast<TypingCore &>(core).add_step(std::move(step));
+    });
+}
+
+// Waits for the step the typer stalled on again.
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStartupResume)(JNIEnv *, jobject) {
+    startup_state.store(StartupTyping);
+    startup_stalled.store(-1);
+    machine.post([](kairo::MachineCore &core) { static_cast<TypingCore &>(core).resume(); });
+}
+
+// The typer's state (StartupState) and the step it stalled on, or -1.
+extern "C" JNIEXPORT jintArray JNICALL NATIVE_MACHINE(nativeStartupStatus)(JNIEnv *env, jobject) {
+    const jint values[2] = {startup_state.load(), startup_stalled.load()};
+    jintArray result = env->NewIntArray(2);
+    env->SetIntArrayRegion(result, 0, 2, values);
+    return result;
+}
+
+// The screen the guest shows (MachineCore::screen_signature), read between frames; null when no
+// machine runs.
+extern "C" JNIEXPORT jlongArray JNICALL NATIVE_MACHINE(nativeScreenSignature)(JNIEnv *env, jobject) {
+    uint64_t signature = 0;
+    const int result = machine.call([&signature](kairo::MachineCore &core) {
+        signature = core.screen_signature();
+        return 0;
+    });
+    if (result != 0) return nullptr;
+    const jlong value = static_cast<jlong>(signature);
+    jlongArray array = env->NewLongArray(1);
+    env->SetLongArrayRegion(array, 0, 1, &value);
+    return array;
 }

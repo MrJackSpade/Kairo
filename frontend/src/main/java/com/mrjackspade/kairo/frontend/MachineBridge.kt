@@ -61,6 +61,11 @@ interface MachineBridge {
         const val FAILED = 2
         /** A save or load the machine can't do: MachineCore::kUnsupported. */
         const val UNSUPPORTED = -2
+        /**
+         * A load that failed after it had changed the running machine, which cannot go on from there
+         * ([stateErrorReason] may say why): MachineCore::kLost. The frontend starts the game again.
+         */
+        const val LOST = 3
     }
 }
 

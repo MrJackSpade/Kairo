@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "gpu_picture.h"
 #include "startup_typer.h"
 
 namespace kairo {
@@ -38,14 +39,21 @@ public:
     static constexpr int kUnsupported = -2;
     // A save, load or media call that failed; for a state, state_error() may say why.
     static constexpr int kFailed = 2;
+    // A load that failed after it had changed the running machine, which cannot go on from there:
+    // the frontend starts the game again (MachineBridge.LOST). state_error() may say why.
+    static constexpr int kLost = 3;
 
     virtual ~MachineCore() = default;
 
     // Runs one guest frame; false stops the machine with error().
     virtual bool run_frame() = 0;
     virtual std::string error() = 0;
-    // The last frame as RGBA8888 rows of width pixels; valid until the next run_frame().
+    // The last frame as RGBA8888 rows of width pixels; valid until the next run_frame(). A core with
+    // a gpu_picture() returns null.
     virtual const uint8_t *frame(uint32_t &width, uint32_t &height) = 0;
+    // The core's picture when the GPU composes it (gpu_picture.h), instead of frame(); the same
+    // object for the core's whole life. Null for a core that draws its frames in software.
+    virtual GpuPicture *gpu_picture() { return nullptr; }
     // How many picture rows each row of frame() stands for: 2 for a 200-line mode the core hands
     // over without doubling its lines, which the presenter then repeats exactly as the core would
     // have (Kairo#50). Read with each frame, so it may change with the guest's mode.
@@ -104,6 +112,9 @@ public:
     virtual std::string details() { return ""; }
 
     virtual void reset() = 0;
+    // Ends the machine as its session ends, before it is destroyed, writing back what it holds (a
+    // hard disk's cache); why that failed, which ends the session in error, or "".
+    virtual std::string close() { return ""; }
     // 0, kFailed or kUnsupported.
     virtual int save_state(const std::string &directory) { (void) directory; return kUnsupported; }
     virtual int load_state(const std::string &directory) { (void) directory; return kUnsupported; }
@@ -127,6 +138,9 @@ public:
     virtual bool typed_key(char c, int &code, bool &shift) { (void) c; (void) code; (void) shift; return false; }
     virtual int special_key(SpecialKey key) { (void) key; return -1; }
     virtual bool expand_command(std::string &line) { (void) line; return true; }
+    // The screen the guest shows, as a signature of its video memory, for startup steps and disk
+    // swaps that wait for a screen (StartupStep::screens). Only a product whose catalog names screens asks.
+    virtual uint64_t screen_signature() { throw std::logic_error("This core has no screen signatures"); }
 };
 
 // The product's machine for a launch; null with error set when it cannot start.

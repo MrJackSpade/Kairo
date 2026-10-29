@@ -46,7 +46,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      * bridge of its own codes maps them here instead.
      */
     protected open fun stateError(code: Int): String = when (code) {
-        MachineBridge.FAILED -> bridge.stateErrorReason().let { reason ->
+        MachineBridge.FAILED, MachineBridge.LOST -> bridge.stateErrorReason().let { reason ->
             if (reason.isEmpty()) getString(R.string.kairo_state_error_failed)
             else getString(R.string.kairo_state_error_failed_reason, reason)
         }
@@ -59,6 +59,12 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     /** A load the machine refused with [code], as when its media must be started again. */
     protected open fun loadRejected(code: Int) {}
+
+    /** A load that left the machine unable to go on (MachineBridge.LOST) starts the game again. */
+    private fun loadFailed(code: Int) {
+        if (code == MachineBridge.LOST) restartGame()
+        loadRejected(code)
+    }
 
     /** The session's game started; the product may begin its own work, such as typing a command. */
     protected open fun gameStarted(entry: E, game: CatalogGame) {}
@@ -329,7 +335,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 inputModeDecider.reset()
                 userPaused = false
                 closeMenu()
-            }, ::loadRejected, getString(R.string.kairo_states_library_only))
+            }, ::loadFailed, getString(R.string.kairo_states_library_only))
     }
 
     override fun gameRows() = stateFlow.rows() + machineRows() + listOfNotNull(mediaSlots.takeIf { it.isNotEmpty() }?.let {
@@ -785,6 +791,30 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         entries.forEachIndexed { slot, entry -> if (slot < mounted.size) mounted[slot] = entry }
     }
 
+    /**
+     * Starts a media change the product makes itself, as a disk swap at a game's prompt: false while
+     * another change runs. The product changes the slot with [bridge] and then calls [endMediaChange].
+     */
+    @Synchronized protected fun beginMediaChange(): Boolean {
+        if (mediaBusy) return false
+        mediaBusy = true
+        return true
+    }
+
+    /** Ends a change [beginMediaChange] started; [slot] now holds [entry] when [changed]. */
+    protected fun endMediaChange(slot: Int, entry: E?, changed: Boolean) = runOnUiThread {
+        mediaBusy = false
+        if (changed) mounted[slot] = entry
+        refreshSettingValues()
+    }
+
+    /** Opens the flyout at [slot]'s disk choice, as when the player must pick a disk a game asks for. */
+    protected fun chooseMedia(slot: Int) {
+        openMenu()
+        pages.push(mediaPage())
+        pages.push(ChoicePage(mediaChoice(slot), "media$slot"))
+    }
+
     /** Waits on the launch thread until the machine runs, failing the launch with its error. */
     protected fun awaitRunning() {
         while (true) {
@@ -860,8 +890,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     private fun changeMedia(slot: Int, entry: E?) {
-        if (mediaBusy) return
-        mediaBusy = true
+        if (!beginMediaChange()) return
         refreshSettingValues()
         Thread {
             val failure = try {
@@ -869,12 +898,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 check(bridge.media(slot, image?.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
                 null
             } catch (error: Exception) { error.message ?: getString(R.string.kairo_media_change_failed) }
+            endMediaChange(slot, entry, failure == null)
             runOnUiThread {
-                mediaBusy = false
-                if (failure == null) mounted[slot] = entry
                 toast(failure ?: getString(R.string.kairo_media_changed, text(mediaSlots[slot].label),
                     entry?.displayName ?: getString(R.string.kairo_empty)))
-                refreshSettingValues()
             }
         }.apply { name = "${identity.appName}-media"; start() }
     }

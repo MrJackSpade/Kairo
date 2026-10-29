@@ -26,6 +26,7 @@
 #include "frame_report.h"
 #include "surface_presenter.h"
 #include "gl_frame_presenter.h"
+#include "gpu_picture.h"
 
 namespace kairo {
 
@@ -42,6 +43,9 @@ namespace kairo {
 //   const uint8_t *frame(uint32_t &width, uint32_t &height);
 //                                The current picture: width x height RGBA8
 //                                pixels, rows without padding.
+//   GpuPicture *gpu_picture();   The core's picture when the GPU composes it
+//                                (gpu_picture.h), instead of frame(); null
+//                                for a core that draws in software.
 //   double frame_seconds();      How long the frame run_frame() just ran lasts
 //                                in guest time.
 //   int32_t audio_rate();        Stereo 16-bit frames per second.
@@ -49,6 +53,8 @@ namespace kairo {
 //                                Takes up to max_frames of the audio produced
 //                                so far; returns how many.
 //   void release_inputs();       Releases every key and control held down.
+//   std::string close();         Ends the machine before it is destroyed;
+//                                why that failed, or "".
 //
 // One session runs at a time. A session's core is created, run and destroyed on
 // its emulation thread; products reach it only through post() and call().
@@ -247,13 +253,16 @@ private:
         report("Running");
         name_thread("kairo-frames");
         raise_emulation_priority("worker");
+        GpuPicture *const picture = core->gpu_picture();
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
             present_stop_ = false;
             pending_.clear();
+            pending_packet_.reset();
+            spare_packets_.clear();
             has_pending_ = false;
         }
-        std::thread presenter(&FrameMachine::present_loop, this);
+        std::thread presenter(&FrameMachine::present_loop, this, picture);
 
         const int32_t rate = core->audio_rate();
         std::unique_ptr<AudioOutput> audio;
@@ -373,9 +382,21 @@ private:
         }
         present_ready_.notify_one();
         presenter.join();
+        {
+            // Packets are the picture's, which goes with the core.
+            std::lock_guard<std::mutex> guard(present_mutex_);
+            pending_packet_.reset();
+            spare_packets_.clear();
+        }
+        std::string closing = core->close();
         core.reset();
         {
             std::lock_guard<std::mutex> guard(command_mutex_);
+            // An error the session already ended with is the one to report.
+            if (!closing.empty() && state_ != "Error") {
+                state_ = "Error";
+                error_ = std::move(closing);
+            }
             active_ = false;
             // Unanswered commands break their promises, so a caller waiting on one returns.
             commands_.clear();
@@ -396,6 +417,7 @@ private:
     // Hands the core's current picture to the presenter, replacing one it has
     // not shown yet; true when it did replace one.
     bool publish(Core &core) {
+        if (GpuPicture *picture = core.gpu_picture()) return publish(*picture);
         uint32_t width = 0, height = 0;
         const uint8_t *pixels = core.frame(width, height);
         if (!pixels || !width || !height) return false;
@@ -428,6 +450,43 @@ private:
         return replaced;
     }
 
+    // Hands what the frame changed in a GPU picture to the presenter, folding in a packet it has
+    // not applied yet; true when there was one. A frame that changed nothing hands over nothing.
+    bool publish(GpuPicture &picture) {
+        std::unique_ptr<GpuPicture::Packet> packet;
+        {
+            std::lock_guard<std::mutex> guard(present_mutex_);
+            if (!spare_packets_.empty()) {
+                packet = std::move(spare_packets_.back());
+                spare_packets_.pop_back();
+            }
+        }
+        if (!packet) packet = picture.new_packet();
+        if (!picture.take(*packet)) {
+            std::lock_guard<std::mutex> guard(present_mutex_);
+            spare_packets_.push_back(std::move(packet));
+            return false;
+        }
+        if (!pictured_seen_ && picture.pictured(*packet)) {
+            pictured_seen_ = true;
+            std::lock_guard<std::mutex> guard(command_mutex_);
+            pictured_ = true;
+        }
+        bool replaced;
+        {
+            std::lock_guard<std::mutex> guard(present_mutex_);
+            replaced = pending_packet_ != nullptr;
+            if (replaced) {
+                picture.merge(*packet, *pending_packet_);
+                spare_packets_.push_back(std::move(pending_packet_));
+            }
+            pending_packet_ = std::move(packet);
+            has_pending_ = true;
+        }
+        present_ready_.notify_one();
+        return replaced;
+    }
+
     // Whether every pixel's colour channels are at most 16 of 255, as a booting
     // machine's screen is before it shows anything.
     static bool black(const uint8_t *pixels, uint32_t width, uint32_t height, size_t stride) {
@@ -444,13 +503,17 @@ private:
     // newest frame; one it could not show in time is replaced. With a shader
     // preset the frame goes through the GPU filter; without one, or when the preset
     // cannot run, the GPU scales it to the window (GlFramePresenter). One of the two
-    // holds the window at a time.
-    void present_loop() {
+    // holds the window at a time. A core's GPU picture is shown the same way, from the
+    // packets the emulation thread hands over.
+    void present_loop(GpuPicture *picture) {
         name_thread("kairo-present");
         SurfacePresenter shader;
         GlFramePresenter plain;
         std::vector<uint8_t> frame;
         FrameShape shape{};
+        std::unique_ptr<GpuPicture::Packet> packet;
+        // Whether the picture has had a packet to show.
+        bool applied = false;
         ANativeWindow *window = nullptr;
         unsigned window_generation = ~0u, shader_generation = ~0u;
         {
@@ -467,8 +530,11 @@ private:
                 });
                 if (present_stop_) break;
                 if (has_pending_) {
-                    frame.swap(pending_);
-                    shape = pending_shape_;
+                    if (picture) packet = std::move(pending_packet_);
+                    else {
+                        frame.swap(pending_);
+                        shape = pending_shape_;
+                    }
                     has_pending_ = false;
                 }
             }
@@ -492,6 +558,18 @@ private:
                     shader.setPreset(shader_preset_);
                     shader_generation = shader_generation_.load(std::memory_order_relaxed);
                 }
+            }
+            if (picture) {
+                if (packet) {
+                    picture->apply(*packet);
+                    applied = true;
+                    std::lock_guard<std::mutex> guard(present_mutex_);
+                    spare_packets_.push_back(std::move(packet));
+                }
+                if (!window || !applied) continue;
+                if (shader.render(window, *picture)) continue;
+                plain.render(window, *picture);
+                continue;
             }
             if (!window || frame.empty()) continue;
             if (shader.render(window, frame.data(), shape)) continue;
@@ -552,6 +630,9 @@ private:
     bool present_stop_ = false;
     std::vector<uint8_t> pending_;
     FrameShape pending_shape_{};
+    // A GPU picture's newest packet the presenter has not taken, and packets to reuse.
+    std::unique_ptr<GpuPicture::Packet> pending_packet_;
+    std::vector<std::unique_ptr<GpuPicture::Packet>> spare_packets_;
     bool has_pending_ = false;
 };
 
