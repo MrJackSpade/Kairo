@@ -147,6 +147,9 @@ class GuestKeyboardPanel(
         for ((target, keyboardPage) in layout.pages.withIndex()) {
             val tab = TextView(context).apply {
                 text = keyboardPage.label
+                // Legends such as ?123 are the keyboard's, not the language's: a right-to-left
+                // bar would move the leading "?" to the end.
+                textDirection = View.TEXT_DIRECTION_LTR
                 gravity = Gravity.CENTER
                 textSize = Ui.SECONDARY
                 setTextColor(keyText())
