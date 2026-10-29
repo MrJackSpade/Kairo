@@ -1,10 +1,10 @@
 ---
-title: Host boot test
+title: The host boot test
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,7 +12,11 @@ Every new system.
 
 ## Work
 
-`core/test/boot_test.cpp`: several media in one process, scripted presses, a state saved and loaded during a load with its round trip checked, crashes and the last screen reported, frames kept; run with `shared/tools/test-core.ps1` under `run-limited.ps1`.
+`core/test/boot_test.cpp`, run with `shared/tools/test-core.ps1` under `shared/tools/run-limited.ps1`:
+- runs several media in one process, as the app runs one game after another;
+- presses keys or buttons on a script;
+- saves and loads a state during a load and checks the round trip;
+- reports a crash and the last screen, and keeps the frames.
 
 ## Done when
 
@@ -20,5 +24,10 @@ Every new system.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+
+## Examples (for reference)
+
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoST's and Kairo64's `core/test/boot_test.cpp`.

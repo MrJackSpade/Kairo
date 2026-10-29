@@ -2,9 +2,9 @@
 title: Standard game sets and the test set
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,14 +12,21 @@ Every new system.
 
 ## Work
 
-- Name the standard sets the catalog scans (TOSEC, No-Intro and the like), which players will have too.
-- Put a test set in the app's ignored `roms/` and `bios/` folders with one game of every media kind, a multi-disk game, a mouse game, a game that reads the cursor keys, a game on the player's firmware and the heaviest action game known.
+- **Standard sets:** the collections players of {{system}} are likely to have (TOSEC, No-Intro, well-known community sets). The catalog is built from these, so a player's files match it.
+- **Test set**, in the app's ignored `roms/` and `bios/` folders:
+  - one game of every media kind the app supports;
+  - a multi-disk game that asks for a disk swap;
+  - a game that boots to a desktop or a prompt instead of starting by itself;
+  - a game that uses the mouse, if the machine has one;
+  - a game that reads the cursor keys;
+  - a game that needs the player's firmware;
+  - the heaviest action game known for the machine;
+  - the player's firmware.
 
 ## Done when
 
-- This description lists the standard sets and the test set, with what each test game covers.
+- This description lists the standard sets (with where they are kept locally) and each test game with what it covers.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

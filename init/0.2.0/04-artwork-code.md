@@ -1,29 +1,24 @@
 ---
-title: Add the artwork code to both platform folder tables
+title: Add {{app}}'s artwork code to both platform folder tables
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
-Every new system.
+Every new system. The work is in the Kairo repository (the shared frontend); this ticket tracks it for {{app}}.
 
 ## Work
 
-- In Kairo, `tools/launchbox_artwork.py` `PLATFORM_FOLDERS` and `frontend/.../LaunchBoxArtworkReferences.kt` `PLATFORM_FOLDERS`, the same in both.
-- Artwork comes from LaunchBox references, never a self-hosted copy of LaunchBox's images.
+- Add the artwork code and the slug to `PLATFORM_FOLDERS` in Kairo's `tools/launchbox_artwork.py` and in `frontend/src/main/java/.../LaunchBoxArtworkReferences.kt`. The two tables must be the same.
+- The catalog references LaunchBox's images; it never hosts copies of them.
 
 ## Done when
 
-- Both tables carry the code on Kairo's `main`.
+- Both tables carry the code, and a catalog artwork reference for {{system}} expands to a LaunchBox image URL.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
-
-## Learned in
-
-`Kairo#36`, `KairoDos#85`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

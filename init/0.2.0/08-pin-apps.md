@@ -1,24 +1,24 @@
 ---
-title: Pin the registration commit in every Kairo app
+title: Pin the Kairo commit that registers {{app}} in every app
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
-Every new system.
+Every new system. The work is in the Kairo repository (the shared frontend); this ticket tracks it for {{app}}.
 
 ## Work
 
-Every Kairo app pins the Kairo commit that registers {{app}}, with its workflows calling that commit.
+- In every Kairo app, update the `shared/` submodule to the commit that registers {{app}}, and the workflows' pinned Kairo commit with it.
+- Regenerate each app's README blocks (`shared/tools/docs.py`) so their family grids list {{app}}.
 
 ## Done when
 
-- Every app's `shared/` is at or past the registration commit, and every app's README family grid lists {{app}}.
+- Every app is pushed with that pin, and its README lists {{app}}.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

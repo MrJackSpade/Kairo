@@ -1,10 +1,10 @@
 ---
-title: development.md, licensing.md, source-import.md and releases/
+title: The docs folder
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,13 +12,15 @@ Every new system.
 
 ## Work
 
-`docs/development.md` (building, the host test, the core's generated sources), `docs/licensing.md`, `docs/source-import.md`, `docs/releases/`.
+- `docs/development.md`: how to build, how to run the host test, and how to regenerate any generated sources.
+- `docs/licensing.md`: every component and its license.
+- `docs/source-import.md`: where each third-party snapshot came from.
+- `docs/releases/`, for each release's notes.
 
 ## Done when
 
-- Each exists and describes the app as built.
+- Each describes {{app}} as it is built.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

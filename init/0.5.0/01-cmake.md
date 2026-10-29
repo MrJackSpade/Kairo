@@ -1,10 +1,10 @@
 ---
-title: Build the core as a library with the Kairo build flags
+title: Build the core as a library with the Kairo build settings
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,14 @@ Every new system.
 
 ## Work
 
-`core/CMakeLists.txt` builds the emulator as a library: `-fsigned-char`, `-O3` in every build type, `shared/cmake/KairoMachine.cmake` (hidden visibility), and `shared/cmake/KairoPgo.cmake` once a profile is recorded.
+- `core/CMakeLists.txt` builds the emulator as a library for the host and for Android.
+- `-fsigned-char` (cores written for x86 assume a signed `char`; ARM's is unsigned), and `-O3` in every build type, Debug included (an unoptimized core runs far below real time).
+- `shared/cmake/KairoMachine.cmake` for hidden symbol visibility, and `shared/cmake/KairoPgo.cmake` once a profile is recorded (the "Perf: Profile-guided optimization" ticket).
 
 ## Done when
 
-- The core builds for the host and the device, optimized in Debug builds too.
+- The core builds for the host and the RG DS, optimized in every build type.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
-
-## Learned in
-
-`KairoDos#51`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

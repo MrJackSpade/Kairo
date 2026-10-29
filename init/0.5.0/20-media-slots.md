@@ -2,27 +2,29 @@
 title: A media slot for every drive, tape deck and cartridge port
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
-Always, for the media kinds the survey found.
+Every new system.
 
 ## Work
 
-Insert and eject per slot, and `media_paths()` answered from the emulator's own state, so the Disks page is right after a state load.
+- For each media kind in the survey, a slot the player can insert into and eject from during play.
+- `media_paths()` answers from the emulator's own state, not from a record the app keeps, so the Disks page is right after a state load.
 
 ## Done when
 
-- Every medium can be changed during play, and the Disks page shows the state's media after a load.
+- Every medium can be changed during play, and after a state load the Disks page shows the state's media.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
 
-## Learned in
+## Examples (for reference)
 
-`KairoTowns#76`, `Kairo98#103`, `Kairo64#50`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoTowns' Disks page showed the media from before a state load until it read them from Tsugaru (`KairoTowns#76`).

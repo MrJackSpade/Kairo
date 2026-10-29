@@ -2,28 +2,25 @@
 title: Catalog updates
 kind: validation
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Validation: check it. There is nothing to build unless the check fails.
+**Kind:** Validation. Check it; build nothing unless the check fails.
 
 ## Applies when
 
-Every new system: the shared frontend's fixed issues, checked again with this app's machine, keyboard, catalog and library.
+Every new system. The shared frontend is tested in other apps; this checks it again with {{app}}'s machine, keyboard, catalog and library.
 
 ## Check
 
-Activate a downloaded catalog, update the app; apply a partial update.
+- Download a catalog update, then update the app.
+- Apply an update that changes only some fields.
 
 ## Passes when
 
-- The downloaded catalog stays active, a partial update changes only its fields, the update stays within its size limit. Whether an update can change controller mappings is recorded here (`Kairo#55`).
+- The downloaded catalog stays active after the app update, a partial update changes only its own fields, and the update stays within its size limit. Write here whether an update can change controller mappings.
 
 ## Closing
 
-- **Passes:** record the build, the device and what was seen in this description, then close as completed.
-- **Does not apply to {{system}}:** record why in this description, then close as not planned.
-- **Fails:** file each failure as its own ticket (one scope each), list them here, and close this once they are closed and the check passes.
-
-## Learned in
-
-`Kairo#26`, `KairoDos#7`, `Kairo#75`, `Kairo#55`
+- **Passes:** write the build, the device and what was seen into this description, then close as completed.
+- **Does not apply:** write why into this description, then close as not planned.
+- **Fails:** file each failure as its own ticket (one problem each), list them here, and close this one when they are closed and the check passes.

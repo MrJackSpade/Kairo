@@ -1,10 +1,10 @@
 ---
-title: Ignore and attribute files
+title: Ignore and attributes files
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,13 +12,14 @@ Every new system.
 
 ## Work
 
-`.gitignore` (`bios/`, `roms/`, `.build/`, `.downloads/`), `.gitattributes`, and `third_party/.gitignore` re-including everything the root rules would drop.
+- `.gitignore` covering `bios/`, `roms/`, `.build/` and `.downloads/`, and every build output.
+- `.gitattributes` as the other apps have it.
+- `third_party/.gitignore` re-including everything, so the root rules don't drop files inside the snapshots (a folder named `build/`, for example).
 
 ## Done when
 
-- `git status` on a built checkout shows nothing generated, and `third_party/` keeps every file.
+- A built checkout shows nothing in `git status`, and every file of each snapshot is tracked.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

@@ -1,10 +1,10 @@
 ---
-title: Headless video, sound and UI; the emulator's own menus never show
+title: Run the core headless, with none of its own UI
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,13 @@ Every new system.
 
 ## Work
 
-Replace the emulator's main loop, video, sound and UI so each frame and its sound go to the host. Its own menus and dialogs never show, not even after a guest crash.
+- Replace the emulator's main loop, video, sound and UI output so each frame and its sound go to the Kairo host.
+- The emulator's own menus, dialogs and on-screen messages never show, not even after the guest crashes or the emulator hits an error.
 
 ## Done when
 
-- No emulator UI appears in normal play, after a guest crash or at teardown.
+- In normal play, after a guest crash and at the end of a game, only Kairo's UI shows.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
-
-## Learned in
-
-`KairoDos#39`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

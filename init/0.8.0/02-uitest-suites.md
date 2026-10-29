@@ -1,10 +1,10 @@
 ---
-title: Every shared suite
+title: Every shared UI test suite
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,12 @@ Every new system.
 
 ## Work
 
-Every shared suite as `<App><Suite>Tests` (`StateTests` only with save states); the disk swap with thousands of disks in the library.
+- Declare every shared suite as `<App><Suite>Tests` (`StateTests` only with save states). The media swap test runs with thousands of disks in the library.
 
 ## Done when
 
-- Every suite is declared.
+- Every shared suite is declared.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
-
-## Learned in
-
-`Kairo#48`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

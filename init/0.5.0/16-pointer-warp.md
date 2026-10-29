@@ -1,28 +1,24 @@
 ---
-title: Pointer warp for direct touch
+title: Move the guest's pointer to a touched point
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-The machine has a mouse or pointer.
+The machine has a mouse or another pointer.
 
 ## Work
 
-The core moves the guest pointer to a frame point, so a tap puts it where the player touched.
+- The core moves the guest's pointer to a point on the frame, so direct touch puts the pointer where the player tapped. A guest that only reads relative motion gets there by motion.
 
 ## Done when
 
-- Direct touch puts the pointer under the finger in a mouse game.
+- With direct touch, a tap puts the pointer under the finger in a mouse game.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
-
-## Learned in
-
-`Kairo#79`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

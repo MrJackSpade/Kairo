@@ -2,9 +2,9 @@
 title: Catalog identity: platform slug, LaunchBox, MobyGames and artwork code
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,9 +12,10 @@ Every new system.
 
 ## Work
 
-- The platform slug (lower case, as `pc98`, `atarist`, `c64`).
-- The LaunchBox platform name and the MobyGames platform ID.
-- A new artwork code, unused by every other app (`shared/docs/catalog-research.md`); it is permanent once a catalog using it is published.
+- The platform slug: short and lower case. Catalog keys are `<slug>:<id>`.
+- The LaunchBox platform name, exactly as LaunchBox's `Metadata.zip` names it.
+- The MobyGames platform ID.
+- An artwork code no other app uses (the platforms table in Kairo `docs/catalog-research.md`). Installed apps derive artwork cache paths from it, so it is permanent once a catalog using it is published.
 
 ## Done when
 
@@ -22,5 +23,10 @@ Every new system.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+
+## Examples (for reference)
+
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- The Atari ST: slug `atarist`, LaunchBox "Atari ST", MobyGames 24, artwork code 83.

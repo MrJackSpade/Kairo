@@ -1,29 +1,33 @@
 ---
-title: Build in Kairo the features {{app}} needs
+title: Build in Kairo what {{app}} needs from the shared frontend
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-The survey (`{{ref:machine-survey}}`) found something the shared frontend or machine host lacks (a media kind, a `CatalogSetting`, a `DiskImageLibrary.Format` option, a firmware match, a `MachineCore` hook), or something another app has (startup commands, hard disks, clock, Skip memory check, disk swap automation).
+The survey (`{{ref:machine-survey}}`) or the work so far shows {{app}} needs something the shared frontend or machine host doesn't have (a media kind, a catalog setting, a library format option, a firmware match, a machine host hook), or something another Kairo app has its own copy of.
 
 ## Work
 
-- Build each in Kairo, for every app, never as a copy in {{app}}.
-- A feature another app has is moved into Kairo where it is still that app's own, and both use the shared one.
+- Before building anything, look in every Kairo app for it.
+- If another app has it, move it into Kairo, so that app and {{app}} both use the one shared version.
+- Otherwise build it in Kairo, for every app, never as code of {{app}}'s own.
 
 ## Done when
 
-- Each feature listed here is in Kairo and used by {{app}}.
+- Each feature is listed here, is in Kairo, and {{app}} uses it.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo#83`, `KairoTowns#39`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Typed startup commands were Kairo88's own until KairoTowns needed them; they moved into Kairo (`startup_typer.h`, `StartupCommands`) for both.
+- Disk swap automation lived only in Kairo98 and is being moved into Kairo for every app.

@@ -2,9 +2,9 @@
 title: App identity: name, package, module, icon and accent color
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,8 +12,9 @@ Every new system.
 
 ## Work
 
-- The name {{app}}, package `com.loxifi.{{module}}`, module `{{module}}`.
-- The icon art, from the owner, and the brand accent color taken from it.
+- The name {{app}}, the package `com.loxifi.{{module}}` and the module `{{module}}`.
+- The icon art, which the owner provides.
+- The brand accent color, taken from the icon art (an ARGB value for the app's `Identity`).
 
 ## Done when
 
@@ -21,5 +22,4 @@ Every new system.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

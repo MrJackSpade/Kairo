@@ -1,10 +1,10 @@
 ---
-title: MainActivity on MachineActivity
+title: MainActivity on the shared MachineActivity
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,7 +12,14 @@ Every new system.
 
 ## Work
 
-`MainActivity : MachineActivity`: `identity`, `machine` (resolution, aspect, state file, mouse resolution), `bridge` (with the lock keys), `keyboard`, `guestKey`, `joystickControls`, `controllerSpec`, `bindingsCodec`, the `DiskImageLibrary.Format` (kinds, labels, size limits, programs), `mediaSlots`, `firmwareSets` (by name, SHA-1 or header, and size), `ownFirmwareInstalled`, `machineOptions`, `startGame`.
+`MainActivity : MachineActivity` supplies:
+- `identity` (names, accent color, credits, first-run texts);
+- `machine` (resolution, aspect, state file name, mouse resolution);
+- `bridge`, the `NativeMachine` with the lock keys;
+- the keyboard, the Android-to-guest key mapping, the joystick controls and the `ControllerGuestSpec`;
+- the `DiskImageLibrary.Format` (media kinds, labels, size limits, programs);
+- `mediaSlots`, `firmwareSets`, `ownFirmwareInstalled`, `machineOptions`;
+- `startGame`, which prepares the media and starts the machine.
 
 ## Done when
 
@@ -20,5 +27,10 @@ Every new system.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+
+## Examples (for reference)
+
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoST's and Kairo64's `MainActivity.kt`.

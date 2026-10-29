@@ -2,17 +2,18 @@
 title: MobyGames in the catalog
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
-Before the first release that is not a test build.
+Every new system, before its first release that is not a test build.
 
 ## Work
 
-Finish the MobyGames details and art passes, rerun `research.py --mobygames`, review the new matches, give games LaunchBox has no cover for MobyGames' cover and screenshot.
+- Finish the MobyGames details and art passes (`mobygames.py`), then rebuild the research with `--mobygames`.
+- Review the new matches. Games LaunchBox lacks become catalog games, and games LaunchBox has no cover for take MobyGames' cover and screenshot.
 
 ## Done when
 
@@ -20,9 +21,4 @@ Finish the MobyGames details and art passes, rerun `research.py --mobygames`, re
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
-
-## Learned in
-
-`Kairo64#7`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

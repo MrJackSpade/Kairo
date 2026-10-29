@@ -1,18 +1,18 @@
 ---
-title: Model pass: region and model by running the game
+title: Decide each game's model and region by running it
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-The machine came in more than one model or region.
+The machine came in more than one model or region (PAL and NTSC, for example).
 
 ## Work
 
-Run each game on each, recording the model that runs it, never by the region in its name.
+- Run each game on each model and record the one that runs it. A region in a file name is not evidence.
 
 ## Done when
 
@@ -20,9 +20,11 @@ Run each game on each, recording the model that runs it, never by the region in 
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo64#14`, `Kairo64#13`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo64's `tools/model_pass.py`, which also reads the raster lines a game waits on.

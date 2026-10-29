@@ -1,10 +1,10 @@
 ---
-title: The emulated mouse is Kairo's mouse
+title: Connect the emulated mouse to Kairo's mouse
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,7 +12,7 @@ The machine has a mouse.
 
 ## Work
 
-Map the emulated mouse's axes and buttons to Kairo's mouse; the core fails when they are not mapped.
+- Map the emulated mouse's axes and buttons to the mouse the host drives. The core fails at start if they are not mapped, so a missing mapping can't pass unnoticed.
 
 ## Done when
 
@@ -20,9 +20,11 @@ Map the emulated mouse's axes and buttons to Kairo's mouse; the core fails when 
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo68#32`, `Kairo98#66`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo68: MAME mapped the X68000's mouse to a host mouse Kairo never had (`Kairo68#32`).

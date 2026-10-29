@@ -2,23 +2,29 @@
 title: Register {{app}} in Kairo's apps.json
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
-Every new system.
+Every new system. The work is in the Kairo repository (the shared frontend); this ticket tracks it for {{app}}.
 
 ## Work
 
-In Kairo (`shared/`), `docs/templates/apps.json`: the app's entry (repo, system, module, package, googlePlay, firmware, saveStates, artworkHosts, privacyPage, problemDetail, frontends). It drives `tools/docs.py`, the family grid, `tools/tag-release.ps1` and `tools/uitest-all.ps1`.
+- Add {{app}}'s entry to Kairo's `docs/templates/apps.json`: `repo`, `system`, `module`, `package`, `googlePlay`, `firmware` (whether the player can import firmware), `saveStates`, `artworkHosts`, `privacyPage`, `problemDetail`, and `frontends` (how other Android frontends launch it) once known.
+- `tools/docs.py` writes each app's license, privacy policy, frontend docs and README blocks from it, `tools/tag-release.ps1` releases every app it lists, and `tools/uitest-all.ps1` tests them.
 
 ## Done when
 
-- Kairo's `tools/docs.py --check` passes with the entry, pushed to Kairo's `main`.
+- Kairo's `python tools/docs.py . --check` passes, and the entry is on Kairo's `main`.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+
+## Examples (for reference)
+
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoST's and Kairo64's entries in the same file.

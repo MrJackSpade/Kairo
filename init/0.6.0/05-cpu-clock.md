@@ -2,17 +2,17 @@
 title: CPU clock setting
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-The real machine ran at more than one clock, or the core can run faster.
+The real machine ran at more than one clock, or games benefit from running faster.
 
 ## Work
 
-A numeric clock machine option with the real clocks, per-game override, catalog value winning over the default.
+- A numeric clock machine option offering the real clocks, with a per-game override; a game's catalog value wins over the all-games default.
 
 ## Done when
 
@@ -20,9 +20,11 @@ A numeric clock machine option with the real clocks, per-game override, catalog 
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo68#4`, `KairoMSX#44`, `KairoST#72`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo68 offers 10, 16 and 25 MHz.

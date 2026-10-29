@@ -2,9 +2,9 @@
 title: Survey the real {{system}} for parity
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,24 +12,28 @@ Every new system.
 
 ## Work
 
-List, for the real machine and for the chosen core:
-- Models and regions (PAL/NTSC timing), CPU clocks, memory sizes.
-- Every media kind: floppies, hard disks, tapes, cartridges, CDs, programs.
-- Peripherals: mouse, joystick ports, drives, hard disk controllers.
-- Keyboards: international and JIS layouts, kana, lock keys (Caps, Kana).
-- Whether the boot counts memory, and what command line or prompt it boots to (BASIC, DOS).
-- Settings or patches the emulator keeps per game.
+For the real {{system}}, and for the chosen core, find out:
+- Each model and region, and what differs between them: CPU, clock, memory, video timing (PAL or NTSC), keyboard.
+- The CPU clocks the machines shipped with or could switch to.
+- The memory sizes they came with or could be expanded to.
+- Every medium: floppy formats, hard disks, tapes, cartridges, CDs, programs run from a folder.
+- Peripherals: mouse, joysticks and their ports, extra drives, hard disk controllers.
+- Keyboards: the layout per region (international, JIS), kana, and the lock keys (Caps, Kana).
+- What the machine boots to with no software: a prompt (BASIC, DOS), a desktop, or a wait for a disk.
+- Whether its boot counts memory, and how long a boot takes.
+- Settings or patches the core keeps per game.
 
 ## Done when
 
-- This description lists each of the above with whether the real machine had it and whether the core supports it.
-- Later tickets judge their **Applies when** against this list.
+- This description has a table: each item above, what the real machine had, and whether the core supports it (yes, no, partly).
+- The other tickets' **Applies when** are judged against this table.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo88#2`, `Kairo64#50`, `KairoMSX#45`, `Kairo#81`, the 2026-10-28 parity survey (`KairoST#72`, `KairoST#73`, `Kairo64#52`)
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- A survey of every app (2026-10-28) found CPU clock settings and hard disks missing from KairoST, KairoMSX and Kairo64 because nobody had checked whether the real machines had them.

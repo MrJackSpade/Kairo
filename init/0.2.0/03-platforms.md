@@ -1,24 +1,25 @@
 ---
-title: Add the platform to Kairo's LaunchBox and MobyGames tools
+title: Add {{system}} to Kairo's LaunchBox and MobyGames tools
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
-Every new system.
+Every new system. The work is in the Kairo repository (the shared frontend); this ticket tracks it for {{app}}.
 
 ## Work
 
-In Kairo, `tools/launchbox.py` and `tools/mobygames.py` `PLATFORMS`: the slug, the LaunchBox platform name and the MobyGames platform ID (`{{ref:catalog-identity}}`).
+- `tools/launchbox.py` `PLATFORMS`: the slug and the LaunchBox platform name.
+- `tools/mobygames.py` `PLATFORMS`: the slug and the MobyGames platform ID.
+- Both from {{ref:catalog-identity}}.
 
 ## Done when
 
-- Both are on Kairo's `main`, and a LaunchBox snapshot and a MobyGames listing run for the platform.
+- A LaunchBox snapshot and a MobyGames listing run for the platform.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

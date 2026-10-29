@@ -1,10 +1,10 @@
 ---
-title: Import the core as a pinned snapshot with its provenance
+title: Import the core as a pinned snapshot
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,13 +12,13 @@ Every new system.
 
 ## Work
 
-The core and the libraries it needs as pinned snapshots in `third_party/`, with their provenance in `docs/source-import.md`: URL, archive SHA-256, tag commit, date, exclusions, local changes.
+- Copy the core, and each library it needs, into `third_party/` from a released archive or tag, unchanged.
+- Record each in `docs/source-import.md`: the URL, the archive's SHA-256, the tag's commit, the date, what was left out, and the local changes (kept as patches: the "Keep every change to the snapshots as a checked patch" ticket).
 
 ## Done when
 
-- `docs/source-import.md` records every snapshot.
+- `docs/source-import.md` records every snapshot, and each matches its archive apart from the recorded exclusions and patches.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

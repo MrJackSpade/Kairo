@@ -2,9 +2,9 @@
 title: {{app}}'s Play listing
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,7 +12,7 @@ The owner decides to release {{app}} on Google Play.
 
 ## Work
 
-`docs/play-assets/listing.md` (short and full descriptions), the app icon and feature graphic from the product icon art, and screenshots.
+- `docs/play-assets/listing.md` with the short and full descriptions, the app icon and feature graphic made from the product icon art, and screenshots from a Retroid Pocket 6.
 
 ## Done when
 
@@ -20,5 +20,5 @@ The owner decides to release {{app}} on Google Play.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

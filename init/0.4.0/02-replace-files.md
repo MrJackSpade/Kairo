@@ -1,24 +1,31 @@
 ---
-title: Replace the files under incompatible terms
+title: Replace the files under terms the app can't ship
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-`{{ref:core}}` listed files under terms the app cannot ship.
+`{{ref:core}}` found files under terms {{app}} can't ship.
 
 ## Work
 
-Replace each with a first-party file in `core/kairo/` (as KairoST did for Hatari's FS-UAE headers), recorded in `docs/source-import.md` and `docs/licensing.md`.
+- Write a first-party replacement for each in `core/kairo/`, or leave the file out where nothing needs it.
+- Record each in `docs/source-import.md` and `docs/licensing.md`.
 
 ## Done when
 
-- No listed file is compiled into the app.
+- None of the files is compiled into the app.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
+
+## Examples (for reference)
+
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoST: `core/kairo/uae/` replaces three GPL-2.0-only headers of Hatari's.

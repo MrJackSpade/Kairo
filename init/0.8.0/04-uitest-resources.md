@@ -2,9 +2,9 @@
 title: UI test resources
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,7 +12,7 @@ Every new system.
 
 ## Work
 
-`uitest/resources.json` and the encrypted `TestResources.part1.dat` (`LOCAL_BUILD_TOKEN`).
+- `uitest/resources.json` naming the test games and firmware, and the encrypted bundle `uitest/TestResources.part1.dat` (keyed from `LOCAL_BUILD_TOKEN`).
 
 ## Done when
 
@@ -20,5 +20,4 @@ Every new system.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

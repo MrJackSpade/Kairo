@@ -2,9 +2,9 @@
 title: Scan the standard sets
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,13 +12,12 @@ Every new system.
 
 ## Work
 
-Scan every standard set with `shared/tools/scan_media.py` into `.downloads/scan/`.
+- Scan each standard set (`{{ref:game-sets}}`) with `shared/tools/scan_media.py` into `.downloads/scan/`.
 
 ## Done when
 
-- Each scan index lists the set's media.
+- Each scan index lists its set's media with their content IDs.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

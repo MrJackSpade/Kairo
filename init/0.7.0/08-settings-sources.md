@@ -1,18 +1,18 @@
 ---
-title: Machine settings from the sources that state them
+title: Machine settings the sources state
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-File names or records state games' machine settings (`{V1 mode}`, `[STE]`, `[2Mb]`).
+File names or source records state machine settings for games (a mode, a memory size, a model).
 
 ## Work
 
-Record them in the game records.
+- Read them into the game records, so those games start with the right settings.
 
 ## Done when
 
@@ -20,9 +20,5 @@ Record them in the game records.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
-
-## Learned in
-
-`Kairo88#3`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

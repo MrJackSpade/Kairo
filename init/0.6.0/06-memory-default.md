@@ -2,9 +2,9 @@
 title: Memory defaults as high as games allow
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,17 +12,13 @@ The machine came with more than one memory size.
 
 ## Work
 
-A memory machine option defaulting to the most memory that breaks no game.
+- A memory machine option defaulting to the most memory that breaks no game, with a per-game override for the games that need less.
 
 ## Done when
 
-- The first games played start without running out of memory.
+- Games start without running out of memory, and the ones that need less have it in the catalog.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
-
-## Learned in
-
-`KairoMSX#3`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

@@ -2,9 +2,9 @@
 title: {{app}}'s own UI tests
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,12 @@ Every new system.
 
 ## Work
 
-`<Sys>Tests`: the firmware and System choices, the media kinds, the machine settings reaching the machine, the boot running faster than the real machine.
+- `<Machine>Tests` for what is {{app}}'s own: the firmware and System choices, its media kinds, its machine settings reaching the machine, and the boot running faster than the real machine.
 
 ## Done when
 
-- They cover what is {{app}}'s own.
+- They cover each of these.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
-
-## Learned in
-
-`Kairo68#5`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

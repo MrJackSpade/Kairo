@@ -2,28 +2,27 @@
 title: The library at full size
 kind: validation
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Validation: check it. There is nothing to build unless the check fails.
+**Kind:** Validation. Check it; build nothing unless the check fails.
 
 ## Applies when
 
-Every new system, on the RG DS, each finding its own ticket.
+Every new system. Test on the RG DS with a release-like build (`shared\tools\build.ps1 -Install`).
 
 ## Check
 
-The full standard set on the SD card: a second start, an app update, search, the folder pickers after a large games folder.
+With the full standard sets on the SD card:
+- start the app twice, and again after updating it;
+- search while typing;
+- open the folder pickers after choosing the games folder.
 
 ## Passes when
 
-- A second start hashes nothing new and checks quickly, an update rehashes nothing, archives are read in place, search responds while typing, no catalog parse on the UI thread, the pickers work.
+- A second start hashes nothing it already knows and finishes its check quickly, an update rehashes nothing, archives are read in place without copies, search responds as you type, and the pickers show the right folders.
 
 ## Closing
 
-- **Passes:** record the build, the device and what was seen in this description, then close as completed.
-- **Does not apply to {{system}}:** record why in this description, then close as not planned.
-- **Fails:** file each failure as its own ticket (one scope each), list them here, and close this once they are closed and the check passes.
-
-## Learned in
-
-`Kairo#46`, `Kairo#39`, `Kairo#52`, `Kairo#51`, `Kairo#9`, `Kairo#32`
+- **Passes:** write the build, the device and what was seen into this description, then close as completed.
+- **Does not apply:** write why into this description, then close as not planned.
+- **Fails:** file each failure as its own ticket (one problem each), list them here, and close this one when they are closed and the check passes.

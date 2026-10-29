@@ -1,10 +1,10 @@
 ---
-title: Frame buffers outlive the presenter's copies
+title: Frame buffers stay valid while the presenter copies them
 kind: validation
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Validation: check it. There is nothing to build unless the check fails.
+**Kind:** Validation. Check it; build nothing unless the check fails.
 
 ## Applies when
 
@@ -12,18 +12,21 @@ Every new system.
 
 ## Check
 
-Check that every buffer the presenter thread copies stays valid until the copy ends, including through mode and resolution changes; play the game with the most mode changes known.
+- Follow each buffer from the core to the presenter thread: it must stay valid until the copy ends, through resolution and mode changes too.
+- Play the game known for the most mode changes.
 
 ## Passes when
 
-- No crash in a frame copy, and the code shows why none can happen.
+- Nothing crashes in a frame copy, and the code shows why nothing can.
 
 ## Closing
 
-- **Passes:** record the build, the device and what was seen in this description, then close as completed.
-- **Does not apply to {{system}}:** record why in this description, then close as not planned.
-- **Fails:** file each failure as its own ticket (one scope each), list them here, and close this once they are closed and the check passes.
+- **Passes:** write the build, the device and what was seen into this description, then close as completed.
+- **Does not apply:** write why into this description, then close as not planned.
+- **Fails:** file each failure as its own ticket (one problem each), list them here, and close this one when they are closed and the check passes.
 
-## Learned in
+## Examples (for reference)
 
-`KairoTowns#7`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoTowns: Super Street Fighter II crashed the app in a frame copy (`KairoTowns#7`).

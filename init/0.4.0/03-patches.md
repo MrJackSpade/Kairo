@@ -1,28 +1,32 @@
 ---
-title: Local changes as patches in the shared patch tool
+title: Keep every change to the snapshots as a checked patch
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-The snapshot needs any change.
+The core or a library needs any change to its source.
 
 ## Work
 
-Every change is a patch in `tools/patches.py`, applied and checked by `shared/tools/local_patches.py`, run with `--check` in CI. Nothing is edited in the snapshot by hand.
+- Write each change as a patch in `tools/patches.py`; the shared `shared/tools/local_patches.py` applies them and, with `--check`, fails when the snapshot and the patches disagree.
+- Run the check in `tools/checks.sh`, so CI fails on an unrecorded change.
+- Never edit a snapshot by hand.
 
 ## Done when
 
-- `local_patches.py --check` passes and the snapshot matches its upstream archive apart from the patches.
+- `local_patches.py --check` passes, and each patch has a line in `docs/source-import.md`.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo#92`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo64's `tools/patches.py` (its VICE patches, read as Latin-1).

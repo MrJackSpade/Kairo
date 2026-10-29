@@ -1,10 +1,10 @@
 ---
-title: The first catalog, from LaunchBox alone
+title: The first catalog, from LaunchBox
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,13 +12,13 @@ Every new system.
 
 ## Work
 
-The LaunchBox snapshot, `research.py` (without `--mobygames`), `app_catalog.py`, `fetch_artwork.py`, `art_review.py` (`shared/docs/catalog-research.md`). The MobyGames dump runs beside it.
+- Build the first catalog from LaunchBox alone, so device tests can start: the LaunchBox snapshot, `research.py` without `--mobygames`, `app_catalog.py`, `fetch_artwork.py`, then `art_review.py` (Kairo `docs/catalog-research.md`).
+- Start the MobyGames dump beside it (the "MobyGames in the catalog" ticket); it is slow and must not hold up testing.
 
 ## Done when
 
-- The app shows the catalog's titles and artwork for the test set.
+- The app shows catalog titles and artwork for the test set.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

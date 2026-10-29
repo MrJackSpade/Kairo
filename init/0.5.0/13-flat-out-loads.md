@@ -1,10 +1,10 @@
 ---
-title: Run flat out while a game's media loads
+title: Run flat out while the guest loads from its media
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,17 +12,20 @@ The machine loads from a drive, tape or CD.
 
 ## Work
 
-`booting()` is true while the guest loads from any medium, by its drive, tape or CD motor, not only during the first boot.
+- The core's `booting()` is true while the guest is loading from any medium: while a drive, tape or CD motor runs. The host then runs the machine as fast as it can, as in fast-forward.
+- Not only during the first boot: loads later in a game run flat out too.
 
 ## Done when
 
-- A disk, tape or CD load later in a game runs flat out and play returns to real speed after it.
+- Loads at boot and later in play run flat out, and play returns to real speed after each.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo#82`, `Kairo64#2`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo64 reports the datasette motor and the 1541's loading (`C64Machine::loading`).

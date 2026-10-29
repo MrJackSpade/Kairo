@@ -2,9 +2,9 @@
 title: Mark the adult artwork
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,13 +12,13 @@ The owner names images as adult.
 
 ## Work
 
-List them under `adultArtwork` in `core-review-v1.json`.
+- List them under `adultArtwork` in `catalog/core-review-v1.json`, so they ship only in the adult artwork part.
 
 ## Done when
 
-- They ship only in the adult part.
+- The main artwork part holds none of them.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

@@ -1,10 +1,10 @@
 ---
-title: Lock keys read back from the core
+title: Report the lock keys from the core
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,17 +12,14 @@ The machine has lock keys (Caps, Kana).
 
 ## Work
 
-`locks()` reports them from the emulator's own state, and the app's `NativeMachine` and keyboard layout declare them.
+- The core's `locks()` reports them from the emulator's own state.
+- The app's `NativeMachine` and the keyboard layout declare them.
 
 ## Done when
 
-- After a state load, the keyboard lights the state's locks.
+- After a state load, the on-screen keyboard lights the locks as the state has them.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
-
-## Learned in
-
-`Kairo#80`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

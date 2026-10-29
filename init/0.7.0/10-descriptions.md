@@ -1,10 +1,10 @@
 ---
-title: Descriptions for every game with a real source
+title: Original descriptions for every game
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,14 @@ Every new system.
 
 ## Work
 
-Original descriptions written for the app (`descriptions.py worklist`, `add`), never filler such as "An X game by Y"; main text clean. Games with no source are listed for research.
+- Write an original description for every game with real reference text (`shared/tools/descriptions.py worklist`, then `add`). LaunchBox and MobyGames text is reference only and is never copied.
+- No filler: a game with nothing real to say about it stays blank and is listed for research, never given "An action game by X."
+- The main description never mentions adult content.
 
 ## Done when
 
-- Every game with real reference text has a description.
+- Every game with a real source has a description, and this description lists those left blank.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
-
-## Learned in
-
-`Kairo64#5`, `Kairo88#1`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

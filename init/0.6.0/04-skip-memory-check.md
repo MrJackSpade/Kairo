@@ -1,18 +1,18 @@
 ---
-title: Skip memory check (default on)
+title: Skip memory check, on by default
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-The boot counts memory.
+The machine's boot counts memory.
 
 ## Work
 
-A Skip memory check machine option, on by default, with the same name and place as in the other apps.
+- A Skip memory check machine option, on by default, under the same name and in the same place as in the other apps, that skips the count (or runs it as fast as the machine allows).
 
 ## Done when
 
@@ -20,9 +20,11 @@ A Skip memory check machine option, on by default, with the same name and place 
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo98#62`, `Kairo68#1`, `KairoTowns#2`, `KairoST#1`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoTowns sets Tsugaru's CMOS fast-boot flag; KairoST uses Hatari's fast boot.

@@ -1,10 +1,10 @@
 ---
-title: Runs repeat exactly
+title: Two runs of one build are identical
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,19 @@ Every new system.
 
 ## Work
 
-A repeatable mode (the clock from guest time, a fixed seed, synchronous media reads) and no uninitialized reads, so two runs of one build hash alike.
+- A repeatable mode for tests: the guest's clock from guest time instead of the host's, a fixed random seed, and media reads that finish before the guest sees them.
+- No uninitialized memory read by the emulation.
 
 ## Done when
 
-- Two `game_profile ... check exact` runs of one build match.
+- Two `game_profile ... check exact` runs of one build give the same hashes on several games.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
 
-## Learned in
+## Examples (for reference)
 
-`KairoTowns#32`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoTowns: `Config::repeatable`, and the uninitialized reads it uncovered (`KairoTowns#32`).

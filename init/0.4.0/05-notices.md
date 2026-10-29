@@ -2,9 +2,9 @@
 title: Third-party notices from the shared generator
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,19 @@ Every new system.
 
 ## Work
 
-`tools/notices_sources.py` gives the shared notices generator the app's license sources (core, embedded code, bundled firmware); CI checks the notices.
+- `tools/notices_sources.py` gives the shared notices generator {{app}}'s license sources: the core, the code it embeds, the firmware the app ships.
+- The generator writes `{{module}}/src/main/assets/THIRD_PARTY_NOTICES.txt`, and CI checks it is current.
 
 ## Done when
 
-- `THIRD_PARTY_NOTICES.txt` is generated and CI fails when it is stale.
+- The notices name every component and its license, and CI fails when they are stale.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo#86`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo64's `tools/notices_sources.py`.

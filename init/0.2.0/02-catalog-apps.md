@@ -1,24 +1,29 @@
 ---
-title: Register {{app}} in Kairo's catalog_parts.py
+title: Register {{app}} in Kairo's catalog tools
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
-Every new system.
+Every new system. The work is in the Kairo repository (the shared frontend); this ticket tracks it for {{app}}.
 
 ## Work
 
-In Kairo, `tools/catalog_parts.py` `APPS`: the app's product, platform slug, adult and main artwork part names and package title.
+- Add {{app}} to `APPS` in Kairo's `tools/catalog_parts.py`: the product name, the platform slug, the names of its adult and main artwork parts, and the artwork package's title.
 
 ## Done when
 
-- The entry is on Kairo's `main`, and `app_catalog.py` runs for {{app}}.
+- `tools/app_catalog.py` builds {{app}}'s catalog parts.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+
+## Examples (for reference)
+
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- `'kairost': App('KairoST', 'atarist', 'kairost-art.nsfw', 'kairost-art', 'KairoST artwork', True)`

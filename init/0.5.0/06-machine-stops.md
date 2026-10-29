@@ -2,9 +2,9 @@
 title: A machine that stops ends the game with its reason
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,19 @@ Every new system.
 
 ## Work
 
-A fatal error, a CPU halt or JAM, or the emulator quitting ends the game with its reason and returns to the library; never `exit()`, `abort()` or a silent stop on the last frame.
+- Every way the core can stop (a fatal error, a halted or jammed CPU, the emulator quitting) ends the game with a message saying why, and returns to the library.
+- Never `exit()` or `abort()`, and never a silent stop that leaves the last frame on screen.
 
 ## Done when
 
-- Each way the core can stop shows its reason and returns to the library.
+- Each stop path, triggered on purpose, shows its reason and returns to the library.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
 
-## Learned in
+## Examples (for reference)
 
-`KairoST#7`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo64 patches VICE so a CPU JAM ends the game with the reason (`tools/patches.py`, `VICE_JAM`).

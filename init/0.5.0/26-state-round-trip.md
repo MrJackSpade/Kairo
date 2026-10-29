@@ -1,10 +1,10 @@
 ---
-title: A save state round trip is exact
+title: A save state loads back exactly
 kind: validation
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Validation: check it. There is nothing to build unless the check fails.
+**Kind:** Validation. Check it; build nothing unless the check fails.
 
 ## Applies when
 
@@ -12,18 +12,14 @@ The app has save states.
 
 ## Check
 
-In `boot_test`, save a state during play and during a load, run on, load it, and compare the machine a frame after the load with a frame after the save, every chip included.
+- In `boot_test`, save a state during play and during a load, run on, load it, and compare the machine one frame after the load with one frame after the save, every chip included.
 
 ## Passes when
 
-- No drift, on several games.
+- No difference, on several games.
 
 ## Closing
 
-- **Passes:** record the build, the device and what was seen in this description, then close as completed.
-- **Does not apply to {{system}}:** record why in this description, then close as not planned.
-- **Fails:** file each failure as its own ticket (one scope each), list them here, and close this once they are closed and the check passes.
-
-## Learned in
-
-`Kairo68#72`
+- **Passes:** write the build, the device and what was seen into this description, then close as completed.
+- **Does not apply:** write why into this description, then close as not planned.
+- **Fails:** file each failure as its own ticket (one problem each), list them here, and close this one when they are closed and the check passes.

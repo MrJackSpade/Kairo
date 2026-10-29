@@ -1,370 +1,233 @@
 # Adding a new system
 
-Everything a new Kairo app needs built and tested, from the way KairoST and Kairo64 were added
-(Kairo commits `262a2e9` and `916e40b`, and those apps' histories) and from every issue filed
-against the Kairo apps. The issue after an item is where its lesson was learned.
+Everything a new Kairo app needs built, checked, assessed or translated. Each line is a ticket in
+`init/<version>/`, and each version is a milestone, in version order. A ticket's body says when it
+applies, what kind it is, what to do and how it closes, so not every ticket means work: a
+validation builds nothing unless it fails, and a performance ticket is done only where it gains.
 
-Each item is a ticket in `init/<x.y.z>/<NN-slug>.md`, with one ticket per language per function for
-the translations. Each version folder is a milestone, in version order. A ticket's body says when it
-applies, whether it is built, checked, assessed for performance or translated, and how it closes.
-`tools/init_system.py` files them in the new app's repository:
+`tools/init_system.py` files them in the new app's repository (this file is written from them by
+`init_system.py --checklist`; edit the tickets, not this file):
 
 ```
 python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>" --dry-run
 python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>"
 ```
 
-## 0. Decisions
 
-- [ ] **Emulator core.** Its license is verified from the source: GPL-2.0-or-later or permissive.
-  Never GPL-2.0-only (it cannot ship beside the shader runtime, see [licensing](licensing.md)),
-  fmgen, or code under the pre-2016 non-commercial MAME license. Files under other terms are
-  listed for replacement (as Hatari's three FS-UAE headers were).
-- [ ] **The real machine, for parity:** its models and regions (PAL/NTSC timing), CPU clocks,
-  memory sizes, hard disks, every media type (tapes and cartridges too, Kairo88#2, Kairo64#50),
-  peripherals (mouse, joystick ports, drives), its keyboards (international and JIS, with kana,
-  KairoMSX#45, Kairo#81), its lock keys, a boot memory check, and a command line it boots to
-  (BASIC, DOS). What the real machine had, the app supports.
-- [ ] **Firmware:** the free replacement the app bundles as the default (EmuTOS, the Open ROMs,
-  C-BIOS), and the player's own firmware as a per-game System override (Kairo98#107),
-  peripherals included (hard disk controllers, KairoMSX#43).
-- [ ] **Catalog identity:** the platform slug, the LaunchBox platform name, the MobyGames platform
-  ID, and a new artwork code (permanent once a catalog using it is published).
-- [ ] **App identity:** `Kairo<X>`, package `com.loxifi.kairo<x>`, module `kairo<x>`, the icon
-  art and the brand accent color.
-- [ ] **Game sets:** the standard sets the catalog scans, and a test set in the app's ignored
-  `roms/` and `bios/` folders with one game of every media kind, a multi-disk game, a mouse game,
-  a game that reads the cursor keys and the heaviest action game known.
+## 0.1.0
 
-## 1. Registration in Kairo (one commit)
+- [ ] Choose the emulator core and verify its license (implement)
+- [ ] Survey the real <System> for parity (implement)
+- [ ] Firmware: a free default the app ships, and the player's own (implement)
+- [ ] Catalog identity: platform slug, LaunchBox, MobyGames and artwork code (implement)
+- [ ] App identity: name, package, module, icon and accent color (implement)
+- [ ] Standard game sets and the test set (implement)
 
-- [ ] `docs/templates/apps.json`: the app's entry (repo, system, module, package, googlePlay,
-  firmware, saveStates, artworkHosts, privacyPage, problemDetail, frontends). It drives
-  `tools/docs.py`, the family grid, `tools/tag-release.ps1` and `tools/uitest-all.ps1`.
-- [ ] `tools/catalog_parts.py` `APPS`.
-- [ ] `tools/launchbox.py` and `tools/mobygames.py` `PLATFORMS`.
-- [ ] `tools/launchbox_artwork.py` `PLATFORM_FOLDERS` and `LaunchBoxArtworkReferences.kt`
-  `PLATFORM_FOLDERS`, the same in both. Artwork comes from LaunchBox references, never a
-  self-hosted copy of LaunchBox's images (Kairo#36, KairoDos#85).
-- [ ] `tools/audit_android_release.py` `FORBIDDEN`: the system's firmware file names and media
-  extensions (the bundled free firmware keeps a name of its own).
-- [ ] Docs: the platforms table in [catalog research](catalog-research.md), the app's own tests
-  in [UI tests](ui-tests.md), the README family block (`tools/docs.py`).
-- [ ] Any feature the system needs that the frontend lacks (a media kind, a `CatalogSetting`, a
-  `DiskImageLibrary.Format` option, a firmware match, a `MachineCore` hook) is built here, for
-  every app. Any feature another app has (startup commands, hard disks, clock, Skip memory check,
-  disk swap automation) is the shared one, never a second copy (Kairo#83, KairoTowns#39).
-- [ ] Every app pins the new commit.
+## 0.2.0
 
-## 2. Repository
+- [ ] Register <App> in Kairo's apps.json (implement)
+- [ ] Register <App> in Kairo's catalog tools (implement)
+- [ ] Add <System> to Kairo's LaunchBox and MobyGames tools (implement)
+- [ ] Add <App>'s artwork code to both platform folder tables (implement)
+- [ ] Forbid <System> firmware and games in the release audit (implement)
+- [ ] List <App> in Kairo's documentation (implement)
+- [ ] Build in Kairo what <App> needs from the shared frontend (implement)
+- [ ] Pin the Kairo commit that registers <App> in every app (implement)
 
-- [ ] `MrJackSpade/Kairo<X>`: only the `origin` remote, `shared/` pinned as a submodule,
-  `core.hooksPath shared/githooks`, author and committer MrJackSpade.
-- [ ] `AGENTS.md` (core credited without being the brand, no proprietary firmware or games,
-  GitHub and Play builds alike, every catalog setting a per-game setting), `README.md` with the
-  `kairo:` blocks, `COPYING`, `LICENSE.md` and the privacy policy from `tools/docs.py`.
-- [ ] Gradle: `settings.gradle.kts`, `build.gradle.kts`, `gradle.properties`, an executable
-  `gradlew` delegating to shared.
-- [ ] `.gitignore` (`bios/`, `roms/`, `.build/`, `.downloads/`), `.gitattributes`, and
-  `third_party/.gitignore` re-including everything.
-- [ ] `.github/workflows/`: `android.yml`, `tag-builds.yml`, `play-release.yml`,
-  `discord-sync.yml`, `discord-release.yml`, calling Kairo at the pinned commit
-  (`tools/check-workflow-pins.sh`); the signing secrets and Discord webhooks.
-- [ ] `docs/development.md`, `docs/licensing.md`, `docs/source-import.md`, `docs/releases/`.
-- [ ] Version codes rise with every build, so a build installs over the last one (Kairo98#34).
+## 0.3.0
 
-## 3. Third-party import
+- [ ] Create the <App> repository (implement)
+- [ ] AGENTS.md, README, licenses and privacy policy (implement)
+- [ ] The Gradle project on the shared conventions (implement)
+- [ ] Ignore and attributes files (implement)
+- [ ] Workflows, secrets and webhooks (implement)
+- [ ] The docs folder (implement)
+- [ ] Each build installs over the one before (validation)
 
-- [ ] A pinned snapshot in `third_party/`, its provenance in `docs/source-import.md` (URL, archive
-  SHA-256, tag commit, date, exclusions, local changes).
-- [ ] Files under incompatible terms replaced by first-party ones.
-- [ ] Every change to the snapshot is a patch in `tools/patches.py`, applied and checked by the
-  shared `tools/local_patches.py`; nothing edited in the snapshot by hand (Kairo#92).
-- [ ] Generated sources committed, with their generator and a `--check` in `tools/checks.sh`.
-- [ ] `tools/notices_sources.py` for the shared notices generator, checked in CI (Kairo#86).
-- [ ] Shared importers where one exists (the MAME subset importer, Kairo#93).
-- [ ] The bundled free firmware staged into the app's assets by Gradle and installed with the
-  shared shipped-asset install (Kairo#96).
+## 0.4.0
 
-## 4. Native core (`core/`)
+- [ ] Import the core as a pinned snapshot (implement)
+- [ ] Replace the files under terms the app can't ship (implement)
+- [ ] Keep every change to the snapshots as a checked patch (implement)
+- [ ] Commit the core's generated sources with their generator (implement)
+- [ ] Third-party notices from the shared generator (implement)
+- [ ] Import through the shared importer (implement)
+- [ ] Ship the free firmware and install it with the shared helper (implement)
 
-### Build
+## 0.5.0
 
-- [ ] `core/CMakeLists.txt` builds the emulator as a library: `-fsigned-char`, `-O3` in every
-  build type (KairoDos#51), [KairoMachine.cmake](../cmake/KairoMachine.cmake) (hidden visibility),
-  and [KairoPgo.cmake](../cmake/KairoPgo.cmake) once a profile is recorded.
-- [ ] Headless video, sound, UI and main loop that hand each frame and its sound to the host. The
-  emulator's own menus and dialogs never show, not even after a guest crash (KairoDos#39).
+- [ ] Build the core as a library with the Kairo build settings (implement)
+- [ ] Run the core headless, with none of its own UI (implement)
+- [ ] The machine: the frame host's Core and its configuration (implement)
+- [ ] The JNI bridge on the shared machine host (implement)
+- [ ] Run game after game in one process, with nothing carried over (implement)
+- [ ] A machine that stops ends the game with its reason (implement)
+- [ ] The core's per-game options reach the machine (implement)
+- [ ] Two runs of one build are identical (implement)
+- [ ] Render at the machine's resolution and scale on the GPU (implement)
+- [ ] A frame's picture does not depend on how its drawing is split (validation)
+- [ ] Frame buffers stay valid while the presenter copies them (validation)
+- [ ] The core's display artefacts are chosen on purpose (validation)
+- [ ] Run flat out while the guest loads from its media (implement)
+- [ ] Play reaches the game's first picture quickly (validation)
+- [ ] Report what the guest reads, for the Auto touch mode (implement)
+- [ ] Move the guest's pointer to a touched point (implement)
+- [ ] Report the lock keys from the core (implement)
+- [ ] Prompt hooks for typed startup commands (implement)
+- [ ] Open a game at the guest's command line (implement)
+- [ ] A media slot for every drive, tape deck and cartridge port (implement)
+- [ ] Hard disk images (implement)
+- [ ] Connect the emulated mouse to Kairo's mouse (implement)
+- [ ] A key tap reaches the guest at once and is read (validation)
+- [ ] No binding sends inputs the machine can't tell apart (validation)
+- [ ] A save state restores the disks it was saved with (implement)
+- [ ] A save state loads back exactly (validation)
+- [ ] The host boot test (implement)
+- [ ] game_profile: speed and exactness on host and device (implement)
 
-### The machine
+## 0.6.0
 
-- [ ] `<sys>_machine.cpp/.h`: the `FrameMachine` Core ([machine host](machine-host.md)):
-  `run_frame`, `frame` or `gpu_picture`, `frame_seconds`, `audio_rate`, `read_audio`,
-  `release_inputs`, `close`, `error`; the configuration (model, region, memory, clock, firmware,
-  drives, Skip memory check).
-- [ ] The JNI bridge, `kairo<x>/src/main/cpp/<sys>_core.cpp` and its `CMakeLists.txt`, through
-  `kairo_machine_library`, with `post` and `call`; state result codes from `machine_core.h`, not
-  the core's own (Kairo#94).
-- [ ] Game after game in one process: a fresh copy of the library for each machine (KairoST's
-  `hatari_library.h`) or patches that reset the emulator's global state. Nothing carries into the
-  next machine: boot state (KairoST#32), ROMs, which each machine loads itself even when the last
-  one named the same files (Kairo64#11).
-- [ ] A machine that stops for any reason (a fatal error, a CPU halt or JAM, the emulator
-  quitting) ends the game with its reason and returns to the library; never `exit()`, `abort()`
-  or a silent stop on the last frame (KairoST#7).
-- [ ] The emulator's per-game settings and patches (Tsugaru's `-APP`) reach the machine, from a
-  catalog setting (KairoTowns#77).
-- [ ] Runs repeat exactly: a repeatable mode (fixed clock, fixed seed, synchronous media reads)
-  and no uninitialized reads, so two runs of one build hash alike (KairoTowns#32).
+- [ ] The app module's build file (implement)
+- [ ] MainActivity on the shared MachineActivity (implement)
+- [ ] Every machine setting is a machine option with a per-game override (implement)
+- [ ] Skip memory check, on by default (implement)
+- [ ] CPU clock setting (implement)
+- [ ] Memory defaults as high as games allow (implement)
+- [ ] Find a game's other disks with the shared lookup (implement)
+- [ ] The startup commands setting (implement)
+- [ ] The guest keyboard layout (implement)
+- [ ] The catalog schema (implement)
+- [ ] The firmware chooser (implement)
+- [ ] The default controller mapping (implement)
+- [ ] Move <App>'s own UI text into string resources (implement)
+- [ ] The app's resources: nothing duplicated, the archive wording right (validation)
+- [ ] Unit tests (implement)
 
-### Picture and sound
+## 0.7.0
 
-- [ ] The core renders at the machine's own resolution and the GPU scales it; where the hardware
-  was built from planes, palettes and sprites, the GPU composes it (Kairo#50).
-- [ ] A frame's picture does not depend on where its drawing was split (Kairo68#33).
-- [ ] Frame buffers outlive every copy the presenter thread makes of them (KairoTowns#7).
-- [ ] Machine quirks that look like bugs are decided on purpose (Tsugaru's Trinitron damper
-  line, KairoTowns#5).
+- [ ] The catalog configuration (implement)
+- [ ] Scan the standard sets (implement)
+- [ ] The first catalog, from LaunchBox (implement)
+- [ ] Every multi-disk set is one library entry (implement)
+- [ ] Detect how each disk starts (implement)
+- [ ] Launch pass: boot every game on the host core (implement)
+- [ ] Decide each game's model and region by running it (implement)
+- [ ] Machine settings the sources state (implement)
+- [ ] The catalog's name index matches the app's file name lookup (validation)
+- [ ] Original descriptions for every game (implement)
+- [ ] Adult descriptions for the adult games (implement)
+- [ ] Mark the adult artwork (implement)
+- [ ] MobyGames in the catalog (implement)
+- [ ] The catalog audits pass (validation)
 
-### Host hooks
+## 0.8.0
 
-- [ ] `booting()` runs flat out while the guest loads from any medium, by its drive, tape or CD
-  motor, not only during the first boot (Kairo#82, Kairo64#2).
-- [ ] The time from Play to the first picture is short: the boot runs flat out and a bundled
-  firmware's splash hold is cut (Kairo68#2, KairoST#5).
-- [ ] Input telemetry (keyboard waits and polls, mouse reads) for the Auto touch mode (Kairo#78).
-- [ ] Pointer warp for direct touch (Kairo#79).
-- [ ] `locks()`: Caps and Kana read back from the emulator, and declared in the layout
-  (Kairo#80).
-- [ ] The prompt hooks of the shared startup typer (`prompt`, `typed_key`, `special_key`,
-  `expand_command`) for every prompt the machine boots to (Kairo68#70, Kairo64#51).
-- [ ] A command-line launch: the game's media inserted, nothing autostarted (Kairo#89).
-- [ ] A media slot for every drive, tape deck and cartridge port, with insert, eject and
-  `media_paths()` answered from the emulator's own state, so the Disks page is right after a
-  state load (KairoTowns#76, Kairo98#103).
-- [ ] Hard disk images mounted on the machine's own bus and booted from (KairoTowns#38).
+- [ ] The UI test descriptor (implement)
+- [ ] Every shared UI test suite (implement)
+- [ ] <App>'s own UI tests (implement)
+- [ ] UI test resources (implement)
+- [ ] The UI tests pass on the RG DS (validation)
 
-### Input
+## 0.9.0
 
-- [ ] The emulated mouse is mapped to Kairo's mouse; the core fails when it is not (Kairo68#32).
-- [ ] A key tap reaches the guest within half a second and is held long enough for the guest to
-  read it (KairoST#3, KairoST#33).
-- [ ] Inputs that share hardware lines are never sent together where the machine reads them as
-  other inputs (the C64's joystick port 2 and keyboard matrix, Kairo64#12).
+- [ ] A game boots and draws on the device (validation)
+- [ ] Every media kind plays past its load (validation)
+- [ ] Full speed on the heaviest games (validation)
+- [ ] Starting games: first picture, several in a row, other frontends (validation)
+- [ ] Every control reaches the guest as itself (validation)
+- [ ] The on-screen keyboard (validation)
+- [ ] Mouse games (validation)
+- [ ] Media swaps and save states (validation)
+- [ ] Firmware on the device (validation)
+- [ ] The library at full size (validation)
+- [ ] Two screens (validation)
+- [ ] Sets that ship a hard disk or CMOS reach their game (validation)
+- [ ] A game whose files the player changed still starts (validation)
+- [ ] A file a patched game needs loads for that game (validation)
+- [ ] Create a game from its installer media (implement)
+- [ ] No text outside the string resources (validation)
+- [ ] License and release audits (validation)
 
-### Save states
+## 0.10.0
 
-- [ ] A state records which of the game's disks was in each drive and puts them back through
-  `kairo_state_path` when it loads (Kairo98#94, Kairo68#69, Kairo64#49).
-- [ ] A state round trip is exact: the machine a frame after the load matches the machine a frame
-  after the save, every chip included (Kairo68#72).
+- [ ] The library (validation)
+- [ ] Search (validation)
+- [ ] Startup (validation)
+- [ ] Artwork (validation)
+- [ ] Catalog updates (validation)
+- [ ] Navigation (validation)
+- [ ] Settings pages (validation)
+- [ ] The controller (validation)
+- [ ] On-screen controls (validation)
+- [ ] The screen (validation)
+- [ ] Sound under input (validation)
+- [ ] Two-screen details (validation)
+- [ ] Saves (validation)
+- [ ] Library contents (validation)
+- [ ] About (validation)
 
-### Host tools
+## 0.11.0
 
-- [ ] `core/test/boot_test.cpp`: several media in one process, scripted presses, a state saved and
-  loaded during a load with its round trip checked, crashes and the last screen reported, frames
-  kept; run with `tools/test-core.ps1` under `tools/run-limited.ps1`.
-- [ ] `game_profile` with frame hashes (`check exact`), to measure speed and show two builds run
-  the guest alike.
+- [ ] Perf: Profiling and measurement harness (performance)
+- [ ] Perf: Profile-guided optimization (performance)
+- [ ] Perf: Link-time optimization (ThinLTO) (performance)
+- [ ] Perf: Symbol binding and visibility (performance)
+- [ ] Perf: Compiler optimization level and target flags (performance)
+- [ ] Perf: Work done on every entry into the CPU core (performance)
+- [ ] Perf: CPU timeslice fragmentation (performance)
+- [ ] Perf: Idle and wait-loop skipping (performance)
+- [ ] Perf: Instruction fetch and register access (performance)
+- [ ] Perf: Guest memory access (performance)
+- [ ] Perf: Condition-flag evaluation (performance)
+- [ ] Perf: Graphics chip fast paths (performance)
+- [ ] Perf: Video rendering dirty tracking (performance)
+- [ ] Perf: GPU composition of the guest picture (performance)
+- [ ] Perf: Frame copies and pixel conversion (performance)
+- [ ] Perf: Presentation off the emulation thread (performance)
+- [ ] Perf: Sound synthesis off the emulation thread (performance)
+- [ ] Perf: Audio resampler SIMD (performance)
+- [ ] Perf: Frame pacing on a fixed grid (performance)
+- [ ] Perf: Audio output buffering and latency (performance)
+- [ ] Perf: Emulation thread priority (performance)
+- [ ] Perf: Guest CPU cycle budget (performance)
 
-### Performance
+## 0.12.0
 
-Each technique as Kairo68#6 to #28 describe it (and KairoTowns#9 to #31, KairoST#9 to #31): check
-whether it applies to this core, whether the app already has it, and what it gains on the RG DS,
-with the guest run exactly as before (`check exact`).
+- [ ] Japanese: translate <App>'s app strings (translation)
+- [ ] Portuguese (Brazil): translate <App>'s app strings (translation)
+- [ ] Spanish: translate <App>'s app strings (translation)
+- [ ] Korean: translate <App>'s app strings (translation)
+- [ ] Indonesian: translate <App>'s app strings (translation)
+- [ ] Arabic: translate <App>'s app strings (translation)
+- [ ] Russian: translate <App>'s app strings (translation)
+- [ ] German: translate <App>'s app strings (translation)
+- [ ] Japanese: translate <App>'s catalog descriptions (translation)
+- [ ] Portuguese (Brazil): translate <App>'s catalog descriptions (translation)
+- [ ] Spanish: translate <App>'s catalog descriptions (translation)
+- [ ] Korean: translate <App>'s catalog descriptions (translation)
+- [ ] Indonesian: translate <App>'s catalog descriptions (translation)
+- [ ] Arabic: translate <App>'s catalog descriptions (translation)
+- [ ] Russian: translate <App>'s catalog descriptions (translation)
+- [ ] German: translate <App>'s catalog descriptions (translation)
+- [ ] Japanese: original Japanese titles in <App>'s catalog (translation)
 
-- [ ] Profiling and measurement harness: guest counters, host stage timers, a slow-frame log,
-  verify builds, repeatable runs (Kairo68#28).
-- [ ] Profile-guided optimization (Kairo68#6).
-- [ ] Link-time optimization, ThinLTO (Kairo68#7).
-- [ ] Symbol binding and visibility (Kairo68#8).
-- [ ] Compiler optimization level and target flags (Kairo68#9).
-- [ ] Interpreter exception boundary: no signal-mask system call per slice (Kairo68#10).
-- [ ] CPU timeslice fragmentation (Kairo68#11).
-- [ ] Idle and wait-loop skipping, exact in guest time (Kairo68#12, KairoTowns#33).
-- [ ] Instruction fetch and register-access fast paths (Kairo68#13).
-- [ ] Guest memory access fast paths (Kairo68#14).
-- [ ] Condition-flag evaluation (Kairo68#15).
-- [ ] Graphics-chip emulation fast paths (Kairo68#17).
-- [ ] Video rendering dirty tracking (Kairo68#18).
-- [ ] GPU composition of guest video (Kairo68#19).
-- [ ] Frame copies and pixel conversion (Kairo68#20).
-- [ ] Presentation off the emulation thread (Kairo68#21).
-- [ ] Sound synthesis off the emulation thread (Kairo68#22).
-- [ ] Audio resampler SIMD (Kairo68#23).
-- [ ] Frame pacing on a fixed grid (Kairo68#24).
-- [ ] Audio output buffering and latency (Kairo68#25).
-- [ ] Emulation thread priority and scheduling (Kairo68#26).
-- [ ] Guest CPU cycle budget (Kairo68#27).
+## 1.0.0
 
-## 5. Android module (`kairo<x>/`)
-
-- [ ] `build.gradle.kts`: `kairoProduct`, `kairoLabel`, `kairoCatalogRules`,
-  `gradle/kairo-app.gradle`, and the app's own CMake targets and assets.
-- [ ] `MainActivity : MachineActivity`: `identity`, `machine` (resolution, aspect, state file,
-  mouse resolution), `bridge` (with the lock keys), `keyboard`, `guestKey`, `joystickControls`,
-  `controllerSpec`, `bindingsCodec`, the `DiskImageLibrary.Format` (kinds, labels, size limits,
-  programs), `mediaSlots`, `firmwareSets` (by name, SHA-1 or header, and size),
-  `ownFirmwareInstalled`, `machineOptions`, `startGame`.
-- [ ] Every machine setting is a `MachineOption`: the all-games default on the Machine page and a
-  per-game override (Kairo98#105). Skip memory check (default on) where the boot counts memory
-  (Kairo98#62); CPU clock where the machine had more than one (Kairo68#4); memory defaulting as
-  high as games allow (KairoMSX#3).
-- [ ] A game's other disks through the shared `companionFor` (Kairo#84); startup commands through
-  the shared `StartupCommands` setting.
-- [ ] `<Sys>Keys.kt`: the guest keyboard layout from the shared blocks where they fit
-  (`JisMainBlock`, the shared symbol page, Kairo#49), legends following the running machine
-  (KairoMSX#45), the Android key mapping, labels, bindable keys and modifiers.
-- [ ] `<Sys>Catalog.kt`: the `LayeredGameCatalog` schema (options, media roles, launch fields,
-  `mediaExtensions`, update URLs).
-- [ ] The firmware helper (Kairo64's `C64Firmware.kt`, KairoST's `StTos.kt`).
-- [ ] `catalog/system-v1.json`: the controller mapping, never Kotlin defaults. Every input mapped
-  in both controller layouts, with and without sticks (Kairo#37); the D-pad the arrow keys and
-  the joystick (KairoMSX#4); A Return and B Space, X and Y the joystick's buttons (KairoMSX#5,
-  KairoTowns#4); the right stick the mouse.
-- [ ] `product_icon_art.png`, and `strings.xml` in English, ar, de, es, in, ja, ko, pt-rBR and ru;
-  all text through `UiText`; text every app has comes from the frontend's strings, not the app's
-  (Kairo#95); no shared drawable copied (Kairo#97); the folder and empty-library texts name ZIP
-  and 7z (Kairo98#109); games are never called ROMs.
-- [ ] Unit tests: the keys and firmware tests, and the shared `CatalogSettingsTest`.
-
-## 6. Catalog
-
-- [ ] `tools/catalog_config.py`: `APP`, `PLATFORMS`, `ARTWORK_CODE`, `SUFFIXES`, `LIMITS`,
-  `MEDIA`, `MOBYGAMES`, `SCANS`, `MACHINE_OPTIONS`, `MACHINE()`, `BROKEN_DISK`, `BOOT_KINDS`,
-  `COMPANION`, `DISK_SWAPS`, `MEDIA_EXTENSIONS`, `LAUNCH_FIELDS`.
-- [ ] Scans of the standard sets (`tools/scan_media.py`).
-- [ ] The first catalog from LaunchBox alone: the snapshot, `research.py`, `app_catalog.py`,
-  `fetch_artwork.py`, `art_review.py` ([catalog research](catalog-research.md)).
-- [ ] **Disk sets.** Every multi-disk set in the standard sets is one library entry, with a record
-  at least good enough to group it, and a check that fails on any ungrouped set (Kairo68#3).
-- [ ] **Boot disks.** A pass reads each disk image and records how it starts; a data disk or a
-  Disk 2 never leads a set (KairoST#36, KairoST#37). A disk that boots to a desktop or prompt gets
-  the program or commands that start it (KairoST#34).
-- [ ] **Launch pass.** Every library game booted on the host core on each setup until one runs
-  it; the pass presses Start, Space and fire, plays past the title, and judges by the picture,
-  not by sound (KairoST#6, KairoST#35, Kairo64#6). It records the firmware, drive, model and
-  start program each game needs, and the dumps nothing starts (`BROKEN_DISK`), which never lead
-  their set (KairoST#38).
-- [ ] **Model pass.** Region and model decided by running the game on each, never by the region
-  in its name (Kairo64#14), and machine settings from every source that states them (Kairo88#3).
-- [ ] Names the generator indexes match the app's file-name lookup (names with dots, side and
-  disk tags, Kairo#98).
-- [ ] Descriptions for every game with a real source, written for the app, never filler
-  (Kairo64#5, Kairo88#1); adult games' frank text in `descriptions-adult-v1.json` (Kairo68#71),
-  main text clean.
-- [ ] Japanese titles for a Japanese platform's games, from known sources only (Kairo#61).
-- [ ] One ticket per language for the descriptions, the adult descriptions included and never
-  left untranslated (Kairo#76).
-- [ ] Adult artwork marked.
-- [ ] The MobyGames dump and `research.py --mobygames`, with MobyGames' covers for games LaunchBox
-  has none for, before the first release that is not a test build (Kairo64#7).
-- [ ] `tools/check-app.sh`, `audit_catalog_parts.py` and `audit_core_catalog.py` pass.
-
-## 7. UI tests
-
-- [ ] The `AppUnderTest` descriptor (biosFiles, bootGame, otherGame, defaultOption, searchTerm,
-  arrowKeys, returnKey, spaceKey, mediaSwap).
-- [ ] Every shared suite as `<App><Suite>Tests` (`StateTests` only with save states), the disk
-  swap with thousands of disks in the library (Kairo#48).
-- [ ] The app's own `<Sys>Tests`: its firmware and System choices, its media kinds, its machine
-  settings reaching the machine, the boot running faster than the real machine (Kairo68#5).
-- [ ] `uitest/resources.json` and the encrypted `TestResources.part1.dat` (`LOCAL_BUILD_TOKEN`).
-- [ ] The suite passes on the RG DS (Kairo64#9).
-
-## 8. On the device (RG DS)
-
-Each finding is its own ticket.
-
-- [ ] `tools/build.ps1 -Install`: a game boots and draws.
-- [ ] **Every media kind** played past its load, loose and in a ZIP and a 7z, each taking the
-  controller, saving and loading a state, and a second game after it in the same process
-  (Kairo64#8).
-- [ ] **Speed.** The heaviest action games, not still screens, at the guest's frame rate with no
-  audio underruns (KairoTowns#6); the flat-out speed during a load (Kairo64#1). A still screen
-  costs little; crackle is underruns, found in the frame's work (Kairo68#30).
-- [ ] **Launches.** Play to first picture; several games in one process, a program after a disk
-  and a game after a loaded state; a launch from other frontends (ES-DE, NeoStation, Daijisho)
-  is the library's game, with its saves (Kairo98#63).
-- [ ] **Controls.** Each D-pad direction and stick read alone by the guest (a BASIC `PEEK` loop,
-  Kairo64#12); the cursor keys from the D-pad, the on-screen keyboard and a physical keyboard at
-  the guest's prompt (Kairo64#15); every button, in both controller layouts; the bottom screen's
-  Joystick tab shows the joystick bindings (Kairo#38).
-- [ ] **Keyboard.** Taps register at once and are read (KairoST#3, KairoST#33); chorded keys
-  light only their own key (Kairo64#3); Caps and Kana lights after a state load.
-- [ ] **Mouse games.** The touchpad tab, direct touch, and Auto switching to Mouse
-  (Kairo98#66, Kairo68#32).
-- [ ] **Media.** A disk swap mid-game, the Disks page after a state load showing the state's
-  disks, a state saved after a swap loading onto its own disk.
-- [ ] **Firmware.** The bundled firmware, the player's own per game, the first-run import.
-- [ ] **Library.** The full standard set on the SD card: a second start hashes nothing new and
-  checks quickly, an app update rehashes nothing (Kairo#46), archives are read in place, not
-  copied (Kairo#39), search responds while typing, the library opens without parsing the catalog
-  on the UI thread (Kairo#52), the folder pickers work after a large games folder (Kairo#51).
-- [ ] **Two screens.** Details and settings split between the screens, focus crosses them, tags
-  as chips (Kairo#43, Kairo#53).
-- [ ] **Installed and patched games.** A set that ships a hard disk and CMOS reaches its game
-  (KairoTowns#41); a game whose files the player changed (an added BAT or config file) still
-  starts and keeps its saves and settings (KairoDos#82); a file a patched game needs beside it,
-  such as its own font, loads for that game only (Kairo98#57, Kairo98#64); where the machine
-  installs games, a game can be created from its installer media (Kairo98#54, KairoDos#1).
-- [ ] No unresourced text under the `en-XA` and `ar-XB` pseudo-locales.
-- [ ] The license audit done; `audit_android_release.py` passes on the release build.
-
-### Frontend behavior in the new app
-
-The shared frontend's fixed issues, checked again in the new app, since its machine, keyboard,
-catalog and library are new to them.
-
-- [ ] Library: scrolling stays smooth through the full library, and a held D-pad keeps the
-  selection on screen (Kairo#1, Kairo#2); the library menu scrolls with focus (Kairo#6); the Menu
-  button keeps no stuck state (Kairo#20).
-- [ ] Search: opening it selects nothing (Kairo#11); its keyboard closes and keeps the results
-  (Kairo#10); the Android keyboard never comes back over a game (KairoDos#49).
-- [ ] Startup: the catalog check shows progress without blocking (Kairo#14); a cold and a warm
-  start reach the library as fast as the other apps' (Kairo#15).
-- [ ] Artwork: no pop-in or flashing on the bottom screen while scrolling (Kairo#8); Download
-  missing images shows progress at once (Kairo#33), survives rate limiting (Kairo#35) and ends
-  with no failures (KairoDos#83); a game's own box art and screenshot can be set and reset
-  (KairoDos#16).
-- [ ] Catalog: a downloaded catalog stays active after the app updates (Kairo#26); a partial
-  update changes only its own fields (KairoDos#7); the update stays within its size limit
-  (Kairo#75); whether an update can change controller mappings (Kairo#55).
-- [ ] Navigation: Back closes the topmost layer and opens the flyout in a game (KairoDos#2,
-  Kairo98#35); the library opens over a paused game and Back resumes it, Library ends it after
-  asking (KairoDos#3, Kairo#13); every dialog works with the D-pad and shows above the flyout in
-  portrait (Kairo#12, Kairo98#59); Back from the on-screen controls returns to the controller page
-  (Kairo#4); edge gestures open the menu and keyboard and close the drawer (KairoDos#9).
-- [ ] Settings pages: D-pad up and down keep the selection on screen (Kairo#30); choice rows never
-  move their label (Kairo#28); text fields allow the full-screen keyboard (Kairo#29); the machine
-  status row opens its details (KairoDos#15).
-- [ ] Controller: no input stays held after focus loss, pause, an app switch, the screen locking or
-  a controller disconnecting (KairoDos#4, KairoDos#5); the deadzone defaults to 10% (Kairo#7); the
-  first-run controller step offers with and without sticks (KairoDos#80); the controller menu shows
-  the mapping the game really uses (Kairo#34, KairoDos#84); Add or Replace on a key already
-  chosen (Kairo#5); the mapping icon never flashes on a button press (Kairo#31).
-- [ ] On-screen controls: Auto hides them while a controller is connected (Kairo98#61) and while
-  the guest keyboard is open (KairoDos#19); a game's own touch mode and touchpad or direct tap
-  (KairoDos#11).
-- [ ] Screen: the game is full screen with the status bar hidden (KairoDos#10, KairoDos#38); the
-  library lets the device sleep and a game keeps it awake (Kairo#90); scaling and crop are kept
-  per orientation, with notch padding and the integer anchor (Kairo98#45, Kairo98#46, Kairo#54);
-  game details stack in portrait (Kairo98#47); sound shows On or Muted (Kairo#19).
-- [ ] Sound: touch, mouse and controller input never disturb its timing (Kairo98#60).
-- [ ] Two screens: the bottom screen's keyboard comes back after another app covers it
-  (KairoDos#46); the game details icon sits on the right and the scan status is one line
-  (Kairo#41, Kairo#42, Kairo#44).
-- [ ] Saves: four slots with thumbnails and empty loads disabled (KairoDos#13); saves named by the
-  game's path, in app storage and a chosen save folder (Kairo#57, Kairo98#56); Reset defaults
-  clears every per-game setting and nothing else (KairoDos#6).
-- [ ] Library contents: the scan summary counts unreadable and newly hashed files (KairoDos#18);
-  support disks hide from the library and stay usable, and a user catalog layer applies
-  (KairoDos#17).
-- [ ] About: the privacy policy and the third-party notices open in the app (KairoDos#14).
-
-## 9. Release
-
-- [ ] `docs/releases/v<version>.md`, `tools/tag-release.ps1`, the Play Console app with the Play
-  publishing service account and the workload identity condition for its repository.
-- [ ] The Play listing translated into each language and added in Play Console, one ticket per
-  language.
+- [ ] Release <App> (implement)
+- [ ] <App>'s Play listing (implement)
+- [ ] Japanese: translate <App>'s Play listing (translation)
+- [ ] Portuguese (Brazil): translate <App>'s Play listing (translation)
+- [ ] Spanish: translate <App>'s Play listing (translation)
+- [ ] Korean: translate <App>'s Play listing (translation)
+- [ ] Indonesian: translate <App>'s Play listing (translation)
+- [ ] Arabic: translate <App>'s Play listing (translation)
+- [ ] Russian: translate <App>'s Play listing (translation)
+- [ ] German: translate <App>'s Play listing (translation)
+- [ ] Japanese: add <App>'s Play listing in Play Console (translation)
+- [ ] Portuguese (Brazil): add <App>'s Play listing in Play Console (translation)
+- [ ] Spanish: add <App>'s Play listing in Play Console (translation)
+- [ ] Korean: add <App>'s Play listing in Play Console (translation)
+- [ ] Indonesian: add <App>'s Play listing in Play Console (translation)
+- [ ] Arabic: add <App>'s Play listing in Play Console (translation)
+- [ ] Russian: add <App>'s Play listing in Play Console (translation)
+- [ ] German: add <App>'s Play listing in Play Console (translation)

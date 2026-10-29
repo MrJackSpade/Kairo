@@ -1,10 +1,10 @@
 ---
-title: Game after game in one process, with nothing carried over
+title: Run game after game in one process, with nothing carried over
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,17 +12,20 @@ Every new system.
 
 ## Work
 
-A fresh copy of the library for each machine (KairoST's `hatari_library.h`) or patches that reset the emulator's global state. Nothing carries into the next machine: boot state, firmware (each machine loads its own files even when the last named the same), media, settings.
+- Many emulators keep their state in process-wide variables. Either load a fresh copy of the core's library for each machine, or reset every piece of global state the core keeps.
+- Nothing may carry into the next machine: boot state, firmware (each machine loads its own firmware files, even when the last machine named the same ones), media, settings, a loaded state's contents.
 
 ## Done when
 
-- The host test runs several games in one process, a game after a loaded state among them, each as it runs alone.
+- The host test runs several games in one process, a game after a loaded state among them, and each behaves as it does alone.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
 
-## Learned in
+## Examples (for reference)
 
-`KairoST#32`, `Kairo64#11`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoST loads a fresh copy of Hatari for each machine (`core/hatari_library.h`).
+- In Kairo64, a game started after a loaded state ran on the state's ROMs until each machine loaded its own (`Kairo64#11`).

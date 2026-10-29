@@ -2,9 +2,9 @@
 title: Russian: translate {{app}}'s app strings
 kind: translation
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: proper multilingual support is a hard requirement for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,20 +12,19 @@ Every new system. Proper multilingual support is a hard requirement.
 
 ## Work
 
-Depends on {{ref:strings-resources}}: every string the app shows is in `{{module}}/src/main/res/values/strings.xml`.
+Depends on {{ref:strings-resources}}.
 
-- Run `python shared/tools/translations.py check {{module}}/src/main/res`. It lists each Russian string that still holds the English or whose English has changed since it was translated (stale).
-- Translate each in `values-ru/strings.xml`, and keep its `EN:` comment as the English it now translates.
-- Use the words the shared frontend's Russian already uses for the same things (`shared/frontend/src/main/res/values-ru/strings.xml`: library, game settings, firmware, disk, save state), and the other Kairo apps' Russian strings for settings they share (memory, CPU clock, Skip memory check). The app and the frontend read as one product.
-- Keep as they are: {{app}}, the emulator's and the machine's names, model names, key legends as printed on the hardware, file names and extensions. Games are games, and firmware is firmware or BIOS, never "ROM".
-- Keep every format argument (`%1$s`, `%2$d`) and give each plural the quantities Russian uses (`translations.py` lists them). Reorder the sentence around an argument as Russian needs; never split it into pieces.
+- Run `python shared/tools/translations.py check {{module}}/src/main/res`. It lists each Russian string still holding the English, or translated from English that has since changed.
+- Translate each in `{{module}}/src/main/res/values-ru/strings.xml`, and keep its `EN:` comment as the English it now translates.
+- Use the words the shared frontend's Russian already uses for the same things (`shared/frontend/src/main/res/values-ru/strings.xml`: library, game settings, firmware, disk, save state), and the other Kairo apps' Russian for the settings they share (memory, CPU clock, Skip memory check), so the app and the frontend read as one.
+- Keep unchanged: {{app}}, the emulator's and the machine's names, model names, key legends as printed on the hardware, file names and extensions. Games are games, and firmware is firmware or BIOS, never "ROM".
+- Keep every format argument (`%1$s`, `%2$d`), and give each plural the quantities Russian uses (`translations.py` lists them). Reorder a sentence around its arguments as Russian needs; never split it into pieces.
 
 ## Done when
 
-- `translations.py check` reports no Russian string pending, stale or broken.
-- On the RG DS set to Russian, every screen and setting {{app}} adds (first-run firmware step, Machine page, game settings, Disks page rows, error messages) shows Russian, with nothing cut off. This description lists the screens checked.
+- `translations.py check` reports no Russian string untranslated, stale or broken.
+- On the RG DS set to Russian, every screen and setting {{app}} adds (the first-run firmware step, the Machine page, game settings, the Disks page, error messages) shows Russian with nothing cut off. This description lists the screens checked.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.

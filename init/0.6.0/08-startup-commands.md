@@ -1,10 +1,10 @@
 ---
-title: Startup commands setting
+title: The startup commands setting
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,17 +12,13 @@ The machine boots to a prompt (`{{ref:prompt-hooks}}`).
 
 ## Work
 
-The catalog schema gains the shared startup commands setting, and `startGame` passes `StartupCommands.setting(...)`.
+- The catalog schema gets the shared startup commands setting, and `startGame` passes it to the core (`StartupCommands.setting`). Like every catalog setting, it is also a per-game setting.
 
 ## Done when
 
-- A game's startup commands, from the catalog or the player, are typed at the prompt.
+- A game's startup commands, from the catalog or typed by the player, are typed at the prompt.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
-
-## Learned in
-
-`Kairo68#70`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

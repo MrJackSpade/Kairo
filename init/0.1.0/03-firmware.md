@@ -1,10 +1,10 @@
 ---
-title: Firmware: the bundled free default and the player's own
+title: Firmware: a free default the app ships, and the player's own
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required: build it for every new system.
+**Kind:** Required. Every new system needs this; it is never closed as not planned.
 
 ## Applies when
 
@@ -12,20 +12,23 @@ Every new system.
 
 ## Work
 
-- Find the free firmware the app can bundle as the default (EmuTOS, the Open ROMs, C-BIOS), with its license.
-- List the player's own firmware the app imports: names, sizes, SHA-1 where known, and how to identify a version by its header.
-- Peripherals' firmware too (hard disk controllers, drive ROMs).
-- The player's firmware is a per-game System choice, never a replacement for every game.
+- List every firmware part the machine needs: system ROMs or BIOS, drive and controller ROMs, fonts.
+- For each, look for a free replacement {{app}} can ship (its license checked as for the core). It is the default for every game, so the app works without the player's files.
+- The player's own firmware can always be imported, and each game can choose it through its System setting, for games the free firmware doesn't run.
+- For each part the player may import: its usual file names, its size, its SHA-1 where known, and how versions are told apart (a header field), so the import can recognize it.
 
 ## Done when
 
-- This description names the bundled firmware (or that none exists) and every firmware file the player can import.
+- This description lists every firmware part, its free replacement (or that none exists), and the player's files it accepts.
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- This is required for every new system; it is never closed as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
 
-## Learned in
+## Examples (for reference)
 
-`Kairo98#107`, `KairoMSX#43`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- KairoST ships EmuTOS and accepts the player's TOS for each model (`StTos.kt`).
+- Kairo64 ships the MEGA65 Open ROMs and accepts the player's KERNAL, BASIC, character and 1541 ROMs (`C64Firmware.kt`).
+- KairoMSX ships C-BIOS, which runs cartridges only; disk games use the player's MSX firmware.

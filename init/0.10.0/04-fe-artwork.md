@@ -2,28 +2,26 @@
 title: Artwork
 kind: validation
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Validation: check it. There is nothing to build unless the check fails.
+**Kind:** Validation. Check it; build nothing unless the check fails.
 
 ## Applies when
 
-Every new system: the shared frontend's fixed issues, checked again with this app's machine, keyboard, catalog and library.
+Every new system. The shared frontend is tested in other apps; this checks it again with {{app}}'s machine, keyboard, catalog and library.
 
 ## Check
 
-Scroll fast on the bottom screen; Download missing images on the full library; set and reset a game's own art.
+- Scroll fast with the bottom screen showing details.
+- Run Download missing images on the full library.
+- Set and reset a game's own box art and screenshot.
 
 ## Passes when
 
-- No pop-in or flashing, progress at once, no failures, rate limits waited out, the game's art set and reset.
+- No artwork pops in late or flashes; the download shows progress at once, waits out rate limits and ends with no failures; a game's own art is set and reset.
 
 ## Closing
 
-- **Passes:** record the build, the device and what was seen in this description, then close as completed.
-- **Does not apply to {{system}}:** record why in this description, then close as not planned.
-- **Fails:** file each failure as its own ticket (one scope each), list them here, and close this once they are closed and the check passes.
-
-## Learned in
-
-`Kairo#8`, `Kairo#33`, `Kairo#35`, `KairoDos#83`, `KairoDos#16`
+- **Passes:** write the build, the device and what was seen into this description, then close as completed.
+- **Does not apply:** write why into this description, then close as not planned.
+- **Fails:** file each failure as its own ticket (one problem each), list them here, and close this one when they are closed and the check passes.

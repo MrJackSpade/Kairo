@@ -2,9 +2,9 @@
 title: Hard disk images
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,7 +12,8 @@ The real machine had hard disks.
 
 ## Work
 
-Mount the image on the machine's own bus (with the controller's firmware, `{{ref:firmware}}`) and boot from it when the player starts it.
+- Mount a hard disk image on the machine's own bus, with the controller's firmware (`{{ref:firmware}}`), and boot from it when the player starts it.
+- The library lists hard disk images, and the Disks page has a hard disk slot.
 
 ## Done when
 
@@ -20,9 +21,11 @@ Mount the image on the machine's own bus (with the controller's firmware, `{{ref
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
 
-## Learned in
+## Examples (for reference)
 
-`KairoTowns#38`, `KairoST#73`, `Kairo64#52`, `KairoMSX#43`
+From other Kairo apps, for reference only. {{app}}'s core and machine may need it done differently.
+
+- Kairo68's and KairoTowns' hard disks.

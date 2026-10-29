@@ -2,6 +2,10 @@
 """Files a new Kairo app's tickets: one milestone per version in init/, each holding its tickets.
 
 Usage: init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>" [--module <module>] [--dry-run]
+       init_system.py --checklist [--check]
+
+--checklist writes docs/new-system.md, the same tickets as a checklist to read; with --check it
+fails when that file is stale instead. The tickets in init/ are the one source of both.
 
 init/<version>/<NN-slug>.md is one ticket: a front matter block (title, kind) and the body. Each
 version folder is a milestone of that name in the app's repository, filed in version order, and
@@ -21,7 +25,25 @@ import subprocess
 import sys
 from pathlib import Path
 
-INIT = Path(__file__).resolve().parents[1] / "init"
+ROOT = Path(__file__).resolve().parents[1]
+INIT = ROOT / "init"
+CHECKLIST = ROOT / "docs/new-system.md"
+CHECKLIST_VALUES = {"app": "<App>", "system": "<System>", "module": "<module>", "repo": "MrJackSpade/<App>"}
+CHECKLIST_HEAD = """# Adding a new system
+
+Everything a new Kairo app needs built, checked, assessed or translated. Each line is a ticket in
+`init/<version>/`, and each version is a milestone, in version order. A ticket's body says when it
+applies, what kind it is, what to do and how it closes, so not every ticket means work: a
+validation builds nothing unless it fails, and a performance ticket is done only where it gains.
+
+`tools/init_system.py` files them in the new app's repository (this file is written from them by
+`init_system.py --checklist`; edit the tickets, not this file):
+
+```
+python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>" --dry-run
+python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system "<System>"
+```
+"""
 VERSION = re.compile(r"^\d+\.\d+\.\d+$")
 TICKET = re.compile(r"^(\d+)-([a-z0-9-]+)\.md$")
 PLACEHOLDER = re.compile(r"\{\{([a-z]+)(?::([a-z0-9-]+))?\}\}")
@@ -93,16 +115,40 @@ def every(path):
     return [item for page in pages for item in page]
 
 
+def checklist(plan):
+    lines = [CHECKLIST_HEAD]
+    version = None
+    for ticket in plan:
+        if ticket.version != version:
+            version = ticket.version
+            lines.append(f"\n## {version}\n")
+        lines.append(f"- [ ] {render(ticket.title, CHECKLIST_VALUES, {}, ticket.slug)} ({ticket.kind})")
+    return "\n".join(lines) + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--repo", required=True, help="owner/name of the new app's repository")
-    parser.add_argument("--app", required=True, help="the app's name, such as KairoST")
-    parser.add_argument("--system", required=True, help="the system's name, such as Atari ST")
+    parser.add_argument("--repo", help="owner/name of the new app's repository")
+    parser.add_argument("--app", help="the app's name, such as KairoST")
+    parser.add_argument("--system", help="the system's name, such as Atari ST")
     parser.add_argument("--module", help="the app module (default: the app's name in lower case)")
     parser.add_argument("--dry-run", action="store_true", help="print the plan and file nothing")
+    parser.add_argument("--checklist", action="store_true", help="write docs/new-system.md from the tickets")
+    parser.add_argument("--check", action="store_true", help="with --checklist: fail when docs/new-system.md is stale")
     args = parser.parse_args()
-    values = {"app": args.app, "system": args.system, "module": args.module or args.app.lower(), "repo": args.repo}
     plan = tickets()
+    if args.checklist:
+        text = checklist(plan)
+        if args.check:
+            if CHECKLIST.read_text(encoding="utf-8") != text:
+                raise ValueError(f"{CHECKLIST} is stale: run init_system.py --checklist")
+        else:
+            CHECKLIST.write_text(text, encoding="utf-8", newline="\n")
+        return
+    missing = [name for name in ("repo", "app", "system") if getattr(args, name) is None]
+    if missing:
+        parser.error("filing needs " + ", ".join(f"--{name}" for name in missing))
+    values = {"app": args.app, "system": args.system, "module": args.module or args.app.lower(), "repo": args.repo}
     numbers = {}
 
     if args.dry_run:

@@ -1,10 +1,10 @@
 ---
-title: No duplicated text or drawables; the archive wording
+title: The app's resources: nothing duplicated, the archive wording right
 kind: validation
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Validation: check it. There is nothing to build unless the check fails.
+**Kind:** Validation. Check it; build nothing unless the check fails.
 
 ## Applies when
 
@@ -12,7 +12,10 @@ Every new system.
 
 ## Check
 
-Check the app's resources against the shared frontend's: no string every app has, no shared drawable copied, the folder and empty-library texts naming ZIP and 7z archives; games never called ROMs.
+- No string every app has is defined in the app instead of coming from the shared frontend.
+- No drawable is a copy of a shared one.
+- The folder and empty-library texts name the ZIP and 7z archives the library reads.
+- No text calls games or firmware "ROMs".
 
 ## Passes when
 
@@ -20,10 +23,6 @@ Check the app's resources against the shared frontend's: no string every app has
 
 ## Closing
 
-- **Passes:** record the build, the device and what was seen in this description, then close as completed.
-- **Does not apply to {{system}}:** record why in this description, then close as not planned.
-- **Fails:** file each failure as its own ticket (one scope each), list them here, and close this once they are closed and the check passes.
-
-## Learned in
-
-`Kairo#95`, `Kairo#97`, `Kairo98#109`
+- **Passes:** write the build, the device and what was seen into this description, then close as completed.
+- **Does not apply:** write why into this description, then close as not planned.
+- **Fails:** file each failure as its own ticket (one problem each), list them here, and close this one when they are closed and the check passes.

@@ -2,9 +2,9 @@
 title: Adult descriptions for the adult games
 kind: implement
 ---
-From Kairo's new-system checklist (`docs/new-system.md`, `init/`). Findings, decisions and results go into this description, not comments.
+Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Implement: build it when it applies, as **Applies when** says.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
@@ -12,7 +12,7 @@ The catalog marks adult games.
 
 ## Work
 
-Frank adult descriptions in `descriptions-adult-v1.json` (`descriptions.py add --adult`), from real sources; the main description stays clean.
+- A frank, factual adult description for each adult game with a real source, in `descriptions-adult-v1.json` (`descriptions.py add --adult`). It replaces the main description only in the adult part of the catalog.
 
 ## Done when
 
@@ -20,9 +20,5 @@ Frank adult descriptions in `descriptions-adult-v1.json` (`descriptions.py add -
 
 ## Closing
 
-- **Done:** record what was built (commits) and how it was verified in this description, then close as completed.
-- **Does not apply to {{system}}, or {{app}} already has it:** record what was checked and why in this description, then close as not planned.
-
-## Learned in
-
-`Kairo68#71`, `KairoMSX#42`, `Kairo98#106`
+- **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.
