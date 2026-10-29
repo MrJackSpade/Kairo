@@ -165,6 +165,15 @@ class LibraryScreen<T : LibraryItem>(
                            var artwork: String? = null)
 
     private fun positionOf(index: Int) = items.indexOfFirst { it is Game && it.index == index }
+
+    /** The row the list was last told to select, which it keeps for its next layout (see [showEntries]). */
+    private var requestedRow = -1
+
+    /** Selects the list's row at [position], at [top] when given (setSelectionFromTop). */
+    private fun selectRow(position: Int, top: Int? = null) {
+        requestedRow = position
+        if (top == null) list.setSelection(position) else list.setSelectionFromTop(position, top)
+    }
     private fun indexAt(position: Int) = (items.getOrNull(position) as? Game)?.index
 
     private val adapter = object : BaseAdapter() {
@@ -531,7 +540,7 @@ class LibraryScreen<T : LibraryItem>(
         // Until the search reruns, results must not offer games that left the library.
         if (query.isNotEmpty()) publishFilter(query, entries.mapNotNull { current[it.id] }, null)
         applyFilter()
-        if (entries.isNotEmpty()) list.setSelection(if (selectedIndex == 0) 0 else positionOf(selectedIndex))
+        if (entries.isNotEmpty()) selectRow(if (selectedIndex == 0) 0 else positionOf(selectedIndex))
         detailPage?.let { page ->
             val refreshed = allEntries.firstOrNull { it.id == page.entryId }
             if (refreshed == null) closeDetail() else page.show(refreshed)
@@ -552,7 +561,7 @@ class LibraryScreen<T : LibraryItem>(
                 .singleOrNull() ?: -1
         if (index < 0) return false
         selectedIndex = index
-        list.setSelection(positionOf(index))
+        selectRow(positionOf(index))
         updateSelectionHighlight()
         openDetail(entries[index])
         return true
@@ -681,17 +690,14 @@ class LibraryScreen<T : LibraryItem>(
         when {
             // setSelectionFromTop adds list padding itself: offsets are relative
             // to the padded origin, unlike child.top/bottom coordinates.
-            selectedPosition < first -> list.setSelectionFromTop(selectedPosition, 0)
+            selectedPosition < first -> selectRow(selectedPosition, 0)
             selectedPosition > last -> {
                 val rowHeight = list.getChildAt(last - first)?.height ?: dp(75)
-                list.setSelectionFromTop(selectedPosition,
-                    (viewportBottom - rowHeight - list.paddingTop).coerceAtLeast(0))
+                selectRow(selectedPosition, (viewportBottom - rowHeight - list.paddingTop).coerceAtLeast(0))
             }
-            child != null && child.top < list.paddingTop ->
-                list.setSelectionFromTop(selectedPosition, 0)
+            child != null && child.top < list.paddingTop -> selectRow(selectedPosition, 0)
             child != null && child.bottom > viewportBottom ->
-                list.setSelectionFromTop(selectedPosition,
-                    (viewportBottom - child.height - list.paddingTop).coerceAtLeast(0))
+                selectRow(selectedPosition, (viewportBottom - child.height - list.paddingTop).coerceAtLeast(0))
             else -> return true
         }
         return false
@@ -828,6 +834,9 @@ class LibraryScreen<T : LibraryItem>(
             (1 until entries.size).map(::Game)
             else entries.indices.map(::Game)
         adapter.notifyDataSetChanged()
+        // In touch mode ListView keeps a row it was told to select for its next layout, and a data
+        // change does not move it (Kairo#99): one past the new rows becomes the selected game's row.
+        if (requestedRow >= items.size) selectRow(positionOf(selectedIndex).coerceAtLeast(0))
         requestSelectionVisibility()
         notifySelection()
     }
