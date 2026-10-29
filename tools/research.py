@@ -93,7 +93,13 @@ def read(path, default):
 
 
 def write(path, value):
-    catalog_files.write(path, value)
+    if path.name.endswith(".gz"):
+        catalog_files.write(path, value)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
 
 
 def parse_hint(name):
