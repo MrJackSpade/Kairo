@@ -294,8 +294,64 @@ Each finding is its own ticket.
   on the UI thread (Kairo#52), the folder pickers work after a large games folder (Kairo#51).
 - [ ] **Two screens.** Details and settings split between the screens, focus crosses them, tags
   as chips (Kairo#43, Kairo#53).
+- [ ] **Installed and patched games.** A set that ships a hard disk and CMOS reaches its game
+  (KairoTowns#41); a game whose files the player changed (an added BAT or config file) still
+  starts and keeps its saves and settings (KairoDos#82); a file a patched game needs beside it,
+  such as its own font, loads for that game only (Kairo98#57, Kairo98#64); where the machine
+  installs games, a game can be created from its installer media (Kairo98#54, KairoDos#1).
 - [ ] No unresourced text under the `en-XA` and `ar-XB` pseudo-locales.
 - [ ] The license audit done; `audit_android_release.py` passes on the release build.
+
+### Frontend behavior in the new app
+
+The shared frontend's fixed issues, checked again in the new app, since its machine, keyboard,
+catalog and library are new to them.
+
+- [ ] Library: scrolling stays smooth through the full library, and a held D-pad keeps the
+  selection on screen (Kairo#1, Kairo#2); the library menu scrolls with focus (Kairo#6); the Menu
+  button keeps no stuck state (Kairo#20).
+- [ ] Search: opening it selects nothing (Kairo#11); its keyboard closes and keeps the results
+  (Kairo#10); the Android keyboard never comes back over a game (KairoDos#49).
+- [ ] Startup: the catalog check shows progress without blocking (Kairo#14); a cold and a warm
+  start reach the library as fast as the other apps' (Kairo#15).
+- [ ] Artwork: no pop-in or flashing on the bottom screen while scrolling (Kairo#8); Download
+  missing images shows progress at once (Kairo#33), survives rate limiting (Kairo#35) and ends
+  with no failures (KairoDos#83); a game's own box art and screenshot can be set and reset
+  (KairoDos#16).
+- [ ] Catalog: a downloaded catalog stays active after the app updates (Kairo#26); a partial
+  update changes only its own fields (KairoDos#7); the update stays within its size limit
+  (Kairo#75); whether an update can change controller mappings (Kairo#55).
+- [ ] Navigation: Back closes the topmost layer and opens the flyout in a game (KairoDos#2,
+  Kairo98#35); the library opens over a paused game and Back resumes it, Library ends it after
+  asking (KairoDos#3, Kairo#13); every dialog works with the D-pad and shows above the flyout in
+  portrait (Kairo#12, Kairo98#59); Back from the on-screen controls returns to the controller page
+  (Kairo#4); edge gestures open the menu and keyboard and close the drawer (KairoDos#9).
+- [ ] Settings pages: D-pad up and down keep the selection on screen (Kairo#30); choice rows never
+  move their label (Kairo#28); text fields allow the full-screen keyboard (Kairo#29); the machine
+  status row opens its details (KairoDos#15).
+- [ ] Controller: no input stays held after focus loss, pause, an app switch, the screen locking or
+  a controller disconnecting (KairoDos#4, KairoDos#5); the deadzone defaults to 10% (Kairo#7); the
+  first-run controller step offers with and without sticks (KairoDos#80); the controller menu shows
+  the mapping the game really uses (Kairo#34, KairoDos#84); Add or Replace on a key already
+  chosen (Kairo#5); the mapping icon never flashes on a button press (Kairo#31).
+- [ ] On-screen controls: Auto hides them while a controller is connected (Kairo98#61) and while
+  the guest keyboard is open (KairoDos#19); a game's own touch mode and touchpad or direct tap
+  (KairoDos#11).
+- [ ] Screen: the game is full screen with the status bar hidden (KairoDos#10, KairoDos#38); the
+  library lets the device sleep and a game keeps it awake (Kairo#90); scaling and crop are kept
+  per orientation, with notch padding and the integer anchor (Kairo98#45, Kairo98#46, Kairo#54);
+  game details stack in portrait (Kairo98#47); sound shows On or Muted (Kairo#19).
+- [ ] Sound: touch, mouse and controller input never disturb its timing (Kairo98#60).
+- [ ] Two screens: the bottom screen's keyboard comes back after another app covers it
+  (KairoDos#46); the game details icon sits on the right and the scan status is one line
+  (Kairo#41, Kairo#42, Kairo#44).
+- [ ] Saves: four slots with thumbnails and empty loads disabled (KairoDos#13); saves named by the
+  game's path, in app storage and a chosen save folder (Kairo#57, Kairo98#56); Reset defaults
+  clears every per-game setting and nothing else (KairoDos#6).
+- [ ] Library contents: the scan summary counts unreadable and newly hashed files (KairoDos#18);
+  support disks hide from the library and stay usable, and a user catalog layer applies
+  (KairoDos#17).
+- [ ] About: the privacy policy and the third-party notices open in the app (KairoDos#14).
 
 ## 9. Release
 
