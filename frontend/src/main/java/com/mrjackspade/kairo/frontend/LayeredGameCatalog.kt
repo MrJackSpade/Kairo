@@ -155,6 +155,16 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     // are parsed as they are read.
     private var update: Lazy<CatalogUpdateArchive?> = lazy { snapshot.activeFile()?.let(::CatalogUpdateArchive) }
     private var languageUpdate: Lazy<CatalogUpdateArchive?> = lazy { languageSnapshot?.activeFile()?.let(::CatalogUpdateArchive) }
+    // Every resolve reads these whole-library documents: each layer's name index and description
+    // document in this device's language. They are held for the catalog's life, as the shipped name
+    // index is; the caches below them are sized for shards, and one bigger than its cache, or two
+    // that did not fit it together, were parsed again for nearly every game of a library walk (Kairo#135).
+    private val languageDocument = language?.let { "descriptions/$it.json" }
+    private val shippedLanguage by lazy { languageDocument?.let(parts::main) }
+    private val additionalNames by lazy { parts.additional("name-index-v1.json") }
+    private val additionalLanguage by lazy { languageDocument?.let(parts::additional) }
+    private var updatedNames: Lazy<JSONObject?> = lazy { updated("name-index-v1.json") }
+    private var updatedLanguage: Lazy<JSONObject?> = lazy { updatedLanguageDocument() }
 
     init {
         // Before the v4 update an app kept the update as one JSON file.
@@ -167,6 +177,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
 
     /** A document of the downloaded update, or null without an update or without that document. */
     private fun updated(path: String): JSONObject? = synchronized(this) { update.value?.document(path) }
+    private fun updatedLanguageDocument(): JSONObject? =
+        languageDocument?.let { path -> synchronized(this) { languageUpdate.value?.document(path) } }
     private var additions = readLocal(additionsFile)
     private val overrides = GameMetadataOverrides(overridesFile, MAX_LOCAL_JSON.toInt(),
         schemaEnvelope = true)
@@ -191,6 +203,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             if (languageUpdate.isInitialized()) languageUpdate.value?.close()
             update = lazy { snapshot.activeFile()?.let(::CatalogUpdateArchive) }
             languageUpdate = lazy { languageSnapshot?.activeFile()?.let(::CatalogUpdateArchive) }
+            updatedNames = lazy { updated("name-index-v1.json") }
+            updatedLanguage = lazy { updatedLanguageDocument() }
             invalidate()
         }
         return true
@@ -261,23 +275,20 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             game?.let { document?.optJSONObject("games")?.optString(it) }?.takeIf { it.isNotBlank() }
                 ?.let { JSONObject().put("descriptions", JSONObject().put(language, it)) }
         }
-        val languageDocument = language?.let { "descriptions/$it.json" }
-        val updatedNames = updated("name-index-v1.json")
-        val additionalNames = parts.additional("name-index-v1.json")
+        val updatedNames = updatedNames.value
         return CatalogFieldLayers.merge(listOf(
             CatalogFieldLayers.Source("Shipped catalog", collectionShared(nameIndex)),
             CatalogFieldLayers.Source("Shipped catalog", shared(nameIndex)),
-            CatalogFieldLayers.Source("Shipped catalog", translated(languageDocument?.let(parts::main))),
+            CatalogFieldLayers.Source("Shipped catalog", translated(shippedLanguage)),
             CatalogFieldLayers.Source("Shipped catalog", baseRecord),
             CatalogFieldLayers.Source("Shipped catalog", shardRecord),
             CatalogFieldLayers.Source("Updated catalog", collectionShared(updatedNames)),
             CatalogFieldLayers.Source("Updated catalog", shared(updatedNames)),
-            CatalogFieldLayers.Source("Updated catalog", translated(languageDocument?.let { path ->
-                synchronized(this) { languageUpdate.value?.document(path) } })),
+            CatalogFieldLayers.Source("Updated catalog", translated(updatedLanguage.value)),
             CatalogFieldLayers.Source("Updated catalog", updateRecord),
             CatalogFieldLayers.Source("Shipped catalog", collectionShared(additionalNames)),
             CatalogFieldLayers.Source("Shipped catalog", shared(additionalNames)),
-            CatalogFieldLayers.Source("Shipped catalog", translated(languageDocument?.let(parts::additional))),
+            CatalogFieldLayers.Source("Shipped catalog", translated(additionalLanguage)),
             CatalogFieldLayers.Source("Shipped catalog", bundledAdditional(contentId)),
             *installedSources(installed, contentId, ::collectionShared, ::shared, ::translated, languageDocument).toTypedArray(),
             CatalogFieldLayers.Source("User catalog", userRecord),
@@ -365,10 +376,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     }
 
     /** This device's language documents, the downloaded update's before the shipped one's. */
-    private fun languageDocuments(): List<JSONObject> {
-        val path = language?.let { "descriptions/$it.json" } ?: return emptyList()
-        return listOfNotNull(synchronized(this) { languageUpdate.value?.document(path) }, parts.main(path))
-    }
+    private fun languageDocuments(): List<JSONObject> = listOfNotNull(updatedLanguage.value, shippedLanguage)
 
     /**
      * Tags in this device's language: each catalog language document names its tags' words
