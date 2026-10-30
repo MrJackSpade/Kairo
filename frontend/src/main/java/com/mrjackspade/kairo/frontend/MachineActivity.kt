@@ -534,7 +534,14 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     if (atPrompt) selectedChoices = emptyList()
                     startAutomation(game, atPrompt, swaps)
                     gameStarted(entry, game)
-                } else launchFailed(failure)
+                    keptMedia?.let { kept ->
+                        keptMedia = null
+                        restoreMedia(kept)
+                    }
+                } else {
+                    keptMedia = null
+                    launchFailed(failure)
+                }
             }
         }.apply { name = "${identity.appName}-launch"; start() }
     }
@@ -566,9 +573,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         }, PICTURE_POLL_MILLIS)
     }
 
-    /** Restart boots the game again from its disks, with any machine changes since it started. */
+    /**
+     * Restart boots the game again with any machine changes since it started, and with the disks
+     * its drives hold now, as a reset leaves a real machine's disks in (restoreMedia).
+     */
     override fun restartGame() {
         val entry = currentEntry ?: return
+        keptMedia = mounted.toList()
         launch(entry, sessionFromFrontend)
     }
 
@@ -1112,6 +1123,40 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     // Media ------------------------------------------------------------------------------------------
 
+    /** The drives' disks when the player restarted (restartGame), which the restarted machine gets back. */
+    private var keptMedia: List<E?>? = null
+
+    /**
+     * Whether the machine starts again once [restoreMedia] has put the kept disks back, so it boots
+     * from them: true where the machine boots from its drives.
+     */
+    protected open val resetWithKeptMedia = true
+
+    /**
+     * After a restart, the disks [kept] held that the launch did not put in go back in their drives,
+     * and the machine starts again with them ([resetWithKeptMedia]).
+     */
+    private fun restoreMedia(kept: List<E?>) {
+        val changes = kept.withIndex().filter { (slot, entry) -> slot < mounted.size && entry?.id != mounted[slot]?.id }
+        if (changes.isEmpty() || !beginMediaChange()) return
+        Thread {
+            val failure = try {
+                for ((slot, entry) in changes) {
+                    val image = entry?.let { library.prepareMedia(it, AtomicBoolean(false)) { } }
+                    check(bridge.media(slot, image?.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
+                    runOnUiThread { mounted[slot] = entry }
+                }
+                if (resetWithKeptMedia) bridge.reset()
+                null
+            } catch (error: Exception) { error.message ?: getString(R.string.kairo_media_change_failed) }
+            runOnUiThread {
+                mediaBusy = false
+                refreshSettingValues()
+                failure?.let { toast(it) }
+            }
+        }.apply { name = "${identity.appName}-media-kept"; start() }
+    }
+
     /** What each media slot holds, by library entry; null for an empty slot or media the library lacks. */
     private val mounted: MutableList<E?> by lazy { MutableList(mediaSlots.size) { null } }
     @Volatile private var mediaBusy = false
@@ -1189,7 +1234,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 DocumentPicker.open(this, MEDIA_FILE_REQUEST, failed = ::toast)
             }, if (!mediaSlots[slot].folders) null else SettingsRow.action("choose-folder", getString(R.string.kairo_choose_folder)) {
                 pickingMediaSlot = slot
-                FirmwareSet.chooseFolder(this, MEDIA_FOLDER_REQUEST, null, ::toast)
+                DocumentPicker.openFolder(this, MEDIA_FOLDER_REQUEST, failed = ::toast)
             })
         }
     }

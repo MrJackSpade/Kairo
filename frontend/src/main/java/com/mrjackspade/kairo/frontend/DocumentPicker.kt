@@ -20,6 +20,17 @@ object DocumentPicker {
         false
     }
 
+    /** The system folder picker; the result is a tree URI ([selectedUri]). */
+    fun openFolder(activity: Activity, requestCode: Int, failed: (String) -> Unit): Boolean = try {
+        @Suppress("DEPRECATION")
+        activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), requestCode)
+        true
+    } catch (error: Exception) {
+        failed(error.message ?: activity.getString(R.string.kairo_folder_chooser_failed))
+        false
+    }
+
     fun selectedUri(resultCode: Int, data: Intent?): Uri? =
         data?.data?.takeIf { resultCode == Activity.RESULT_OK }
 }
