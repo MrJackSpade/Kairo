@@ -252,6 +252,20 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun resetGameSettings(game: GameKey) = catalog.resetOverride(game)
 
     /**
+     * A blank disk the core makes ([MachineBridge.createBlankDisk] with [kind]): written to a file
+     * in the app's cache, then copied into the games folder, and the file removed.
+     */
+    protected fun coreBlankDisk(kind: String, label: UiText, extension: String) = BlankDisk(kind, label, extension) { output ->
+        val file = java.io.File.createTempFile("blank-", ".$extension", cacheDir)
+        try {
+            bridge.createBlankDisk(kind, file.absolutePath)
+            file.inputStream().use { it.copyTo(output) }
+        } finally {
+            file.delete()
+        }
+    }
+
+    /**
      * The game's disks as the player puts them together (Kairo#134): a switch for each disk of
      * [entry]'s folder or archive, as the Drive rows offer, and any already in its set. The game
      * starts from [entry]; the disks switched on are its `setDisks`, so they leave the library and

@@ -165,6 +165,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun titleCustom(entry: E): Boolean
     protected abstract fun titleSource(entry: E): String?
     protected abstract fun setTitle(game: GameKey, title: String?)
+    /** The blank disks a player makes a new game on, in the formats and sizes the system used (CreateGameFlow). */
+    protected abstract val blankDisks: List<BlankDisk>
     /**
      * Game settings › Library › Disks: the disks the player puts in [entry]'s game (Kairo#134), or
      * null when it has none it could hold.
@@ -601,7 +603,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { message -> if (firstRunSetup.isOpen) toast(message) }, writableFolder, ::storeLibrary)
         artworkDownloads = createArtworkDownloads(libraryPage) { libraryEntries }
         libraryMenu = LibraryMenu(this, pages, libraryFlow, catalog, identity.strings,
-            { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp)
+            { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp, blankDisks)
         libraryPage.openMenuAction = libraryMenu::open
         // On a dual-screen device, search is typed on the lower screen so its keyboard leaves the results visible.
         libraryPage.searchElsewhere = { query, changed, done -> secondaryKeyboard.openSearch(query, changed, done) }

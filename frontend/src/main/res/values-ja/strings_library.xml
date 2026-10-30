@@ -92,6 +92,30 @@
     <string name="kairo_checking">確認中…</string>
     <!-- EN: Refresh finds added and removed games. Recheck all files identifies every file again. -->
     <string name="kairo_library_source_foot">「更新」は追加・削除されたゲームを検出します。「すべてのファイルを再チェック」はすべてのファイルを改めて識別します。</string>
+    <!-- EN: NEW GAME -->
+    <string name="kairo_create_group">新しいゲーム</string>
+    <!-- EN: Floppy disk · %1$s -->
+    <string name="kairo_blank_floppy">フロッピーディスク · %1$s</string>
+    <!-- EN: Hard disk · %1$s -->
+    <string name="kairo_blank_hard_disk">ハードディスク · %1$s</string>
+    <!-- EN: Create -->
+    <string name="kairo_create">作成</string>
+    <!-- EN: Game name -->
+    <string name="kairo_create_name_hint">ゲーム名</string>
+    <!-- EN: New game -->
+    <string name="kairo_create_name_default">新しいゲーム</string>
+    <!-- EN: Creating %1$s… -->
+    <string name="kairo_creating">%1$s を作成中…</string>
+    <!-- EN: Created %1$s -->
+    <string name="kairo_created">%1$s を作成しました</string>
+    <!-- EN: Could not create %1$s -->
+    <string name="kairo_create_failed">%1$s を作成できませんでした</string>
+    <!-- EN: %1$s is already in the %2$s -->
+    <string name="kairo_create_exists">%1$s は %2$s にすでにあります</string>
+    <!-- EN: A game name can’t use / \ : * ? " < > | -->
+    <string name="kairo_create_bad_name">ゲーム名に / \ : * ? " &lt; &gt; | は使えません</string>
+    <!-- EN: Select the same %1$s again and grant write access before creating games. -->
+    <string name="kairo_create_grant">ゲームを作成する前に、同じ %1$s をもう一度選んで書き込みを許可してください。</string>
     <!-- The library screen. -->
     <!-- EN: Library menu -->
     <string name="kairo_library_menu">ライブラリメニュー</string>

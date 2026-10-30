@@ -122,6 +122,30 @@
     <string name="kairo_checking">Проверка…</string>
     <!-- EN: Refresh finds added and removed games. Recheck all files identifies every file again. -->
     <string name="kairo_library_source_foot">«Обновить» находит добавленные и удаленные игры. «Перепроверить все файлы» заново определяет каждый файл.</string>
+    <!-- EN: NEW GAME -->
+    <string name="kairo_create_group">НОВАЯ ИГРА</string>
+    <!-- EN: Floppy disk · %1$s -->
+    <string name="kairo_blank_floppy">Дискета · %1$s</string>
+    <!-- EN: Hard disk · %1$s -->
+    <string name="kairo_blank_hard_disk">Жёсткий диск · %1$s</string>
+    <!-- EN: Create -->
+    <string name="kairo_create">Создать</string>
+    <!-- EN: Game name -->
+    <string name="kairo_create_name_hint">Название игры</string>
+    <!-- EN: New game -->
+    <string name="kairo_create_name_default">Новая игра</string>
+    <!-- EN: Creating %1$s… -->
+    <string name="kairo_creating">Создание: %1$s…</string>
+    <!-- EN: Created %1$s -->
+    <string name="kairo_created">Создано: %1$s</string>
+    <!-- EN: Could not create %1$s -->
+    <string name="kairo_create_failed">Не удалось создать: %1$s</string>
+    <!-- EN: %1$s is already in the %2$s -->
+    <string name="kairo_create_exists">%1$s уже есть в папке «%2$s»</string>
+    <!-- EN: A game name can’t use / \ : * ? " < > | -->
+    <string name="kairo_create_bad_name">В названии нельзя использовать / \ : * ? " &lt; &gt; |</string>
+    <!-- EN: Select the same %1$s again and grant write access before creating games. -->
+    <string name="kairo_create_grant">Снова выберите «%1$s» и разрешите запись, чтобы создавать игры.</string>
     <!-- The library screen. -->
     <!-- EN: Library menu -->
     <string name="kairo_library_menu">Меню библиотеки</string>

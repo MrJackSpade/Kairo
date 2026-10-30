@@ -27,6 +27,10 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     override fun mediaPaths(): List<String>? = nativeMediaPaths()?.toList()
 
     override fun stop() = nativeStop()
+    override fun createBlankDisk(kind: String, path: String) {
+        val error = nativeCreateBlankDisk(kind, path)
+        check(error.isEmpty()) { error }
+    }
     override fun awaitEnd(): MachineStatus = MachineStatus(nativeAwaitEnd())
     override fun pause(paused: Boolean) = nativePause(paused)
     override fun reset() = nativeReset()
@@ -83,6 +87,7 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeStart(firmware: String, home: String, media: Array<String>,
                                      settings: Array<String>): Boolean
     private external fun nativeStop()
+    private external fun nativeCreateBlankDisk(kind: String, path: String): String
     private external fun nativeAwaitEnd(): String
     private external fun nativePause(paused: Boolean)
     private external fun nativeReset()

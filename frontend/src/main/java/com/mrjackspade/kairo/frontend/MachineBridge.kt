@@ -11,6 +11,11 @@ interface MachineBridge {
     /** Ends the running machine, if any, and waits for its thread. */
     fun stop()
     /**
+     * Writes the blank disk [kind] (a [BlankDisk] id) to the file [path], as the emulator's own
+     * tools make a new disk; needs no machine running. Fails with the core's reason.
+     */
+    fun createBlankDisk(kind: String, path: String)
+    /**
      * Blocks until the machine started last has ended, by [stop] or by itself, and returns how it
      * ended (Stopped, or Error with the core's message); null for a machine that ends only when
      * the frontend stops it.

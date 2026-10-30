@@ -102,6 +102,30 @@
     <string name="kairo_checking">Wird geprüft…</string>
     <!-- EN: Refresh finds added and removed games. Recheck all files identifies every file again. -->
     <string name="kairo_library_source_foot">„Aktualisieren“ findet hinzugefügte und entfernte Spiele. „Alle Dateien neu prüfen“ identifiziert jede Datei erneut.</string>
+    <!-- EN: NEW GAME -->
+    <string name="kairo_create_group">NEUES SPIEL</string>
+    <!-- EN: Floppy disk · %1$s -->
+    <string name="kairo_blank_floppy">Diskette · %1$s</string>
+    <!-- EN: Hard disk · %1$s -->
+    <string name="kairo_blank_hard_disk">Festplatte · %1$s</string>
+    <!-- EN: Create -->
+    <string name="kairo_create">Erstellen</string>
+    <!-- EN: Game name -->
+    <string name="kairo_create_name_hint">Name des Spiels</string>
+    <!-- EN: New game -->
+    <string name="kairo_create_name_default">Neues Spiel</string>
+    <!-- EN: Creating %1$s… -->
+    <string name="kairo_creating">%1$s wird erstellt…</string>
+    <!-- EN: Created %1$s -->
+    <string name="kairo_created">%1$s erstellt</string>
+    <!-- EN: Could not create %1$s -->
+    <string name="kairo_create_failed">%1$s konnte nicht erstellt werden</string>
+    <!-- EN: %1$s is already in the %2$s -->
+    <string name="kairo_create_exists">%1$s ist schon in %2$s</string>
+    <!-- EN: A game name can’t use / \ : * ? " < > | -->
+    <string name="kairo_create_bad_name">Der Name darf / \ : * ? " &lt; &gt; | nicht enthalten</string>
+    <!-- EN: Select the same %1$s again and grant write access before creating games. -->
+    <string name="kairo_create_grant">Wähle %1$s erneut aus und erlaube Schreibzugriff, bevor du Spiele erstellst.</string>
     <!-- The library screen. -->
     <!-- EN: Library menu -->
     <string name="kairo_library_menu">Bibliotheksmenü</string>

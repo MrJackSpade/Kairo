@@ -65,6 +65,25 @@
     <string name="kairo_library_recheck">Recheck all files</string>
     <string name="kairo_checking">Checking…</string>
     <string name="kairo_library_source_foot">Refresh finds added and removed games. Recheck all files identifies every file again.</string>
+    <string name="kairo_create_group">NEW GAME</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
+    <string name="kairo_blank_floppy">Floppy disk · %1$s</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
+    <string name="kairo_blank_hard_disk">Hard disk · %1$s</string>
+    <string name="kairo_create">Create</string>
+    <string name="kairo_create_name_hint">Game name</string>
+    <string name="kairo_create_name_default">New game</string>
+    <!-- The new game's name. -->
+    <string name="kairo_creating">Creating %1$s…</string>
+    <!-- The new game's name. -->
+    <string name="kairo_created">Created %1$s</string>
+    <!-- The new game's name. -->
+    <string name="kairo_create_failed">Could not create %1$s</string>
+    <!-- The new game's name, then the games folder's name (kairo_games_folder or the app's own). -->
+    <string name="kairo_create_exists">%1$s is already in the %2$s</string>
+    <string name="kairo_create_bad_name">A game name can’t use / \ : * ? " &lt; &gt; |</string>
+    <!-- The games folder's name (kairo_games_folder or the app's own). -->
+    <string name="kairo_create_grant">Select the same %1$s again and grant write access before creating games.</string>
 
     <!-- The library screen. -->
     <string name="kairo_library_menu">Library menu</string>

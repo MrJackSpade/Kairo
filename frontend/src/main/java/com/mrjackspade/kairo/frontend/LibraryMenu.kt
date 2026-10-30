@@ -16,7 +16,9 @@ class LibraryMenu<T : LibraryItem>(
     private val updateCatalogs: () -> Unit,
     private val artwork: () -> CatalogArtworkDownloadController<T, *>?,
     private val settings: () -> List<SettingsRow>,
-    private val exit: () -> Unit
+    private val exit: () -> Unit,
+    /** The blank disks the app makes new games on (CreateGameFlow). */
+    private val blankDisks: List<BlankDisk>
 ) {
     private val screen get() = flow.screen
     private var catalogState: CatalogUpdateState? = null
@@ -89,6 +91,8 @@ class LibraryMenu<T : LibraryItem>(
                     if (!flow.scanning) flow.refresh(ScanDepth.EVERY_FILE, announce = true)
                 }),
                 activity.getString(R.string.kairo_library_source_foot)),
+            RowGroup(activity.getString(R.string.kairo_create_group),
+                CreateGameFlow.rows(activity, flow, blankDisks, strings.folder.resolve(activity))),
             RowGroup(activity.getString(R.string.kairo_catalogs_group), listOfNotNull(
                 SettingsRow.action("catalogs", activity.getString(R.string.kairo_catalogs_update),
                     value = {

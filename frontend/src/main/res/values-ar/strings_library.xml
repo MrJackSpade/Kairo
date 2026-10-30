@@ -142,6 +142,30 @@
     <string name="kairo_checking">جارٍ الفحص…</string>
     <!-- EN: Refresh finds added and removed games. Recheck all files identifies every file again. -->
     <string name="kairo_library_source_foot">يعثر «تحديث» على الألعاب المضافة والمحذوفة. وتتعرّف «إعادة فحص كل الملفات» على كل ملف من جديد.</string>
+    <!-- EN: NEW GAME -->
+    <string name="kairo_create_group">لعبة جديدة</string>
+    <!-- EN: Floppy disk · %1$s -->
+    <string name="kairo_blank_floppy">قرص مرن · %1$s</string>
+    <!-- EN: Hard disk · %1$s -->
+    <string name="kairo_blank_hard_disk">قرص صلب · %1$s</string>
+    <!-- EN: Create -->
+    <string name="kairo_create">إنشاء</string>
+    <!-- EN: Game name -->
+    <string name="kairo_create_name_hint">اسم اللعبة</string>
+    <!-- EN: New game -->
+    <string name="kairo_create_name_default">لعبة جديدة</string>
+    <!-- EN: Creating %1$s… -->
+    <string name="kairo_creating">جارٍ إنشاء %1$s…</string>
+    <!-- EN: Created %1$s -->
+    <string name="kairo_created">تم إنشاء %1$s</string>
+    <!-- EN: Could not create %1$s -->
+    <string name="kairo_create_failed">تعذّر إنشاء %1$s</string>
+    <!-- EN: %1$s is already in the %2$s -->
+    <string name="kairo_create_exists">%1$s موجود بالفعل في %2$s</string>
+    <!-- EN: A game name can’t use / \ : * ? " < > | -->
+    <string name="kairo_create_bad_name">لا يمكن أن يحتوي الاسم على / \ : * ? " &lt; &gt; |</string>
+    <!-- EN: Select the same %1$s again and grant write access before creating games. -->
+    <string name="kairo_create_grant">اختر %1$s نفسه مرة أخرى وامنح إذن الكتابة قبل إنشاء الألعاب.</string>
     <!-- The library screen. -->
     <!-- EN: Library menu -->
     <string name="kairo_library_menu">قائمة المكتبة</string>

@@ -173,4 +173,8 @@ public:
 // The product's machine for a launch; null with error set when it cannot start.
 std::unique_ptr<MachineCore> create_core(const Launch &launch, std::string &error);
 
+// Writes the product's blank disk [kind] (one of its BlankDisk ids) to [path], as its emulator's own
+// tools make a new disk, with no machine running; "" when done, else why not.
+std::string create_blank_disk(const std::string &kind, const std::string &path);
+
 } // namespace kairo

@@ -92,6 +92,30 @@
     <string name="kairo_checking">Memeriksa…</string>
     <!-- EN: Refresh finds added and removed games. Recheck all files identifies every file again. -->
     <string name="kairo_library_source_foot">Muat ulang menemukan game yang ditambahkan dan dihapus. Periksa ulang semua file mengidentifikasi ulang setiap file.</string>
+    <!-- EN: NEW GAME -->
+    <string name="kairo_create_group">GAME BARU</string>
+    <!-- EN: Floppy disk · %1$s -->
+    <string name="kairo_blank_floppy">Disket · %1$s</string>
+    <!-- EN: Hard disk · %1$s -->
+    <string name="kairo_blank_hard_disk">Hard disk · %1$s</string>
+    <!-- EN: Create -->
+    <string name="kairo_create">Buat</string>
+    <!-- EN: Game name -->
+    <string name="kairo_create_name_hint">Nama game</string>
+    <!-- EN: New game -->
+    <string name="kairo_create_name_default">Game baru</string>
+    <!-- EN: Creating %1$s… -->
+    <string name="kairo_creating">Membuat %1$s…</string>
+    <!-- EN: Created %1$s -->
+    <string name="kairo_created">%1$s dibuat</string>
+    <!-- EN: Could not create %1$s -->
+    <string name="kairo_create_failed">Tidak dapat membuat %1$s</string>
+    <!-- EN: %1$s is already in the %2$s -->
+    <string name="kairo_create_exists">%1$s sudah ada di %2$s</string>
+    <!-- EN: A game name can’t use / \ : * ? " < > | -->
+    <string name="kairo_create_bad_name">Nama game tidak boleh memakai / \ : * ? " &lt; &gt; |</string>
+    <!-- EN: Select the same %1$s again and grant write access before creating games. -->
+    <string name="kairo_create_grant">Pilih %1$s yang sama lagi dan beri izin menulis sebelum membuat game.</string>
     <!-- The library screen. -->
     <!-- EN: Library menu -->
     <string name="kairo_library_menu">Menu pustaka</string>

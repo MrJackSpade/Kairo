@@ -191,6 +191,11 @@ NATIVE_MACHINE(nativeStart)(JNIEnv *env, jobject, jstring firmware, jstring home
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStop)(JNIEnv *, jobject) { machine.stop(); }
 
+extern "C" JNIEXPORT jstring JNICALL NATIVE_MACHINE(nativeCreateBlankDisk)(JNIEnv *env, jobject, jstring kind,
+                                                                         jstring path) {
+    return env->NewStringUTF(kairo::create_blank_disk(utf8(env, kind), utf8(env, path)).c_str());
+}
+
 extern "C" JNIEXPORT jstring JNICALL NATIVE_MACHINE(nativeAwaitEnd)(JNIEnv *env, jobject) {
     return env->NewStringUTF(machine.await_end().c_str());
 }
