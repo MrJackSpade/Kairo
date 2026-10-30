@@ -507,6 +507,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     protected fun startSession(entry: E, game: CatalogGame, fromFrontend: Boolean, atPrompt: Boolean = false) {
         val generation = beginLaunch(getString(R.string.kairo_launch_preparing, entry.displayName))
         val cancelled = AtomicBoolean(false)
+        // A new machine starts: its drives hold what the launch puts in them (mediaStarted), nothing before.
+        mounted.fill(null)
         Thread {
             val failure = try {
                 bridge.stop()
