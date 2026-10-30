@@ -109,6 +109,7 @@
     <string name="kairo_firmware_optional">Optional</string>
     <string name="kairo_firmware_replace">Replace…</string>
     <string name="kairo_choose_file">Choose file…</string>
+    <string name="kairo_choose_folder">Choose folder…</string>
     <string name="kairo_media_file_choose">Choose the disk to insert</string>
     <!-- %1$s is the picked file's name; %2$s the drive, such as Drive B. -->
     <string name="kairo_media_file_none">Nothing in %1$s fits %2$s</string>

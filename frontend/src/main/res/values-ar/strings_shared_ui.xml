@@ -17,6 +17,8 @@
     <string name="kairo_companion_cd">القرص المضغوط</string>
     <!-- EN: Drive 2 -->
     <string name="kairo_drive_2">المحرك 2</string>
+    <!-- EN: Drive A -->
+    <string name="kairo_drive_a">المحرك A</string>
     <!-- EN: Drive B -->
     <string name="kairo_drive_b">المحرك B</string>
     <!-- EN: Dictionary -->

@@ -17,6 +17,8 @@
     <string name="kairo_companion_cd">CD</string>
     <!-- EN: Drive 2 -->
     <string name="kairo_drive_2">Unidade 2</string>
+    <!-- EN: Drive A -->
+    <string name="kairo_drive_a">Unidade A</string>
     <!-- EN: Drive B -->
     <string name="kairo_drive_b">Unidade B</string>
     <!-- EN: Dictionary -->

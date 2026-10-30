@@ -91,7 +91,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     protected open val mediaPageTitle: UiText = UiText.res(R.string.kairo_media_disks)
 
     /** A slot of the machine, such as a floppy drive, and the library entries it takes. */
-    class MediaSlot<E>(val label: UiText, val accepts: (E) -> Boolean = { true })
+    /** A drive of the Disks page; [folders]: it also takes a folder on the device (Choose folder). */
+    class MediaSlot<E>(val label: UiText, val folders: Boolean, val accepts: (E) -> Boolean) {
+        constructor(label: UiText, accepts: (E) -> Boolean = { true }) : this(label, false, accepts)
+    }
 
     // ---------------------------------------------------------------------------------------
 
@@ -255,7 +258,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      * A blank disk the core makes ([MachineBridge.createBlankDisk] with [kind]): written to a file
      * in the app's cache, then copied into the games folder, and the file removed.
      */
-    protected fun coreBlankDisk(kind: String, label: UiText, extension: String) = BlankDisk(kind, label, extension) { output ->
+    protected fun coreBlankDisk(kind: String, label: UiText, extension: String) = BlankDisk.Image(kind, label, extension) { output ->
         val file = java.io.File.createTempFile("blank-", ".$extension", cacheDir)
         try {
             bridge.createBlankDisk(kind, file.absolutePath)
@@ -493,7 +496,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     protected fun insertMedia(entries: List<E?>, cancelled: AtomicBoolean, progress: (String) -> Unit) {
         entries.forEachIndexed { slot, entry ->
             entry?.let {
-                val image = library.prepare(it, cancelled, progress)
+                val image = library.prepareMedia(it, cancelled, progress)
                 check(bridge.media(slot, image.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
             }
         }
@@ -878,6 +881,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 pickingMediaSlot = null
                 DocumentPicker.selectedUri(resultCode, data)?.let { insertPickedFile(slot, it) }
             }
+            MEDIA_FOLDER_REQUEST -> {
+                val slot = pickingMediaSlot ?: return true
+                pickingMediaSlot = null
+                DocumentPicker.selectedUri(resultCode, data)?.let { insertPickedFolder(slot, it) }
+            }
             FIRMWARE_FILE_REQUEST -> {
                 val (set, part) = pickingPart ?: return true
                 pickingPart = null
@@ -1176,9 +1184,12 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             val current = currentEntry ?: return@choice emptyList()
             GameDisks.own(current, libraryEntries, mounted, catalog.setDisks(current).toSet(), catalog::matchId, ::takes)
         }, { libraryEntries.filter(::takes) }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) }) {
-            listOf(SettingsRow.action("choose", getString(R.string.kairo_choose_file)) {
+            listOfNotNull(SettingsRow.action("choose", getString(R.string.kairo_choose_file)) {
                 pickingMediaSlot = slot
                 DocumentPicker.open(this, MEDIA_FILE_REQUEST, failed = ::toast)
+            }, if (!mediaSlots[slot].folders) null else SettingsRow.action("choose-folder", getString(R.string.kairo_choose_folder)) {
+                pickingMediaSlot = slot
+                FirmwareSet.chooseFolder(this, MEDIA_FOLDER_REQUEST, null, ::toast)
             })
         }
     }
@@ -1212,12 +1223,23 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         }.apply { name = "${identity.appName}-media-file"; start() }
     }
 
+    /** A folder picked for [slot] (MediaSlot.folders), read as the library reads a folder game. */
+    private fun insertPickedFolder(slot: Int, tree: Uri) {
+        Thread {
+            val result = runCatching { library.inspectExternalFolder(tree, AtomicBoolean(false)) }
+            runOnUiThread {
+                result.onFailure { toast(it.message ?: getString(R.string.kairo_media_change_failed)) }
+                result.onSuccess { changeMedia(slot, it) }
+            }
+        }.apply { name = "${identity.appName}-media-folder"; start() }
+    }
+
     private fun changeMedia(slot: Int, entry: E?) {
         if (!beginMediaChange()) return
         refreshSettingValues()
         Thread {
             val failure = try {
-                val image = entry?.let { library.prepare(it, AtomicBoolean(false)) { } }
+                val image = entry?.let { library.prepareMedia(it, AtomicBoolean(false)) { } }
                 check(bridge.media(slot, image?.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
                 null
             } catch (error: Exception) { error.message ?: getString(R.string.kairo_media_change_failed) }
@@ -1233,6 +1255,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val FIRMWARE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 1
         private const val FIRMWARE_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 2
         private const val MEDIA_FILE_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 3
+        private const val MEDIA_FOLDER_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 4
         /** The folder firmware was last imported from. */
         private const val FIRMWARE_FOLDER = "firmware_folder_v1"
         /** The drive choice that leaves a drive empty. */

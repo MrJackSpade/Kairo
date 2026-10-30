@@ -186,6 +186,8 @@
     <string name="kairo_firmware_replace">Reemplazar…</string>
     <!-- EN: Choose file… -->
     <string name="kairo_choose_file">Elegir archivo…</string>
+    <!-- EN: Choose folder… -->
+    <string name="kairo_choose_folder">Elegir carpeta…</string>
     <!-- EN: Choose the disk to insert -->
     <string name="kairo_media_file_choose">Elige el disco que quieres insertar</string>
     <!-- %1$s is the picked file's name; %2$s the drive, such as Drive B. -->

@@ -13,6 +13,9 @@ interface MachineLibrary<E : LibraryItem> {
     fun store(tree: Uri, entries: List<E>)
     /** Reads one file a frontend app sent, which need not be in the ROM folder. */
     fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean): List<E>
+    /** Reads a folder the player picked for a drive that takes folders (MachineActivity.MediaSlot.folders). */
+    fun inspectExternalFolder(tree: Uri, cancelled: AtomicBoolean): E =
+        error("This machine's drives take no folders")
     /** Deletes [entry]'s source document, with every entry read from it. */
     fun deleteSource(entry: E, entries: List<E>)
     /** Whether the game has a working copy holding what it wrote to its disks. */
@@ -22,6 +25,9 @@ interface MachineLibrary<E : LibraryItem> {
     fun resetWorkingImage(entry: E)
     /** The file the machine opens for [entry]: its working copy, extracted from an archive when needed. */
     fun prepare(entry: E, cancelled: AtomicBoolean, progress: (String) -> Unit): java.io.File
+    /** The file or folder a drive of the Disks page opens for [entry], beside the running game's own. */
+    fun prepareMedia(entry: E, cancelled: AtomicBoolean, progress: (String) -> Unit): java.io.File =
+        prepare(entry, cancelled, progress)
     /** The entry whose working copy is [path], as a machine reports its media after a state loads. */
     fun entryForWorkingImage(path: String, entries: List<E>): E?
     /**

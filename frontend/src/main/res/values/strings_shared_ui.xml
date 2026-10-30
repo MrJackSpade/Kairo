@@ -9,6 +9,7 @@
     <!-- The disc a game needs, as "The %1$s this game needs is not in the library" names it. -->
     <string name="kairo_companion_cd">CD</string>
     <string name="kairo_drive_2">Drive 2</string>
+    <string name="kairo_drive_a">Drive A</string>
     <string name="kairo_drive_b">Drive B</string>
     <string name="kairo_firmware_dictionary">Dictionary</string>
     <!-- A firmware file's description: %1$s is its file name; %2$s what it does. -->
