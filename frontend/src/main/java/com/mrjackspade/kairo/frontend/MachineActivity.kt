@@ -862,6 +862,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             })
 
     /** The firmware folder picker opens at the folder chosen last, or beside the games folder. */
+    /** Where Choose folder opens: the folder picked last, else beside the games folder. */
+    private fun mediaFolderStart(): Uri? =
+        preferences.getString(MEDIA_FOLDER, null)?.let { FolderStart.at(Uri.parse(it)) } ?: tree?.let(FolderStart::beside)
+
     private fun firmwareFolderStart(): Uri? =
         preferences.getString(FIRMWARE_FOLDER, null)?.let { FolderStart.at(Uri.parse(it)) } ?: tree?.let(FolderStart::beside)
 
@@ -895,7 +899,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             MEDIA_FOLDER_REQUEST -> {
                 val slot = pickingMediaSlot ?: return true
                 pickingMediaSlot = null
-                DocumentPicker.selectedUri(resultCode, data)?.let { insertPickedFolder(slot, it) }
+                DocumentPicker.selectedUri(resultCode, data)?.let { folder ->
+                    preferences.edit().putString(MEDIA_FOLDER, folder.toString()).apply()
+                    insertPickedFolder(slot, folder)
+                }
             }
             FIRMWARE_FILE_REQUEST -> {
                 val (set, part) = pickingPart ?: return true
@@ -1234,7 +1241,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 DocumentPicker.open(this, MEDIA_FILE_REQUEST, failed = ::toast)
             }, if (!mediaSlots[slot].folders) null else SettingsRow.action("choose-folder", getString(R.string.kairo_choose_folder)) {
                 pickingMediaSlot = slot
-                DocumentPicker.openFolder(this, MEDIA_FOLDER_REQUEST, failed = ::toast)
+                DocumentPicker.openFolder(this, MEDIA_FOLDER_REQUEST, mediaFolderStart(), failed = ::toast)
             })
         }
     }
@@ -1303,6 +1310,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val MEDIA_FOLDER_REQUEST = KairoActivity.FIRST_PRODUCT_REQUEST - 4
         /** The folder firmware was last imported from. */
         private const val FIRMWARE_FOLDER = "firmware_folder_v1"
+        /** The folder a Disks drive last took (Choose folder). */
+        private const val MEDIA_FOLDER = "media_folder_v1"
         /** The drive choice that leaves a drive empty. */
         private const val EMPTY_DRIVE = GameDisks.EMPTY
         /** How often a loading session checks whether the machine shows a picture yet. */
