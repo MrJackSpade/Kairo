@@ -523,6 +523,10 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         // Where the picture sits in each orientation (Kairo#54).
         "display" -> value is JSONObject && value.length() > 0 &&
             value.keys().asSequence().all { it in DISPLAY_FIELDS && value.optString(it) in Anchor.IDS }
+        "setDisks" -> value is JSONArray && value.length() in 1..MAX_SET_DISKS &&
+            (0 until value.length()).map { value.opt(it) }.let { ids ->
+                ids.all { it is String && validId(it) } && ids.toSet().size == ids.size
+            }
         "media" -> value is JSONArray && value.length() <= 16 &&
             (0 until value.length()).all { index ->
                 value.optJSONObject(index)?.let { item ->
@@ -678,8 +682,11 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             it.optJSONObject("titles")?.optString(game)?.takeIf(String::isNotBlank)
         }
 
-        private val COMMON_FIELDS = setOf("title", "description", "aliases", "tags", "heart", "hidden", "media") +
+        // A player's own set is "setDisks" on the disk the game starts from (Kairo#134).
+        private val COMMON_FIELDS = setOf("title", "description", "aliases", "tags", "heart", "hidden", "media", "setDisks") +
             COMMON_OBJECT_FIELDS.keys
+        /** The most disks a game's set holds besides its own (MAX_IDS in shared tools/app_catalog.py). */
+        const val MAX_SET_DISKS = 64
         private fun validTitle(value: String) = value.isNotBlank() && value.length <= 256
         private fun validDescription(value: String) = value.isNotBlank() && value.length <= 8000
         private fun empty() = JSONObject().put("schemaVersion", 1).put("games", JSONObject())

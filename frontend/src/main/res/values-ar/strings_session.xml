@@ -117,6 +117,22 @@
     <string name="kairo_title">العنوان</string>
     <!-- EN: Game title -->
     <string name="kairo_title_hint">عنوان اللعبة</string>
+    <!-- EN: Disks -->
+    <string name="kairo_game_disks">الأقراص</string>
+    <plurals name="kairo_game_disks_count">
+        <!-- EN: %1$d disks -->
+        <item quantity="zero">%1$d قرص</item>
+        <!-- EN: %1$d disk -->
+        <item quantity="one">قرص واحد (%1$d)</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="two">قرصان (%1$d)</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="few">%1$d أقراص</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="many">%1$d قرصًا</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="other">%1$d قرص</item>
+    </plurals>
     <!-- EN: Chosen images are copied into your library. -->
     <string name="kairo_artwork_copied_foot">تُنسخ الصور المختارة إلى مكتبتك.</string>
     <!-- EN: Game settings reset. Machine changes apply on next launch or restart. -->

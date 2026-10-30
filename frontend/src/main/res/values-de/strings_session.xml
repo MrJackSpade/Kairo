@@ -117,6 +117,14 @@
     <string name="kairo_title">Titel</string>
     <!-- EN: Game title -->
     <string name="kairo_title_hint">Spieltitel</string>
+    <!-- EN: Disks -->
+    <string name="kairo_game_disks">Disketten</string>
+    <plurals name="kairo_game_disks_count">
+        <!-- EN: %1$d disk -->
+        <item quantity="one">%1$d Diskette</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="other">%1$d Disketten</item>
+    </plurals>
     <!-- EN: Chosen images are copied into your library. -->
     <string name="kairo_artwork_copied_foot">Ausgewählte Bilder werden in Ihre Bibliothek kopiert.</string>
     <!-- EN: Game settings reset. Machine changes apply on next launch or restart. -->

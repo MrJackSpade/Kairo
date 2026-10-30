@@ -250,6 +250,39 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun setTitle(game: GameKey, title: String?) =
         if (title == null) catalog.resetOverride(game, "title") else catalog.setOverride(game, "title", title)
     override fun resetGameSettings(game: GameKey) = catalog.resetOverride(game)
+
+    /**
+     * The game's disks as the player puts them together (Kairo#134): a switch for each disk of
+     * [entry]'s folder or archive, as the Drive rows offer, and any already in its set. The game
+     * starts from [entry]; the disks switched on are its `setDisks`, so they leave the library and
+     * are its own disks in drives and disk swaps.
+     */
+    override fun gameDisksRow(entry: E, enabled: () -> Boolean, disabledReason: () -> String): SettingsRow? {
+        val own = entry.contentId?.let { catalog.matchId(entry) }
+        fun set() = catalog.setDisks(entry).toSet()
+        fun candidates() = libraryEntries.filter { other ->
+            val id = other.takeIf { it.playable && it.id != entry.id }?.let(catalog::matchId)
+            id != null && id != own && (sameSource(entry, other) || id in set())
+        }.distinctBy(catalog::matchId)
+        if (own != null && candidates().isEmpty()) return null
+        val title = getString(R.string.kairo_game_disks)
+        fun count() = set().size + 1
+        return SettingsRow.nav("disks", title, { resources.getQuantityString(R.plurals.kairo_game_disks_count, count(), count()) },
+            enabled = enabled, disabledReason = disabledReason) {
+            pages.push(GroupsPage(title, { titleOf(entry) }, {
+                listOf(RowGroup(null, candidates().map { other ->
+                    val id = catalog.matchId(other)!!
+                    SettingsRow.switch("disk-$id", other.displayName, { id in set() }) { on ->
+                        saveGameSetting(entry, getString(R.string.kairo_saved)) {
+                            val next = if (on) set() + id else set() - id
+                            if (next.isEmpty()) catalog.resetOverride(entry.key, "setDisks")
+                            else catalog.setOverride(entry.key, "setDisks", org.json.JSONArray(next.sorted()))
+                        }
+                    }
+                }))
+            }))
+        }
+    }
     override fun gameAnchor(game: E, orientation: String, allGames: () -> Anchor) =
         machineValue(game, "display", "${orientation}Anchor",
             { it.section("display")?.optString("${orientation}Anchor")?.takeIf(String::isNotEmpty) },

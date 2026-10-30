@@ -117,6 +117,12 @@
     <string name="kairo_title">제목</string>
     <!-- EN: Game title -->
     <string name="kairo_title_hint">게임 제목</string>
+    <!-- EN: Disks -->
+    <string name="kairo_game_disks">디스크</string>
+    <plurals name="kairo_game_disks_count">
+        <!-- EN: %1$d disks -->
+        <item quantity="other">%1$d장</item>
+    </plurals>
     <!-- EN: Chosen images are copied into your library. -->
     <string name="kairo_artwork_copied_foot">선택한 이미지는 라이브러리에 복사됩니다.</string>
     <!-- EN: Game settings reset. Machine changes apply on next launch or restart. -->

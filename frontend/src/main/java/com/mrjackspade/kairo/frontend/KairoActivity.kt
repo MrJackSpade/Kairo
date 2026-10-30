@@ -165,6 +165,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun titleCustom(entry: E): Boolean
     protected abstract fun titleSource(entry: E): String?
     protected abstract fun setTitle(game: GameKey, title: String?)
+    /**
+     * Game settings › Library › Disks: the disks the player puts in [entry]'s game (Kairo#134), or
+     * null when it has none it could hold.
+     */
+    protected abstract fun gameDisksRow(entry: E, enabled: () -> Boolean, disabledReason: () -> String): SettingsRow?
     /** FILE rows besides the file's own, such as resetting a working copy. */
     protected open fun fileRows(entry: E): List<SettingsRow> = emptyList()
     /** What deleting [entry] removes, or null when it cannot be deleted from the library. */
@@ -1276,13 +1281,14 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                         { null }, select = {}), enabled = { false }, disabledReason = noHash)))),
             machineGroup(entry, hashed),
             displayGroup(entry, hashed),
-            RowGroup(getString(R.string.kairo_library_group), listOf(
+            RowGroup(getString(R.string.kairo_library_group), listOfNotNull(
                 GameSettingsRows.text(this, "title", getString(R.string.kairo_title), getString(R.string.kairo_title_hint),
                     { titleOf(entry) }, { titleCustom(entry) },
                     { titleSource(entry) },
                     { value -> saveGameSetting(entry, getString(R.string.kairo_saved)) { setTitle(id!!, value) } },
                     { saveGameSetting(entry, getString(R.string.kairo_saved)) { setTitle(id!!, null) } },
                     enabled = hashed, disabledReason = noHash),
+                gameDisksRow(entry, hashed, noHash),
                 artwork.row(entry, "boxArt", hashed),
                 artwork.row(entry, "preview", hashed)),
                 getString(R.string.kairo_artwork_copied_foot)),

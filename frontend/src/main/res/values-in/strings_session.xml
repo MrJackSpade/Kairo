@@ -117,6 +117,12 @@
     <string name="kairo_title">Judul</string>
     <!-- EN: Game title -->
     <string name="kairo_title_hint">Judul game</string>
+    <!-- EN: Disks -->
+    <string name="kairo_game_disks">Disk</string>
+    <plurals name="kairo_game_disks_count">
+        <!-- EN: %1$d disks -->
+        <item quantity="other">%1$d disk</item>
+    </plurals>
     <!-- EN: Chosen images are copied into your library. -->
     <string name="kairo_artwork_copied_foot">Gambar yang dipilih disalin ke pustaka Anda.</string>
     <!-- EN: Game settings reset. Machine changes apply on next launch or restart. -->

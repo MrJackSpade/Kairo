@@ -67,6 +67,12 @@
     <string name="kairo_anchor_portrait">Portrait anchor</string>
     <string name="kairo_title">Title</string>
     <string name="kairo_title_hint">Game title</string>
+    <string name="kairo_game_disks">Disks</string>
+    <!-- How many disks the game has: its own and the ones the player put in it. -->
+    <plurals name="kairo_game_disks_count">
+        <item quantity="one">%1$d disk</item>
+        <item quantity="other">%1$d disks</item>
+    </plurals>
     <string name="kairo_artwork_copied_foot">Chosen images are copied into your library.</string>
     <string name="kairo_settings_reset_done">Game settings reset. Machine changes apply on next launch or restart.</string>
     <string name="kairo_settings_reset_failed">Could not reset game settings</string>

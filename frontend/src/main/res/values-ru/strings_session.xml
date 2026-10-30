@@ -117,6 +117,18 @@
     <string name="kairo_title">Название</string>
     <!-- EN: Game title -->
     <string name="kairo_title_hint">Название игры</string>
+    <!-- EN: Disks -->
+    <string name="kairo_game_disks">Диски</string>
+    <plurals name="kairo_game_disks_count">
+        <!-- EN: %1$d disk -->
+        <item quantity="one">%1$d диск</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="few">%1$d диска</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="many">%1$d дисков</item>
+        <!-- EN: %1$d disks -->
+        <item quantity="other">%1$d диска</item>
+    </plurals>
     <!-- EN: Chosen images are copied into your library. -->
     <string name="kairo_artwork_copied_foot">Выбранные изображения копируются в вашу библиотеку.</string>
     <!-- EN: Game settings reset. Machine changes apply on next launch or restart. -->
