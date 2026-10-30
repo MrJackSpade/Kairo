@@ -95,6 +95,13 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         val describes: Set<String> get() = emptySet()
         /** Whether a game can choose touch that moves the guest mouse to the touched point (`input.touch`). */
         val directTouch: Boolean get() = false
+        /**
+         * The guest keyboard's Esc keys and its Enter (Return) keys, keypad ones included, as catalog
+         * bindings write them; empty for a guest without one. No shipped mapping gives START Esc and
+         * SELECT Enter (ShippedControllerMappingTest).
+         */
+        val escapeKeys: Set<Int>
+        val enterKeys: Set<Int>
         /** Whether [contentId] can fill the media [role]. */
         fun validMedia(role: String, contentId: String): Boolean
         fun validField(field: String, value: Any): Boolean
