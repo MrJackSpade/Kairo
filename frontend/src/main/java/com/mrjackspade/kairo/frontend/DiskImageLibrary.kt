@@ -546,6 +546,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     }
                 }
             }
+            DurableFiles.sync(partialData)
+            if (descriptor) DurableFiles.sync(partialDescriptor)
             require(partialData.renameTo(data)) { "Unable to save working disk image" }
             if (descriptor) require(partialDescriptor.renameTo(file)) { "Unable to save ${entry.displayName}" }
             return file
@@ -603,6 +605,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     }
                 }
             }
+            DurableFiles.sync(partial)
             check(!folder.exists() || folder.deleteRecursively()) { "Could not replace the working copy of ${entry.displayName}" }
             require(partial.renameTo(folder)) { "Unable to save the working copy of ${entry.displayName}" }
             return program

@@ -60,6 +60,7 @@ class StateSlotStore(root: File, private val game: GameKey, private val stateNam
         recover(index)
         val target = directory(index)
         val previous = previous(index)
+        DurableFiles.sync(scratch)
         if (target.exists() && !target.renameTo(previous)) error("Could not replace the old save")
         if (!scratch.renameTo(target)) {
             val restored = !previous.exists() || previous.renameTo(target)

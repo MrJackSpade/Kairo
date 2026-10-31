@@ -153,6 +153,7 @@ class AppSaveLocation(val root: File) : SaveLocation {
         val backup = File(parent, "${target.name}.old")
         check(!stage.exists() || stage.deleteRecursively()) { "Could not clear an incomplete save" }
         copyKeepingTimes(from, stage)
+        DurableFiles.sync(stage)
         if (target.exists()) check(target.renameTo(backup)) { "Could not replace ${unit.path}" }
         if (!stage.renameTo(target)) {
             // Put the old save back. If that fails too, recover() restores it on the next access.

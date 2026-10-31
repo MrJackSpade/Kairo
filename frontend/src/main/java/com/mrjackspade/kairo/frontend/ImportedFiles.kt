@@ -76,7 +76,10 @@ class ImportedFiles(
             val hash = digest.digest().copyOf(8).toHex()
             val file = File(directory, hash + extension)
             if (file.isFile) partial.delete()
-            else check(partial.renameTo(file)) { "Could not save $file" }
+            else {
+                DurableFiles.sync(partial)
+                check(partial.renameTo(file)) { "Could not save $file" }
+            }
             if (name != null && !nameFile(hash).isFile) nameFile(hash).writeText(name)
             cached = null
             return items().first { it.id == "$prefix:$hash" }
