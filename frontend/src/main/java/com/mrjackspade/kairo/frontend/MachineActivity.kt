@@ -89,6 +89,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** The media slots a game's own disks go in, shown on the flyout's media page. */
     protected open val mediaSlots: List<MediaSlot<E>> = emptyList()
     protected open val mediaPageTitle: UiText = UiText.res(R.string.kairo_media_disks)
+    /**
+     * Whether [entry] is a disk another game can take: into its set (gameDisksRow) with no [role],
+     * or into the drive [role] names (driveRow). Some products' libraries list games of their own too.
+     */
+    protected open fun isDisk(entry: E, role: String? = null): Boolean = true
 
     /** A slot of the machine, such as a floppy drive, and the library entries it takes. */
     /** A drive of the Disks page; [folders]: it also takes a folder on the device (Choose folder). */
@@ -279,7 +284,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         fun set() = catalog.setDisks(entry).toSet()
         fun candidates() = libraryEntries.filter { other ->
             val id = other.takeIf { it.playable && it.id != entry.id }?.let(catalog::matchId)
-            id != null && id != own && (sameSource(entry, other) || id in set())
+            id != null && id != own && (isDisk(other) && sameSource(entry, other) || id in set())
         }.distinctBy(catalog::matchId)
         if (own != null && candidates().isEmpty()) return null
         val title = getString(R.string.kairo_game_disks)
@@ -722,7 +727,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val disks = {
             listOf(ChoiceOption(EMPTY_DRIVE, UiText.res(R.string.kairo_empty))) + libraryEntries.filter { other ->
                 other.playable && other.id != entry.id && sameSource(entry, other) &&
-                    catalog.schema.validMedia(role, other.contentId!!)
+                    catalog.schema.validMedia(role, other.contentId!!) && isDisk(other, role)
             }.map { ChoiceOption(it.contentId!!, it.displayName) }
         }
         return GameSettingsRows.choice(this, "drive-$role", text(setting.label), scope, disks, value, enabled, noHash,

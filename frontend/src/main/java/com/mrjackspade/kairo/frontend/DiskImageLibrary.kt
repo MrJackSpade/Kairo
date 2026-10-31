@@ -146,13 +146,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         fun isArchive(name: String) = extension(name) in ARCHIVES
         /** Whether [name] is track data, read only through its descriptor. */
         fun isData(name: String) = !isImage(name) && data.values.any { extension(name) in it }
-        fun isDescriptor(name: String) = extension(name) in data
-        /** The names [name]'s track data may have, in order; just [name] for an image without a descriptor. */
-        fun dataNames(name: String): List<String> =
-            data[extension(name)]?.map { name.substringBeforeLast('.') + ".$it" } ?: listOf(name)
-        /** [name]'s track data among [present] (lower-case names to items), or null when none is there. */
-        fun <T> dataOf(name: String, present: Map<String, T>): T? =
-            dataNames(name).firstNotNullOfOrNull { present[it.lowercase(Locale.ROOT)] }
+        /** How a descriptor names its track data. */
+        val descriptors = DiscDescriptors(data)
+        fun isDescriptor(name: String) = descriptors.isDescriptor(name)
+        fun dataNames(name: String): List<String> = descriptors.dataNames(name)
+        fun <T> dataOf(name: String, present: Map<String, T>): T? = descriptors.dataOf(name, present)
         /** Whether a descriptor of [name]'s name among [present] describes its disc instead. */
         fun superseded(name: String, present: Set<String>): Boolean =
             supersededBy[extension(name)].orEmpty().any { "${name.substringBeforeLast('.')}.$it".lowercase(Locale.ROOT) in present }
