@@ -3,7 +3,8 @@
 
 A content ID is "sha256-<kind>-v1:" followed by the SHA-256 of the medium's bytes as stored
 (inside a ZIP: the entry's uncompressed bytes); a CD kept as a CHD hashes the disc image it was
-made from (chd_image). Each app names its kinds and which files carry
+made from (chd_image), and a CUE that names several track files (Redump's one BIN per track)
+hashes them joined in the sheet's order, which is what its CHD reads back as. Each app names its kinds and which files carry
 them through a Media description, so the same scan serves every platform.
 """
 
@@ -53,10 +54,38 @@ class Media:
                 return found
         raise ValueError(f"the track data of {Path(name).name} is missing")
 
+    def track_files(self, name, kind, present, read_sheet):
+        """The members whose bytes name's ID hashes, in order, from present (lower-case name to
+        name): the track data beside a descriptor under its own name (data_for), as before; a CUE
+        without that is read, and the files its FILE lines name (Redump's one BIN per track) are its
+        data, resolved beside it, in the sheet's order. read_sheet() returns the sheet's text. The
+        apps resolve sheets the same way (shared DiscDescriptors.trackFiles)."""
+        suffix = Path(name).suffix.lower()
+        if suffix != ".cue" or suffix not in self.candidates or any(
+                (name[:-len(suffix)] + data).lower() in present for data in self.candidates[suffix]):
+            return [self.data_for(name, kind, present)]
+        files = cue_files(read_sheet())
+        if not files:
+            raise ValueError(f"{Path(name).name} names no track data")
+        folder = name.rsplit("/", 1)[0] + "/" if "/" in name else ""
+        resolved = [present.get((folder + file.replace("\\", "/")).lower()) for file in files]
+        missing = [file for file, found in zip(files, resolved) if not found]
+        if missing:
+            raise ValueError(f"the track data of {Path(name).name} is missing: {missing[0]}")
+        return resolved
+
     def superseded(self, name, present):
         suffix = Path(name).suffix.lower()
         base = name[:-len(suffix)] if suffix else name
         return any((base + other).lower() in present for other in self.superseded_by.get(suffix, ()))
+
+
+CUE_FILE = re.compile(r'^\s*FILE\s+(?:"([^"]+)"|(\S+))', re.IGNORECASE | re.MULTILINE)
+
+
+def cue_files(text):
+    """The track files a cue sheet names, in its order."""
+    return [quoted or bare for quoted, bare in CUE_FILE.findall(text)]
 
 
 def same_file(name, kind):
@@ -76,9 +105,20 @@ def valid_entry(info):
 
 
 def digest(stream, kind):
+    return digest_all([lambda: stream], kind, close=False)
+
+
+def digest_all(opens, kind, close=True):
+    """The content ID of the streams opens give, read one after another as one medium."""
     sha = hashlib.sha256()
-    while block := stream.read(CHUNK):
-        sha.update(block)
+    for open_stream in opens:
+        stream = open_stream()
+        try:
+            while block := stream.read(CHUNK):
+                sha.update(block)
+        finally:
+            if close:
+                stream.close()
     return f"sha256-{kind}-v1:" + sha.hexdigest()
 
 
@@ -112,13 +152,41 @@ def seven_zip_entries(path):
 
 def seven_zip_digest(path, name, kind):
     """The content ID of one .7z member, streamed out of 7-Zip without writing it to disk."""
-    process = subprocess.Popen([seven_zip_program(), "e", "-so", "-spd", "-sccUTF-8", str(path), "--", name],
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    content_id = member_digest(process.stdout, name, kind)
+    if chd_image.is_chd(name):
+        process = seven_zip_member(path, name)
+        content_id = member_digest(process.stdout, name, kind)
+        seven_zip_finish(process, name)
+        return content_id
+    return seven_zip_digest_all(path, [name], kind)
+
+
+def seven_zip_member(path, name):
+    return subprocess.Popen([seven_zip_program(), "e", "-so", "-spd", "-sccUTF-8", str(path), "--", name],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def seven_zip_finish(process, name):
     error = process.stderr.read()
     if process.wait():
         raise RuntimeError(f"7-Zip could not read {name}: {error.decode('utf-8', 'replace').strip()}")
-    return content_id
+
+
+def seven_zip_digest_all(path, names, kind):
+    """The content ID of .7z members read one after another as one medium."""
+    sha = hashlib.sha256()
+    for name in names:
+        process = seven_zip_member(path, name)
+        while block := process.stdout.read(CHUNK):
+            sha.update(block)
+        seven_zip_finish(process, name)
+    return f"sha256-{kind}-v1:" + sha.hexdigest()
+
+
+def seven_zip_text(path, name):
+    process = seven_zip_member(path, name)
+    text = process.stdout.read().decode("utf-8", "replace")
+    seven_zip_finish(process, name)
+    return text
 
 
 def scan(root, media, previous=None, top_level=False):
@@ -157,31 +225,39 @@ def scan(root, media, previous=None, top_level=False):
                     kind = media.kind(name)
                     if not kind or media.superseded(name, {key: value for key, (value, _) in sizes.items()}):
                         continue
-                    data_name = media.data_for(name, kind, {key: value for key, (value, _) in sizes.items()})
-                    data = (name, dict(entries)[name]) if data_name == name else sizes.get(data_name.lower())
-                    if data is None:
-                        raise ValueError(f"{data_name} is missing")
-                    if data[1] <= 0 or data[1] > media.limit(kind):
+                    names = media.track_files(name, kind, {key: value for key, (value, _) in sizes.items()},
+                                              lambda: seven_zip_text(path, name))
+                    datas = []
+                    for data_name in names:
+                        data = (name, dict(entries)[name]) if data_name == name else sizes.get(data_name.lower())
+                        if data is None:
+                            raise ValueError(f"{data_name} is missing")
+                        datas.append(data)
+                    total = sum(size for _, size in datas)
+                    if any(size <= 0 for _, size in datas) or total > media.limit(kind):
                         raise ValueError("disk image exceeds size limit")
-                    content_id = cached_disks.get(name) or seven_zip_digest(path, data[0], kind)
+                    content_id = cached_disks.get(name) or (
+                        seven_zip_digest(path, datas[0][0], kind) if len(datas) == 1
+                        else seven_zip_digest_all(path, [data_name for data_name, _ in datas], kind))
                     item["disks"].append({"entry": name, "contentId": content_id})
             elif path.suffix.lower() != ".zip":
                 kind = media.kind(path.name)
                 present = {sibling.name.lower(): sibling.name for sibling in path.parent.iterdir()}
                 if media.superseded(path.name, present):
                     continue
-                data = path.with_name(media.data_for(path.name, kind, present))
-                if not data.is_file():
-                    raise ValueError(f"{data.name} is missing")
-                size = data.stat().st_size
-                if size <= 0 or size > media.limit(kind):
+                datas = [path.with_name(data_name) for data_name in
+                         media.track_files(path.name, kind, present, lambda: path.read_text(encoding="utf-8", errors="replace"))]
+                for data in datas:
+                    if not data.is_file():
+                        raise ValueError(f"{data.name} is missing")
+                sizes = [data.stat().st_size for data in datas]
+                if any(size <= 0 for size in sizes) or sum(sizes) > media.limit(kind):
                     raise ValueError("disk image exceeds size limit")
                 content_id = cached_disks.get(None)
-                if not content_id and chd_image.is_chd(data.name):
-                    content_id = chd_image.digest(data, kind)
+                if not content_id and chd_image.is_chd(datas[0].name):
+                    content_id = chd_image.digest(datas[0], kind)
                 elif not content_id:
-                    with data.open("rb") as source:
-                        content_id = digest(source, kind)
+                    content_id = digest_all([lambda data=data: data.open("rb") for data in datas], kind)
                 item["disks"].append({"entry": None, "contentId": content_id})
             else:
                 with zipfile.ZipFile(path) as archive:
@@ -196,17 +272,25 @@ def scan(root, media, previous=None, top_level=False):
                         kind = media.kind(info.filename)
                         if not kind or media.superseded(info.filename, present):
                             continue
-                        data_name = media.data_for(info.filename, kind, present)
-                        data = info if data_name == info.filename else members.get(data_name.lower())
-                        if data is None:
-                            raise ValueError(f"{data_name} is missing")
-                        if (data.file_size <= 0 or data.file_size > media.limit(kind) or
-                                data.compress_size <= 0 or data.file_size // data.compress_size > 1000):
-                            raise ValueError("disk image exceeds size or expansion limit")
+                        names = media.track_files(info.filename, kind, present,
+                                                  lambda: archive.read(info).decode("utf-8", "replace"))
+                        datas = []
+                        for data_name in names:
+                            data = info if data_name == info.filename else members.get(data_name.lower())
+                            if data is None:
+                                raise ValueError(f"{data_name} is missing")
+                            if (data.file_size <= 0 or data.compress_size <= 0 or
+                                    data.file_size // data.compress_size > 1000):
+                                raise ValueError("disk image exceeds size or expansion limit")
+                            datas.append(data)
+                        if sum(data.file_size for data in datas) > media.limit(kind):
+                            raise ValueError("disk image exceeds size limit")
                         content_id = cached_disks.get(info.filename)
-                        if not content_id:
-                            with archive.open(data) as source:
-                                content_id = member_digest(source, data.filename, kind)
+                        if not content_id and len(datas) == 1:
+                            with archive.open(datas[0]) as source:
+                                content_id = member_digest(source, datas[0].filename, kind)
+                        elif not content_id:
+                            content_id = digest_all([lambda data=data: archive.open(data) for data in datas], kind)
                         item["disks"].append({"entry": info.filename, "contentId": content_id})
             item["status"] = "ready" if item["disks"] else ("nested-zip" if item.get("nestedZip") else "no-supported-image")
         except (OSError, ValueError, zipfile.BadZipFile, RuntimeError) as error:
