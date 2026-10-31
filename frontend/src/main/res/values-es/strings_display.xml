@@ -19,6 +19,10 @@
     <string name="kairo_scaling_fit">Ajustar a la pantalla</string>
     <!-- EN: Fractional scale -->
     <string name="kairo_scaling_fit_help">Escala fraccionaria</string>
+    <!-- EN: Stretch -->
+    <string name="kairo_scaling_stretch">Estirar</string>
+    <!-- EN: Fills the screen -->
+    <string name="kairo_scaling_stretch_help">Llena la pantalla</string>
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">Margen de la muesca en vertical</string>
     <!-- %1$d is a length in density-independent pixels. -->

@@ -18,8 +18,18 @@ class GraphicsOptions(
     /** The picture's size and its offset from the screen's top left; an offset is negative where the picture is cut. */
     data class Viewport(val width: Int, val height: Int, val leftMargin: Int, val topMargin: Int)
 
-    private var integerScaling = true
-    private var integerCrop = false
+    /** How the picture fills the area it is given; kept per orientation by [id]. */
+    enum class Scaling(val id: String) {
+        INTEGER("integer"), CROP("crop"), FIT("fit"),
+        /** Fills the whole area and ignores the aspect ratio (Kairo#128). */
+        STRETCH("stretch");
+
+        companion object {
+            fun of(id: String) = requireNotNull(entries.firstOrNull { it.id == id }) { "Unknown scaling: $id" }
+        }
+    }
+
+    private var scaling = Scaling.INTEGER
     private var portraitNotchPadding = 0
 
     private fun isPortrait() = activity.resources.configuration.orientation ==
@@ -44,16 +54,20 @@ class GraphicsOptions(
     }
 
     fun load() {
-        val (integer, crop) = scaling(if (isPortrait()) "portrait" else "landscape")
-        integerScaling = integer
-        integerCrop = crop
+        scaling = scaling(orientation())
         portraitNotchPadding = preferences.getInt("portrait_notch_padding", 0).coerceIn(0, 240)
     }
 
-    /** Scaling is saved per orientation; older installs had one value for both. */
-    private fun scaling(orientation: String) = preferences.getBoolean("integer_scaling_$orientation",
-        preferences.getBoolean("integer_scaling", true)) to preferences.getBoolean("integer_crop_$orientation",
-        preferences.getBoolean("integer_crop", false))
+    /**
+     * Scaling is saved per orientation. Installs from before Stretch kept it as two switches, and
+     * older ones as one pair for both orientations; those still read as they were set.
+     */
+    fun scaling(orientation: String): Scaling {
+        preferences.getString("scaling_$orientation", null)?.let { return Scaling.of(it) }
+        val integer = preferences.getBoolean("integer_scaling_$orientation", preferences.getBoolean("integer_scaling", true))
+        val crop = preferences.getBoolean("integer_crop_$orientation", preferences.getBoolean("integer_crop", false))
+        return if (!integer) Scaling.FIT else if (crop) Scaling.CROP else Scaling.INTEGER
+    }
 
     private fun str(id: Int, vararg args: Any): String = activity.getString(id, *args)
 
@@ -61,14 +75,11 @@ class GraphicsOptions(
         { listOf(ChoiceGroup(null, listOf(
             ChoiceOption("integer", UiText.res(R.string.kairo_scaling_integer), UiText.res(R.string.kairo_scaling_integer_help)),
             ChoiceOption("crop", UiText.res(R.string.kairo_scaling_crop), UiText.res(R.string.kairo_scaling_crop_help)),
-            ChoiceOption("fit", UiText.res(R.string.kairo_scaling_fit), UiText.res(R.string.kairo_scaling_fit_help))))) },
-        {
-            val (integer, crop) = scaling(orientation)
-            if (!integer) "fit" else if (crop) "crop" else "integer"
-        },
+            ChoiceOption("fit", UiText.res(R.string.kairo_scaling_fit), UiText.res(R.string.kairo_scaling_fit_help)),
+            ChoiceOption("stretch", UiText.res(R.string.kairo_scaling_stretch), UiText.res(R.string.kairo_scaling_stretch_help))))) },
+        { scaling(orientation).id },
         { choice ->
-            preferences.edit().putBoolean("integer_scaling_$orientation", choice != "fit")
-                .putBoolean("integer_crop_$orientation", choice == "crop").apply()
+            preferences.edit().putString("scaling_$orientation", Scaling.of(choice).id).apply()
             load()
             onChanged()
         })
@@ -105,16 +116,34 @@ class GraphicsOptions(
         val portrait = containerHeight.toLong() * 4 >= containerWidth.toLong() * 5
         val topPadding = if (portrait) Ui.dp(activity, portraitNotchPadding) else 0
         val availableHeight = (containerHeight - keyboardHeight - topPadding).coerceAtLeast(1)
+        if (scaling == Scaling.STRETCH) return Viewport(containerWidth, availableHeight, 0, topPadding)
         val aspect = sourceAspect.takeIf { it in 0.5..3.0 } ?: width.toDouble() / height
         val correctedHeight = width / aspect
         val fit = minOf(containerWidth / width.toDouble(), availableHeight / correctedHeight)
         if (fit <= 0.0) return null
-        val scale = if (integerScaling && fit >= 1.0) {
-            if (integerCrop) ceil(fit) else floor(fit)
-        } else fit
+        val scale = when {
+            fit < 1.0 || scaling == Scaling.FIT -> fit
+            scaling == Scaling.CROP -> ceil(fit)
+            else -> floor(fit)
+        }
         val outputWidth = (width * scale).roundToInt().coerceAtLeast(1)
         val outputHeight = (correctedHeight * scale).roundToInt().coerceAtLeast(1)
         return Viewport(outputWidth, outputHeight, anchor.offset(containerWidth, outputWidth, row = false),
             topPadding + anchor.offset(availableHeight, outputHeight, row = true))
+    }
+
+    /**
+     * The picture's place on the second screen, [width] by [height]: the whole screen with Stretch
+     * picked for the screen's orientation, else as large as it fits, centred.
+     */
+    fun secondaryViewport(width: Int, height: Int, sourceAspect: Double): Viewport {
+        val orientation = if (height.toLong() * 4 >= width.toLong() * 5) "portrait" else "landscape"
+        if (scaling(orientation) == Scaling.STRETCH) return Viewport(width, height, 0, 0)
+        val aspect = sourceAspect.takeIf { it in 0.5..3.0 } ?: 1.6
+        val sourceHeight = 640.0 / aspect
+        val scale = minOf(width / 640.0, height / sourceHeight)
+        val gameWidth = (640 * scale).roundToInt().coerceAtLeast(1)
+        val gameHeight = (sourceHeight * scale).roundToInt().coerceAtLeast(1)
+        return Viewport(gameWidth, gameHeight, (width - gameWidth) / 2, (height - gameHeight) / 2)
     }
 }

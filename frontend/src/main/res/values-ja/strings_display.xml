@@ -19,6 +19,10 @@
     <string name="kairo_scaling_fit">画面に合わせる</string>
     <!-- EN: Fractional scale -->
     <string name="kairo_scaling_fit_help">小数倍</string>
+    <!-- EN: Stretch -->
+    <string name="kairo_scaling_stretch">引き伸ばし</string>
+    <!-- EN: Fills the screen -->
+    <string name="kairo_scaling_stretch_help">画面全体に表示</string>
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">縦画面のノッチ余白</string>
     <!-- %1$d is a length in density-independent pixels. -->

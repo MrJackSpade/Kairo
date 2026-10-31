@@ -38,7 +38,8 @@ class SecondaryDisplayCoordinator(
     private val onGameSurface: (Surface?, Int, Int) -> Unit,
     private val onGameTouch: (MotionEvent, Int, Int) -> Boolean,
     private val onSwapChanged: (Boolean) -> Unit,
-    private val gameAspect: () -> Double = { 1.6 }
+    /** The game picture's place on a second screen of the given width and height. */
+    private val placeGame: (Int, Int) -> GraphicsOptions.Viewport
 ) : DisplayManager.DisplayListener {
     private val displayManager = activity.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
     private var started = false
@@ -128,6 +129,9 @@ class SecondaryDisplayCoordinator(
         companion?.setAppearance(visibleKeyboard, visibleBackground,
             swapped && !setupVisible, visibleLibrary)
     }
+
+    /** Places the game picture again, after the scaling settings change. */
+    fun relayoutGame() = updateContent()
 
     /** Whether the lower screen shows the library (a game is selected and the library is open). */
     fun showLibrary(shown: Boolean) {
@@ -427,7 +431,7 @@ class SecondaryDisplayCoordinator(
             content = SecondaryDisplayContent(context,
                 GuestKeyboardPanel(context, inputs, keyboardLayout, {}, showClose = false,
                     onSwap = ::toggleSwap).also { panels.add(it) }, ::forwardGameSurface, onGameTouch,
-                gameAspect, lowerLibrary?.invoke(context))
+                placeGame, lowerLibrary?.invoke(context))
             setContentView(content)
         }
 
@@ -449,7 +453,7 @@ class SecondaryDisplayCoordinator(
     fun forwardGameTouch(event: MotionEvent, width: Int, height: Int): Boolean =
         swapped && onGameTouch(event, width, height)
 
-    fun currentGameAspect(): Double = gameAspect()
+    fun placeGame(width: Int, height: Int) = placeGame.invoke(width, height)
 }
 
 internal class SecondaryDisplayContent(
@@ -457,7 +461,7 @@ internal class SecondaryDisplayContent(
     private val keyboard: GuestKeyboardPanel,
     private val onGameSurface: (Surface?, Int, Int) -> Unit,
     private val onGameTouch: (MotionEvent, Int, Int) -> Boolean,
-    private val gameAspect: () -> Double,
+    private val placeGame: (Int, Int) -> GraphicsOptions.Viewport,
     /** The library's view on this screen, or null for an app without one. */
     private val library: LowerLibraryView?
 ) : FrameLayout(context), SurfaceHolder.Callback {
@@ -483,16 +487,15 @@ internal class SecondaryDisplayContent(
 
     private fun layoutGameSurface(width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
-        val aspect = gameAspect().takeIf { it in 0.5..3.0 } ?: 1.6
-        val sourceHeight = 640.0 / aspect
-        val scale = minOf(width / 640f, height / sourceHeight.toFloat())
-        val gameWidth = (640 * scale).roundToInt().coerceAtLeast(1)
-        val gameHeight = (sourceHeight * scale).roundToInt().coerceAtLeast(1)
-        val margin = (height - gameHeight) / 2
+        val place = placeGame(width, height)
         val current = gameSurface.layoutParams as LayoutParams
-        if (current.width != gameWidth || current.height != gameHeight || current.topMargin != margin) {
-            gameSurface.layoutParams = LayoutParams(gameWidth, gameHeight,
-                Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = margin }
+        if (current.width != place.width || current.height != place.height ||
+            current.leftMargin != place.leftMargin || current.topMargin != place.topMargin ||
+            current.gravity != (Gravity.TOP or Gravity.LEFT)) {
+            gameSurface.layoutParams = LayoutParams(place.width, place.height, Gravity.TOP or Gravity.LEFT).apply {
+                leftMargin = place.leftMargin
+                topMargin = place.topMargin
+            }
         }
     }
 

@@ -87,6 +87,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
      * gets the button as an event (KairoST's IKBD) takes a long press as the start of a drag.
      */
     protected open val tapClickMillis: Long = 700
+    /**
+     * The app's own notices in About > Licenses, before the frontend's: its THIRD_PARTY_NOTICES.txt,
+     * and CHD_NOTICES.txt in an app that reads CHDs (cmake/KairoChd.cmake).
+     */
+    protected open val notices: List<String> = listOf("THIRD_PARTY_NOTICES.txt")
 
     // The library and its catalog ---------------------------------------------------------------
 
@@ -384,7 +389,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { if (currentEntry != null) getString(R.string.kairo_saves_return_to_library) else null },
             ::prepareSaveMove)
     }
-    private val graphics by lazy { GraphicsOptions(this, preferences, { pages }) { updateViewport(); refreshSettingValues() } }
+    private val graphics by lazy { GraphicsOptions(this, preferences, { pages }) {
+        updateViewport()
+        if (::secondaryKeyboard.isInitialized) secondaryKeyboard.relayoutGame()
+        refreshSettingValues()
+    } }
     /** The shader settings; null in an app built without the shader runtime (BuildConfig.SHADERS). */
     private val shaderOptions by lazy {
         if (!BuildConfig.SHADERS) null
@@ -574,7 +583,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             },
             { surface, _, _ -> setGuestSurface(surface) },
             { event, width, height -> handleScreenTouch(event, width, height) },
-            ::onSecondarySwapChanged, { videoSize().third })
+            ::onSecondarySwapChanged) { width, height -> graphics.secondaryViewport(width, height, videoSize().third) }
         artwork.restoreInstanceState(savedInstanceState)
         controllerPages = ControllerPages(this, pages,
             controllerFlow::load, controllerFlow::save, controllerFlow::reset,
@@ -1336,7 +1345,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private fun showDetailPreview(entry: E) = artwork.view(entry)
 
     private fun aboutPage() = AboutDocuments.page(this, pages, aboutHelp, getString(R.string.kairo_help_home_key),
-        text(identity.credits), "PRIVACY_POLICY.txt", "THIRD_PARTY_NOTICES.txt", ::diagnosticsPage)
+        text(identity.credits), "PRIVACY_POLICY.txt", notices, ::diagnosticsPage)
 
     /** Live values, updated four times a second. */
     private fun diagnosticsPage() = object : GroupsPage(getString(R.string.kairo_diagnostics), { currentEntry?.let(::titleOf) }, {

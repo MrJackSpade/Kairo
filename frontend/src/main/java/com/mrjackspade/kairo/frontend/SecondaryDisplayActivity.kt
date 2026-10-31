@@ -52,7 +52,7 @@ class SecondaryDisplayActivity : Activity() {
         if (::content.isInitialized) content.close()
         content = SecondaryDisplayContent(this, session.attachCompanion(this),
             session::forwardGameSurface, session::forwardGameTouch,
-            session::currentGameAspect, session.lowerLibrary?.invoke(this))
+            session::placeGame, session.lowerLibrary?.invoke(this))
         setContentView(content)
         session.updateCompanion(this)
     }

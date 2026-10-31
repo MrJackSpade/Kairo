@@ -10,6 +10,8 @@
     <string name="kairo_scaling_crop_help">Crops the edges</string>
     <string name="kairo_scaling_fit">Fit display</string>
     <string name="kairo_scaling_fit_help">Fractional scale</string>
+    <string name="kairo_scaling_stretch">Stretch</string>
+    <string name="kairo_scaling_stretch_help">Fills the screen</string>
     <string name="kairo_notch_padding">Portrait notch padding</string>
     <!-- %1$d is a length in density-independent pixels. -->
     <string name="kairo_dp">%1$d dp</string>

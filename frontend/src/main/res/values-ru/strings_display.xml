@@ -19,6 +19,10 @@
     <string name="kairo_scaling_fit">По размеру экрана</string>
     <!-- EN: Fractional scale -->
     <string name="kairo_scaling_fit_help">Дробный масштаб</string>
+    <!-- EN: Stretch -->
+    <string name="kairo_scaling_stretch">Растянуть</string>
+    <!-- EN: Fills the screen -->
+    <string name="kairo_scaling_stretch_help">Заполняет экран</string>
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">Отступ от выреза в портретной ориентации</string>
     <!-- %1$d is a length in density-independent pixels. -->

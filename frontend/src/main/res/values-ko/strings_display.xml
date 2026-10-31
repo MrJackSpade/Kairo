@@ -19,6 +19,10 @@
     <string name="kairo_scaling_fit">화면에 맞추기</string>
     <!-- EN: Fractional scale -->
     <string name="kairo_scaling_fit_help">소수 배율</string>
+    <!-- EN: Stretch -->
+    <string name="kairo_scaling_stretch">늘이기</string>
+    <!-- EN: Fills the screen -->
+    <string name="kairo_scaling_stretch_help">화면을 채웁니다</string>
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">세로 화면 노치 여백</string>
     <!-- %1$d is a length in density-independent pixels. -->

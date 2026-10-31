@@ -19,6 +19,10 @@
     <string name="kairo_scaling_fit">Sesuaikan layar</string>
     <!-- EN: Fractional scale -->
     <string name="kairo_scaling_fit_help">Skala pecahan</string>
+    <!-- EN: Stretch -->
+    <string name="kairo_scaling_stretch">Regangkan</string>
+    <!-- EN: Fills the screen -->
+    <string name="kairo_scaling_stretch_help">Memenuhi layar</string>
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">Jarak notch potret</string>
     <!-- %1$d is a length in density-independent pixels. -->

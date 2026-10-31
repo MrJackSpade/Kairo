@@ -19,6 +19,10 @@
     <string name="kairo_scaling_fit">An Bildschirm anpassen</string>
     <!-- EN: Fractional scale -->
     <string name="kairo_scaling_fit_help">Gebrochene Skalierung</string>
+    <!-- EN: Stretch -->
+    <string name="kairo_scaling_stretch">Strecken</string>
+    <!-- EN: Fills the screen -->
+    <string name="kairo_scaling_stretch_help">Füllt den Bildschirm</string>
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">Notch-Abstand im Hochformat</string>
     <!-- %1$d is a length in density-independent pixels. -->
