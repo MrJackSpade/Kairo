@@ -39,6 +39,8 @@
     <string name="kairo_saved">保存しました</string>
     <!-- EN: Saved. Machine changes apply on next launch or restart. -->
     <string name="kairo_saved_machine">保存しました。マシンの変更は次回の起動または再起動時に反映されます。</string>
+    <!-- EN: Saved in the game\'s settings -->
+    <string name="kairo_machine_answer_saved">ゲームの設定に保存しました</string>
     <!-- %1$s is the setting's name, in lower case; %2$s what the player typed. -->
     <!-- EN: Not a valid %1$s: %2$s -->
     <string name="kairo_setting_invalid">無効な%1$sです: %2$s</string>

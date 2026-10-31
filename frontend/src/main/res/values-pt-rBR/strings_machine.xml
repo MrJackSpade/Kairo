@@ -39,6 +39,8 @@
     <string name="kairo_saved">Salvo</string>
     <!-- EN: Saved. Machine changes apply on next launch or restart. -->
     <string name="kairo_saved_machine">Salvo. As mudanças na máquina valem na próxima inicialização ou reinício.</string>
+    <!-- EN: Saved in the game\'s settings -->
+    <string name="kairo_machine_answer_saved">Salvo nas configurações do jogo</string>
     <!-- %1$s is the setting's name, in lower case; %2$s what the player typed. -->
     <!-- EN: Not a valid %1$s: %2$s -->
     <string name="kairo_setting_invalid">%1$s inválido: %2$s</string>

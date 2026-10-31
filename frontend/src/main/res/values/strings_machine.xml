@@ -22,6 +22,7 @@
     <string name="kairo_file_not_hashed">Not hashed</string>
     <string name="kairo_saved">Saved</string>
     <string name="kairo_saved_machine">Saved. Machine changes apply on next launch or restart.</string>
+    <string name="kairo_machine_answer_saved">Saved in the game\'s settings</string>
     <!-- %1$s is the setting's name, in lower case; %2$s what the player typed. -->
     <string name="kairo_setting_invalid">Not a valid %1$s: %2$s</string>
 

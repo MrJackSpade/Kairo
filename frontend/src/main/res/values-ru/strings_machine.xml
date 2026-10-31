@@ -39,6 +39,8 @@
     <string name="kairo_saved">Сохранено</string>
     <!-- EN: Saved. Machine changes apply on next launch or restart. -->
     <string name="kairo_saved_machine">Сохранено. Изменения машины вступят в силу при следующем запуске или перезапуске.</string>
+    <!-- EN: Saved in the game\'s settings -->
+    <string name="kairo_machine_answer_saved">Сохранено в настройках игры</string>
     <!-- %1$s is the setting's name, in lower case; %2$s what the player typed. -->
     <!-- EN: Not a valid %1$s: %2$s -->
     <string name="kairo_setting_invalid">Недопустимое значение (%1$s): %2$s</string>

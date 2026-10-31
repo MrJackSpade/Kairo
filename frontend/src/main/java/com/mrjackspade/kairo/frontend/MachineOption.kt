@@ -16,6 +16,11 @@ import org.json.JSONObject
  * [ownFirmware] is the choice that starts on the player's own firmware, where the app also ships a
  * free one ([default]): once the player has imported that firmware it is the default instead
  * (MachineActivity.ownFirmwareInstalled), so firmware the player gave the app is what games use.
+ *
+ * An option with a [question] is one a game must have answered: a game no catalog knows and the
+ * player has not set it for is asked it at launch (MachineActivity.launch), and the answer is kept
+ * as the game's own setting, which stays changeable in its settings. A catalogued game without a
+ * value takes [default]: the catalog names the games that differ (the FM Towns Marty's).
  */
 class MachineOption(
     val id: String,
@@ -25,11 +30,12 @@ class MachineOption(
     val numeric: Boolean = false,
     private val accepts: ((String) -> Boolean)? = null,
     val actions: (select: (String) -> Unit) -> List<SettingsRow> = { emptyList() },
-    val ownFirmware: String? = null
+    val ownFirmware: String? = null,
+    val question: UiText? = null
 ) {
     constructor(id: String, label: UiText, choices: List<ChoiceOption>, default: String, numeric: Boolean = false,
-                ownFirmware: String? = null) :
-        this(id, label, { choices }, default, numeric, ownFirmware = ownFirmware) {
+                ownFirmware: String? = null, question: UiText? = null) :
+        this(id, label, { choices }, default, numeric, ownFirmware = ownFirmware, question = question) {
         require(ownFirmware == null || choices.any { it.id == ownFirmware }) { "$id's own firmware $ownFirmware is not a choice" }
         require(choices.any { it.id == default }) { "$id defaults to $default, which is not a choice" }
     }

@@ -427,6 +427,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     override fun launch(entry: E, fromFrontend: Boolean) {
         val game = catalog.resolve(entry)
+        unanswered(entry, game)?.let { option ->
+            askOption(entry, option) { launch(entry, fromFrontend) }
+            return
+        }
         val choices = try {
             game.diskSwaps
             game.startupChoices
@@ -442,6 +446,24 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         }
         if (choices.isNotEmpty() && !skipStartupChoices) chooseStartupOptions(entry, game, choices, 0, emptyList(), fromFrontend)
         else startWithChoices(entry, game, emptyList(), fromFrontend)
+    }
+
+    /** The first option with a question that [entry], a game no catalog knows, has no answer to. */
+    private fun unanswered(entry: E, game: CatalogGame): MachineOption? =
+        if (entry.contentId == null || catalog.knows(entry)) null
+        else machineOptions.firstOrNull { it.question != null && it.read(game) == null }
+
+    /** Asks [option]'s question for [entry] and keeps the answer as its own setting, then [then]. Back cancels. */
+    private fun askOption(entry: E, option: MachineOption, then: () -> Unit) {
+        lateinit var page: ChoicePage
+        page = ChoicePage(ChoiceSpec(text(requireNotNull(option.question)), { titleOf(entry) }, {
+            listOf(ChoiceGroup(null, option.choices))
+        }, { null }, { picked ->
+            saveGameSetting(entry, getString(R.string.kairo_machine_answer_saved)) { catalog.setOverrideSubfield(entry.key, MachineOption.SECTION, option.id, option.stored(picked)) }
+            pages.popThrough(page)
+            then()
+        }, stay = true, cycles = false))
+        pages.push(page)
     }
 
     private fun startWithChoices(entry: E, game: CatalogGame, choices: List<Pair<StartupChoice, StartupOption>>,
