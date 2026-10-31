@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * The firmware files a machine reads from [directory]. The player picks each file on its own, or
  * a folder from which every file a [Part] recognizes is imported: by a name it accepts, in any
- * case, or by a SHA-1 digest it names. Every import is checked (size, digest, [Part.validate])
+ * case, or by a SHA-1 digest it names, loose or inside a ZIP there (a MAME BIOS set). Every import is checked (size, digest, [Part.validate])
  * before it replaces anything. The machine needs each of [requirements], one of whose parts must
  * be installed; by default each required part is its own requirement.
  */
@@ -107,31 +107,29 @@ class FirmwareSet(
      * before anything is replaced.
      */
     fun importFolder(context: Context, tree: Uri, cancelled: AtomicBoolean): List<Part> {
-        val resolver = context.contentResolver
         val files = DocumentTreeWalker(context).scan(tree, cancelled,
-            { name -> hashed.isNotEmpty() || headed.isNotEmpty() || partFor(name) != null }, {}).files
-        val byName = parts.mapNotNull { part ->
-            files.firstOrNull { partFor(it.path.substringAfterLast('/')) === part }?.let { part to it.uri }
-        }
+            { name -> hashed.isNotEmpty() || headed.isNotEmpty() || partFor(name) != null || isZip(name) }, {}).files
+        val candidates = candidates(context, files, cancelled)
+        val byName = parts.mapNotNull { part -> candidates.firstOrNull { partFor(it.name) === part }?.let { part to it } }
         // Then by content: each file no larger than a hashed part can be, read once.
-        val byContent = files.filter { it.size in 1..largestHashed }.mapNotNull { file ->
+        val byContent = candidates.filter { it.size in 1..largestHashed }.mapNotNull { file ->
             if (cancelled.get()) throw java.util.concurrent.CancellationException("Cancelled")
-            val digest = sha1(resolver, file.uri)
-            hashed.firstOrNull { digest in it.sha1 }?.let { it to file.uri }
+            val digest = file.open().use(::sha1)
+            hashed.firstOrNull { digest in it.sha1 }?.let { it to file }
         }
         // Then by header: each file of a size a headed part has, its first bytes read once; a part
         // takes the file it ranks highest.
-        val byHeader = files.filter { file -> headed.any { file.size in it.sizes } }.flatMap { file ->
+        val byHeader = candidates.filter { file -> headed.any { file.size in it.sizes } }.flatMap { file ->
             if (cancelled.get()) throw java.util.concurrent.CancellationException("Cancelled")
-            val header = header(resolver, file.uri)
+            val header = file.open().use(::header)
             headed.mapNotNull { part ->
                 if (file.size !in part.sizes) null
-                else part.identifies!!(header)?.let { rank -> Triple(part, rank, file.uri) }
+                else part.identifies!!(header)?.let { rank -> Triple(part, rank, file) }
             }
         }.groupBy { it.first }.map { (part, matches) -> part to matches.maxBy { it.second }.third }
         val found = (byName + byContent + byHeader).distinctBy { it.first }
         // Every copy is checked before any replaces an installed file.
-        val staged = found.map { (part, uri) -> part to stage(context, uri, part) }
+        val staged = found.map { (part, file) -> part to stage(context, part, file.open) }
         try {
             for ((part, copy) in staged) commit(copy, part)
         } finally {
@@ -140,9 +138,51 @@ class FirmwareSet(
         return found.map { it.first }
     }
 
+    /** A file a folder import can take: loose in the folder, or a member of a ZIP there. */
+    private class Candidate(val name: String, val size: Long, val open: () -> java.io.InputStream)
+
+    private fun isZip(name: String) = name.lowercase(Locale.ROOT).endsWith(".zip")
+
+    /** The folder's loose files, then the members of each ZIP in it, by their own names. */
+    private fun candidates(context: Context, files: List<DocumentTreeWalker.FileEntry>,
+                           cancelled: AtomicBoolean): List<Candidate> {
+        val resolver = context.contentResolver
+        fun open(uri: Uri) = resolver.openInputStream(uri) ?: error("Unable to open $uri")
+        val loose = files.filter { !isZip(it.path) }.map { file ->
+            Candidate(file.path.substringAfterLast('/'), file.size) { open(file.uri) }
+        }
+        val members = files.filter { isZip(it.path) }.flatMap { zip ->
+            if (cancelled.get()) throw java.util.concurrent.CancellationException("Cancelled")
+            readZip(resolver, zip.uri) { archive ->
+                archive.entries.asSequence().filter { !it.isDirectory }.map { entry ->
+                    Candidate(entry.name.substringAfterLast('/'), entry.size) {
+                        // The member's bytes, read through its own open of the ZIP, closed with the stream.
+                        val document = resolver.openFileDescriptor(zip.uri, "r") ?: error("Unable to open ${zip.path}")
+                        val reopened = org.apache.commons.compress.archivers.zip.ZipFile.builder()
+                            .setSeekableByteChannel(java.io.FileInputStream(document.fileDescriptor).channel).get()
+                        val input = reopened.getInputStream(reopened.getEntry(entry.name))
+                        object : java.io.FilterInputStream(input) {
+                            override fun close() {
+                                try { super.close() } finally { reopened.close(); document.close() }
+                            }
+                        }
+                    }
+                }.toList()
+            }
+        }
+        return loose + members
+    }
+
+    private fun <T> readZip(resolver: ContentResolver, uri: Uri,
+                            read: (org.apache.commons.compress.archivers.zip.ZipFile) -> T): T =
+        (resolver.openFileDescriptor(uri, "r") ?: error("Unable to open $uri")).use { document ->
+            org.apache.commons.compress.archivers.zip.ZipFile.builder()
+                .setSeekableByteChannel(java.io.FileInputStream(document.fileDescriptor).channel).get().use(read)
+        }
+
     /** Copies the file the player picked for [part], replacing its installed copy once it passes. */
     fun importPart(context: Context, uri: Uri, part: Part) {
-        val copy = stage(context, uri, part)
+        val copy = stage(context, part) { context.contentResolver.openInputStream(uri) ?: error("Unable to open the selected file") }
         try { commit(copy, part) } finally { copy.delete() }
     }
 
@@ -150,13 +190,13 @@ class FirmwareSet(
         context.getString(R.string.kairo_firmware_remove_failed, part.label.resolve(context))
     }
 
-    /** A checked copy of [uri] for [part], beside its installed file. */
-    private fun stage(context: Context, uri: Uri, part: Part): File {
+    /** A checked copy of what [open] reads for [part], beside its installed file. */
+    private fun stage(context: Context, part: Part, open: () -> java.io.InputStream): File {
         check(directory.isDirectory || directory.mkdirs()) { "Cannot create the firmware folder" }
         val copy = File(directory, "${part.name}.part")
         val label = part.label.resolve(context)
         try {
-            importFile(context, uri, copy, label, maxBytes = part.maxBytes) { file ->
+            importStream(context, open, copy, label, maxBytes = part.maxBytes) { file ->
                 require(part.sizes.isEmpty() || file.length() in part.sizes) {
                     context.getString(R.string.kairo_import_wrong_size, label, bytes(context, file.length()),
                         part.sizes.joinToString(context.getString(R.string.kairo_list_or)) { describe(context, it) })
@@ -182,21 +222,17 @@ class FirmwareSet(
         return parts.firstOrNull { lower in it.accepted }
     }
 
-    /** The first [HEADER_BYTES] of [uri], fewer when it is shorter. */
-    private fun header(resolver: ContentResolver, uri: Uri): ByteArray =
-        (resolver.openInputStream(uri) ?: error("Unable to open $uri")).use { input ->
-            val bytes = ByteArray(HEADER_BYTES)
-            var count = 0
-            while (count < bytes.size) {
-                val read = input.read(bytes, count, bytes.size - count)
-                if (read < 0) break
-                count += read
-            }
-            bytes.copyOf(count)
+    /** The first [HEADER_BYTES] of [input], fewer when it is shorter. */
+    private fun header(input: java.io.InputStream): ByteArray {
+        val bytes = ByteArray(HEADER_BYTES)
+        var count = 0
+        while (count < bytes.size) {
+            val read = input.read(bytes, count, bytes.size - count)
+            if (read < 0) break
+            count += read
         }
-
-    private fun sha1(resolver: ContentResolver, uri: Uri): String =
-        (resolver.openInputStream(uri) ?: error("Unable to open $uri")).use(::sha1)
+        return bytes.copyOf(count)
+    }
 
     private fun sha1(file: File): String = file.inputStream().use(::sha1)
 
@@ -221,14 +257,21 @@ class FirmwareSet(
          * Runs on a worker thread; [label] names the file in errors.
          */
         fun importFile(context: Context, uri: Uri, target: File, label: String, exactBytes: Long? = null,
-                       maxBytes: Long = exactBytes ?: Long.MAX_VALUE, validate: (File) -> Unit = {}) {
+                       maxBytes: Long = exactBytes ?: Long.MAX_VALUE, validate: (File) -> Unit = {}) =
+            importStream(context, { context.contentResolver.openInputStream(uri) ?: error("Unable to open the selected file") },
+                target, label, exactBytes, maxBytes, validate)
+
+        /** [importFile] of what [open] reads. */
+        fun importStream(context: Context, open: () -> java.io.InputStream, target: File, label: String,
+                         exactBytes: Long? = null, maxBytes: Long = exactBytes ?: Long.MAX_VALUE,
+                         validate: (File) -> Unit = {}) {
             val directory = checkNotNull(target.parentFile) { "$label has no folder" }
             check(directory.isDirectory || directory.mkdirs()) { "Cannot create ${directory.name}" }
             val partial = File(directory, "${target.name}.part")
             val sizeRule = exactBytes?.let { context.getString(R.string.kairo_import_exact_size, label, describe(context, it)) }
                 ?: context.getString(R.string.kairo_import_too_large, label)
             try {
-                (context.contentResolver.openInputStream(uri) ?: error("Unable to open the selected file")).use { input ->
+                open().use { input ->
                     partial.outputStream().use { output ->
                         val buffer = ByteArray(64 * 1024)
                         var size = 0L
