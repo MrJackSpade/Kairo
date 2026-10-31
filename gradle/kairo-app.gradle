@@ -7,6 +7,8 @@
 // src/main/assets, and src/main/cpp/CMakeLists.txt, whose library is named after the product.
 // `ext.kairoLauncherBackground` sets the launcher icon's background color (default #05080D).
 // `ext.kairoCatalogRules` names the object the catalog settings test checks (see below).
+// `ext.kairoChd = true` builds libkairo_chd.so beside it, for an app that lists CDs kept as CHDs
+// (its CMakeLists calls kairo_chd_jni_library(), shared/cmake/KairoChd.cmake).
 // A product adds only what is its own (CMake options, extra assets, modules) in its build file.
 //
 // Gradle properties <product>ApplicationId, <product>VersionCode and <product>VersionName override
@@ -52,6 +54,7 @@ android {
                 // the unprofiled build to compare against.
                 arguments += '-DKAIRO_PGO=' + (providers.gradleProperty('pgo').orElse('true').get() == 'true' ? 'ON' : 'OFF')
                 targets += product
+                if (project.ext.has('kairoChd') && project.ext.kairoChd) targets += 'kairo_chd_jni'
             }
         }
     }

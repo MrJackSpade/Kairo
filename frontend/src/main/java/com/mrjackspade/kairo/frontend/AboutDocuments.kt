@@ -13,7 +13,7 @@ object AboutDocuments {
         "SLANG_RUNTIME_NOTICES.txt".takeIf { BuildConfig.SHADERS }, "ANDROIDX_NOTICES.txt")
 
     fun page(activity: Activity, pages: PageStack, shortcuts: List<Pair<String, String>>,
-             shortcutNote: String?, credits: String, privacyAsset: String, noticesAsset: String,
+             shortcutNote: String?, credits: String, privacyAsset: String, noticesAssets: List<String>,
              diagnostics: (() -> Page)? = null): GroupsPage {
         val version = activity.packageManager.getPackageInfo(activity.packageName, 0).versionName ?: ""
         return GroupsPage(activity.getString(R.string.kairo_about), content = {
@@ -27,7 +27,7 @@ object AboutDocuments {
                 RowGroup(activity.getString(R.string.kairo_about_legal_group), listOf(
                     SettingsRow.nav("licenses", activity.getString(R.string.kairo_about_licenses)) {
                         pages.push(document(activity, activity.getString(R.string.kairo_about_licenses),
-                            listOf(noticesAsset) + FRONTEND_NOTICES, Ui.LABEL))
+                            noticesAssets + FRONTEND_NOTICES, Ui.LABEL))
                     },
                     SettingsRow.nav("privacy", activity.getString(R.string.kairo_about_privacy)) {
                         pages.push(document(activity, activity.getString(R.string.kairo_about_privacy), listOf(privacyAsset), Ui.SECONDARY))

@@ -144,6 +144,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         /** Whether a scan lists every file: a program's folder holds files of any kind. */
         val listsEveryFile: Boolean get() = programs.isNotEmpty()
         fun isArchive(name: String) = extension(name) in ARCHIVES
+        /** Whether [name] is a CD kept as a CHD, whose content ID hashes its disc image (ChdImage). */
+        fun isChd(name: String) = extension(name) == "chd"
         /** Whether [name] is track data, read only through its descriptor. */
         fun isData(name: String) = !isImage(name) && data.values.any { extension(name) in it }
         /** How a descriptor names its track data. */
@@ -358,9 +360,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
         if (format.isImage(file.name)) {
             val candidate = entry(source, null, file.size, -1, null, key = GameKey(file.key))
-            val id = context.contentResolver.openInputStream(file.uri)?.use {
-                contentId(it, file.size, -1, cancelled, file.name)
-            } ?: error("Unable to open ${file.name}")
+            val id = looseContentId(file.uri, file.size, file.name, cancelled)
             return listOf(candidate.copy(contentId = id, catalogId = id))
         }
         require(format.isArchive(file.name)) { context.getString(R.string.kairo_disk_unsupported_file, format.guestName, file.name) }
@@ -369,7 +369,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             require(images.isNotEmpty()) { context.getString(R.string.kairo_disk_no_image_in, format.guestName, file.name) }
             images.map { image ->
                 val data = image.data ?: error(image.missing())
-                val id = archive.open(data).use { contentId(it, data.size, data.crc, cancelled, image.name) }
+                val id = memberContentId(archive, data, image.name, cancelled)
                 entry(source, image.name, data.size, data.crc, id, companions = image.companions,
                     key = GameKey.inArchive(file.key, image.name), folder = image.folderFiles)
             }
@@ -461,9 +461,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                             val folder = source.path.substringBeforeLast('/', "")
                             val member = image.name.substringAfterLast('/')
                             scan.hashStarted(if (folder.isEmpty()) member else "$folder/$member")
-                            candidate.copy(contentId = archive.open(data).use {
-                                contentId(it, data.size, data.crc, scan.cancelled, image.name, onRead = scan::hashRead)
-                            })
+                            candidate.copy(contentId = memberContentId(archive, data, image.name, scan.cancelled, scan::hashRead))
                         }
                     } catch (cancel: CancellationException) { throw cancel }
                     catch (error: Exception) {
@@ -486,10 +484,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         val candidate = entry(source, null, source.size, -1, null)
         reuse(scan.prior[candidate.id], candidate, scan)?.let { return listOf(it) }
         scan.hashStarted(source.path)
-        val id = context.contentResolver.openInputStream(source.uri)?.use {
-            contentId(it, source.size, -1, scan.cancelled, source.path, onRead = scan::hashRead)
-        } ?: error("Unable to open disk image")
-        return listOf(candidate.copy(contentId = id))
+        return listOf(candidate.copy(contentId = looseContentId(source.uri, source.size, source.path, scan.cancelled, scan::hashRead)))
     }
 
     /**
@@ -556,6 +551,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 }
             }
             DurableFiles.sync(partialData)
+            if (format.isChd(entry.displayName)) verifyChd(entry, partialData, cancelled)
             if (descriptor) DurableFiles.sync(partialDescriptor)
             require(partialData.renameTo(data)) { "Unable to save working disk image" }
             if (descriptor) require(partialDescriptor.renameTo(file)) { "Unable to save ${entry.displayName}" }
@@ -626,10 +622,62 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     private fun copyVerified(entry: DiskImageEntry, input: InputStream, crc: Long, cancelled: AtomicBoolean,
                              output: OutputStream) {
+        // A CHD's ID is its disc image's, read from the whole copy: prepare verifies it (verifyChd).
+        if (format.isChd(entry.displayName)) return copyChecked(input, entry.imageSize, crc, cancelled, output)
         require(contentId(input, entry.imageSize, crc, cancelled, entry.displayName, output) == entry.contentId) {
             context.getString(R.string.kairo_disk_image_changed)
         }
     }
+
+    /** Copies [input] whole, checking its size and, from an archive, its CRC-32. */
+    private fun copyChecked(input: InputStream, size: Long, crc: Long, cancelled: AtomicBoolean, output: OutputStream) {
+        val check = CRC32()
+        val buffer = ByteArray(64 * 1024)
+        var count = 0L
+        while (true) {
+            checkCancelled(cancelled)
+            val read = input.read(buffer)
+            if (read < 0) break
+            count += read
+            check.update(buffer, 0, read)
+            output.write(buffer, 0, read)
+        }
+        if (size >= 0) require(count == size) { context.getString(R.string.kairo_disk_image_size_changed) }
+        if (crc >= 0) require(check.value == crc) { context.getString(R.string.kairo_disk_archive_checksum) }
+    }
+
+    /** Checks a CHD's working copy against the entry's content ID, by its disc image. */
+    private fun verifyChd(entry: DiskImageEntry, copy: File, cancelled: AtomicBoolean) {
+        val id = ParcelFileDescriptor.open(copy, ParcelFileDescriptor.MODE_READ_ONLY).use { chdContentId(it, entry.displayName, cancelled) }
+        require(id == entry.contentId) { context.getString(R.string.kairo_disk_image_changed) }
+    }
+
+    /** The content ID of the loose image at [uri]: its bytes, or a CHD's disc image. */
+    private fun looseContentId(uri: Uri, size: Long, name: String, cancelled: AtomicBoolean,
+                               onRead: (Long, Long) -> Unit = { _, _ -> }): String {
+        if (format.isChd(name)) return (context.contentResolver.openFileDescriptor(uri, "r") ?: error("Unable to open disk image"))
+            .use { chdContentId(it, name, cancelled, onRead) }
+        return context.contentResolver.openInputStream(uri)?.use {
+            contentId(it, size, -1, cancelled, name, onRead = onRead)
+        } ?: error("Unable to open disk image")
+    }
+
+    /** The content ID of an archive member; a CHD is copied out first, as its disc image is read in place. */
+    private fun memberContentId(archive: Archive, member: Member, name: String, cancelled: AtomicBoolean,
+                                onRead: (Long, Long) -> Unit = { _, _ -> }): String {
+        if (!format.isChd(name)) return archive.open(member).use { contentId(it, member.size, member.crc, cancelled, name, onRead = onRead) }
+        val copy = File.createTempFile("member", ".chd", context.cacheDir)
+        try {
+            archive.open(member).use { input -> copy.outputStream().use { copyChecked(input, member.size, member.crc, cancelled, it) } }
+            return ParcelFileDescriptor.open(copy, ParcelFileDescriptor.MODE_READ_ONLY).use { chdContentId(it, name, cancelled, onRead) }
+        } finally {
+            copy.delete()
+        }
+    }
+
+    private fun chdContentId(document: ParcelFileDescriptor, name: String, cancelled: AtomicBoolean,
+                             onRead: (Long, Long) -> Unit = { _, _ -> }): String =
+        ChdImage.open(document).use { contentId(it.inputStream(), it.size, -1, cancelled, name, onRead = onRead) }
 
     /** Every file in an archive, by its path in it, and a way to read one; valid only inside [readArchive]. */
     interface ArchiveFiles {

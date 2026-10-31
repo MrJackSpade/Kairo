@@ -2,7 +2,8 @@
 """Content IDs of game media in a folder of images and ZIPs, without extracting anything.
 
 A content ID is "sha256-<kind>-v1:" followed by the SHA-256 of the medium's bytes as stored
-(inside a ZIP: the entry's uncompressed bytes). Each app names its kinds and which files carry
+(inside a ZIP: the entry's uncompressed bytes); a CD kept as a CHD hashes the disc image it was
+made from (chd_image). Each app names its kinds and which files carry
 them through a Media description, so the same scan serves every platform.
 """
 
@@ -14,6 +15,8 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional
+
+import chd_image
 
 CHUNK = 1024 * 1024
 ANNOTATION = re.compile(r"\s*\[[^]]*\]")
@@ -79,6 +82,11 @@ def digest(stream, kind):
     return f"sha256-{kind}-v1:" + sha.hexdigest()
 
 
+def member_digest(stream, name, kind):
+    """The content ID of an archive member read from stream."""
+    return chd_image.digest_stream(stream, kind) if chd_image.is_chd(name) else digest(stream, kind)
+
+
 def seven_zip_program():
     found = shutil.which("7z") or shutil.which("7z.exe")
     if found:
@@ -106,7 +114,7 @@ def seven_zip_digest(path, name, kind):
     """The content ID of one .7z member, streamed out of 7-Zip without writing it to disk."""
     process = subprocess.Popen([seven_zip_program(), "e", "-so", "-spd", "-sccUTF-8", str(path), "--", name],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    content_id = digest(process.stdout, kind)
+    content_id = member_digest(process.stdout, name, kind)
     error = process.stderr.read()
     if process.wait():
         raise RuntimeError(f"7-Zip could not read {name}: {error.decode('utf-8', 'replace').strip()}")
@@ -168,9 +176,13 @@ def scan(root, media, previous=None, top_level=False):
                 size = data.stat().st_size
                 if size <= 0 or size > media.limit(kind):
                     raise ValueError("disk image exceeds size limit")
-                with data.open("rb") as source:
-                    content_id = cached_disks.get(None) or digest(source, kind)
-                    item["disks"].append({"entry": None, "contentId": content_id})
+                content_id = cached_disks.get(None)
+                if not content_id and chd_image.is_chd(data.name):
+                    content_id = chd_image.digest(data, kind)
+                elif not content_id:
+                    with data.open("rb") as source:
+                        content_id = digest(source, kind)
+                item["disks"].append({"entry": None, "contentId": content_id})
             else:
                 with zipfile.ZipFile(path) as archive:
                     entries = archive.infolist()
@@ -194,7 +206,7 @@ def scan(root, media, previous=None, top_level=False):
                         content_id = cached_disks.get(info.filename)
                         if not content_id:
                             with archive.open(data) as source:
-                                content_id = digest(source, kind)
+                                content_id = member_digest(source, data.filename, kind)
                         item["disks"].append({"entry": info.filename, "contentId": content_id})
             item["status"] = "ready" if item["disks"] else ("nested-zip" if item.get("nestedZip") else "no-supported-image")
         except (OSError, ValueError, zipfile.BadZipFile, RuntimeError) as error:
