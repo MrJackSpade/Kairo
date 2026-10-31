@@ -721,6 +721,9 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     fun openDetail(entry: T) {
+        // The game's page ends search typing; on a dual-screen device the lower screen's search
+        // field would otherwise stay over the game's settings there.
+        dismissSystemKeyboard()
         detailPage?.let { if (it.inStack) { it.show(entry); detailOpened(entry); return } }
         val page = GameDetailPage(catalog, play, preview, details, ::metadata, commandLaunch, settingsElsewhere) {
             if (detailPage === it) {
