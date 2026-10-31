@@ -266,7 +266,9 @@ class PageStack(
     }
 
     internal fun hideKeyboard() {
-        (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+        // The input method manager of the screen this stack is shown on: each display has its own,
+        // and [activity]'s does not serve a field on another screen.
+        (viewContext.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
             .hideSoftInputFromWindow(windowToken, 0)
     }
 

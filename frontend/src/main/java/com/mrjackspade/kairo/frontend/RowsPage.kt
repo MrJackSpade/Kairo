@@ -192,16 +192,16 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
     private fun dropTray() {
         val row = trayRow
         val hadField = tray?.entry != null
+        // Android hides the keyboard only for the field it serves while that field is attached,
+        // so it is hidden before the tray (and its field) leaves; afterwards it would stay open.
+        if (hadField) stack.hideKeyboard()
         tray = null
         trayRow = null
         row?.let { id -> body.rowView(id)?.let { view ->
             view.showTray(null)
             view.row?.let { view.bind(it, it.id == focusId, false) }
         } }
-        if (hadField) {
-            stack.hideKeyboard()
-            stack.requestFocus()
-        }
+        if (hadField) stack.requestFocus()
     }
 
     private fun press(button: TrayButton, text: String) {
