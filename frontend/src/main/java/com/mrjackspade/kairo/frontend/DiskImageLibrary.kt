@@ -242,7 +242,18 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     /** The working copy of [entry], whether or not it exists yet: a program's is in its folder's copy. */
     fun workingImage(entry: DiskImageEntry): File =
         if (format.isProgram(entry.displayName)) File(programFolder(entry), entry.displayName)
-        else workingFile(entry.key.savePath.substringBeforeLast('.') + "." + format.extension(entry.displayName))
+        else workingFile(withoutExtension(entry.key.savePath) + "." + format.extension(entry.displayName))
+
+    /**
+     * [path] without its last segment's extension. A disk picked from outside the library is keyed
+     * by its document URI, whose last segment often has no dot (`…downloads.documents/document/msf:30`):
+     * cut at the path's last dot instead, every disk from that provider shared one working copy, and
+     * the first one picked was the disk each later pick read (Kairo98#128).
+     */
+    private fun withoutExtension(path: String): String {
+        val name = path.substringAfterLast('/')
+        return path.dropLast(name.length) + name.substringBeforeLast('.')
+    }
 
     /** The working copy of a program's folder, which the machine reads as a drive. */
     private fun programFolder(entry: DiskImageEntry) = workingFile("${entry.key.savePath}.folder")
