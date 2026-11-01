@@ -544,6 +544,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     // A game opened at its prompt is the player's: no automation.
                     swaps = if (atPrompt) emptyMap() else swapSources(entry, game)
                     val progress = { message: String -> runOnUiThread { if (current(generation)) showProgress(message) } }
+                    // The machine the game starts as (its model, memory, clock ...), for device checks and player reports.
+                    android.util.Log.i("KairoMachine", "Starting ${entry.displayName}: " +
+                        optionValues(game).entries.joinToString { "${it.key}=${it.value}" })
                     if (atPrompt) startAtPrompt(entry, game, cancelled, progress) else startGame(entry, game, cancelled, progress)
                 }
                 null
