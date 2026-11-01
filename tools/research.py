@@ -182,9 +182,9 @@ def spellings(title):
 
 
 def name_forms(name):
-    """A name's comparison forms: as written, "&" read as "and", and without a subtitle after
-    ":" or " - ", so "Sim Earth" finds "SimEarth: The Living Planet"."""
-    forms = {name, name.replace("&", " and ")}
+    """A name's comparison forms: as written, "&" read as "and", without a version ("Kanade v1.1"),
+    and without a subtitle after ":" or " - ", so "Sim Earth" finds "SimEarth: The Living Planet"."""
+    forms = {name, name.replace("&", " and "), VERSION.sub("", name) or name}
     for separator in (":", " - "):
         if separator in name:
             forms.add(name.split(separator, 1)[0])
