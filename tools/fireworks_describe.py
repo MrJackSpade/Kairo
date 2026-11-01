@@ -49,7 +49,7 @@ You are given a JSON object of games by key, each with the facts known about it:
 excerpts of other catalogs' text about it ("launchbox", "mobygames", "reference"). Answer with a JSON object of \
 the same keys, each holding the game's description, or null. Nothing else.
 
-A description is one short paragraph of plain English, at most 380 characters: what the game is and what the \
+A description is one short paragraph of plain English, at most 320 characters (count them; never more): what the game is and what the \
 player does in it. Its premise, setting and story, its kind of play and what sets it apart, as the facts tell them. \
 Write it fresh in your own words, as a catalog editor would: never copy or closely paraphrase an excerpt's wording, \
 never reuse a run of more than five words from an excerpt (apart from names), and never start with the game's title followed by "is". State only what the facts support; add nothing you do not \
