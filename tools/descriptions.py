@@ -91,12 +91,28 @@ def worklist(root, output, moby_root, references_path, limit):
     print(f"{len(lines)} games to describe -> {output}")
 
 
-def worklist_items(root, moby_root, references_path, limit=None, adult=False, skip=()):
+def worklist_items(root, moby_root, references_path, limit=None, adult=False):
     """The worklist's items (see worklist): the shown games without a description, or with [adult],
-    the shown adult games without a frank one; none of the keys in [skip]."""
+    the shown adult games without a frank one, each its facts (game_facts) with its "key"."""
     games = read(root / "catalog/research/games-v1.json.gz")["games"]
     described = read(root / f"catalog/research/descriptions{'-adult' if adult else ''}-v1.json.gz",
                      {"descriptions": {}})["descriptions"]
+    items = []
+    for key, facts in game_facts(root, moby_root, references_path).items():
+        entry = games[key]
+        if key in described or adult and not entry.get("adult") or not adult and entry.get("description"):
+            continue
+        items.append({"key": key, **facts})
+        if limit and len(items) >= limit:
+            break
+    return items
+
+
+def game_facts(root, moby_root, references_path):
+    """{"<game key>": the reference facts for writing its description} for every game the library
+    shows: title, aliases, tags, year, developer, publisher, MobyGames genres, and short excerpts of
+    the LaunchBox and MobyGames descriptions and of the app's own references."""
+    games = read(root / "catalog/research/games-v1.json.gz")["games"]
     snapshots = {}
     for path in (root / ".downloads/launchbox").glob("*-snapshot.json"):
         snapshots.update(read(path))
@@ -108,15 +124,12 @@ def worklist_items(root, moby_root, references_path, limit=None, adult=False, sk
     # The games of a collection (diskCollection) show in the library as well, when the player picks one.
     picked = {member["game"] for entry in games.values() for members in entry.get("diskCollection", {}).values()
               for member in members.values()}
-    items = []
+    found = {}
     for key, entry in sorted(games.items()):
         # Only games the library can show: a game no medium identifies, or a hidden one, is never seen.
-        shown = entry.get("contentIds") or key in picked
-        if key in described or not shown or entry.get("hidden") or key in skip:
+        if not (entry.get("contentIds") or key in picked) or entry.get("hidden"):
             continue
-        if adult and not entry.get("adult") or not adult and entry.get("description"):
-            continue
-        item = {"key": key, "title": entry["title"]}
+        item = {"title": entry["title"]}
         if key in references:
             item["reference"] = excerpt(references[key])
         for field in ("aliases", "tags", "year", "developer", "publisher", "adult"):
@@ -133,10 +146,8 @@ def worklist_items(root, moby_root, references_path, limit=None, adult=False, sk
             record = read(moby_root / "games" / f"{moby_id}.json", {})
             if record.get("description"):
                 item["mobygames"] = excerpt(record["description"])
-        items.append(item)
-        if limit and len(items) >= limit:
-            break
-    return items
+        found[key] = item
+    return found
 
 
 def add(root, batch_path, adult=False):
