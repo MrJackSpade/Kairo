@@ -91,6 +91,10 @@ def worklist(root, output, moby_root, references_path, limit):
     print(f"{len(lines)} games to describe -> {output}")
 
 
+# The facts that are source text about a game, as opposed to its names and dates.
+SOURCE_FIELDS = ("launchbox", "mobygames", "reference")
+
+
 def worklist_items(root, moby_root, references_path, limit=None, adult=False):
     """The worklist's items (see worklist): the shown games without a description, or with [adult],
     the shown adult games without a frank one, each its facts (game_facts) with its "key"."""
@@ -101,6 +105,10 @@ def worklist_items(root, moby_root, references_path, limit=None, adult=False):
     for key, facts in game_facts(root, moby_root, references_path).items():
         entry = games[key]
         if key in described or adult and not entry.get("adult") or not adult and entry.get("description"):
+            continue
+        # A game whose facts hold no source text (a title and file names alone) has nothing real to
+        # describe: it is left out rather than padded (catalog-descriptions-no-filler).
+        if not any(field in facts for field in SOURCE_FIELDS):
             continue
         items.append({"key": key, **facts})
         if limit and len(items) >= limit:
