@@ -52,7 +52,8 @@ sets or folder only when every other candidate is broken too.
 
 An archive matches a LaunchBox game when its file name's title equals the game's name or an
 alias and the years agree within one, or when the closest fuzzy title scores at least 0.93 with
-agreeing years, the same sequel numbers and no tie. Failing that, it joins the one game whose MobyGames title or
+agreeing years, the same sequel numbers and no tie, or when one of the closest titles holds the other
+whole (contained) and no other does. Failing that, it joins the one game whose MobyGames title or
 alternate title it is, with agreeing years. Anything else
 becomes a "local" game titled from its group.
 """
@@ -77,7 +78,8 @@ from launchbox_artwork import URL
 
 YEAR = re.compile(r"(?:19|20)[0-9]{2}")
 FUZZY_MINIMUM = 0.93
-VERSION = re.compile(r"\s+[vV]\d[\w.-]*$")
+# "v1.2", Fujitsu's "V1.1 L10" (version and level).
+VERSION = re.compile(r"\s+[vV]\d[\w.-]*(?:\s+L\d+\w*)?$")
 ARTICLE = re.compile(r"^(.*?),\s*(The|A|An|Der|Die|Das|Le|La|Les|L'|El|Il|Lo|Los|Las|De|Het)((?:\s+-\s+|:\s*).*)?$")
 
 
@@ -247,7 +249,33 @@ def match_title(title, year, slugs, indexes):
     ranked.sort(key=lambda item: -item[0])
     if ranked and ranked[0][0] >= FUZZY_MINIMUM and (len(ranked) == 1 or ranked[1][0] < ranked[0][0]):
         return f"{ranked[0][1]}:{ranked[0][2]}"
-    return None
+    held = {f"{slug}:{candidate['DatabaseID']}" for slug in slugs
+            for candidate in indexes[slug].titles.candidates(title, limit=8)
+            if years_agree(year, year_of(indexes[slug].games[candidate["DatabaseID"]]))
+            and any(sequel_numbers(name) == sequel_numbers(title) and contained(title, name)
+                    for name in (candidate["Name"], *candidate["aliases"]))}
+    return held.pop() if len(held) == 1 else None
+
+
+CONTAINED_MINIMUM = 12
+
+
+def contained(title, name):
+    """Whether one of two titles holds the other whole: its words in order among the other's
+    ("Psychic Detective Vol. 2 - Memories" in "Psychic Detective Series Vol. 2: Memories", "Dragons of
+    Flame" in "AD&D Dragons of Flame"), or its letters and digits as one run of the other's ("Ougon
+    no Rashinban: Shouyou Maru ..." in "Toudou Ryuunosuke Tantei Nikki - Ougon no Rashinban -
+    Shouyoumaru ..."). The shorter must be at least CONTAINED_MINIMUM letters and two words."""
+    words = [[title_key(word) for word in re.split(r"\s+", form.replace("&", " and ")) if title_key(word)]
+             for form in (title, name)]
+    short, long = sorted(words, key=len)
+    if len(short) < 2 or len("".join(short)) < CONTAINED_MINIMUM:
+        return False
+    rest = iter(long)
+    if all(word in rest for word in short):
+        return True
+    keys = sorted((title_key(title.replace("&", " and ")), title_key(name.replace("&", " and "))), key=len)
+    return keys[0] in keys[1]
 
 
 def moby_titles(moby_root, game):
