@@ -52,7 +52,7 @@ the same keys, each holding the game's description, or null. Nothing else.
 A description is one short paragraph of plain English, at most 380 characters: what the game is and what the \
 player does in it. Its premise, setting and story, its kind of play and what sets it apart, as the facts tell them. \
 Write it fresh in your own words, as a catalog editor would: never copy or closely paraphrase an excerpt's wording, \
-and never start with the game's title followed by "is". State only what the facts support; add nothing you do not \
+never reuse a run of more than five words from an excerpt (apart from names), and never start with the game's title followed by "is". State only what the facts support; add nothing you do not \
 know from them. Keep names of games, people, companies and characters as the facts write them.
 
 Answer null when the facts say nothing real about the game itself: a genre, a company, a platform or a year alone \
@@ -100,12 +100,19 @@ def words(text):
     return re.findall(r"[a-z0-9']+", text.lower())
 
 
-def copies(text, excerpts):
-    """Whether [text] holds a run of COPIED words in a row that one of [excerpts] holds."""
-    own = words(text)
+def without(text, names):
+    """[text] with each of [names] (the game's title and aliases) left out: naming the game is not copying."""
+    for name in sorted(names, key=len, reverse=True):
+        text = re.sub(re.escape(name), " ", text, flags=re.IGNORECASE)
+    return text
+
+
+def copies(text, excerpts, names=()):
+    """Whether [text] holds a run of COPIED words in a row that one of [excerpts] holds, apart from [names]."""
+    own = words(without(text, names))
     runs = {tuple(own[at:at + COPIED]) for at in range(len(own) - COPIED + 1)}
     for excerpt in excerpts:
-        theirs = words(excerpt)
+        theirs = words(without(excerpt, names))
         if any(tuple(theirs[at:at + COPIED]) in runs for at in range(len(theirs) - COPIED + 1)):
             return True
     return False
@@ -142,7 +149,8 @@ def ask(model, platform, adult, batch):
             raise SystemExit(f"{key}: {len(text)} characters, not 1-{descriptions.MAX_LENGTH}")
         if REFUSAL.search(text):
             raise SystemExit(f"{key}: the description reads as a refusal")
-        if copies(text, [facts.get(field, "") for field in ("launchbox", "mobygames", "reference")]):
+        if copies(text, [facts.get(field, "") for field in ("launchbox", "mobygames", "reference")],
+                  [facts["title"], *facts.get("aliases", [])]):
             raise SystemExit(f"{key}: the description copies {COPIED} words in a row from an excerpt")
         if not adult and ADULT_WORDS.search(text):
             raise SystemExit(f"{key}: the main description uses adult wording")
