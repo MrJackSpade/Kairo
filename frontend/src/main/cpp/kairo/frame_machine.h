@@ -344,6 +344,7 @@ private:
                 if (muted_.load(std::memory_order_relaxed))
                     std::memset(samples.data(), 0, got * 2 * sizeof(int16_t));
                 if (audio) audio->write(samples.data(), got);
+                pacing.sound(samples.data(), got);
             }
             pacing.ran(ran - started, published - ran, std::chrono::steady_clock::now() - published);
             if (audio) pacing.queued(audio->queued());

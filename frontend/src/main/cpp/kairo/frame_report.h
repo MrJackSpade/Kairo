@@ -28,6 +28,10 @@ public:
     }
     // A published frame replaced one the presenter had not shown.
     void replaced() { ++replaced_; }
+    // Sound written to the device: its loudest sample, so a line says whether the run was audible.
+    void sound(const int16_t *stereo, uint32_t frames) {
+        for (uint32_t i = 0; i < frames * 2; ++i) peak_ = std::max(peak_, stereo[i] < 0 ? -int32_t(stereo[i]) : int32_t(stereo[i]));
+    }
     // The audio queue after the frame's sound was written, in frames.
     void queued(uint32_t frames) {
         queue_min_ = std::min(queue_min_, frames);
@@ -42,12 +46,12 @@ public:
         __android_log_print(ANDROID_LOG_INFO, "KairoMachine",
                             "frames: %u in %.2f s, %.2f/s against the guest's %.2f%s; run ms mean %.2f median %.2f "
                             "p95 %.2f max %.2f; publish %.3f ms, audio %.3f ms a frame; late %u (max %.1f ms); "
-                            "unshown %u; audio queue %u-%u frames, underruns %d",
+                            "unshown %u; audio queue %u-%u frames, underruns %d, peak %d",
                             count_, seconds, count_ / seconds, guest_rate, fast_forward ? " (fast-forward)" : "",
                             ms(sum(run_)) / count_, ms(run_[run_.size() / 2]), ms(run_[run_.size() * 95 / 100]),
                             ms(run_.back()), ms(publish_) / count_, ms(audio_) / count_, late_, ms(lateness_max_),
                             replaced_, queue_min_ == UINT32_MAX ? 0 : queue_min_, queue_max_,
-                            underruns - underruns_before_);
+                            underruns - underruns_before_, peak_);
         reset(underruns);
     }
 
@@ -59,6 +63,7 @@ private:
         late_ = replaced_ = 0;
         queue_min_ = UINT32_MAX;
         queue_max_ = 0;
+        peak_ = 0;
         underruns_before_ = underruns;
     }
 
@@ -76,5 +81,6 @@ private:
     uint32_t late_ = 0, replaced_ = 0;
     uint32_t queue_min_ = UINT32_MAX, queue_max_ = 0;
     int32_t underruns_before_ = 0;
+    int32_t peak_ = 0;
 };
 } // namespace kairo
