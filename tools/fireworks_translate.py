@@ -239,11 +239,12 @@ def finished(root, language, adult):
 
 
 def pick_examples(done, avoid, rng):
-    """EXAMPLES of [done] translations, none of the keys in [avoid]."""
+    """Up to EXAMPLES of [done] translations, none of the keys in [avoid]: a catalog with fewer (a new
+    app's first adult descriptions) shows all it has."""
     pool = sorted(key for key in done if key not in avoid)
-    if len(pool) < EXAMPLES:
-        raise SystemExit(f"only {len(pool)} translations to show as examples; {EXAMPLES} are needed")
-    return {key: done[key] for key in sorted(rng.sample(pool, EXAMPLES))}
+    if not pool:
+        raise SystemExit("no translations to show as examples")
+    return {key: done[key] for key in sorted(rng.sample(pool, min(EXAMPLES, len(pool))))}
 
 
 def batches(items, size):
