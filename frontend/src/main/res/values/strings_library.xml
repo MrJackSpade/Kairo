@@ -199,7 +199,6 @@
     <string name="kairo_disk_archive_too_large">Archive exceeds size limit</string>
     <string name="kairo_disk_archive_checksum">Archive entry checksum mismatch</string>
     <string name="kairo_disk_image_too_large">Disk image exceeds size limit</string>
-    <string name="kairo_disk_image_expansion">Disk image exceeds expansion limit</string>
     <string name="kairo_disk_image_empty">Empty disk image</string>
     <string name="kairo_disk_image_size_changed">Disk image size changed during read</string>
 

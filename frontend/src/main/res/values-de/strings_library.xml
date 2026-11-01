@@ -309,8 +309,6 @@
     <string name="kairo_disk_archive_checksum">Prüfsumme eines Archiveintrags stimmt nicht überein</string>
     <!-- EN: Disk image exceeds size limit -->
     <string name="kairo_disk_image_too_large">Das Datenträgerabbild überschreitet die Größenbeschränkung</string>
-    <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">Das Datenträgerabbild überschreitet die Entpackungsbeschränkung</string>
     <!-- EN: Empty disk image -->
     <string name="kairo_disk_image_empty">Leeres Datenträgerabbild</string>
     <!-- EN: Disk image size changed during read -->

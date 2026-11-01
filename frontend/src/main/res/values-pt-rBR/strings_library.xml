@@ -321,8 +321,6 @@
     <string name="kairo_disk_archive_checksum">Checksum de entrada do arquivo compactado não confere</string>
     <!-- EN: Disk image exceeds size limit -->
     <string name="kairo_disk_image_too_large">A imagem de disco excede o limite de tamanho</string>
-    <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">A imagem de disco excede o limite de expansão</string>
     <!-- EN: Empty disk image -->
     <string name="kairo_disk_image_empty">Imagem de disco vazia</string>
     <!-- EN: Disk image size changed during read -->

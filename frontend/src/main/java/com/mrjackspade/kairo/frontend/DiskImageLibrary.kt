@@ -867,10 +867,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 val name = safeEntryName(item.name)
                 require(names.add(name.lowercase(Locale.ROOT))) { context.getString(R.string.kairo_disk_archive_duplicate) }
                 if (item.isDirectory || !(format.listsEveryFile || format.isImage(name) || format.isData(name))) continue
-                // An empty file (some program folders have them) expands to nothing.
-                require(item.size == 0L || (item.compressedSize > 0 && item.size / item.compressedSize <= MAX_EXPANSION_RATIO)) {
-                    context.getString(R.string.kairo_disk_image_expansion)
-                }
+                // No expansion-ratio cap: a disc's silent track deflates at about 1024:1, and what a
+                // member expands to is bounded by the media size limit as it is read (ContentHash, Kairo#139).
                 byName[item.name] = item
                 members.add(Member(item.name, item.size, item.crc))
             }
@@ -1032,7 +1030,6 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         private const val MAX_ARCHIVE_ENTRIES = 50_000
         private const val MAX_ARCHIVE_IMAGES = 1_000
         private const val MAX_ARCHIVE_BYTES = 8L * 1024 * 1024 * 1024
-        private const val MAX_EXPANSION_RATIO = 1000L
         private const val MAX_STORE_BYTES = 16 * 1024 * 1024
         /** A working copy's kind in a [GamePathMigration.Conflict]. */
         private const val WORKING_COPY = "disk"

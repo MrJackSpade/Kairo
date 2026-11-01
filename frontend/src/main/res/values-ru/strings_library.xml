@@ -333,8 +333,6 @@
     <string name="kairo_disk_archive_checksum">Несовпадение контрольной суммы записи архива</string>
     <!-- EN: Disk image exceeds size limit -->
     <string name="kairo_disk_image_too_large">Образ диска превышает ограничение размера</string>
-    <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">Образ диска превышает ограничение распаковки</string>
     <!-- EN: Empty disk image -->
     <string name="kairo_disk_image_empty">Пустой образ диска</string>
     <!-- EN: Disk image size changed during read -->

@@ -297,8 +297,6 @@
     <string name="kairo_disk_archive_checksum">Checksum entri arsip tidak cocok</string>
     <!-- EN: Disk image exceeds size limit -->
     <string name="kairo_disk_image_too_large">Image disk melebihi batas ukuran</string>
-    <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">Image disk melebihi batas ekspansi</string>
     <!-- EN: Empty disk image -->
     <string name="kairo_disk_image_empty">Image disk kosong</string>
     <!-- EN: Disk image size changed during read -->

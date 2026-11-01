@@ -279,9 +279,10 @@ def scan(root, media, previous=None, top_level=False):
                             data = info if data_name == info.filename else members.get(data_name.lower())
                             if data is None:
                                 raise ValueError(f"{data_name} is missing")
-                            if (data.file_size <= 0 or data.compress_size <= 0 or
-                                    data.file_size // data.compress_size > 1000):
-                                raise ValueError("disk image exceeds size or expansion limit")
+                            # No expansion-ratio cap (Kairo#139): a silent track deflates at about 1024:1,
+                            # and a member is read only up to its stated size, which the limit below bounds.
+                            if data.file_size <= 0:
+                                raise ValueError("disk image is empty")
                             datas.append(data)
                         if sum(data.file_size for data in datas) > media.limit(kind):
                             raise ValueError("disk image exceeds size limit")

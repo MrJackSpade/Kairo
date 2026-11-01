@@ -297,8 +297,6 @@
     <string name="kairo_disk_archive_checksum">압축 파일 항목의 체크섬이 일치하지 않습니다</string>
     <!-- EN: Disk image exceeds size limit -->
     <string name="kairo_disk_image_too_large">디스크 이미지가 크기 제한을 초과합니다</string>
-    <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">디스크 이미지가 압축 해제 제한을 초과합니다</string>
     <!-- EN: Empty disk image -->
     <string name="kairo_disk_image_empty">빈 디스크 이미지</string>
     <!-- EN: Disk image size changed during read -->

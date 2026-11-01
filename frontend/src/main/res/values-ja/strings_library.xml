@@ -297,8 +297,6 @@
     <string name="kairo_disk_archive_checksum">アーカイブ項目のチェックサムが一致しません</string>
     <!-- EN: Disk image exceeds size limit -->
     <string name="kairo_disk_image_too_large">ディスクイメージがサイズ上限を超えています</string>
-    <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">ディスクイメージが展開サイズの上限を超えています</string>
     <!-- EN: Empty disk image -->
     <string name="kairo_disk_image_empty">空のディスクイメージです</string>
     <!-- EN: Disk image size changed during read -->

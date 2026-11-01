@@ -357,8 +357,6 @@
     <string name="kairo_disk_archive_checksum">عدم تطابق المجموع الاختباري لإدخال في الأرشيف</string>
     <!-- EN: Disk image exceeds size limit -->
     <string name="kairo_disk_image_too_large">تتجاوز صورة القرص حد الحجم</string>
-    <!-- EN: Disk image exceeds expansion limit -->
-    <string name="kairo_disk_image_expansion">تتجاوز صورة القرص حد فك الضغط</string>
     <!-- EN: Empty disk image -->
     <string name="kairo_disk_image_empty">صورة قرص فارغة</string>
     <!-- EN: Disk image size changed during read -->
