@@ -86,8 +86,17 @@ def excerpt(text):
 
 
 def worklist(root, output, moby_root, references_path, limit):
+    lines = [json.dumps(item, ensure_ascii=False) for item in worklist_items(root, moby_root, references_path, limit)]
+    output.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    print(f"{len(lines)} games to describe -> {output}")
+
+
+def worklist_items(root, moby_root, references_path, limit=None, adult=False, skip=()):
+    """The worklist's items (see worklist): the shown games without a description, or with [adult],
+    the shown adult games without a frank one; none of the keys in [skip]."""
     games = read(root / "catalog/research/games-v1.json.gz")["games"]
-    described = read(root / "catalog/research/descriptions-v1.json.gz", {"descriptions": {}})["descriptions"]
+    described = read(root / f"catalog/research/descriptions{'-adult' if adult else ''}-v1.json.gz",
+                     {"descriptions": {}})["descriptions"]
     snapshots = {}
     for path in (root / ".downloads/launchbox").glob("*-snapshot.json"):
         snapshots.update(read(path))
@@ -99,11 +108,13 @@ def worklist(root, output, moby_root, references_path, limit):
     # The games of a collection (diskCollection) show in the library as well, when the player picks one.
     picked = {member["game"] for entry in games.values() for members in entry.get("diskCollection", {}).values()
               for member in members.values()}
-    lines = []
+    items = []
     for key, entry in sorted(games.items()):
         # Only games the library can show: a game no medium identifies, or a hidden one, is never seen.
         shown = entry.get("contentIds") or key in picked
-        if key in described or entry.get("description") or not shown or entry.get("hidden"):
+        if key in described or not shown or entry.get("hidden") or key in skip:
+            continue
+        if adult and not entry.get("adult") or not adult and entry.get("description"):
             continue
         item = {"key": key, "title": entry["title"]}
         if key in references:
@@ -122,23 +133,26 @@ def worklist(root, output, moby_root, references_path, limit):
             record = read(moby_root / "games" / f"{moby_id}.json", {})
             if record.get("description"):
                 item["mobygames"] = excerpt(record["description"])
-        lines.append(json.dumps(item, ensure_ascii=False))
-        if limit and len(lines) >= limit:
+        items.append(item)
+        if limit and len(items) >= limit:
             break
-    output.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
-    print(f"{len(lines)} games to describe -> {output}")
+    return items
 
 
 def add(root, batch_path, adult=False):
+    add_descriptions(root, read(batch_path), adult)
+
+
+def add_descriptions(root, batch, adult=False):
+    """Merges {"<game key>": "description"} as add does."""
     path = root / f"catalog/research/descriptions{'-adult' if adult else ''}-v1.json.gz"
     with locked(path):
-        merge_descriptions(root, path, batch_path, adult)
+        merge_descriptions(root, path, batch, adult)
 
 
-def merge_descriptions(root, path, batch_path, adult):
+def merge_descriptions(root, path, batch, adult):
     games = read(root / "catalog/research/games-v1.json.gz")["games"]
     document = read(path, {"schemaVersion": 1, "descriptions": {}})
-    batch = read(batch_path)
     for key, text in batch.items():
         if key not in games:
             raise SystemExit(f"unknown game {key}")
