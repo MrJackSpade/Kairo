@@ -136,6 +136,21 @@ def group(archive):
     return set_name(base) if DISK_TAG.search(base) else base
 
 
+# Redump's tags for another dump or printing of the same disc: its region and languages, a revision,
+# an alternate dump, a rerelease (the FM Towns Marty's included), a fixed dump, a not-for-sale copy.
+DUMP_VARIANT = re.compile(r"\s*\((?:Japan|USA|Europe|World|(?:[A-Z][a-z],)+[A-Z][a-z]|Rev [0-9A-Z]+|Alt(?: \d+)?|"
+                          r"Rerelease|FM Towns Marty(?: Rerelease)?|Fixed Dump|Hibaihin)\)")
+
+
+def dump_group(archive):
+    """group(), with a Redump name's variant tags (DUMP_VARIANT) left out, so every dump of a disc
+    is one game: "Pegasus V1.1 L10 (Japan) (Rev A)" and "(Rev C)" are both "Pegasus V1.1 L10"."""
+    base = archive.rpartition("/")[2]
+    suffix = re.search(r"\.[A-Za-z0-9]{1,4}$", base)
+    stem = DUMP_VARIANT.sub("", base[:suffix.start()] if suffix else base)
+    return group(stem + (suffix.group(0) if suffix else ""))
+
+
 def ungrouped_sets(archives, games):
     """The multi-disk sets of a scan whose disks are still more than one library entry: for each,
     (its set name, the archives whose disks show). [archives] are a scan's ready archives, each
