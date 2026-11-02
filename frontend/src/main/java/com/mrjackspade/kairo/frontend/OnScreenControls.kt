@@ -57,6 +57,9 @@ class OnScreenControls(
         Spec("r1", "R1", "SHOULDERS", .92f, .39f, false),
         Spec("l2", "L2", "SHOULDERS", .08f, .51f, false),
         Spec("r2", "R2", "SHOULDERS", .92f, .51f, false),
+        // The stick presses, above L1 and R1; hidden until a player turns them on (Kairo#141).
+        Spec("l3", "L3", "SHOULDERS", .08f, .28f, false),
+        Spec("r3", "R3", "SHOULDERS", .92f, .28f, false),
         Spec("start", "Start", "SYSTEM", .57f, .91f, true),
         Spec("select", "Select", "SYSTEM", .43f, .91f, true),
         Spec("menu", "Menu", "SYSTEM", .50f, .18f, true),
@@ -71,6 +74,7 @@ class OnScreenControls(
         "c" to (.68f to .77f), "z" to (.68f to .61f),
         "l1" to (.12f to .44f), "r1" to (.88f to .44f),
         "l2" to (.12f to .53f), "r2" to (.88f to .53f),
+        "l3" to (.12f to .35f), "r3" to (.88f to .35f),
         "start" to (.59f to .91f), "select" to (.41f to .91f),
         "menu" to (.50f to .54f),
         "ls" to (.23f to .85f), "rs" to (.77f to .85f)

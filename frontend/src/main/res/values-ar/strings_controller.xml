@@ -124,6 +124,10 @@
     <string name="kairo_control_l2_button">الزر L2</string>
     <!-- EN: R2 button -->
     <string name="kairo_control_r2_button">الزر R2</string>
+    <!-- EN: L3 button -->
+    <string name="kairo_control_l3_button">الزر L3</string>
+    <!-- EN: R3 button -->
+    <string name="kairo_control_r3_button">الزر R3</string>
     <!-- EN: Start -->
     <string name="kairo_control_start">Start</string>
     <!-- EN: Select -->

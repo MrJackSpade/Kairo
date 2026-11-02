@@ -83,7 +83,7 @@ class GamepadMapper(private val router: InputRouter,
     }
 
     private fun resolveVirtual(control: String): ControllerBinding? =
-        bindings.firstOrNull { it.input == "virtual:$control" }
+        ControllerResolution.forControl(control, physicalBindings, bindings)
 
     fun releaseVirtual(owner: String) {
         if (owner.startsWith("onscreen:")) deactivate(owner)
@@ -163,13 +163,8 @@ class GamepadMapper(private val router: InputRouter,
         stopMouseTickIfIdle()
     }
 
-    private fun resolve(input: String): ControllerBinding? {
-        val control = physicalBindings.firstOrNull { it.input == input }?.control
-        // Every control is bound by the mapping's own layers (ControllerDefaults.cascade).
-        if (control != null) bindings.firstOrNull { it.input == "virtual:$control" }?.let { return it }
-        // Old saved profiles contain direct Android-to-guest bindings.
-        return bindings.firstOrNull { it.input == input }
-    }
+    private fun resolve(input: String): ControllerBinding? =
+        ControllerResolution.forInput(input, physicalBindings, bindings)
 
     private fun activate(owner: String, binding: ControllerBinding, strength: Float = 1f) {
         if (!active.add(owner)) {

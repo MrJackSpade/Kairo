@@ -108,7 +108,9 @@ internal object VirtualControls {
             Control("l1", R.string.kairo_control_l1, R.string.kairo_control_l1_button),
             Control("r1", R.string.kairo_control_r1, R.string.kairo_control_r1_button),
             Control("l2", R.string.kairo_control_l2, R.string.kairo_control_l2_button),
-            Control("r2", R.string.kairo_control_r2, R.string.kairo_control_r2_button))),
+            Control("r2", R.string.kairo_control_r2, R.string.kairo_control_r2_button),
+            Control("l3", R.string.kairo_control_l3, R.string.kairo_control_l3_button),
+            Control("r3", R.string.kairo_control_r3, R.string.kairo_control_r3_button))),
         Group(R.string.kairo_control_group_system, false, listOf(
             Control("start", R.string.kairo_control_start, R.string.kairo_control_start_button),
             Control("select", R.string.kairo_control_select, R.string.kairo_control_select_button),

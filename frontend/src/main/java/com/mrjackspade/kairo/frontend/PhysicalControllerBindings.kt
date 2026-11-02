@@ -10,7 +10,7 @@ data class PhysicalControllerBinding(val input: String, val control: String)
 /** Maps Android controller events to a stable, device-independent control layout. */
 object PhysicalControllerBindings {
     val controls = listOf("up", "down", "left", "right", "a", "b", "x", "y", "c", "z",
-        "l1", "r1", "l2", "r2", "start", "select", "menu",
+        "l1", "r1", "l2", "r2", "l3", "r3", "start", "select", "menu",
         "lsup", "lsdown", "lsleft", "lsright",
         "rsup", "rsdown", "rsleft", "rsright")
     private val inputPattern = Regex("(?:button:[0-9]{1,4}|(?:axis|hat):[0-9]{1,3}:[+-])")
@@ -53,6 +53,8 @@ object PhysicalControllerBindings {
         PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_R1}", "r1"),
         PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_L2}", "l2"),
         PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_R2}", "r2"),
+        PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_THUMBL}", "l3"),
+        PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_THUMBR}", "r3"),
         PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_START}", "start"),
         PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_SELECT}", "select"),
         PhysicalControllerBinding("button:${KeyEvent.KEYCODE_BUTTON_MODE}", "menu"),
