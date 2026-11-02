@@ -63,6 +63,8 @@
     <string name="kairo_control_b" translatable="false">B</string>
     <string name="kairo_control_x" translatable="false">X</string>
     <string name="kairo_control_y" translatable="false">Y</string>
+    <string name="kairo_control_c" translatable="false">C</string>
+    <string name="kairo_control_z" translatable="false">Z</string>
     <string name="kairo_control_l1" translatable="false">L1</string>
     <string name="kairo_control_r1" translatable="false">R1</string>
     <string name="kairo_control_l2" translatable="false">L2</string>
@@ -71,6 +73,8 @@
     <string name="kairo_control_b_button">B button</string>
     <string name="kairo_control_x_button">X button</string>
     <string name="kairo_control_y_button">Y button</string>
+    <string name="kairo_control_c_button">C button</string>
+    <string name="kairo_control_z_button">Z button</string>
     <string name="kairo_control_l1_button">L1 button</string>
     <string name="kairo_control_r1_button">R1 button</string>
     <string name="kairo_control_l2_button">L2 button</string>

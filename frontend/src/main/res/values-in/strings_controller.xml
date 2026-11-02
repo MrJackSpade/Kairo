@@ -112,6 +112,10 @@
     <string name="kairo_control_x_button">Tombol X</string>
     <!-- EN: Y button -->
     <string name="kairo_control_y_button">Tombol Y</string>
+    <!-- EN: C button -->
+    <string name="kairo_control_c_button">Tombol C</string>
+    <!-- EN: Z button -->
+    <string name="kairo_control_z_button">Tombol Z</string>
     <!-- EN: L1 button -->
     <string name="kairo_control_l1_button">Tombol L1</string>
     <!-- EN: R1 button -->

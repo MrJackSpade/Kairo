@@ -50,6 +50,9 @@ class OnScreenControls(
         Spec("b", "B", "FACE BUTTONS", .94f, .74f, true),
         Spec("x", "X", "FACE BUTTONS", .82f, .74f, true),
         Spec("y", "Y", "FACE BUTTONS", .88f, .66f, true),
+        // A six-button pad's C and Z, left of A and Y; hidden until a player turns them on.
+        Spec("c", "C", "FACE BUTTONS", .76f, .82f, false),
+        Spec("z", "Z", "FACE BUTTONS", .76f, .66f, false),
         Spec("l1", "L1", "SHOULDERS", .08f, .39f, false),
         Spec("r1", "R1", "SHOULDERS", .92f, .39f, false),
         Spec("l2", "L2", "SHOULDERS", .08f, .51f, false),
@@ -65,6 +68,7 @@ class OnScreenControls(
         "left" to (.09f to .70f), "right" to (.27f to .70f), PAD8 to (.18f to .70f),
         "a" to (.84f to .77f), "b" to (.92f to .69f),
         "x" to (.76f to .69f), "y" to (.84f to .61f),
+        "c" to (.68f to .77f), "z" to (.68f to .61f),
         "l1" to (.12f to .44f), "r1" to (.88f to .44f),
         "l2" to (.12f to .53f), "r2" to (.88f to .53f),
         "start" to (.59f to .91f), "select" to (.41f to .91f),

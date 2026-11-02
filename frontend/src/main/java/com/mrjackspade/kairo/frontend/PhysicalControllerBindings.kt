@@ -9,7 +9,7 @@ data class PhysicalControllerBinding(val input: String, val control: String)
 
 /** Maps Android controller events to a stable, device-independent control layout. */
 object PhysicalControllerBindings {
-    val controls = listOf("up", "down", "left", "right", "a", "b", "x", "y",
+    val controls = listOf("up", "down", "left", "right", "a", "b", "x", "y", "c", "z",
         "l1", "r1", "l2", "r2", "start", "select", "menu",
         "lsup", "lsdown", "lsleft", "lsright",
         "rsup", "rsdown", "rsleft", "rsright")

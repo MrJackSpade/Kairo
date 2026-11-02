@@ -45,10 +45,14 @@ catalog_files.py) holds one record per game:
       "launchbox": "...", "mobygames": 0, "year": 0, ...         research only, never shipped
   }}}
 
-catalog/system-v1.json is the system's definition: its controller mapping,
-{"schemaVersion": 1, "controller": {"bindings": [...]}}, the lowest layer of every game's mapping
+catalog/system-v2.json is the system's definition: its controller mapping,
+{"schemaVersion": 2, "controller": {"bindings": [...]}}, the lowest layer of every game's mapping
 (shared ControllerDefaults.cascade). It binds every control (the D-pad to the arrow keys) and holds
-no explicit null ("unbound"): what we ship leaves no control dead.
+no explicit null ("unbound"): what we ship leaves no control dead. The catalog ships it as
+system-v2.json, which apps read since the C and Z buttons, and as system-v1.json without the
+controls released apps before them do not know (V1_CONTROLS): they download every update, and their
+mapping reader rejects a mapping that names a control it lacks. For the same reason a game's own
+controller defaults, in the shards every app reads, bind V1_CONTROLS only.
 
 An app's catalog_config.DOCUMENTS(games), when it has one, returns its own documents
 {"<name>.json": {...}}, shipped beside the records and carried in the update's "documents"
@@ -190,6 +194,9 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
             # A game's layer replaces what it binds; it never ships an explicit null.
             require(not any("unbound" in b or set(b) == {"input"} for bindings in defaults.values() for b in bindings),
                     "controller defaults ship an explicit null")
+            # Released apps read every game's defaults and reject a control they lack (V1_CONTROLS).
+            require(all(v1_input(b["input"]) for bindings in defaults.values() for b in bindings),
+                    "controller defaults bind a control released apps do not know")
         if "launch" in record:
             # The lines typed at the machine's prompt to start the game, one command each.
             # The lines typed at the machine's prompt to start the game, one command each, and the
@@ -223,11 +230,22 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
     return validate_record
 
 
+# The controls apps released before the C and Z buttons know (PhysicalControllerBindings.controls
+# then). Their mapping reader rejects a whole mapping that names any other, so what they read, the
+# system-v1.json document and every game's own defaults, names none.
+V1_CONTROLS = frozenset({"up", "down", "left", "right", "a", "b", "x", "y", "l1", "r1", "l2", "r2", "start", "select",
+                         "menu", "lsup", "lsdown", "lsleft", "lsright", "rsup", "rsdown", "rsleft", "rsright"})
+
+
+def v1_input(value):
+    return isinstance(value, str) and value.startswith("virtual:") and value.removeprefix("virtual:") in V1_CONTROLS
+
+
 def validate_system(system):
     """The system's definition: one controller mapping, every binding an input and what it sends."""
     controller = system.get("controller") if isinstance(system, dict) else None
     bindings = controller.get("bindings") if isinstance(controller, dict) else None
-    require(system.get("schemaVersion") == 1 and set(system) == {"schemaVersion", "controller"} and
+    require(system.get("schemaVersion") == 2 and set(system) == {"schemaVersion", "controller"} and
             set(controller) == {"bindings"} and isinstance(bindings, list) and bindings,
             "invalid system definition")
     inputs = [b.get("input") for b in bindings if isinstance(b, dict)]
@@ -235,6 +253,12 @@ def validate_system(system):
             len(set(inputs)) == len(inputs), "invalid system controller bindings")
     require(not any("unbound" in b or set(b) == {"input"} for b in bindings),
             "the system definition ships an explicit null")
+
+
+def system_v1(system):
+    """The system's mapping as apps from before the C and Z buttons read it (V1_CONTROLS)."""
+    bindings = [b for b in system["controller"]["bindings"] if v1_input(b["input"])]
+    return {"schemaVersion": 1, "controller": {"bindings": bindings}}
 
 
 def artwork_group(entry):
@@ -333,10 +357,11 @@ def generate(root, check=False):
     source = {"schemaVersion": 1, "datasets": [{"id": f"{config.APP}-research", "provenance": provenance,
                                                 "games": source_games}]}
     manifest, shards = catalog_documents.build(source, validate_record)
-    system = json.loads((root / "catalog/system-v1.json").read_text(encoding="utf-8"))
+    system = json.loads((root / "catalog/system-v2.json").read_text(encoding="utf-8"))
     validate_system(system)
     own_documents = config.DOCUMENTS(research["games"]) if hasattr(config, "DOCUMENTS") else {}
-    require(not own_documents.keys() & {"base-v1.json", "manifest-v1.json", "name-index-v1.json", "system-v1.json"}
+    require(not own_documents.keys() & {"base-v1.json", "manifest-v1.json", "name-index-v1.json", "system-v1.json",
+                                        "system-v2.json"}
             and all(not name.startswith("shards/") for name in own_documents), "an app document takes a catalog name")
     # Each language's descriptions in a document of its own, beside the English records.
     translations = catalog_documents.translation_documents(
@@ -354,7 +379,7 @@ def generate(root, check=False):
         for language, title in sorted(entry["titles"].items()):
             translations.setdefault(f"descriptions/{language}.json", {"games": {}}).setdefault("titles", {})[key] = title
     documents = {**own_documents, **translations, "base-v1.json": {"schemaVersion": 1, "games": {}},
-                 "manifest-v1.json": manifest, "name-index-v1.json": name_index, "system-v1.json": system,
+                 "manifest-v1.json": manifest, "name-index-v1.json": name_index, "system-v1.json": system_v1(system), "system-v2.json": system,
                  **{f"shards/{prefix}.json": {"schemaVersion": 1, "games": records}
                     for prefix, records in shards.items()}}
     placeholder = f"sha256-{sorted(config.KINDS)[0]}-v1:" + "0" * 64

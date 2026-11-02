@@ -101,7 +101,9 @@ internal object VirtualControls {
             Control("a", R.string.kairo_control_a, R.string.kairo_control_a_button),
             Control("b", R.string.kairo_control_b, R.string.kairo_control_b_button),
             Control("x", R.string.kairo_control_x, R.string.kairo_control_x_button),
-            Control("y", R.string.kairo_control_y, R.string.kairo_control_y_button))),
+            Control("y", R.string.kairo_control_y, R.string.kairo_control_y_button),
+            Control("c", R.string.kairo_control_c, R.string.kairo_control_c_button),
+            Control("z", R.string.kairo_control_z, R.string.kairo_control_z_button))),
         Group(R.string.kairo_control_group_shoulders, false, listOf(
             Control("l1", R.string.kairo_control_l1, R.string.kairo_control_l1_button),
             Control("r1", R.string.kairo_control_r1, R.string.kairo_control_r1_button),

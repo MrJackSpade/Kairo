@@ -112,6 +112,10 @@
     <string name="kairo_control_x_button">X 버튼</string>
     <!-- EN: Y button -->
     <string name="kairo_control_y_button">Y 버튼</string>
+    <!-- EN: C button -->
+    <string name="kairo_control_c_button">C 버튼</string>
+    <!-- EN: Z button -->
+    <string name="kairo_control_z_button">Z 버튼</string>
     <!-- EN: L1 button -->
     <string name="kairo_control_l1_button">L1 버튼</string>
     <!-- EN: R1 button -->

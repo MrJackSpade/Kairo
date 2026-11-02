@@ -550,7 +550,9 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     private fun readAsset(path: String): JSONObject = parts.read(path.removePrefix("catalog/"))
 
     /**
-     * The system's controller mapping from the catalog's system definition (system-v1.json): the
+     * The system's controller mapping from the catalog's system definition (system-v2.json, which
+     * binds the C and Z buttons; system-v1.json beside it is the same without them, for apps from
+     * before them, whose mapping reader rejects a control it lacks): the
      * downloaded update's when it has one, so a corrected mapping reaches players without a new
      * build (Kairo#55), else the shipped one. Games' own mappings layer over it as their records do.
      */
@@ -620,7 +622,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
 
     companion object {
         /** The catalog's system definition: the system's controller mapping, below every game's. */
-        const val SYSTEM_DOCUMENT = "system-v1.json"
+        const val SYSTEM_DOCUMENT = "system-v2.json"
         private val SHARD_NAME = Regex("[0-9a-f]{2}")
         private const val MAX_LOCAL_JSON = 8L * 1024 * 1024
         /** The downloaded update's format (CatalogUpdateArchive), and how large a download may be. */
