@@ -33,7 +33,11 @@ class Media:
     candidates name, by a descriptor's suffix, the suffixes its track data may have beside it;
     the first one present is hashed. superseded_by names, by suffix, the suffixes of files that
     replace it when one sits beside it under the same name, so one disc is listed once. Both
-    match the shared library's DiskImageLibrary.Format data and supersededBy."""
+    match the shared library's DiskImageLibrary.Format data and supersededBy.
+
+    probe, given the first PROBE_BYTES bytes and the size of track data no descriptor reads (a .bin
+    no sheet names), returns its kind or None: a floppy a dump kept as .bin beside its CD's sheet
+    (KairoTowns#103). It matches the shared library's Format.probe."""
     kind: Callable[[str], Optional[str]]
     data: Callable[[str, str], str]
     limit: Callable[[str], int]
@@ -41,6 +45,18 @@ class Media:
     seven_zip: bool = False
     candidates: dict = field(default_factory=dict)
     superseded_by: dict = field(default_factory=dict)
+    probe: Optional[Callable[[bytes, int], Optional[str]]] = None
+
+    def is_data(self, name):
+        """Whether name is track data: no kind of its own, and a descriptor's data suffix."""
+        suffix = Path(name).suffix.lower()
+        return not self.kind(name) and any(suffix in suffixes for suffixes in self.candidates.values())
+
+    def probe_kind(self, name, size, read_head):
+        """The kind probe gives track data name, or None; read_head() returns its first bytes."""
+        if self.probe is None or not self.is_data(name) or size <= 0:
+            return None
+        return self.probe(read_head(), size)
 
     def data_for(self, name, kind, present):
         """The member whose bytes name's ID hashes, from present (lower-case name to name)."""
@@ -86,6 +102,9 @@ CUE_FILE = re.compile(r'^\s*FILE\s+(?:"([^"]+)"|(\S+))', re.IGNORECASE | re.MULT
 def cue_files(text):
     """The track files a cue sheet names, in its order."""
     return [quoted or bare for quoted, bare in CUE_FILE.findall(text)]
+
+
+PROBE_BYTES = 512
 
 
 def same_file(name, kind):
@@ -182,6 +201,27 @@ def seven_zip_digest_all(path, names, kind):
     return f"sha256-{kind}-v1:" + sha.hexdigest()
 
 
+def seven_zip_head(path, name):
+    """A .7z member's first PROBE_BYTES bytes; 7-Zip is stopped once they are read."""
+    process = seven_zip_member(path, name)
+    head = process.stdout.read(PROBE_BYTES)
+    process.kill()
+    process.wait()
+    return head
+
+
+def loose_track_data(folder, media, present):
+    """The files, by lower-case name, that the descriptors in folder read as track data."""
+    read = set()
+    for name in present.values():
+        kind = media.kind(name)
+        if kind and Path(name).suffix.lower() in media.candidates:
+            sheet = folder / name
+            read.update(data.lower() for data in media.track_files(
+                name, kind, present, lambda sheet=sheet: sheet.read_text(encoding="utf-8", errors="replace")))
+    return read
+
+
 def seven_zip_text(path, name):
     process = seven_zip_member(path, name)
     text = process.stdout.read().decode("utf-8", "replace")
@@ -199,7 +239,8 @@ def scan(root, media, previous=None, top_level=False):
     results = []
     archives = (".zip", ".7z") if media.seven_zip else (".zip",)
     for path in sorted(root.glob("*") if top_level else root.rglob("*")):
-        if not path.is_file() or (path.suffix.lower() not in archives and not media.kind(path.name)):
+        if not path.is_file() or (path.suffix.lower() not in archives and not media.kind(path.name)
+                                  and not (media.probe and media.is_data(path.name))):
             continue
         relative = path.relative_to(root).as_posix()
         stat = path.stat()
@@ -216,6 +257,7 @@ def scan(root, media, previous=None, top_level=False):
             if path.suffix.lower() == ".7z" and media.seven_zip:
                 entries = seven_zip_entries(path)
                 sizes = {name.lower(): (name, size) for name, size in entries}
+                read = set()
                 for name, _ in entries:
                     parts = name.split("/")
                     if name.startswith("/") or any(part in ("", ".", "..") for part in parts) or re.match(r"^[a-zA-Z]:", name):
@@ -236,13 +278,30 @@ def scan(root, media, previous=None, top_level=False):
                     total = sum(size for _, size in datas)
                     if any(size <= 0 for _, size in datas) or total > media.limit(kind):
                         raise ValueError("disk image exceeds size limit")
+                    read.update(data_name.lower() for data_name, _ in datas)
                     content_id = cached_disks.get(name) or (
                         seven_zip_digest(path, datas[0][0], kind) if len(datas) == 1
                         else seven_zip_digest_all(path, [data_name for data_name, _ in datas], kind))
                     item["disks"].append({"entry": name, "contentId": content_id})
+                for name, size in entries:
+                    if name.lower() in read:
+                        continue
+                    kind = media.probe_kind(name, size, lambda: seven_zip_head(path, name))
+                    if kind is None:
+                        continue
+                    if size > media.limit(kind):
+                        raise ValueError("disk image exceeds size limit")
+                    content_id = cached_disks.get(name) or seven_zip_digest(path, name, kind)
+                    item["disks"].append({"entry": name, "contentId": content_id})
             elif path.suffix.lower() != ".zip":
                 kind = media.kind(path.name)
                 present = {sibling.name.lower(): sibling.name for sibling in path.parent.iterdir()}
+                if kind is None:
+                    if path.name.lower() in loose_track_data(path.parent, media, present):
+                        continue
+                    kind = media.probe_kind(path.name, stat.st_size, lambda: path.open("rb").read(PROBE_BYTES))
+                    if kind is None:
+                        continue
                 if media.superseded(path.name, present):
                     continue
                 datas = [path.with_name(data_name) for data_name in
@@ -264,6 +323,7 @@ def scan(root, media, previous=None, top_level=False):
                     entries = archive.infolist()
                     members = {info.filename.lower(): info for info in entries}
                     present = {info.filename.lower(): info.filename for info in entries}
+                    read = set()
                     for info in entries:
                         if not valid_entry(info):
                             raise ValueError("unsafe ZIP entry")
@@ -286,12 +346,27 @@ def scan(root, media, previous=None, top_level=False):
                             datas.append(data)
                         if sum(data.file_size for data in datas) > media.limit(kind):
                             raise ValueError("disk image exceeds size limit")
+                        read.update(data.filename.lower() for data in datas)
                         content_id = cached_disks.get(info.filename)
                         if not content_id and len(datas) == 1:
                             with archive.open(datas[0]) as source:
                                 content_id = member_digest(source, datas[0].filename, kind)
                         elif not content_id:
                             content_id = digest_all([lambda data=data: archive.open(data) for data in datas], kind)
+                        item["disks"].append({"entry": info.filename, "contentId": content_id})
+                    for info in entries:
+                        if info.is_dir() or info.filename.lower() in read:
+                            continue
+                        kind = media.probe_kind(info.filename, info.file_size,
+                                                lambda: archive.open(info).read(PROBE_BYTES))
+                        if kind is None:
+                            continue
+                        if info.file_size > media.limit(kind):
+                            raise ValueError("disk image exceeds size limit")
+                        content_id = cached_disks.get(info.filename)
+                        if not content_id:
+                            with archive.open(info) as source:
+                                content_id = member_digest(source, info.filename, kind)
                         item["disks"].append({"entry": info.filename, "contentId": content_id})
             item["status"] = "ready" if item["disks"] else ("nested-zip" if item.get("nestedZip") else "no-supported-image")
         except (OSError, ValueError, zipfile.BadZipFile, RuntimeError) as error:

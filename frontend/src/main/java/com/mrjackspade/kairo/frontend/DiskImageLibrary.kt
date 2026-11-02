@@ -61,6 +61,12 @@ data class DiskImageEntry(
     override val mediaLabel: UiText get() = UiText.fixed(mediaText)
     override val displayName: String get() = (zipEntry ?: path).substringAfterLast('/').substringAfterLast('\\')
     override val playable: Boolean get() = contentId != null && error == null
+    /**
+     * What the image is, such as "fd" or "cd": the kind its content ID was hashed as, which its
+     * extension or, for track data no descriptor reads, its content decided ([DiskImageLibrary.Format.probe]).
+     */
+    val kind: String? get() = contentId?.takeIf { it.startsWith("sha256-") && "-v1:" in it }
+        ?.removePrefix("sha256-")?.substringBefore("-v1:")
 }
 
 /** Entries from the same archive, or from the same folder for a loose image. */
@@ -130,7 +136,13 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
          * machine reads as a drive, so its entry lists the folder's files and plays from a copy of
          * the whole folder.
          */
-        val programs: Set<String> = emptySet()
+        val programs: Set<String> = emptySet(),
+        /**
+         * The kind of a track-data file no descriptor reads, from its first [PROBE_BYTES] bytes and
+         * its size, or null for none: a floppy image a dump named like track data, such as an FM
+         * Towns boot disk kept as .bin beside its CD (KairoTowns#103). It decides by content alone.
+         */
+        val probe: ((head: ByteArray, size: Long) -> String?)? = null
     ) {
         init {
             require(kinds.values.all { it in labels && it in maxBytes })
@@ -159,8 +171,15 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         private val idPattern = Regex("sha256-(?:${kinds.values.distinct().joinToString("|")})-v1:[0-9a-f]{64}")
         fun validId(value: String) = idPattern.matches(value)
         fun limit(name: String): Long = maxBytes.getValue(kind(name) ?: error("$name is not a $guestName disk image"))
+        /** The kind [probe] gives track data [name] that no descriptor reads, from its first bytes. */
+        fun probeKind(name: String, size: Long, head: () -> ByteArray): String? =
+            if (probe != null && isData(name)) probe.invoke(head(), size)?.also { require(it in maxBytes) } else null
 
-        companion object { private val ARCHIVES = setOf("zip", "7z") }
+        companion object {
+            private val ARCHIVES = setOf("zip", "7z")
+            /** How much of a file [probe] reads. */
+            const val PROBE_BYTES = 512
+        }
     }
 
     /**
@@ -361,9 +380,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         require(!format.isProgram(file.name)) {
             context.getString(R.string.kairo_disk_runs_from_folder, file.name)
         }
-        if (format.isImage(file.name)) {
-            val candidate = entry(source, null, file.size, -1, null, key = GameKey(file.key))
-            val id = looseContentId(file.uri, file.size, file.name, cancelled)
+        // Track data opened on its own is an image only when its content says so (Format.probe).
+        val kind = format.kind(file.name) ?: format.probeKind(file.name, file.size) { head(file.uri) }
+        if (kind != null) {
+            val candidate = entry(source, null, file.size, -1, null, key = GameKey(file.key), kind = kind)
+            val id = looseContentId(file.uri, file.size, file.name, kind, cancelled)
             return listOf(candidate.copy(contentId = id, catalogId = id))
         }
         require(format.isArchive(file.name)) { context.getString(R.string.kairo_disk_unsupported_file, format.guestName, file.name) }
@@ -373,11 +394,26 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             images.map { image ->
                 val data = image.data
                 require(data.isNotEmpty()) { image.missing() }
-                val id = memberContentId(archive, data, image.name, cancelled)
+                val id = memberContentId(archive, data, image.name, image.kind, cancelled)
                 entry(source, image.name, data.sumOf { it.size }, data.singleOrNull()?.crc ?: -1, id, companions = image.companions,
-                    key = GameKey.inArchive(file.key, image.name), folder = image.folderFiles)
+                    key = GameKey.inArchive(file.key, image.name), folder = image.folderFiles, kind = image.kind)
             }
         }
+    }
+
+    /** The first [Format.PROBE_BYTES] bytes of the document at [uri], for [Format.probe]. */
+    private fun head(uri: Uri): ByteArray =
+        context.contentResolver.openInputStream(uri)?.use { readHead(it) } ?: error("Unable to open $uri")
+
+    private fun readHead(input: InputStream): ByteArray {
+        val head = ByteArray(Format.PROBE_BYTES)
+        var count = 0
+        while (count < head.size) {
+            val read = input.read(head, count, head.size - count)
+            if (read < 0) break
+            count += read
+        }
+        return head.copyOf(count)
     }
 
     private fun planScan(tree: Uri, depth: ScanDepth, cancelled: AtomicBoolean,
@@ -387,14 +423,21 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             progress, folderListings, depth)
         val everyFile = result.files.map { Source(it.uri, it.path, it.size, it.modified) }
         val files = everyFile.filter { format.isImage(it.path) || format.isArchive(it.path) || format.isData(it.path) }
-        // Track data is read through its descriptor; data without one is not an image.
+        // Track data is read through its descriptor; data without one is not an image, unless its
+        // content makes it one (Format.probe), such as a boot floppy kept as .bin beside its CD.
         val byPath = files.associateBy { it.path.lowercase(Locale.ROOT) }
-        return LibraryScanPipeline.Plan(files.filter { !format.isData(it.path) && !format.superseded(it.path, byPath.keys) }
+        val sources = files.filter { !format.isData(it.path) && !format.superseded(it.path, byPath.keys) }
             .map { source ->
                 if (format.isDescriptor(source.path)) source.copy(data = trackData(source, byPath))
                 else if (format.isProgram(source.path)) source.copy(folder = folderOf(source, everyFile))
                 else source
-            }, initialEntries = result.folders.map { folder ->
+            }
+        val read = sources.flatMap { it.data }.toSet()
+        val probed = files.filter { format.isData(it.path) && it !in read }.mapNotNull { source ->
+            checkCancelled(cancelled)
+            format.probeKind(source.path, source.size) { head(source.uri) }?.let { source.copy(kind = it) }
+        }
+        return LibraryScanPipeline.Plan(sources + probed, initialEntries = result.folders.map { folder ->
             entry(Source(folder.uri, folder.path, -1, 0), null, -1, -1, null, context.getString(R.string.kairo_disk_unreadable_folder, folder.message))
         })
     }
@@ -467,7 +510,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     scan.checkCancelled()
                     val data = image.data
                     val candidate = entry(source, image.name, if (data.isEmpty()) -1 else data.sumOf { it.size },
-                        data.singleOrNull()?.crc ?: -1, null, companions = image.companions, folder = image.folderFiles)
+                        data.singleOrNull()?.crc ?: -1, null, companions = image.companions, folder = image.folderFiles, kind = image.kind)
                     try {
                         require(data.isNotEmpty()) { image.missing() }
                         reuse(scan.prior[candidate.id], candidate, scan) ?: run {
@@ -476,7 +519,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                             val folder = source.path.substringBeforeLast('/', "")
                             val member = image.name.substringAfterLast('/')
                             scan.hashStarted(if (folder.isEmpty()) member else "$folder/$member")
-                            candidate.copy(contentId = memberContentId(archive, data, image.name, scan.cancelled, scan::hashRead))
+                            candidate.copy(contentId = memberContentId(archive, data, image.name, image.kind, scan.cancelled, scan::hashRead))
                         }
                     } catch (cancel: CancellationException) { throw cancel }
                     catch (error: Exception) {
@@ -492,14 +535,16 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             val candidate = entry(source, null, data.sumOf { it.size }, -1, null, companions = data.map { it.uri.toString() })
             reuse(scan.prior[candidate.id], candidate, scan)?.let { return listOf(it) }
             scan.hashStarted(data.first().path)
-            val hash = ContentHash(source.path, candidate.imageSize, scan.cancelled, scan::hashRead)
+            val hash = ContentHash(format.kind(source.path)!!, candidate.imageSize, scan.cancelled, scan::hashRead)
             for (piece in data) context.contentResolver.openInputStream(piece.uri)?.use { hash.add(it) } ?: error("Unable to open ${piece.path}")
             return listOf(candidate.copy(contentId = hash.id()))
         }
-        val candidate = entry(source, null, source.size, -1, null)
+        // An image by its extension, or track data its content made one (planScan).
+        val kind = source.kind ?: format.kind(source.path)!!
+        val candidate = entry(source, null, source.size, -1, null, kind = kind)
         reuse(scan.prior[candidate.id], candidate, scan)?.let { return listOf(it) }
         scan.hashStarted(source.path)
-        return listOf(candidate.copy(contentId = looseContentId(source.uri, source.size, source.path, scan.cancelled, scan::hashRead)))
+        return listOf(candidate.copy(contentId = looseContentId(source.uri, source.size, source.path, kind, scan.cancelled, scan::hashRead)))
     }
 
     /**
@@ -609,7 +654,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                 copyVerified(entry, input, pieces.single().second, cancelled, output)
             }
         }
-        val hash = ContentHash(entry.displayName, entry.imageSize, cancelled)
+        val hash = ContentHash(kindOf(entry), entry.imageSize, cancelled)
         for ((target, piece) in targets.zip(pieces)) piece.first().use { input ->
             File(target.parentFile, "${target.name}.part").outputStream().use { output -> hash.add(input, piece.second, output) }
         }
@@ -673,11 +718,14 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
     }
 
+    /** The kind [entry] was hashed as; an entry being prepared has its content ID. */
+    private fun kindOf(entry: DiskImageEntry): String = entry.kind ?: error("${entry.displayName} has no content ID")
+
     private fun copyVerified(entry: DiskImageEntry, input: InputStream, crc: Long, cancelled: AtomicBoolean,
                              output: OutputStream) {
         // A CHD's ID is its disc image's, read from the whole copy: prepare verifies it (verifyChd).
         if (format.isChd(entry.displayName)) return copyChecked(input, entry.imageSize, crc, cancelled, output)
-        require(contentId(input, entry.imageSize, crc, cancelled, entry.displayName, output) == entry.contentId) {
+        require(contentId(input, entry.imageSize, crc, cancelled, kindOf(entry), output) == entry.contentId) {
             context.getString(R.string.kairo_disk_image_changed)
         }
     }
@@ -701,45 +749,45 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
     /** Checks a CHD's working copy against the entry's content ID, by its disc image. */
     private fun verifyChd(entry: DiskImageEntry, copy: File, cancelled: AtomicBoolean) {
-        val id = ParcelFileDescriptor.open(copy, ParcelFileDescriptor.MODE_READ_ONLY).use { chdContentId(it, entry.displayName, cancelled) }
+        val id = ParcelFileDescriptor.open(copy, ParcelFileDescriptor.MODE_READ_ONLY).use { chdContentId(it, kindOf(entry), cancelled) }
         require(id == entry.contentId) { context.getString(R.string.kairo_disk_image_changed) }
     }
 
-    /** The content ID of the loose image at [uri]: its bytes, or a CHD's disc image. */
-    private fun looseContentId(uri: Uri, size: Long, name: String, cancelled: AtomicBoolean,
+    /** The content ID of the loose image [name] of [kind] at [uri]: its bytes, or a CHD's disc image. */
+    private fun looseContentId(uri: Uri, size: Long, name: String, kind: String, cancelled: AtomicBoolean,
                                onRead: (Long, Long) -> Unit = { _, _ -> }): String {
         if (format.isChd(name)) return (context.contentResolver.openFileDescriptor(uri, "r") ?: error("Unable to open disk image"))
-            .use { chdContentId(it, name, cancelled, onRead) }
+            .use { chdContentId(it, kind, cancelled, onRead) }
         return context.contentResolver.openInputStream(uri)?.use {
-            contentId(it, size, -1, cancelled, name, onRead = onRead)
+            contentId(it, size, -1, cancelled, kind, onRead = onRead)
         } ?: error("Unable to open disk image")
     }
 
-    /** The content ID of archive members joined (a CUE's track files) as one medium named [name]. */
-    private fun memberContentId(archive: Archive, members: List<Member>, name: String, cancelled: AtomicBoolean,
+    /** The content ID of archive members joined (a CUE's track files) as one medium [name] of [kind]. */
+    private fun memberContentId(archive: Archive, members: List<Member>, name: String, kind: String, cancelled: AtomicBoolean,
                                 onRead: (Long, Long) -> Unit = { _, _ -> }): String {
-        if (members.size == 1) return memberContentId(archive, members.single(), name, cancelled, onRead)
-        val hash = ContentHash(name, members.sumOf { it.size }, cancelled, onRead)
+        if (members.size == 1) return memberContentId(archive, members.single(), name, kind, cancelled, onRead)
+        val hash = ContentHash(kind, members.sumOf { it.size }, cancelled, onRead)
         for (member in members) archive.open(member).use { hash.add(it, member.crc) }
         return hash.id()
     }
 
     /** The content ID of an archive member; a CHD is copied out first, as its disc image is read in place. */
-    private fun memberContentId(archive: Archive, member: Member, name: String, cancelled: AtomicBoolean,
+    private fun memberContentId(archive: Archive, member: Member, name: String, kind: String, cancelled: AtomicBoolean,
                                 onRead: (Long, Long) -> Unit = { _, _ -> }): String {
-        if (!format.isChd(name)) return archive.open(member).use { contentId(it, member.size, member.crc, cancelled, name, onRead = onRead) }
+        if (!format.isChd(name)) return archive.open(member).use { contentId(it, member.size, member.crc, cancelled, kind, onRead = onRead) }
         val copy = File.createTempFile("member", ".chd", context.cacheDir)
         try {
             archive.open(member).use { input -> copy.outputStream().use { copyChecked(input, member.size, member.crc, cancelled, it) } }
-            return ParcelFileDescriptor.open(copy, ParcelFileDescriptor.MODE_READ_ONLY).use { chdContentId(it, name, cancelled, onRead) }
+            return ParcelFileDescriptor.open(copy, ParcelFileDescriptor.MODE_READ_ONLY).use { chdContentId(it, kind, cancelled, onRead) }
         } finally {
             copy.delete()
         }
     }
 
-    private fun chdContentId(document: ParcelFileDescriptor, name: String, cancelled: AtomicBoolean,
+    private fun chdContentId(document: ParcelFileDescriptor, kind: String, cancelled: AtomicBoolean,
                              onRead: (Long, Long) -> Unit = { _, _ -> }): String =
-        ChdImage.open(document).use { contentId(it.inputStream(), it.size, -1, cancelled, name, onRead = onRead) }
+        ChdImage.open(document).use { contentId(it.inputStream(), it.size, -1, cancelled, kind, onRead = onRead) }
 
     /** Every file in an archive, by its path in it, and a way to read one; valid only inside [readArchive]. */
     interface ArchiveFiles {
@@ -761,9 +809,13 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         return Source(Uri.parse(entry.uri), entry.path, entry.sourceSize, entry.sourceModified)
     }
 
-    /** A document to inspect; a descriptor also carries its track data, and a program its folder's files. */
+    /**
+     * A document to inspect; a descriptor also carries its track data, and a program its folder's
+     * files. [kind] is set for track data its content made an image (Format.probe).
+     */
     private data class Source(val uri: Uri, val path: String, val size: Long, val modified: Long,
-                              val data: List<Source> = emptyList(), val folder: List<Pair<String, Source>> = emptyList()) {
+                              val data: List<Source> = emptyList(), val folder: List<Pair<String, Source>> = emptyList(),
+                              val kind: String? = null) {
         /** The newest of its documents' modification times, so an edit to any of them rehashes. */
         val newest: Long get() = maxOf(modified, data.maxOfOrNull { it.modified } ?: 0, folder.maxOfOrNull { it.second.modified } ?: 0)
     }
@@ -776,7 +828,9 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
      * descriptor's track data (empty when it is missing). A program also has its folder: the other
      * members in its folder and below it.
      */
-    private inner class Image(val entry: Member, val data: List<Member>, val folder: List<Member> = emptyList()) {
+    private inner class Image(val entry: Member, val data: List<Member>, val folder: List<Member> = emptyList(),
+                              /** What it is: its extension's kind, or the one its content gave it (Format.probe). */
+                              val kind: String = format.kind(entry.name)!!) {
         val name: String get() = entry.name
         val companions: List<String> get() = if (data.singleOrNull() === entry) emptyList() else data.map { it.name }
         val folderFiles: List<FolderFile> get() {
@@ -815,7 +869,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             val byName = members.associateBy { it.name.lowercase(Locale.ROOT) }
             val images = members.filter { format.isImage(it.name) && !format.superseded(it.name, byName.keys) }
             require(images.size <= MAX_ARCHIVE_IMAGES) { context.getString(R.string.kairo_disk_archive_too_many_images) }
-            return images.map { member ->
+            val found = images.map { member ->
                 val data = if (format.isDescriptor(member.name)) trackData(member, byName) else listOf(member)
                 if (data.isNotEmpty()) require(data.all { it.size > 0 } && data.sumOf { it.size } <= format.limit(member.name)) {
                     context.getString(R.string.kairo_disk_image_too_large)
@@ -827,6 +881,18 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
                     })
                 } else Image(member, data)
             }
+            // Track data no descriptor reads is an image when its content says so (Format.probe):
+            // a boot floppy kept as .bin beside its CD's sheet.
+            val read = found.flatMap { it.data }.toSet()
+            val probed = members.filter { format.isData(it.name) && it !in read && it.size > 0 }.mapNotNull { member ->
+                checkCancelled()
+                format.probeKind(member.name, member.size) { open(member).use { readHead(it) } }?.let { kind ->
+                    require(member.size <= format.maxBytes.getValue(kind)) { context.getString(R.string.kairo_disk_image_too_large) }
+                    Image(member, listOf(member), kind = kind)
+                }
+            }
+            require(found.size + probed.size <= MAX_ARCHIVE_IMAGES) { context.getString(R.string.kairo_disk_archive_too_many_images) }
+            return found + probed
         }
     }
 
@@ -918,19 +984,19 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         override fun closeReader() = archive.close()
     }
 
-    /** The content ID of [name]'s bytes from [input]: its track data for a descriptor. */
+    /** The content ID of a medium of [kind] whose bytes [input] reads: its track data for a descriptor. */
     private fun contentId(input: InputStream, expectedSize: Long, expectedCrc: Long, cancelled: AtomicBoolean,
-                          name: String, output: OutputStream? = null, onRead: (Long, Long) -> Unit = { _, _ -> }): String =
-        ContentHash(name, expectedSize, cancelled, onRead).apply { add(input, expectedCrc, output) }.id()
+                          kind: String, output: OutputStream? = null, onRead: (Long, Long) -> Unit = { _, _ -> }): String =
+        ContentHash(kind, expectedSize, cancelled, onRead).apply { add(input, expectedCrc, output) }.id()
 
     /**
-     * The content ID of a medium named [name] read in pieces, such as a CUE's track files: each
+     * The content ID of a medium of [kind] read in pieces, such as a CUE's track files: each
      * [add]ed piece is checked against its own CRC-32 when it has one, the whole against
      * [expectedSize] and the kind's size limit.
      */
-    private inner class ContentHash(private val name: String, private val expectedSize: Long,
+    private inner class ContentHash(private val kind: String, private val expectedSize: Long,
                                     private val cancelled: AtomicBoolean, private val onRead: (Long, Long) -> Unit = { _, _ -> }) {
-        private val limit = format.limit(name)
+        private val limit = format.maxBytes.getValue(kind)
         private val digest = MessageDigest.getInstance("SHA-256")
         private val buffer = ByteArray(64 * 1024)
         private var count = 0L
@@ -954,7 +1020,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         fun id(): String {
             require(count > 0) { context.getString(R.string.kairo_disk_image_empty) }
             if (expectedSize >= 0) require(count == expectedSize) { context.getString(R.string.kairo_disk_image_size_changed) }
-            return "sha256-${format.kind(name)}-v1:${digest.digest().toHex()}"
+            return "sha256-$kind-v1:${digest.digest().toHex()}"
         }
     }
 
@@ -966,18 +1032,19 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     private fun entry(source: Source, member: String?, imageSize: Long, imageCrc: Long, contentId: String?,
                       error: String? = null, companions: List<String> = emptyList(),
                       key: GameKey = keyOf(source.path, member), catalogId: String? = contentId,
-                      folder: List<FolderFile> = source.folder.map { (name, file) -> FolderFile(name, file.uri.toString()) }
+                      folder: List<FolderFile> = source.folder.map { (name, file) -> FolderFile(name, file.uri.toString()) },
+                      kind: String? = format.kind(member ?: source.path)
     ): DiskImageEntry =
         DiskImageEntry(key.path, source.uri.toString(), source.path, member, source.size,
             source.newest, imageSize, imageCrc, contentId, error, companions,
-            catalogId, label(member ?: source.path), folder = folder)
+            catalogId, label(kind), folder = folder)
 
-    /** An image's label; a folder or archive that failed whole is labeled as an image of none. */
-    private fun label(name: String): String =
-        format.kind(name)?.let { format.labels.getValue(it).resolve(context) } ?: context.getString(R.string.kairo_disk_image)
+    /** The label of an image of [kind]; a folder or archive that failed whole is labeled as an image of none. */
+    private fun label(kind: String?): String =
+        kind?.let { format.labels.getValue(it).resolve(context) } ?: context.getString(R.string.kairo_disk_image)
 
-    /** [entry] with the label its formats give it, as for one an earlier cache layout read. */
-    private fun labeled(entry: DiskImageEntry) = entry.copy(mediaText = label(entry.zipEntry ?: entry.path))
+    /** [entry] with the label its formats give it, as for one an earlier cache layout read: by its content ID's kind. */
+    private fun labeled(entry: DiskImageEntry) = entry.copy(mediaText = label(entry.kind ?: format.kind(entry.zipEntry ?: entry.path)))
 
     /** An image's key: its path in the games folder, and its path inside an archive. */
     fun keyOf(path: String, member: String?) = member?.let { GameKey.inArchive(path, it) } ?: GameKey(path)
