@@ -22,7 +22,8 @@ import re
 DISK_TAG = re.compile(r"\(\s*(?:disk|disc|side|fd)\s*([0-9]{1,2}|[a-z])\b(?:\s*of\s*\d+)?[^)]*\)", re.I)
 USER_DISK = re.compile(r"user\s*disk|\+\s*userdisk|save\s*disk", re.I)
 # Untagged disks by the role in their name: the disk a game starts from, its opening, then the rest.
-ROLES = [re.compile(r"\b(?:boot|system|program|master|main|game|player)\b", re.I),
+# TOSEC joins a role to "Disk": "[BootDisk]", "[SystemDisk]", "[GameDisk]".
+ROLES = [re.compile(r"\b(?:boot|system|program|master|main|game|player)(?:\s*disk)?\b", re.I),
          re.compile(r"\b(?:opening|title)\b", re.I), None,
          re.compile(r"\bscenario\b", re.I), re.compile(r"\bdata\b", re.I)]
 # A tagged disk named as the one the game starts from beside its number: "(Disk 3) (Boot)".
