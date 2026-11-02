@@ -238,7 +238,8 @@ V1_CONTROLS = frozenset({"up", "down", "left", "right", "a", "b", "x", "y", "l1"
 
 
 def v1_input(value):
-    return isinstance(value, str) and value.startswith("virtual:") and value.removeprefix("virtual:") in V1_CONTROLS
+    """An input released apps read: a physical one, or a virtual control they know."""
+    return isinstance(value, str) and (not value.startswith("virtual:") or value.removeprefix("virtual:") in V1_CONTROLS)
 
 
 def validate_system(system):
