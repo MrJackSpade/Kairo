@@ -74,6 +74,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** The machine's choices, each a game setting and an all-games default in Machine. */
     protected open val machineOptions: List<MachineOption> = emptyList()
 
+    /**
+     * Where a game's own machine settings live, when not in the catalog's overrides (Kairo#142): the
+     * machine rows read and write each [CatalogSetting.Choice] through it, and a game without a value
+     * of its own takes the option's default. Null keeps them in the catalog's overrides.
+     */
+    protected open val machineStore: GameMachineStore<E>? = null
+
     /** The machine's firmware, by set label: each file its own row (firmwareGroups); empty for none. */
     protected open val firmwareSets: List<Pair<UiText, FirmwareSet>> = emptyList()
     /** The first-run step's title and text, and the note under the firmware rows; the same in every app. */
@@ -696,9 +703,12 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     is CatalogSetting.Choice -> {
                         // The app's own option, which may offer more than the catalog's (such as importing a file).
                         val option = machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option
-                        GameSettingsRows.choice(this, option.id, text(option.label), scope, { option.choices },
-                            machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
-                                { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES, toStored = option::stored),
+                        val value = machineStore?.let { store ->
+                            GameValue({ store.read(entry, option) }, { option.default }, { GameSource.BUILT_IN },
+                                { picked -> saveGameSetting(entry, getString(R.string.kairo_saved_machine)) { store.write(entry, option, picked) } })
+                        } ?: machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
+                            { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES, toStored = option::stored)
+                        GameSettingsRows.choice(this, option.id, text(option.label), scope, { option.choices }, value,
                             enabled, noHash, actions = option.actions)
                     }
                     is CatalogSetting.Drive -> driveRow(entry, setting, scope, enabled, noHash)
