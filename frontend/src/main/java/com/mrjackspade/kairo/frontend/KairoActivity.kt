@@ -172,6 +172,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     /** Game settings › MACHINE for [entry]; null for none. */
     protected abstract fun machineGroup(entry: E, enabled: () -> Boolean): RowGroup?
+    /**
+     * Groups after MACHINE that depend on [entry]'s machine, such as the options of the cards it has
+     * (KairoX86#201); none by default.
+     */
+    protected open fun machineExtraGroups(entry: E, enabled: () -> Boolean): List<RowGroup> = emptyList()
     /** Whether the title is the user's, where the default comes from, and setting or clearing it. */
     protected abstract fun titleCustom(entry: E): Boolean
     protected abstract fun titleSource(entry: E): String?
@@ -1311,7 +1316,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                     SettingsRow.choice("game-tap", getString(R.string.kairo_touch_screen_tap),
                         ChoiceSpec(getString(R.string.kairo_touch_screen_tap), scope, { emptyList() },
                         { null }, select = {}), enabled = { false }, disabledReason = noHash)))),
-            machineGroup(entry, hashed),
+            machineGroup(entry, hashed)) + machineExtraGroups(entry, hashed) + listOfNotNull(
             displayGroup(entry, hashed),
             RowGroup(getString(R.string.kairo_library_group), listOfNotNull(
                 GameSettingsRows.text(this, "title", getString(R.string.kairo_title), getString(R.string.kairo_title_hint),

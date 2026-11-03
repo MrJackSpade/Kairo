@@ -749,6 +749,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      * A machine row of [option] kept in [store], with the choices its options allow (Kairo#142, #143);
      * once a pick has closed its page, [after] (by default, asking for any choice the pick no longer allows).
      */
+    /** A row for [option], kept where the product keeps its machine settings ([machineStore]). */
+    protected fun machineChoiceRow(entry: E, option: MachineOption, enabled: () -> Boolean): SettingsRow =
+        storedChoiceRow(entry, option, checkNotNull(machineStore) { "${identity.appName} keeps no machine settings of its own" }, enabled)
+
     private fun storedChoiceRow(entry: E, option: MachineOption, store: GameMachineStore<E>, enabled: () -> Boolean,
                                 after: () -> Unit = { askUnfit(entry, store) {} }): SettingsRow {
         val value = GameValue({ store.read(entry, option) }, { option.default(storedValues(entry, store)) }, { GameSource.BUILT_IN },
