@@ -39,15 +39,12 @@ void state(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     session.run(test.frames(spec, "at"));
     const fs::path saved = test.folder / "state";
-    fs::create_directories(saved);
-    if (const int result = session.core().save_state(saved.u8string()))
-        session.fail("save_state returned " + std::to_string(result) + ": " + session.core().state_error());
+    session.save_state(saved);
     const uint64_t frames = test.frames(spec, "frames");
     session.mark();
     session.run(frames);
     const std::vector<uint64_t> after_save = session.signatures();
-    if (const int result = session.core().load_state(saved.u8string()))
-        session.fail("load_state returned " + std::to_string(result) + ": " + session.core().state_error());
+    session.load_state(saved);
     session.mark();
     session.run(frames);
     const std::vector<uint64_t> &after_load = session.signatures();
@@ -98,13 +95,10 @@ void locks(Test &test, const json::Value &spec) {
         session.press(code);
         if (!(session.core().locks() & bit)) session.fail(name + " is not on in locks() after it was pressed");
         const fs::path saved = test.folder / ("locks-" + std::to_string(code));
-        fs::create_directories(saved);
-        if (const int result = session.core().save_state(saved.u8string()))
-            session.fail("save_state returned " + std::to_string(result));
+        session.save_state(saved);
         session.press(code);
         if (session.core().locks() & bit) session.fail(name + " is still on after a second press");
-        if (const int result = session.core().load_state(saved.u8string()))
-            session.fail("load_state returned " + std::to_string(result));
+        session.load_state(saved);
         session.run(1);
         if (!(session.core().locks() & bit)) session.fail(name + " is not on again after loading the state saved with it on");
         // As it was, for the next key.
@@ -185,6 +179,9 @@ void type_commands(Session &session, const Test &test, const json::Value &spec) 
         session.run(1);
         if (!typer.frame(session.core(), error)) session.fail("typing the startup commands failed: " + error);
     }
+    // Where the typing ended, which is how a table learns the frames and screens around it.
+    std::fprintf(stderr, "%s: typed by frame %llu\n", test.name.c_str(), static_cast<unsigned long long>(session.frames()));
+    session.picture("typed");
 }
 
 // stateDisks (Kairo#116): with "drive"'s disk in at frame "at", swap to "swap" (or eject, ""), save,
@@ -204,21 +201,17 @@ void state_disks(Test &test, const json::Value &spec) {
     if (const int result = core.media(drive, swap)) session.fail("swapping drive " + std::to_string(drive) + " returned " + std::to_string(result));
     session.run(10);
     const fs::path saved = test.folder / "state-disks";
-    fs::create_directories(saved);
-    if (const int result = core.save_state(saved.u8string())) session.fail("save_state after the swap returned " + std::to_string(result));
+    session.save_state(saved, "save_state after the swap");
     if (const int result = core.media(drive, original)) session.fail("swapping back returned " + std::to_string(result));
     session.run(10);
-    if (const int result = core.load_state(saved.u8string())) session.fail("load_state returned " + std::to_string(result));
+    session.load_state(saved);
     session.run(1);
     const std::vector<std::string> loaded = core.media_paths();
     const std::string now = static_cast<int>(loaded.size()) > drive ? loaded[static_cast<size_t>(drive)] : "";
     if (now != swap) session.fail("after the load drive " + std::to_string(drive) + " holds \"" + now + "\", not the state's \"" + swap + "\"");
 
     if (const int result = core.media(drive, "")) session.fail("ejecting drive " + std::to_string(drive) + " returned " + std::to_string(result));
-    const fs::path ejected = test.folder / "state-after-eject";
-    fs::create_directories(ejected);
-    if (const int result = core.save_state(ejected.u8string()))
-        session.fail("a save right after an eject returned " + std::to_string(result) + ": " + core.state_error());
+    session.save_state(test.folder / "state-after-eject", "a save right after an eject");
     session.close();
 }
 

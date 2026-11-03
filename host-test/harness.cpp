@@ -1,5 +1,7 @@
 #include "harness.h"
 
+#include "kairo/state_media.h"
+
 #include <cstdio>
 #include <fstream>
 
@@ -79,7 +81,8 @@ fs::path Test::working_copy(const std::string &name) const {
     if (name.empty()) return {};
     const fs::path source = paths.resources / fs::u8path(name);
     if (!fs::is_regular_file(source)) throw std::runtime_error(entry->path() + ": no test resource " + source.string());
-    const fs::path copy = folder / "media" / fs::u8path(name);
+    // In the platform's own form, as a core reports the paths it holds (media_paths).
+    const fs::path copy = (folder / "media" / fs::u8path(name)).make_preferred();
     if (!fs::exists(copy)) {
         fs::create_directories(copy.parent_path());
         fs::copy_file(source, copy);
@@ -127,6 +130,19 @@ uint64_t Test::frames(const json::Value &spec, const std::string &key) const {
     const int64_t value = spec.at(key).integer();
     if (value <= 0) throw std::runtime_error(spec.at(key).path() + ": expected a number of frames above 0");
     return static_cast<uint64_t>(value);
+}
+
+void Session::save_state(const fs::path &path, const std::string &what) {
+    fs::create_directories(path);
+    if (const int result = save_state_with_media(*core_, path.u8string()))
+        fail(what + " returned " + std::to_string(result) + ": " + core_->state_error());
+}
+
+void Session::load_state(const fs::path &path) {
+    // The working copies stay where the state found them: every path it names is where it is.
+    const StatePaths paths({});
+    if (const int result = load_state_with_media(*core_, path.u8string(), paths))
+        fail("load_state returned " + std::to_string(result) + ": " + core_->state_error());
 }
 
 } // namespace kairo::host

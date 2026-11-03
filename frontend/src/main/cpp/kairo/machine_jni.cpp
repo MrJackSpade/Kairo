@@ -9,7 +9,6 @@
 
 #include <atomic>
 #include <cstdio>
-#include <fstream>
 #include <map>
 #include <string>
 #include <thread>
@@ -18,6 +17,7 @@
 #include "kairo/frame_machine.h"
 #include "kairo/jni_strings.h"
 #include "kairo/machine_core.h"
+#include "kairo/state_media.h"
 #include "kairo/state_paths.h"
 
 namespace {
@@ -269,36 +269,9 @@ extern "C" JNIEXPORT jobjectArray JNICALL NATIVE_MACHINE(nativeMediaPaths)(JNIEn
     return array;
 }
 
-// For a core whose state holds no media (MachineCore::media_in_state): each slot's image when the
-// state was saved, one line per slot ("" for an empty one), beside the core's own state file.
-constexpr const char *kStateMedia = "/media-v1.txt";
-
 extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeSaveState)(JNIEnv *env, jobject, jstring directory) {
     std::string path = utf8(env, directory);
-    return machine.call([path](kairo::MachineCore &core) {
-        const int result = core.save_state(path);
-        if (result != 0 || core.media_in_state()) return result;
-        std::ofstream media(path + kStateMedia, std::ios::binary);
-        for (const std::string &image : core.media_paths()) media << image << '\n';
-        return media.good() ? 0 : kairo::MachineCore::kFailed;
-    });
-}
-
-// After a core's load: the state's media back in their slots, where they are now (kairo_state_path),
-// for a core whose state holds none. A state saved before this record existed has none to restore.
-static int restore_state_media(kairo::MachineCore &core, const std::string &path, const kairo::StatePaths &paths) {
-    std::ifstream media(path + kStateMedia, std::ios::binary);
-    if (!media) return 0;
-    const std::vector<std::string> now = core.media_paths();
-    std::string recorded;
-    for (size_t slot = 0; std::getline(media, recorded); ++slot) {
-        if (slot >= now.size()) return kairo::MachineCore::kFailed;
-        const std::string image = recorded.empty() ? "" : paths.resolve(recorded.c_str());
-        if (image == now[slot]) continue;
-        const int result = core.media(static_cast<int>(slot), image);
-        if (result != 0) return result;
-    }
-    return 0;
+    return machine.call([path](kairo::MachineCore &core) { return kairo::save_state_with_media(core, path); });
 }
 
 // [from] and [to]: each disk path a state may name, and where that disk is now (kairo/state_paths.h).
@@ -311,8 +284,7 @@ extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeLoadState)(JNIEnv *env, j
     return machine.call([path, moved](kairo::MachineCore &core) {
         core.release_inputs();
         kairo::StatePaths paths(moved);
-        int result = core.load_state(path);
-        if (result == 0 && !core.media_in_state()) result = restore_state_media(core, path, paths);
+        const int result = kairo::load_state_with_media(core, path, paths);
         if (result == 0) machine.redraw_paused(core);
         return result;
     });

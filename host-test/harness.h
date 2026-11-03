@@ -61,6 +61,11 @@ public:
     // Holds [code] down for [frames] frames, then lets it go for as many.
     void press(int code, uint64_t frames = 4);
 
+    // Saves the machine's state to the folder [path], or loads it, as NativeMachine does: with its
+    // media for a core whose state holds none (kairo/state_media.h). A refusal fails the test.
+    void save_state(const fs::path &path, const std::string &what = "save_state");
+    void load_state(const fs::path &path);
+
     // Writes the last frame to <pictures>/<name>.ppm (nothing for a core whose GPU composes its
     // picture), and returns the file.
     fs::path picture(const std::string &name);
