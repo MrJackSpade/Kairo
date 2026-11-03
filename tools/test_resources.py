@@ -8,8 +8,10 @@ the files are not there yet; the test APK carries them as assets.
     test_resources.py pack <app repository>      reads uitest/resources.json, writes the bundle
     test_resources.py unpack <bundle> <folder>   writes the files, unless the folder already holds them
 
-resources.json maps each path in the bundle (games/..., bios/...) to the file on this machine:
+resources.json maps each path in the bundle (games/..., bios/..., host/...) to the file on this machine:
     {"schemaVersion": 1, "files": {"games/Thunder Force/Thunder Force [FD].7z": "<local path>", ...}}
+host/ holds what only the shared PC boot test uses (host_resources.py), such as Kairo98's DOS prompt
+hard disk: the device's unpack leaves it out of the test APK.
 
 Format: b"KTR1", a 16-byte salt, a 12-byte nonce, then AES-256-GCM over a ZIP of the files, keyed by
 PBKDF2-HMAC-SHA256 of the token (300 000 iterations).
@@ -46,8 +48,8 @@ def pack(repository):
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:
         for name, source in sorted(manifest["files"].items()):
-            if not (name.startswith("games/") or name.startswith("bios/")):
-                raise SystemExit(f"{name}: bundle paths start with games/ or bios/")
+            if not name.startswith(("games/", "bios/", "host/")):
+                raise SystemExit(f"{name}: bundle paths start with games/, bios/ or host/")
             archive.write(source, name)
     salt, nonce = secrets.token_bytes(16), secrets.token_bytes(12)
     sealed = MAGIC + salt + nonce + AESGCM(key(salt)).encrypt(nonce, buffer.getvalue(), MAGIC)
@@ -56,7 +58,8 @@ def pack(repository):
     print(f"{output}: {len(manifest['files'])} files, {len(sealed)} bytes")
 
 
-def unpack(bundle, folder):
+def unpack(bundle, folder, host=False):
+    """Writes the bundle's files to [folder]; host/ too only for the PC ([host])."""
     sealed = bundle.read_bytes()
     digest = hashlib.sha256(sealed).hexdigest()
     marker = folder / MARKER
@@ -72,14 +75,15 @@ def unpack(bundle, folder):
             path.unlink() if path.is_file() else path.rmdir()
     folder.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(plain)) as archive:
-        for entry in archive.infolist():
+        entries = [e for e in archive.infolist() if host or not e.filename.startswith("host/")]
+        for entry in entries:
             target = (folder / entry.filename).resolve()
             if not str(target).startswith(str(folder.resolve()) + os.sep):
                 raise SystemExit(f"{entry.filename} escapes {folder}")
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(archive.read(entry))
     marker.write_text(digest)
-    print(f"{folder}: unpacked {len(archive.infolist())} files")
+    print(f"{folder}: unpacked {len(entries)} files")
 
 
 def main():

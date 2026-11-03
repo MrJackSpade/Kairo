@@ -38,7 +38,7 @@ def main() -> None:
     if len(sys.argv) != 3:
         raise SystemExit(__doc__)
     folder = Path(sys.argv[2])
-    test_resources.unpack(Path(sys.argv[1]), folder)
+    test_resources.unpack(Path(sys.argv[1]), folder, host=True)
     for archive in sorted(folder.rglob("*")):
         if archive.is_file() and archive.suffix.lower() in (".zip", ".7z"):
             extract(archive)

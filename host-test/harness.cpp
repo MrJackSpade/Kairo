@@ -116,7 +116,9 @@ Launch Test::launch(const json::Value *overrides) const {
     if (firmware.kind() == json::Value::Kind::String) {
         launch.firmware = (paths.resources / fs::u8path(firmware.string())).u8string();
     } else {
+        // Empty for a core with firmware of its own (Kairo98's built-in BIOS): the folder is still there.
         const fs::path installed = folder / "firmware";
+        fs::create_directories(installed);
         for (const auto &[name, source] : firmware.object()) {
             const fs::path from = paths.resources / fs::u8path(source.string());
             if (!fs::is_regular_file(from)) throw std::runtime_error(source.path() + ": no test resource " + from.string());
@@ -153,15 +155,24 @@ Launch Test::launch(const json::Value *overrides) const {
     launch.repeatable = true;
     for (const json::Value &medium : entry->at("media").array())
         launch.media.push_back(working_copy(medium.string()).u8string());
+    // A setting may name a file the app installs in the home ("home:<path in the home>", Kairo98's
+    // font), as the app passes its path.
+    const auto setting = [&home](const json::Value &value) {
+        const std::string text = value.string();
+        if (text.rfind("home:", 0) != 0) return text;
+        const fs::path file = (home / fs::u8path(text.substr(5))).make_preferred();
+        if (!fs::exists(file)) throw std::runtime_error(value.path() + ": no " + file.string() + " in the home");
+        return file.u8string();
+    };
     if (const json::Value *settings = entry->find("settings"))
-        for (const auto &[name, value] : settings->object()) launch.settings[name] = value.string();
+        for (const auto &[name, value] : settings->object()) launch.settings[name] = setting(value);
     if (overrides) {
         if (const json::Value *media = overrides->find("media")) {
             launch.media.clear();
             for (const json::Value &medium : media->array()) launch.media.push_back(working_copy(medium.string()).u8string());
         }
         if (const json::Value *settings = overrides->find("settings"))
-            for (const auto &[name, value] : settings->object()) launch.settings[name] = value.string();
+            for (const auto &[name, value] : settings->object()) launch.settings[name] = setting(value);
     }
     return launch;
 }
