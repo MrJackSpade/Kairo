@@ -62,6 +62,8 @@ class FirmwareSet(
         .groupBy({ it.first }, { it.second })
     private val largestHashed = hashed.maxOfOrNull { it.maxBytes } ?: 0L
     private val headed = parts.filter { it.identifies != null }
+    /** Each accepted name's part, the first part that accepts it: a folder import looks names up here, not part by part. */
+    private val byAcceptedName: Map<String, Part> = buildMap { for (part in parts) for (name in part.accepted) putIfAbsent(name, part) }
 
     fun file(part: Part) = File(directory, part.name)
     fun installed(part: Part) = file(part).isFile
@@ -133,7 +135,10 @@ class FirmwareSet(
      * digest (one file can be several parts), then by its header.
      */
     internal fun choose(candidates: List<Candidate>, cancelled: AtomicBoolean): List<Pair<Part, Candidate>> {
-        val byName = parts.mapNotNull { part -> candidates.firstOrNull { partFor(it.name) === part }?.let { part to it } }
+        // Each part's first candidate by name, in one pass over the candidates (a ROM set has thousands of both).
+        val firstByName = HashMap<Part, Candidate>()
+        for (candidate in candidates) partFor(candidate.name)?.let { firstByName.putIfAbsent(it, candidate) }
+        val byName = parts.mapNotNull { part -> firstByName[part]?.let { part to it } }
         // Then by content: each file no larger than a hashed part can be, read once.
         val byContent = candidates.filter { it.size in 1..largestHashed }.flatMap { file ->
             if (cancelled.get()) throw java.util.concurrent.CancellationException("Cancelled")
@@ -234,10 +239,7 @@ class FirmwareSet(
         java.nio.file.Files.move(copy.toPath(), file(part).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
     }
 
-    private fun partFor(name: String): Part? {
-        val lower = name.lowercase(Locale.ROOT)
-        return parts.firstOrNull { lower in it.accepted }
-    }
+    private fun partFor(name: String): Part? = byAcceptedName[name.lowercase(Locale.ROOT)]
 
     /** The first [HEADER_BYTES] of [input], fewer when it is shorter. */
     private fun header(input: java.io.InputStream): ByteArray {
