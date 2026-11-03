@@ -415,6 +415,9 @@ void clock(Test &test, const json::Value &spec) {
         if (spec.find("commands")) type_commands(session, test, spec);
         const uint64_t start = spec.find("commands") ? session.frames() : 0;
         wait_for_screen(session, done, limit, "the timing program to finish");
+        // A program "finished" before its first frame times nothing (its end screen was already
+        // there, such as a blank one): the ratio would be 0 over 0.
+        if (session.frames() == start) session.fail("the timing program's end screen shows before it ran a frame");
         counts.push_back(session.frames() - start);
         session.close();
     }

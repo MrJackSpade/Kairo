@@ -92,9 +92,13 @@ void Session::close() {
 
 fs::path Test::working_copy(const std::string &name) const {
     if (name.empty()) return {};
-    const fs::path source = paths.resources / fs::u8path(name);
+    // A test resource, or the app's own file or folder ("app:<path in the repository>", KairoDos's
+    // timing program).
+    const bool own = name.rfind("app:", 0) == 0;
+    const fs::path source = own ? paths.app / fs::u8path(name.substr(4)) : paths.resources / fs::u8path(name);
     // In the platform's own form, as a core reports the paths it holds (media_paths).
-    const fs::path copy = (folder / "media" / fs::u8path(name)).make_preferred();
+    const fs::path copy = (own ? folder / "media" / "app" / fs::u8path(name.substr(4))
+                               : folder / "media" / fs::u8path(name)).make_preferred();
     if (fs::exists(copy)) return copy;
     // A folder whole, for a core whose drive is a folder (KairoDos's C: drive, KairoDos#140).
     if (fs::is_directory(source)) {
