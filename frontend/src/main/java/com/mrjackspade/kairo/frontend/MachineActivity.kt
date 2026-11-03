@@ -674,13 +674,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      * firmware where they imported it (for a game whose other options are [values]); else the
      * option's default.
      */
-    protected fun optionDefault(option: MachineOption, values: Map<String, String> = emptyMap()): String {
-        val stored = if (option.numeric) preferences.getInt(option.id, Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }
-            ?.toString() else preferences.getString(option.id, null)
-        return stored?.takeIf { value -> option.choices.any { it.id == value } }
-            ?: option.ownFirmware?.takeIf { ownFirmwareInstalled(option, values) }
-            ?: option.default
-    }
+    protected fun optionDefault(option: MachineOption, values: Map<String, String> = emptyMap()): String =
+        MachineOptionValues.default(option, storedOption(option)) { ownFirmwareInstalled(option, values) }
+
+    /** The player's all-games choice of [option], as stored. */
+    private fun storedOption(option: MachineOption): String? =
+        if (option.numeric) preferences.getInt(option.id, Int.MIN_VALUE).takeIf { it != Int.MIN_VALUE }?.toString()
+        else preferences.getString(option.id, null)
 
     /** What [game] boots with for [option]: its own choice, else the all-games default. */
     protected fun optionValue(game: CatalogGame, option: MachineOption): String = optionValues(game).getValue(option.id)
@@ -690,12 +690,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      * options without firmware of their own come first, as whether the player's firmware is
      * imported can depend on them (the TOS for the game's model).
      */
-    protected fun optionValues(game: CatalogGame): Map<String, String> {
-        val values = LinkedHashMap<String, String>()
-        for (option in machineOptions.sortedBy { it.ownFirmware != null })
-            values[option.id] = option.read(game) ?: optionDefault(option, values)
-        return machineOptions.associate { it.id to values.getValue(it.id) }
-    }
+    protected fun optionValues(game: CatalogGame): Map<String, String> =
+        MachineOptionValues.values(machineOptions, { it.read(game) }, ::storedOption, ::ownFirmwareInstalled)
 
     /** Direct touch is a game setting where the catalog can choose it. */
     override val directTouchAvailable: Boolean get() = catalog.schema.directTouch
