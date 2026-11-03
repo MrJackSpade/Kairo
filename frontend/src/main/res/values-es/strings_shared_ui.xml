@@ -40,6 +40,8 @@
     <string name="kairo_joystick_fire_2">Disparo 2 (sin uso)</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">Símbolos</string>
+    <string name="kairo_keyboard_function">Función</string>
+    <string name="kairo_keyboard_keypad">Teclado numérico</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">El acceso a la carpeta caducó. Vuelve a seleccionar la carpeta de juegos.</string>
     <!-- %1$d is a size in kilobytes. -->

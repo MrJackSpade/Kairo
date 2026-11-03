@@ -40,6 +40,8 @@
     <string name="kairo_joystick_fire_2">발사 2(사용 안 함)</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">기호</string>
+    <string name="kairo_keyboard_function">기능</string>
+    <string name="kairo_keyboard_keypad">키패드</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">폴더 접근 권한이 만료되었습니다. 게임 폴더를 다시 선택하세요.</string>
     <!-- %1$d is a size in kilobytes. -->

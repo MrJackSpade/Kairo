@@ -40,6 +40,8 @@
     <string name="kairo_joystick_fire_2">Огонь 2 (не используется)</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">Символы</string>
+    <string name="kairo_keyboard_function">Функции</string>
+    <string name="kairo_keyboard_keypad">Цифровой блок</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">Доступ к папке истек. Выберите папку с играми снова.</string>
     <!-- %1$d is a size in kilobytes. -->

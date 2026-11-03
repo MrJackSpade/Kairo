@@ -40,6 +40,8 @@
     <string name="kairo_joystick_fire_2">ファイア2（未使用）</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">記号</string>
+    <string name="kairo_keyboard_function">ファンクション</string>
+    <string name="kairo_keyboard_keypad">テンキー</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">フォルダへのアクセス期限が切れました。ゲームフォルダを選択し直してください。</string>
     <!-- %1$d is a size in kilobytes. -->

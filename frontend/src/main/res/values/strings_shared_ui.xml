@@ -21,6 +21,8 @@
     <string name="kairo_joystick_fire">Fire</string>
     <string name="kairo_joystick_fire_2">Fire 2 (unused)</string>
     <string name="kairo_keyboard_symbols">Symbols</string>
+    <string name="kairo_keyboard_function">Function</string>
+    <string name="kairo_keyboard_keypad">Keypad</string>
     <string name="kairo_library_expired">Folder access expired. Select the games folder again.</string>
     <!-- %1$d is a size in kilobytes. -->
     <string name="kairo_memory_kb">%1$d KB</string>
