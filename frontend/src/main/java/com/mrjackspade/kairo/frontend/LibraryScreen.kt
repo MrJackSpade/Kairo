@@ -198,6 +198,10 @@ class LibraryScreen<T : LibraryItem>(
      * nothing. Rows scrolled into view later are bound with what is known then.
      */
     private fun redrawRows() {
+        // A data change (publishFilter) waits for its layout, which binds every row from the new
+        // items; until then the children are the old items' rows and a position may now be another
+        // kind of row (a header where a game was: a crash on Kairo88's state test).
+        if (list.isLayoutRequested) return
         for (child in 0 until list.childCount) {
             val position = list.firstVisiblePosition + child
             if (position >= adapter.count) break
@@ -205,8 +209,12 @@ class LibraryScreen<T : LibraryItem>(
         }
     }
 
+    /** Marks a header row's view, as a game row's view carries its Row: only a header view is reused as one. */
+    private object HeaderTag
+
     private fun headerView(item: Header, convertView: View?): View {
-        val view = convertView as? LinearLayout ?: LinearLayout(context).apply {
+        val view = (convertView as? LinearLayout)?.takeIf { it.tag === HeaderTag } ?: LinearLayout(context).apply {
+            tag = HeaderTag
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(4), dp(10), dp(4), dp(2))
