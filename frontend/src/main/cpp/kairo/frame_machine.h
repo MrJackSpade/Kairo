@@ -131,7 +131,10 @@ public:
         auto completion = std::make_shared<std::promise<int>>();
         auto result = completion->get_future();
         Command command{Command::Task};
-        command.task = [completion, task = std::move(task)](Core &core) {
+        // The queued task holds the only reference to the promise: when the session
+        // ends with the task still queued, clearing the queue breaks the promise and
+        // the wait below returns. A copy kept here would keep it unbroken forever.
+        command.task = [completion = std::move(completion), task = std::move(task)](Core &core) {
             completion->set_value(task(core));
         };
         {
