@@ -146,47 +146,60 @@ class LibraryScreen<T : LibraryItem>(
     private val artExecutor = Executors.newSingleThreadExecutor()
     private val pendingArt = HashSet<String>()
     private val missingArt = HashSet<String>()
-    private var entries = emptyList<T>()
-    private var selectedIndex = 0
+    private val rows = LibraryRows<T>({ it.id }, context.getString(R.string.kairo_library_continue_group),
+        context.getString(R.string.kairo_library_all_games_group))
+    private val entries: List<T> get() = rows.entries
+    private var selectedIndex: Int
+        get() = rows.selectedIndex
+        set(value) { rows.selectedIndex = value }
     private var selectionVisibilityPending = false
 
-    private sealed interface ListItem
-    private data class Header(val label: String, val pinned: Boolean) : ListItem
-    private data class Game(val index: Int) : ListItem
-    private var items = emptyList<ListItem>()
+    private val items: List<LibraryRows.Item> get() = rows.items
 
     private data class Row(val art: ImageView, val mark: TextView,
                            val title: TextView, val detail: TextView,
                            var index: Int = -1, var pinned: Boolean? = null,
                            var artwork: String? = null)
 
-    private fun positionOf(index: Int) = items.indexOfFirst { it is Game && it.index == index }
-
-    /** The row the list was last told to select, which it keeps for its next layout (see [showEntries]). */
-    private var requestedRow = -1
+    private fun positionOf(index: Int) = rows.positionOf(index)
 
     /** Selects the list's row at [position], at [top] when given (setSelectionFromTop). */
     private fun selectRow(position: Int, top: Int? = null) {
-        requestedRow = position
+        rows.request(position)
         if (top == null) list.setSelection(position) else list.setSelectionFromTop(position, top)
     }
-    private fun indexAt(position: Int) = (items.getOrNull(position) as? Game)?.index
+    private fun indexAt(position: Int) = rows.indexAt(position)
+    /** The row a finger went down on, for the click it ends in: its game's id, or null for a header. */
+    private class Touch(val id: String?)
+    private var touch: Touch? = null
+
+    /**
+     * The game a click on the row at [position] opens: the one the finger went down on, when a
+     * finger made it, wherever the rows have since put it; none when it touched a header or its
+     * game left the library.
+     */
+    private fun clickedIndex(position: Int): Int? {
+        val touched = touch ?: return indexAt(position)
+        touch = null
+        val id = touched.id ?: return null
+        return entries.indexOfFirst { it.id == id }.takeIf { it >= 0 }
+    }
 
     private val adapter = object : BaseAdapter() {
         override fun getCount() = items.size
         override fun getItem(position: Int) = items[position]
         override fun getItemId(position: Int) = when (val item = items[position]) {
-            is Game -> entries[item.index].id.hashCode().toLong()
-            is Header -> item.label.hashCode().toLong()
+            is LibraryRows.Game -> entries[item.index].id.hashCode().toLong()
+            is LibraryRows.Header -> item.label.hashCode().toLong()
         }
         override fun getViewTypeCount() = 2
-        override fun getItemViewType(position: Int) = if (items[position] is Header) 1 else 0
+        override fun getItemViewType(position: Int) = if (items[position] is LibraryRows.Header) 1 else 0
         override fun areAllItemsEnabled() = false
-        override fun isEnabled(position: Int) = items[position] is Game
+        override fun isEnabled(position: Int) = items[position] is LibraryRows.Game
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
             when (val item = items[position]) {
-                is Header -> headerView(item, convertView)
-                is Game -> gameView(item.index, convertView)
+                is LibraryRows.Header -> headerView(item, convertView)
+                is LibraryRows.Game -> gameView(item.index, convertView)
             }
     }
 
@@ -212,7 +225,7 @@ class LibraryScreen<T : LibraryItem>(
     /** Marks a header row's view, as a game row's view carries its Row: only a header view is reused as one. */
     private object HeaderTag
 
-    private fun headerView(item: Header, convertView: View?): View {
+    private fun headerView(item: LibraryRows.Header, convertView: View?): View {
         val view = (convertView as? LinearLayout)?.takeIf { it.tag === HeaderTag } ?: LinearLayout(context).apply {
             tag = HeaderTag
             orientation = LinearLayout.HORIZONTAL
@@ -277,7 +290,7 @@ class LibraryScreen<T : LibraryItem>(
         }
         val entry = entries[index]
         TestAttributes.mark(view, "library.entry", entry.id)
-        val pinned = index == 0 && pinnedId != null && items.firstOrNull() is Header
+        val pinned = index == 0 && pinnedId != null && items.firstOrNull() is LibraryRows.Header
         val game = metadata(entry)
         holder.title.text = game.title
         // Keep the source filename intact; the marker is only a prefix on its display row.
@@ -385,15 +398,23 @@ class LibraryScreen<T : LibraryItem>(
             overScrollMode = View.OVER_SCROLL_NEVER
             isVerticalScrollBarEnabled = false
             adapter = this@LibraryScreen.adapter
+            // ListView clicks the row at the position the finger went down on: rows that changed
+            // and were laid out before it lifted (a scan's new games right after setup) put another
+            // game there. A tap opens the game it touched.
+            setOnTouchListener { _, event ->
+                if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN)
+                    touch = Touch(indexAt(pointToPosition(event.x.toInt(), event.y.toInt()))?.let { entries[it].id })
+                false
+            }
             setOnItemClickListener { _, _, position, _ ->
-                val index = indexAt(position) ?: return@setOnItemClickListener
+                val index = clickedIndex(position) ?: return@setOnItemClickListener
                 selectedIndex = index
                 focusGames()
                 notifySelection()
                 openDetail(entries[index])
             }
             setOnItemLongClickListener { _, _, position, _ ->
-                val index = indexAt(position) ?: return@setOnItemLongClickListener false
+                val index = clickedIndex(position) ?: return@setOnItemLongClickListener false
                 selectedIndex = index
                 focusGames()
                 notifySelection()
@@ -559,7 +580,7 @@ class LibraryScreen<T : LibraryItem>(
         // Until the search reruns, results must not offer games that left the library.
         if (query.isNotEmpty()) publishFilter(query, entries.mapNotNull { current[it.id] }, null)
         applyFilter()
-        if (entries.isNotEmpty()) selectRow(if (selectedIndex == 0) 0 else positionOf(selectedIndex))
+        rows.rowAfterRefresh()?.let(list::setSelection)
         detailPage?.let { page ->
             val refreshed = allEntries.firstOrNull { it.id == page.entryId }
             if (refreshed == null) closeDetail() else page.show(refreshed)
@@ -615,13 +636,11 @@ class LibraryScreen<T : LibraryItem>(
             return
         }
         if (entries.isEmpty()) return
-        val next = (selectedIndex + delta).coerceIn(0, entries.lastIndex)
-        if (next == selectedIndex) {
+        if (!rows.move(delta)) {
             requestSelectionVisibility()
             if (delta > 0) crossEdge("down")
             return
         }
-        selectedIndex = next
         updateSelectionHighlight()
         requestSelectionVisibility()
         notifySelection()
@@ -839,27 +858,11 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     private fun publishFilter(query: String, matches: List<T>, pinned: T?) {
-        val selectedId = entries.getOrNull(selectedIndex)?.id
-        val selectedWasPinned = selectedIndex == 0 &&
-            (items.firstOrNull() as? Header)?.pinned == true
-        entries = matches
+        val keep = rows.publish(matches, pinned)
         updateEmptyState()
-        val selectedMatch = when {
-            selectedWasPinned && pinned?.id == selectedId -> 0
-            selectedId != null -> entries.indexOfLast { it.id == selectedId }
-            else -> -1
-        }
-        selectedIndex = if (selectedMatch >= 0) selectedMatch else
-            selectedIndex.coerceIn(0, (entries.size - 1).coerceAtLeast(0))
-        items = if (pinned != null && entries.isNotEmpty()) listOf(Header(context.getString(R.string.kairo_library_continue_group), true), Game(0)) +
-            (if (entries.size > 1) listOf(Header(context.getString(R.string.kairo_library_all_games_group), false)) else emptyList()) +
-            (1 until entries.size).map(::Game)
-            else entries.indices.map(::Game)
         adapter.notifyDataSetChanged()
-        // In touch mode ListView keeps a row it was told to select for its next layout, and a data
-        // change does not move it (Kairo#99): one past the new rows becomes the selected game's row,
-        // or -1 (none kept) when there are no rows (Kairo#100).
-        if (requestedRow >= items.size) selectRow(positionOf(selectedIndex))
+        // ListView keeps the row it was last told to select for its next layout (LibraryRows).
+        keep?.let(list::setSelection)
         requestSelectionVisibility()
         notifySelection()
     }
