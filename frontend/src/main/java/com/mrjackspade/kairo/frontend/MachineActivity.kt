@@ -757,7 +757,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 // Left or Right on the row changed it with no choice page to close first.
                 if (pages.top !is ChoicePage) after()
             })
-        val defaultLabel = option.labelOf?.let { label -> { label(value.fallback()) } }
+        val defaultLabel = option.labelOf?.let { label -> { text(label(value.fallback())) } }
         return GameSettingsRows.choice(this, option.id, text(option.label), { titleOf(entry) },
             { option.choices(storedValues(entry, store)) }, value, enabled, { GameSettingsRows.noHash(this) },
             defaultLabel = defaultLabel, actions = option.actions, closed = after)

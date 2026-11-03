@@ -41,7 +41,7 @@ class MachineOption(
     private val choicesWith: ((Map<String, String>) -> List<ChoiceOption>)? = null,
     private val defaultWith: ((Map<String, String>) -> String)? = null,
     /** How a value reads where no choice names it, such as a default the machine's choices do not include. */
-    val labelOf: ((String) -> String)? = null
+    val labelOf: ((String) -> UiText)? = null
 ) {
     constructor(id: String, label: UiText, choices: List<ChoiceOption>, default: String, numeric: Boolean = false,
                 ownFirmware: String? = null, question: UiText? = null) :
