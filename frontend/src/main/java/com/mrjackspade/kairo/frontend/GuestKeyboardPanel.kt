@@ -254,15 +254,7 @@ class GuestKeyboardPanel(
         updateMappingKeys()
     }
 
-    private fun keyList(key: KeyboardKey) =
-        if (chordsShift(key)) listOf(layout.chordShiftCode, key.code) else listOf(key.code)
-
-    /**
-     * Whether a press of [key] chords Shift: for the legend it shows, so not while the kana lock shows
-     * its kana legend, which the key types without Shift (a JIS MSX's _ key is ろ in kana).
-     */
-    private fun chordsShift(key: KeyboardKey) = key.chordShift &&
-        !(key.kana != null && layout.kanaCode?.let { it in input.lockedKeys() } == true)
+    private fun keyList(key: KeyboardKey) = layout.keysFor(key, input.lockedKeys())
 
     /** Mapping mode colors the waiting key and every mapped key; leaving it restores the normal keys. */
     private fun updateMappingKeys() {
@@ -475,7 +467,7 @@ class GuestKeyboardPanel(
     }
 
     private fun press(key: KeyboardKey) {
-        highlightUntil[key.code] = Lit(SystemClock.uptimeMillis() + 90, chordsShift(key) || shiftHeld())
+        highlightUntil[key.code] = Lit(SystemClock.uptimeMillis() + 90, keyList(key).size > 1 || shiftHeld())
         input.hold("touch-key:${key.code}", keyList(key))
     }
 
@@ -499,18 +491,8 @@ class GuestKeyboardPanel(
     private fun updateLegends() {
         val shifted = layout.shiftCodes.any { it in latched }
         val locks = input.lockedKeys()
-        val caps = layout.capsCode?.let { it in locks } == true
-        val kana = layout.kanaCode?.let { it in locks } == true
-        val numLockOff = layout.numLockCode?.let { it !in locks } == true
         for ((key, view) in keyViews) {
-            val letter = key.label.length == 1 && key.label[0] in 'a'..'z'
-            view.text = when {
-                numLockOff && key.numLockOff != null -> key.numLockOff
-                kana && key.kana != null -> if (shifted) key.kanaShifted ?: key.kana else key.kana
-                letter && (shifted xor caps) -> key.label.uppercase()
-                key.shifted != null && shifted -> key.shifted
-                else -> key.label
-            }
+            view.text = layout.legend(key, shifted, locks)
             view.isActivated = key.code in latched || key.code in locks
         }
         updateHighlights()

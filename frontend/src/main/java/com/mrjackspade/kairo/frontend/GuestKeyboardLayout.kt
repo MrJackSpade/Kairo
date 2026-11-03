@@ -47,4 +47,28 @@ data class GuestKeyboardLayout(
     }
 
     fun isLock(code: Int) = code in lockCodes
+
+    /** The legend [key] shows with Shift held or latched ([shifted]) and the guest's [locks] on. */
+    fun legend(key: KeyboardKey, shifted: Boolean, locks: Set<Int>): String {
+        val caps = capsCode?.let { it in locks } == true
+        val kana = kanaCode?.let { it in locks } == true
+        val numLockOff = numLockCode?.let { it !in locks } == true
+        val letter = key.label.length == 1 && key.label[0] in 'a'..'z'
+        return when {
+            numLockOff && key.numLockOff != null -> key.numLockOff
+            kana && key.kana != null -> if (shifted) key.kanaShifted ?: key.kana else key.kana
+            letter && (shifted xor caps) -> key.label.uppercase()
+            key.shifted != null && shifted -> key.shifted
+            else -> key.label
+        }
+    }
+
+    /**
+     * The guest keys a press of [key] sends with [locks] on: Shift chorded for the legend it shows,
+     * so not while the kana lock shows its kana legend, which the key types without Shift (a JIS
+     * MSX's _ key is ろ in kana).
+     */
+    fun keysFor(key: KeyboardKey, locks: Set<Int>): List<Int> =
+        if (key.chordShift && !(key.kana != null && kanaCode?.let { it in locks } == true)) listOf(chordShiftCode, key.code)
+        else listOf(key.code)
 }
