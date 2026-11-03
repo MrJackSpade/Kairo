@@ -34,10 +34,10 @@ void boot(Test &test, const json::Value &spec) {
 }
 
 // state (Kairo#115): at frame "at" (during a load, where states went wrong), save; run "frames"
-// frames; load; run them again. The two runs must be the same frames, and so the same machine. A
-// load comes with the frame NativeMachine runs to redraw the paused game (frame_machine.h
-// redraw_paused), so the frames after the load are compared with those after the save from its
-// second on: a core whose picture lags its machine by a frame shows the loaded state from there.
+// frames; load; run them again. The two runs must be the same frames, and so the same machine. The
+// first frame after the load is the one NativeMachine runs to redraw the paused game
+// (frame_machine.h redraw_paused), which the player sees under the menu: it must already be the
+// loaded state's (KairoMSX#63).
 void state(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     session.run(test.frames(spec, "at"));
@@ -46,12 +46,10 @@ void state(Test &test, const json::Value &spec) {
     const uint64_t frames = test.frames(spec, "frames");
     session.mark();
     session.run(frames);
-    std::vector<uint64_t> after_save = session.signatures();
-    after_save.erase(after_save.begin());
+    const std::vector<uint64_t> after_save = session.signatures();
     session.load_state(saved);
-    session.run(1);
     session.mark();
-    session.run(frames - 1);
+    session.run(frames);
     const std::vector<uint64_t> &after_load = session.signatures();
     const int64_t at = first_difference(after_save, after_load);
     if (at >= 0) {
