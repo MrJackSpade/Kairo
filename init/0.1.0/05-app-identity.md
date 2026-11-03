@@ -1,5 +1,5 @@
 ---
-title: App identity: name, package, module, icon and accent color
+title: App identity: name, package and module
 kind: implement
 ---
 Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
@@ -13,12 +13,11 @@ Every new system.
 ## Work
 
 - The name {{app}}, the package `com.loxifi.{{module}}` and the module `{{module}}`.
-- The icon art, which the owner provides.
-- The brand accent color, taken from the icon art (an ARGB value for the app's `Identity`).
+- The icon and the brand accent color are their own ticket (App icon and accent color).
 
 ## Done when
 
-- This description records them, and the icon art is in hand.
+- This description records them.
 
 ## Closing
 

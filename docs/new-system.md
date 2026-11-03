@@ -20,8 +20,9 @@ python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system
 - [ ] Survey the real <System> for parity (implement)
 - [ ] Firmware: a free default the app ships, and the player's own (implement)
 - [ ] Catalog identity: platform slug, LaunchBox, MobyGames and artwork code (implement)
-- [ ] App identity: name, package, module, icon and accent color (implement)
+- [ ] App identity: name, package and module (implement)
 - [ ] Standard game sets and the test set (implement)
+- [ ] App icon and accent color, drawn by the icon generator (implement)
 
 ## 0.2.0
 
