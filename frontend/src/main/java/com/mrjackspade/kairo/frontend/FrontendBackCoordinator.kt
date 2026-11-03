@@ -1,10 +1,7 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.os.Build
 import android.view.View
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
 
 /** Routes system and physical Back through the same ordered frontend layers. */
 class FrontendBackCoordinator(
@@ -17,21 +14,11 @@ class FrontendBackCoordinator(
     private val busy: () -> Boolean = { false },
     private val closeKeyboard: () -> Unit = { keyboard()?.close() }
 ) {
-    private val callback = OnBackInvokedCallback { handle() }
-    private var registered = false
+    private val systemBack = SystemBack(activity) { handle() }
 
-    fun register() {
-        if (Build.VERSION.SDK_INT < 33 || registered) return
-        activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(
-            OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
-        registered = true
-    }
+    fun register() = systemBack.register()
 
-    fun unregister() {
-        if (Build.VERSION.SDK_INT < 33 || !registered) return
-        activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(callback)
-        registered = false
-    }
+    fun unregister() = systemBack.unregister()
 
     /** The tray, then the page, then the flyout; then the library or the game below them. */
     fun handle() {

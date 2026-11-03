@@ -2,7 +2,6 @@ package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Display
@@ -10,8 +9,6 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
 
 /** Hosts the secondary panel when Android identifies it as the default display. */
 class SecondaryDisplayActivity : Activity() {
@@ -21,7 +18,7 @@ class SecondaryDisplayActivity : Activity() {
     }
 
     private var owner: SecondaryDisplayCoordinator? = null
-    private val backCallback = OnBackInvokedCallback { if (!finishSearch()) owner?.forwardBack() }
+    private val systemBack = SystemBack(this) { if (!finishSearch()) owner?.forwardBack() }
     private lateinit var content: SecondaryDisplayContent
     private lateinit var viewScale: ViewScale
 
@@ -32,8 +29,7 @@ class SecondaryDisplayActivity : Activity() {
         owner = session
         // System Back bypasses dispatchKeyEvent on Android 13+. Route it to the
         // primary frontend instead of finishing and recreating the keyboard task.
-        if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(
-            OnBackInvokedDispatcher.PRIORITY_DEFAULT, backCallback)
+        systemBack.register()
         hideSystemBars()
         viewScale = ViewScale(this)
         showContent(session)
@@ -142,8 +138,7 @@ class SecondaryDisplayActivity : Activity() {
     }
 
     override fun onDestroy() {
-        if (Build.VERSION.SDK_INT >= 33)
-            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
+        systemBack.unregister()
         Log.i(packageName, "Keyboard activity closing")
         if (::content.isInitialized) content.close()
         owner?.detachCompanion(this)
