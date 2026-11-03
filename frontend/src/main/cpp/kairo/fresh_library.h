@@ -3,9 +3,10 @@
 // A fresh copy of a native library for each machine, unloaded after it: a core whose emulator
 // keeps its state in globals (KairoST's Hatari, KairoDos's DOSBox Staging) starts every machine
 // from the library's initial globals. On Android the copy is forced even when one is loaded
-// (ANDROID_DLEXT_FORCE_LOAD); on Windows (the shared PC boot test) each load is a new temporary
-// copy of the DLL beside the executable, since Windows hands back a module already loaded from the
-// same path.
+// (ANDROID_DLEXT_FORCE_LOAD), from the library's full path: given a bare name, the linker hands
+// back any loaded library of that soname before FORCE_LOAD is looked at (KairoX86#196). On Windows
+// (the shared PC boot test) each load is a new temporary copy of the DLL beside the executable,
+// since Windows hands back a module already loaded from the same path.
 
 #include <atomic>
 #include <cstdio>
@@ -31,11 +32,12 @@ public:
     // Android, "libfoo.dll" beside the executable on Windows), or null with [error].
     static std::unique_ptr<FreshLibrary> load(const std::string &file, std::string &error) {
 #if defined(__ANDROID__)
+        const std::string path = library_folder() + file;
         android_dlextinfo info{};
         info.flags = ANDROID_DLEXT_FORCE_LOAD;
-        void *handle = android_dlopen_ext(file.c_str(), RTLD_NOW | RTLD_LOCAL, &info);
+        void *handle = android_dlopen_ext(path.c_str(), RTLD_NOW | RTLD_LOCAL, &info);
         if (!handle) {
-            error = "Could not load " + file + ": " + dlerror();
+            error = "Could not load " + path + ": " + dlerror();
             return nullptr;
         }
         return std::unique_ptr<FreshLibrary>(new FreshLibrary(handle, file, ""));
@@ -100,6 +102,20 @@ private:
 #endif
         std::abort();
     }
+
+#if defined(__ANDROID__)
+    // The folder the app's native libraries are in, with its trailing separator: the one holding
+    // the library this code is built into ("<apk>!/lib/<abi>/" when they load from the APK).
+    static std::string library_folder() {
+        Dl_info info{};
+        if (!dladdr(reinterpret_cast<void *>(&FreshLibrary::library_folder), &info) || !info.dli_fname)
+            fail("dladdr found no library for the fresh-library loader");
+        const std::string self = info.dli_fname;
+        const size_t slash = self.rfind('/');
+        if (slash == std::string::npos) fail("The fresh-library loader's library has no folder: " + self);
+        return self.substr(0, slash + 1);
+    }
+#endif
 
 #if defined(_WIN32)
     static std::string windows_error() { return "Windows error " + std::to_string(GetLastError()); }
