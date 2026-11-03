@@ -107,8 +107,11 @@ void sessions(Test &test, const json::Value &spec) {
 
 // locks (Kairo#124): for each lock key in "keys" ({"code": the key's code, "bit": its bit in
 // locks()}), after "at" frames: pressing it turns it on in locks(); a state saved then, with the
-// key turned off again after it, loads with the key on.
+// key turned off again after it, loads with the key on. A core without save states (KairoDos) says
+// "state": false, and only the presses are checked.
 void locks(Test &test, const json::Value &spec) {
+    const json::Value *state = spec.find("state");
+    const bool states = !state || state->boolean();
     Session session(test.launch(), test.folder, test.name);
     session.run(test.frames(spec, "at"));
     for (const json::Value &key : spec.at("keys").array()) {
@@ -118,6 +121,11 @@ void locks(Test &test, const json::Value &spec) {
         if (session.core().locks() & bit) session.fail(name + " is on before it was pressed");
         session.press(code);
         if (!(session.core().locks() & bit)) session.fail(name + " is not on in locks() after it was pressed");
+        if (!states) {
+            session.press(code);
+            if (session.core().locks() & bit) session.fail(name + " is still on after a second press");
+            continue;
+        }
         const fs::path saved = test.folder / ("locks-" + std::to_string(code));
         session.save_state(saved);
         session.press(code);
