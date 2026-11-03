@@ -61,12 +61,16 @@ void state(Test &test, const json::Value &spec) {
 }
 
 // sessions (Kairo#118): in one process, start the game, end it, start it again: the second
-// session's first "frames" frames must be the first's. Then a start at the prompt ("prompt": the
-// launch the app makes for it, as media and settings over the table's) must run as long.
+// session's first "frames" frames must be the first's. Each starts from the table's files alone (a
+// new home and new working copies), so what the first wrote, such as a CMOS or a user disk, does
+// not change the second: what differs is what the process kept. Then a start at the prompt
+// ("prompt": the launch the app makes for it, as media and settings over the table's) must run as long.
 void sessions(Test &test, const json::Value &spec) {
     const uint64_t frames = test.frames(spec, "frames");
     std::vector<uint64_t> first;
     for (int round = 0; round < 2; ++round) {
+        fs::remove_all(test.folder / "home");
+        fs::remove_all(test.folder / "media");
         Session session(test.launch(), test.folder, test.name + " session " + std::to_string(round + 1));
         session.run(frames);
         if (round == 0) first = session.signatures();
@@ -306,7 +310,8 @@ bool pointer(MachineCore &core, int &x, int &y) {
 // directTap (Kairo#121): in the table's mouse program, after "frames" frames, each of "points"
 // ({"x", "y"} in frame pixels): mouse_warp there, wait for mouse_warp_done within "warpBy" frames,
 // and the guest's pointer is within "tolerance" pixels. At a point with "screens", a click then
-// shows one of them (what was there is selected).
+// shows one of them (what was there is selected). A guest that keeps a pointer of its own
+// ("ownPointer": true, Lemmings) is judged by those screens alone.
 void direct_tap(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     run_with_keys(session, spec, test.frames(spec, "frames"));
@@ -317,17 +322,52 @@ void direct_tap(Test &test, const json::Value &spec) {
         session.core().mouse_warp(x, y);
         session.run_until("the warp to (" + std::to_string(x) + "," + std::to_string(y) + ") to finish", warp_by,
             [&] { return session.core().mouse_warp_done(); });
-        int px = 0, py = 0;
-        if (!pointer(session.core(), px, py)) session.fail("the core reports no pointer=x,y in details()");
-        if (std::abs(px - x) > tolerance || std::abs(py - y) > tolerance)
-            session.fail("the pointer is at (" + std::to_string(px) + "," + std::to_string(py) + "), not within " +
-                std::to_string(tolerance) + " of (" + std::to_string(x) + "," + std::to_string(y) + ")");
+        // A guest with a pointer of its own ("ownPointer": the core cannot read it) is judged by what
+        // its click selects alone.
+        const json::Value *own = spec.find("ownPointer");
+        if (!(own && own->boolean())) {
+            int px = 0, py = 0;
+            if (!pointer(session.core(), px, py)) session.fail("the core reports no pointer=x,y in details()");
+            if (std::abs(px - x) > tolerance || std::abs(py - y) > tolerance)
+                session.fail("the pointer is at (" + std::to_string(px) + "," + std::to_string(py) + "), not within " +
+                    std::to_string(tolerance) + " of (" + std::to_string(x) + "," + std::to_string(y) + ")");
+        } else if (!point.find("screens")) {
+            throw std::runtime_error(point.path() + ": with ownPointer, each point names the screens its click shows");
+        }
         if (point.find("screens")) {
             session.core().mouse_button(1, true);
             session.run(4);
             session.core().mouse_button(1, false);
             wait_for_screen(session, screens(point), test.frames(point, "selectedBy"), "the click to select what is there");
         }
+    }
+    session.close();
+}
+
+// mouseMotion (Kairo68#81): in the table's mouse program, after "frames" frames, the mouse moves
+// "dx", "dy" counts a frame for "moves" frames: the guest's pointer must go that way all along, to
+// the screen's edge and staying there, never more than "tolerance" pixels back. Motion across a
+// mouse counter's wrap point read as a large move the other way (MAME's X68000 mouse) fails it.
+void mouse_motion(Test &test, const json::Value &spec) {
+    Session session(test.launch(), test.folder, test.name);
+    run_with_keys(session, spec, test.frames(spec, "frames"));
+    const int dx = static_cast<int>(spec.at("dx").integer()), dy = static_cast<int>(spec.at("dy").integer());
+    const int tolerance = static_cast<int>(spec.at("tolerance").integer());
+    int x = 0, y = 0;
+    if (!pointer(session.core(), x, y)) session.fail("the core reports no pointer=x,y in details()");
+    const uint64_t moves = test.frames(spec, "moves");
+    for (uint64_t i = 0; i < moves; ++i) {
+        session.core().mouse_move(dx, dy);
+        session.run(1);
+        int nx = 0, ny = 0;
+        if (!pointer(session.core(), nx, ny)) session.fail("the core reports no pointer=x,y in details()");
+        const auto back = [tolerance](int from, int to, int way) { return way != 0 && (to - from) * (way > 0 ? -1 : 1) > tolerance; };
+        if (back(x, nx, dx) || back(y, ny, dy))
+            session.fail("after move " + std::to_string(i + 1) + " of (" + std::to_string(dx) + "," + std::to_string(dy) +
+                ") the pointer went from (" + std::to_string(x) + "," + std::to_string(y) + ") to (" + std::to_string(nx) + "," +
+                std::to_string(ny) + "), the other way");
+        x = nx;
+        y = ny;
     }
     session.close();
 }
@@ -383,6 +423,7 @@ const std::map<std::string, Check> &checks() {
         {"guestInput", guest_input},
         {"commands", commands},
         {"directTap", direct_tap},
+        {"mouseMotion", mouse_motion},
         {"clock", clock},
         {"hardDisk", hard_disk},
     };

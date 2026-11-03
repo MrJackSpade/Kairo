@@ -2,6 +2,7 @@
 
 #include "kairo/state_media.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <fstream>
 
@@ -83,10 +84,27 @@ fs::path Test::working_copy(const std::string &name) const {
     if (!fs::is_regular_file(source)) throw std::runtime_error(entry->path() + ": no test resource " + source.string());
     // In the platform's own form, as a core reports the paths it holds (media_paths).
     const fs::path copy = (folder / "media" / fs::u8path(name)).make_preferred();
-    if (!fs::exists(copy)) {
-        fs::create_directories(copy.parent_path());
-        fs::copy_file(source, copy);
+    if (fs::exists(copy)) return copy;
+    fs::create_directories(copy.parent_path());
+    // With the files it reads beside it, as the app's working copy has them: a descriptor's track
+    // data under its own name (a CUE's ISO, a CCD's IMG), and every file a CUE sheet names.
+    std::vector<fs::path> files{source};
+    for (const fs::directory_entry &sibling : fs::directory_iterator(source.parent_path()))
+        if (sibling.is_regular_file() && sibling.path() != source && sibling.path().stem() == source.stem())
+            files.push_back(sibling.path());
+    if (source.extension() == ".cue" || source.extension() == ".CUE") {
+        std::ifstream sheet(source);
+        for (std::string line; std::getline(sheet, line);) {
+            const size_t open = line.find('"');
+            if (line.find("FILE") == std::string::npos || open == std::string::npos) continue;
+            const size_t close = line.find('"', open + 1);
+            if (close == std::string::npos) throw std::runtime_error(source.string() + ": a FILE line without its closing quote");
+            const fs::path track = source.parent_path() / fs::u8path(line.substr(open + 1, close - open - 1));
+            if (!fs::is_regular_file(track)) throw std::runtime_error(source.string() + " names " + track.string() + ", which is not there");
+            if (std::find(files.begin(), files.end(), track) == files.end()) files.push_back(track);
+        }
     }
+    for (const fs::path &file : files) fs::copy_file(file, copy.parent_path() / file.filename());
     return copy;
 }
 
@@ -111,6 +129,8 @@ Launch Test::launch(const json::Value *overrides) const {
     const fs::path home = folder / "home";
     fs::create_directories(home);
     launch.home = home.u8string();
+    // The checks compare runs: of one session against itself, and of one session against the next.
+    launch.repeatable = true;
     for (const json::Value &medium : entry->at("media").array())
         launch.media.push_back(working_copy(medium.string()).u8string());
     if (const json::Value *settings = entry->find("settings"))

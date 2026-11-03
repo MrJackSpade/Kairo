@@ -26,6 +26,10 @@ struct Launch {
     std::vector<std::string> media;
     // The machine's settings, by the names the product gives them.
     std::map<std::string, std::string> settings;
+    // Whether a run must repeat exactly, for tests that compare two runs (the shared PC boot test):
+    // a core whose guest reads the host's clock or finishes host work in the background starts its
+    // clock at a fixed time and waits for that work. The app never sets it.
+    bool repeatable = false;
 
     const std::string &setting(const std::string &name, const std::string &fallback) const {
         auto found = settings.find(name);
