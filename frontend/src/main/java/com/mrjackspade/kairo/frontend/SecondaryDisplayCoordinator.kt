@@ -295,18 +295,31 @@ class SecondaryDisplayCoordinator(
         companion = value
         companionStopped = false
         onAvailabilityChanged(true)
-        return GuestKeyboardPanel(value, inputs, keyboardLayout, {},
-            showClose = false, onSwap = ::toggleSwap,
-            ).also { it.setInitialMode(touchpadMode); panels.add(it) }
+        return panel(value).also { it.setInitialMode(touchpadMode) }
     }
 
-    /** The keyboards this coordinator made, which a session's layout reaches ([setLayout]). */
+    /** The keyboards this coordinator made, which a session's layout and pads reach ([setLayout], [setJoystickPorts]). */
     private val panels = java.util.Collections.newSetFromMap(java.util.WeakHashMap<GuestKeyboardPanel, Boolean>())
+    /** The running machine's own pads, or null for the spec's. */
+    private var joystickPorts: List<JoystickPort>? = null
+
+    /** A second-screen keyboard with the session's layout and pads. */
+    private fun panel(context: Context) = GuestKeyboardPanel(context, inputs, keyboardLayout, {}, showClose = false,
+        onSwap = ::toggleSwap).also { panel ->
+        joystickPorts?.let(panel::setJoystickPorts)
+        panels.add(panel)
+    }
 
     /** The running machine's keyboard, on the second screen's keyboards now and later. */
     fun setLayout(value: GuestKeyboardLayout) {
         keyboardLayout = value
         panels.forEach { it.setLayout(value) }
+    }
+
+    /** The running machine's own pads, on the second screen's keyboards now and later. */
+    fun setJoystickPorts(value: List<JoystickPort>) {
+        joystickPorts = value
+        panels.forEach { it.setJoystickPorts(value) }
     }
 
     fun updateCompanion(value: SecondaryDisplayActivity) {
@@ -428,9 +441,7 @@ class SecondaryDisplayCoordinator(
             @Suppress("DEPRECATION")
             window?.decorView?.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or
                 View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-            content = SecondaryDisplayContent(context,
-                GuestKeyboardPanel(context, inputs, keyboardLayout, {}, showClose = false,
-                    onSwap = ::toggleSwap).also { panels.add(it) }, ::forwardGameSurface, onGameTouch,
+            content = SecondaryDisplayContent(context, panel(context), ::forwardGameSurface, onGameTouch,
                 placeGame, lowerLibrary?.invoke(context))
             setContentView(content)
         }

@@ -556,8 +556,20 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
      * downloaded update's when it has one, so a corrected mapping reaches players without a new
      * build (Kairo#55), else the shipped one. Games' own mappings layer over it as their records do.
      */
-    @Synchronized fun systemControllerBindings(): org.json.JSONArray =
-        (updated(SYSTEM_DOCUMENT) ?: readAsset("catalog/$SYSTEM_DOCUMENT")).getJSONObject("controller").getJSONArray("bindings")
+    @Synchronized fun systemControllerBindings(): org.json.JSONArray = systemController().getJSONArray("bindings")
+
+    /**
+     * A layer of the system's definition that a game's machine settings choose over the system's
+     * mapping (MachineActivity.machineControllerLayers), such as KairoTowns's "sixButtonPad": what the
+     * 6-button pad's games play with. Its `controller.layers` holds it by name.
+     */
+    @Synchronized fun systemControllerLayer(name: String): org.json.JSONArray =
+        requireNotNull(systemController().optJSONObject("layers")?.optJSONArray(name)) {
+            "The system definition has no controller layer $name"
+        }
+
+    private fun systemController(): JSONObject =
+        (updated(SYSTEM_DOCUMENT) ?: readAsset("catalog/$SYSTEM_DOCUMENT")).getJSONObject("controller")
 
     private fun bundledAdditional(contentId: String): JSONObject? =
         parts.additional("shards/${contentId.substringAfter(':').take(2)}.json")

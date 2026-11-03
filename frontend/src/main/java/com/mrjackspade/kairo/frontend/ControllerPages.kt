@@ -72,9 +72,14 @@ data class ControllerGuestSpec(
     }
 }
 
-/** One guest joystick port: its direction controls by direction, and its buttons in order. */
+/**
+ * One guest joystick port: its direction controls by direction, and its buttons in order, laid out
+ * [columns] to a row on the Joystick tab (three for a 6-button pad).
+ */
 data class JoystickPort(val label: UiText?, val up: String?, val down: String?, val left: String?,
-                        val right: String?, val buttons: List<String>) {
+                        val right: String?, val buttons: List<String>, val columns: Int = 2) {
+    init { require(columns >= 1) { "A joystick port lays out at least one button to a row" } }
+
     companion object {
         /** One unnamed port: controls named up/down/left/right are its directions, the rest its buttons. */
         fun single(controls: List<String>): List<JoystickPort> {

@@ -28,12 +28,32 @@ internal class GuestJoystickPage(
         if (Looper.myLooper() == Looper.getMainLooper()) updatePressed() else handler.post { updatePressed() }
     }
     private val mappingListener: () -> Unit = { updateMapping() }
+    private var ports: List<JoystickPort> = emptyList()
 
     init {
         orientation = VERTICAL
         gravity = Gravity.CENTER
         setPadding(dp(8), dp(4), dp(8), dp(4))
-        for (port in spec.joystickPorts) addView(portView(port), LayoutParams(-1, 0, 1f))
+        showPorts(spec.joystickPorts)
+    }
+
+    /**
+     * The running machine's own pads, where the app's games differ (KairoTowns's 2-button or
+     * 6-button pad), in place of the spec's: the page is laid out again.
+     */
+    fun setPorts(value: List<JoystickPort>) {
+        if (value == ports) return
+        releaseAll()
+        showPorts(value)
+        updatePressed()
+        updateMapping()
+    }
+
+    private fun showPorts(value: List<JoystickPort>) {
+        ports = value
+        removeAllViews()
+        controlViews.clear()
+        for (port in value) addView(portView(port), LayoutParams(-1, 0, 1f))
     }
 
     private fun portView(port: JoystickPort): View {
@@ -52,7 +72,7 @@ internal class GuestJoystickPage(
         }
         row.addView(pad, LayoutParams(0, -1, 1f))
         val buttons = LinearLayout(context).apply { orientation = VERTICAL }
-        for (pair in port.buttons.chunked(2)) {
+        for (pair in port.buttons.chunked(port.columns)) {
             val cells = LinearLayout(context).apply { orientation = HORIZONTAL }
             for (id in pair) cells.addView(control(id, spec.joystickLabel(context, id)),
                 LayoutParams(0, -1, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })

@@ -340,6 +340,18 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         }
         if (::secondaryKeyboard.isInitialized) secondaryKeyboard.setLayout(layout)
     }
+
+    /**
+     * The running machine's own pads on every keyboard panel's Joystick tab, where the app's games
+     * differ ([ControllerGuestSpec.joystickPorts] otherwise), such as KairoTowns's 2-button or 6-button pad.
+     */
+    protected fun useJoystickPorts(ports: List<JoystickPort>) {
+        if (::keyboardPanel.isInitialized) {
+            keyboardPanel.setJoystickPorts(ports)
+            swappedKeyboardPanel.setJoystickPorts(ports)
+        }
+        if (::secondaryKeyboard.isInitialized) secondaryKeyboard.setJoystickPorts(ports)
+    }
     protected val joystickRouter by lazy { JoystickInputRouter(::recordedJoystick, joystickControls) }
     protected val mouseRouter by lazy { MouseInputRouter(::recordedMove, ::recordedButton, tapClickMillis) }
     protected val gamepadMapper by lazy {

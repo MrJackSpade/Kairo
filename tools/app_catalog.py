@@ -243,21 +243,28 @@ def v1_input(value):
 
 
 def validate_system(system):
-    """The system's definition: one controller mapping, every binding an input and what it sends."""
+    """The system's definition: one controller mapping, every binding an input and what it sends, and
+    the named layers a game's machine settings choose over it ("layers", shared
+    LayeredGameCatalog.systemControllerLayer), such as KairoTowns's sixButtonPad."""
     controller = system.get("controller") if isinstance(system, dict) else None
     bindings = controller.get("bindings") if isinstance(controller, dict) else None
+    layers = controller.get("layers", {}) if isinstance(controller, dict) else None
     require(system.get("schemaVersion") == 2 and set(system) == {"schemaVersion", "controller"} and
-            set(controller) == {"bindings"} and isinstance(bindings, list) and bindings,
+            set(controller) <= {"bindings", "layers"} and isinstance(bindings, list) and bindings and
+            isinstance(layers, dict) and all(isinstance(name, str) and name and isinstance(layer, list) and layer
+                                             for name, layer in layers.items()),
             "invalid system definition")
-    inputs = [b.get("input") for b in bindings if isinstance(b, dict)]
-    require(len(inputs) == len(bindings) and all(isinstance(i, str) and i.startswith("virtual:") for i in inputs) and
-            len(set(inputs)) == len(inputs), "invalid system controller bindings")
-    require(not any("unbound" in b or set(b) == {"input"} for b in bindings),
-            "the system definition ships an explicit null")
+    for name, mapping in [("bindings", bindings), *layers.items()]:
+        inputs = [b.get("input") for b in mapping if isinstance(b, dict)]
+        require(len(inputs) == len(mapping) and all(isinstance(i, str) and i.startswith("virtual:") for i in inputs) and
+                len(set(inputs)) == len(inputs), f"invalid system controller {name}")
+        require(not any("unbound" in b or set(b) == {"input"} for b in mapping),
+                f"the system definition's {name} ship an explicit null")
 
 
 def system_v1(system):
-    """The system's mapping as apps from before the C and Z buttons read it (V1_CONTROLS)."""
+    """The system's mapping as apps from before the C and Z buttons read it (V1_CONTROLS), without
+    the layers, which they do not read."""
     bindings = [b for b in system["controller"]["bindings"] if v1_input(b["input"])]
     return {"schemaVersion": 1, "controller": {"bindings": bindings}}
 

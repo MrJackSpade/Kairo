@@ -404,6 +404,11 @@ class GuestKeyboardPanel(
         if (page >= 0) showPage(page)
     }
 
+    /** The running machine's own pads on the Joystick tab (GuestJoystickPage.setPorts). */
+    fun setJoystickPorts(value: List<JoystickPort>) {
+        joystickPage?.setPorts(value)
+    }
+
     fun setInitialMode(touchpadMode: Boolean) {
         if (touchpad != null) showPage(if (touchpadMode) TOUCHPAD_PAGE else 0)
     }

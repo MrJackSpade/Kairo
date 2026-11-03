@@ -163,7 +163,22 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     // Read each time: a catalog update can bring a new system mapping while the app runs.
     override fun systemControllerBindings() = bindingsCodec.parse(catalog.systemControllerBindings().toString())
 
+    /**
+     * The system definition's controller layers that a game's machine settings ([options], every
+     * option's value) choose, lowest first (LayeredGameCatalog.systemControllerLayer), such as
+     * KairoTowns's 6-button pad's. They lie under the game's own catalog layer, for every game,
+     * catalogued or not, so a player who picks the setting plays with its mapping too.
+     */
+    protected open fun machineControllerLayers(options: Map<String, String>): List<String> = emptyList()
+
     override fun catalogControllerLayer(entry: E): List<ControllerBinding> {
+        val machine = machineControllerLayers(optionValues(catalog.resolve(entry)))
+            .map { bindingsCodec.parse(catalog.systemControllerLayer(it).toString()) }
+        return ControllerDefaults.cascade(*(machine + listOf(gameCatalogLayer(entry))).toTypedArray())
+    }
+
+    /** What [entry]'s own catalog record binds for the controller layout. */
+    private fun gameCatalogLayer(entry: E): List<ControllerBinding> {
         if (entry.contentId == null) return emptyList()
         val defaults = catalog.resolveDefault(entry).controllerDefaultBindings?.let { org.json.JSONObject(it) }
             ?: return emptyList()
@@ -192,7 +207,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             own?.has("bindings") == true -> "bindings"
             else -> null
         }
-        if (subfield == null && catalogControllerLayer(entry).isEmpty()) return GameSource.ALL_GAMES
+        if (subfield == null && gameCatalogLayer(entry).isEmpty()) return GameSource.ALL_GAMES
         return GameSource.label(entry.key.takeIf { entry.contentId != null }
             ?.let { catalog.sourceOf(entry, "controller", subfield ?: "bindings") } ?: GameSource.ALL_GAMES)
     }
