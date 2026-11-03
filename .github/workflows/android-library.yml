@@ -15,5 +15,12 @@ jobs:
         run: |
           python3 tools/init_system.py --repo MrJackSpade/KairoNew --app KairoNew --system "New System" --dry-run
           python3 tools/init_system.py --checklist --check
+      # The library cache reader, against the fixture the frontend's LibraryCacheFixtureTest writes.
+      - name: Test the library cache reader
+        run: python3 -m unittest discover -s tools -p test_library_cache.py
+      - name: No name matching in run-time code
+        run: |
+          python3 -m unittest discover -s tools -p test_check_name_matching.py
+          python3 tools/check_name_matching.py .
       - uses: ./.github/actions/setup-android
-      - run: ./gradlew --no-daemon :frontend:assembleDebug
+      - run: ./gradlew --no-daemon :frontend:assembleDebug :frontend:testDebugUnitTest
