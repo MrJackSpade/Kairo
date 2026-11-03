@@ -23,14 +23,26 @@ Session::~Session() {
 }
 
 void Session::run(uint64_t count) {
+    const uint32_t max = static_cast<uint32_t>(audio_.size() / 2);
     for (uint64_t i = 0; i < count; ++i) {
         if (!core_->run_frame()) fail("the machine stopped: " + core_->error());
         ++frames_;
         signatures_.push_back(core_->screen_signature());
         // Taken every frame, as the audio output does: a core keeps only what one frame makes.
-        const uint32_t max = static_cast<uint32_t>(audio_.size() / 2);
-        while (core_->read_audio(audio_.data(), max) == max) {}
+        uint64_t sound = 1469598103934665603ull;
+        for (;;) {
+            const uint32_t got = core_->read_audio(audio_.data(), max);
+            audio_frames_ += got;
+            for (uint32_t s = 0; s < got * 2; ++s) sound = (sound ^ static_cast<uint16_t>(audio_[s])) * 1099511628211ull;
+            if (got < max) break;
+        }
+        sounds_.push_back(sound);
     }
+}
+
+void Session::drain_audio() {
+    const uint32_t max = static_cast<uint32_t>(audio_.size() / 2);
+    while (core_->read_audio(audio_.data(), max) == max) {}
 }
 
 void Session::press(int code, uint64_t frames) {
@@ -187,6 +199,7 @@ void Session::save_state(const fs::path &path, const std::string &what) {
     fs::create_directories(path);
     if (const int result = save_state_with_media(*core_, path.u8string()))
         fail(what + " returned " + std::to_string(result) + ": " + core_->state_error());
+    drain_audio();
 }
 
 void Session::load_state(const fs::path &path) {
@@ -194,6 +207,7 @@ void Session::load_state(const fs::path &path) {
     const StatePaths paths({});
     if (const int result = load_state_with_media(*core_, path.u8string(), paths))
         fail("load_state returned " + std::to_string(result) + ": " + core_->state_error());
+    drain_audio();
 }
 
 } // namespace kairo::host

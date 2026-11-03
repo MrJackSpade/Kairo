@@ -30,6 +30,16 @@ void boot(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     session.run(test.frames(spec, "frames"));
     session.picture("boot");
+    // "audio": true: the sound lasts as long as the frames (frame_seconds at audio_rate), within 5%,
+    // as the player hears it in step with the picture (Kairo68's own boot test, Kairo68#90).
+    if (const json::Value *audio = spec.find("audio"); audio && audio->boolean()) {
+        const double expected = static_cast<double>(session.frames()) * session.core().frame_seconds() *
+                                session.core().audio_rate();
+        const double got = static_cast<double>(session.audio_frames());
+        if (got < expected * 0.95 || got > expected * 1.05)
+            session.fail("the sound is " + std::to_string(session.audio_frames()) + " audio frames, not the " +
+                std::to_string(static_cast<uint64_t>(expected)) + " its frames last (within 5%)");
+    }
     session.close();
 }
 
@@ -37,7 +47,8 @@ void boot(Test &test, const json::Value &spec) {
 // frames; load; run them again. The two runs must be the same frames, and so the same machine. The
 // first frame after the load is the one NativeMachine runs to redraw the paused game
 // (frame_machine.h redraw_paused), which the player sees under the menu: it must already be the
-// loaded state's (KairoMSX#63).
+// loaded state's (KairoMSX#63). With "sound": true, each frame's sound must match too (Kairo68's
+// own boot test, Kairo68#90).
 void state(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     session.run(test.frames(spec, "at"));
@@ -47,6 +58,7 @@ void state(Test &test, const json::Value &spec) {
     session.mark();
     session.run(frames);
     const std::vector<uint64_t> after_save = session.signatures();
+    const std::vector<uint64_t> sound_after_save = session.sounds();
     session.load_state(saved);
     session.mark();
     session.run(frames);
@@ -59,6 +71,12 @@ void state(Test &test, const json::Value &spec) {
             hex(after_save[static_cast<size_t>(at)]) + " then " + hex(after_load[static_cast<size_t>(at)]) + "); " +
             std::to_string(differ) + " of " + std::to_string(after_save.size()) + " frames differ, the last " +
             (after_save.back() == after_load.back() ? "matching" : "differing"));
+    }
+    if (const json::Value *sound = spec.find("sound"); sound && sound->boolean()) {
+        const int64_t heard = first_difference(sound_after_save, session.sounds());
+        if (heard >= 0)
+            session.fail("the sound of frame " + std::to_string(heard) + " after the load differs from the same frame's "
+                "after the save");
     }
     session.close();
 }

@@ -50,7 +50,14 @@ public:
     uint64_t frames() const { return frames_; }
     // The screen signature of each frame run since [mark()], in order.
     const std::vector<uint64_t> &signatures() const { return signatures_; }
-    void mark() { signatures_.clear(); }
+    // A hash of each frame's sound (the samples read after it) since [mark()], in order.
+    const std::vector<uint64_t> &sounds() const { return sounds_; }
+    // Audio frames (stereo samples) read in this session.
+    uint64_t audio_frames() const { return audio_frames_; }
+    void mark() {
+        signatures_.clear();
+        sounds_.clear();
+    }
 
     // Runs [count] frames; a frame that stops the machine fails the test.
     void run(uint64_t count);
@@ -86,8 +93,13 @@ private:
     std::string name_;
     uint64_t frames_ = 0;
     std::vector<uint64_t> signatures_;
+    std::vector<uint64_t> sounds_;
+    uint64_t audio_frames_ = 0;
     std::vector<int16_t> audio_;
     bool closed_ = false;
+    // Reads and discards what the core has queued (the sound a save or load made, which is from
+    // before the state), so the frames after it hold their own sound alone.
+    void drain_audio();
 };
 
 // One entry of the table: its name, how it launches, and its checks.
