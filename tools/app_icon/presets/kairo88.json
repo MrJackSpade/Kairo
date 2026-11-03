@@ -1,0 +1,38 @@
+{
+  "module": "kairo88",
+  "theme": {"accent": "#ff8a1c", "frame": "#734133", "background": "#0c0b0f"},
+  "logo": {"tag": "88"},
+  "stripes": [
+    {"x": [40, 150], "y": [150, 330], "side": "left"},
+    {"x": [860, 965], "y": [260, 470], "side": "right"}
+  ],
+  "machine": [
+    {
+      "type": "box", "material": "beige", "box": [146, 70, 508, 450], "depth": [28, 14], "radius": 0.03,
+      "screen": {"inset": [0.1, 0.08, 0.06, 0.28], "radius": 0.05},
+      "details": [
+        {"type": "text", "text": "NEC", "x": 0.1, "y": 0.81, "size": 30, "weight": 700, "color": "#2b2a33"},
+        {"type": "text", "text": "PC-8801", "x": 0.1, "y": 0.9, "size": 30, "weight": 700, "color": "#2b2a33"},
+        {"type": "led", "x": 0.6, "y": 0.84, "w": 0.045, "h": 0.04}
+      ]
+    },
+    {
+      "type": "box", "material": "beige", "box": [664, 98, 244, 460], "depth": [-10, 14], "radius": 0.03,
+      "details": [
+        {"type": "panel", "x": 0.1, "y": 0.06, "w": 0.8, "h": 0.16},
+        {"type": "slot", "x": 0.2, "y": 0.13, "w": 0.6, "h": 0.03},
+        {"type": "panel", "x": 0.1, "y": 0.26, "w": 0.8, "h": 0.16},
+        {"type": "rect", "x": 0.2, "y": 0.33, "w": 0.45, "h": 0.03, "color": "#ff8a1c"},
+        {"type": "panel", "x": 0.1, "y": 0.46, "w": 0.8, "h": 0.16},
+        {"type": "slot", "x": 0.2, "y": 0.53, "w": 0.6, "h": 0.03},
+        {"type": "led", "x": 0.75, "y": 0.66, "w": 0.07, "h": 0.04},
+        {"type": "vents", "x": 0.12, "y": 0.75, "w": 0.76, "h": 0.18, "count": 9}
+      ]
+    },
+    {
+      "type": "keyboard", "material": "beige", "quad": [[137, 547], [869, 547], [898, 684], [78, 684]],
+      "thickness": 34, "keys_area": [0.03, 0.12, 0.97, 0.95], "rows": 5,
+      "sections": ["main", "numpad"], "keys": {"color": "#c9c3b6", "side": "#77716a"}
+    }
+  ]
+}

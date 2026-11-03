@@ -1,0 +1,38 @@
+{
+  "module": "kairo68",
+  "theme": {"accent": "#ff2f3c", "frame": "#2e2660", "background": "#0a0912"},
+  "logo": {"tag": "68"},
+  "stripes": [
+    {"x": [30, 95], "y": [330, 520], "side": "left"},
+    {"x": [905, 970], "y": [370, 520], "side": "right"}
+  ],
+  "machine": [
+    {
+      "type": "box", "material": "charcoal", "box": [100, 600, 590, 92], "radius": 0.06,
+      "details": [{"type": "led", "x": 0.9, "y": 0.45, "w": 0.03, "h": 0.15}]
+    },
+    {
+      "type": "box", "material": "charcoal", "box": [108, 96, 576, 500], "depth": [16, 12], "radius": 0.03,
+      "screen": {"inset": [0.08, 0.07, 0.08, 0.2], "radius": 0.05},
+      "details": [
+        {"type": "text", "text": "X68000", "x": 0.5, "y": 0.92, "size": 40, "weight": 700, "anchor": "middle", "color": "#d9d9e3"}
+      ]
+    },
+    {
+      "type": "box", "material": "charcoal", "box": [702, 80, 116, 610], "depth": [0, 12], "radius": 0.06,
+      "details": [
+        {"type": "slot", "x": 0.3, "y": 0.35, "w": 0.1, "h": 0.25},
+        {"type": "led", "x": 0.3, "y": 0.68, "w": 0.1, "h": 0.06, "color": "#ff8a1c"}
+      ]
+    },
+    {
+      "type": "box", "material": "charcoal", "box": [818, 80, 120, 610], "depth": [0, 12], "radius": 0.06,
+      "details": [
+        {"type": "text", "text": "X68000", "x": 0.5, "y": 0.12, "size": 26, "weight": 700, "anchor": "middle", "color": "#d9d9e3"},
+        {"type": "slot", "x": 0.35, "y": 0.3, "w": 0.1, "h": 0.25},
+        {"type": "panel", "x": 0.18, "y": 0.72, "w": 0.64, "h": 0.12},
+        {"type": "led", "x": 0.6, "y": 0.75, "w": 0.12, "h": 0.04}
+      ]
+    }
+  ]
+}

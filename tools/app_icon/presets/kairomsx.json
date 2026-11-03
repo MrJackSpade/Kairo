@@ -1,0 +1,31 @@
+{
+  "module": "kairomsx",
+  "theme": {"accent": "#8a52ff", "frame": "#2c257e", "background": "#07071a"},
+  "logo": {"tag": "MSX"},
+  "stripes": [
+    {"x": [30, 110], "y": [380, 560], "side": "left"},
+    {"x": [880, 970], "y": [160, 520], "side": "right"}
+  ],
+  "machine": [
+    {
+      "type": "box", "material": "charcoal", "box": [116, 92, 528, 432], "depth": [20, 14], "radius": 0.03,
+      "screen": {"inset": [0.07, 0.07, 0.07, 0.13], "radius": 0.05},
+      "details": [{"type": "led", "x": 0.86, "y": 0.92, "w": 0.04, "h": 0.03}]
+    },
+    {
+      "type": "box", "material": "charcoal", "box": [676, 140, 260, 400], "depth": [-14, 14], "radius": 0.03,
+      "details": [
+        {"type": "panel", "x": 0.1, "y": 0.06, "w": 0.8, "h": 0.17},
+        {"type": "text", "text": "MSX", "x": 0.5, "y": 0.19, "size": 52, "weight": 900, "anchor": "middle", "color": "#f2ecdf"},
+        {"type": "stripes", "x": 0.18, "y": 0.3, "w": 0.64, "h": 0.14, "colors": ["#e23a2e", "#f5c524", "#2f5fd6"]},
+        {"type": "vents", "x": 0.15, "y": 0.55, "w": 0.7, "h": 0.32, "count": 8}
+      ]
+    },
+    {
+      "type": "keyboard", "material": "charcoal", "quad": [[146, 556], [914, 556], [930, 672], [88, 672]],
+      "thickness": 36, "keys_area": [0.03, 0.1, 0.97, 0.95], "rows": 5,
+      "sections": ["main", "nav", "numpad"],
+      "keys": {"color": "#33343f", "side": "#15151b", "highlight": [{"section": "nav", "row": 0, "color": "#d8352e"}]}
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "module": "kairost",
+  "theme": {"accent": "#f7df1e", "frame": "#47477b"},
+  "logo": {"tag": "ST"},
+  "machine": [
+    {
+      "type": "box",
+      "material": "beige",
+      "box": [214, 78, 580, 442],
+      "depth": [44, 18],
+      "radius": 0.035,
+      "screen": {"inset": [0.12, 0.11, 0.125, 0.22], "radius": 0.06},
+      "details": [
+        {"type": "text", "text": "ATARI", "x": 0.08, "y": 0.92, "size": 44, "weight": 800, "color": "#2b2a33"},
+        {"type": "text", "text": "SC1224", "x": 0.80, "y": 0.905, "size": 24, "anchor": "end", "color": "#3b3a40"},
+        {"type": "led", "x": 0.84, "y": 0.855, "w": 0.052, "h": 0.04}
+      ]
+    },
+    {
+      "type": "keyboard",
+      "material": "beige",
+      "quad": [[122, 527], [846, 527], [816, 722], [50, 722]],
+      "thickness": 30,
+      "keys_area": [0.04, 0.3, 0.97, 0.97],
+      "rows": 5,
+      "function_row": true,
+      "sections": ["main", "cursor", "numpad"],
+      "keys": {"color": "#c8c2b5", "side": "#77716a"},
+      "details": [
+        {"type": "text", "text": "ATARI ST", "x": 0.11, "y": 0.2, "size": 28, "weight": 800, "color": "#2b2a33"},
+        {"type": "led", "x": 0.86, "y": 0.13, "w": 0.025, "h": 0.05}
+      ]
+    },
+    {
+      "type": "box",
+      "material": "beige",
+      "box": [828, 630, 120, 86],
+      "radius": 0.42,
+      "cable": [[888, 632], [890, 598], [866, 578], [846, 580]],
+      "details": [{"type": "rect", "x": 0.5, "y": 0.0, "w": 0.0, "h": 0.42, "color": "#8f887c", "stroke": 2.5}]
+    }
+  ]
+}

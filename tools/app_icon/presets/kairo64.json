@@ -1,0 +1,41 @@
+{
+  "module": "kairo64",
+  "theme": {"accent": "#2f6df2", "frame": "#1b3cc4", "background": "#090e26"},
+  "logo": {"tag": "64"},
+  "bar": {"rainbow": ["#e5332a", "#f39221", "#f5d22a", "#3fae49", "#2f7fd6"], "rainbow_width": 230},
+  "stripes": [
+    {"x": [40, 190], "y": [300, 470], "side": "left"},
+    {"x": [850, 965], "y": [170, 300], "side": "right"}
+  ],
+  "machine": [
+    {
+      "type": "box", "material": "beige", "box": [108, 98, 536, 392], "depth": [52, 22], "radius": 0.03,
+      "screen": {"inset": [0.09, 0.09, 0.11, 0.22], "radius": 0.05},
+      "details": [
+        {"type": "text", "text": "commodore", "x": 0.1, "y": 0.905, "size": 40, "weight": 600, "width": 100, "color": "#2b2a33"},
+        {"type": "text", "text": "64", "x": 0.6, "y": 0.905, "size": 40, "weight": 600, "width": 100, "color": "#2b2a33"},
+        {"type": "led", "x": 0.86, "y": 0.86, "w": 0.045, "h": 0.04}
+      ]
+    },
+    {
+      "type": "box", "material": "beige", "box": [690, 330, 208, 256], "depth": [0, 18], "radius": 0.04,
+      "details": [
+        {"type": "panel", "x": 0.08, "y": 0.1, "w": 0.84, "h": 0.28},
+        {"type": "slot", "x": 0.16, "y": 0.2, "w": 0.62, "h": 0.05},
+        {"type": "led", "x": 0.8, "y": 0.44, "w": 0.07, "h": 0.045, "color": "#e8392e"},
+        {"type": "panel", "x": 0.45, "y": 0.58, "w": 0.45, "h": 0.16},
+        {"type": "text", "text": "1541", "x": 0.675, "y": 0.705, "size": 30, "anchor": "middle", "color": "#e8e2d6"},
+        {"type": "vents", "x": 0.1, "y": 0.58, "w": 0.3, "h": 0.3, "count": 4, "dir": "h"}
+      ]
+    },
+    {
+      "type": "keyboard", "material": "beige", "quad": [[180, 512], [752, 517], [781, 640], [64, 636]],
+      "thickness": 34, "keys_area": [0.06, 0.12, 0.88, 0.92], "rows": 5,
+      "sections": ["main", "fkeys"], "keys": {"color": "#5a5550", "side": "#2c2926"},
+      "details": [
+        {"type": "stripes", "x": 0.86, "y": 0.06, "w": 0.1, "h": 0.1, "dir": "v",
+         "colors": ["#e5332a", "#f39221", "#f5d22a", "#3fae49", "#2f7fd6"]}
+      ]
+    }
+  ]
+}
