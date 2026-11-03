@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 
-#include <GLES3/gl3.h>
+// No GL header here: machine_core.h includes this, and a core builds on the PC too (the shared boot
+// test, Kairo#115). A picture's own source includes GLES; GLuint is unsigned int.
 #include <cstdint>
 #include <memory>
 
@@ -51,7 +52,7 @@ public:
     // the framebuffer's first row when top_row_first (as a software frame is uploaded), else at its
     // last (OpenGL's own orientation, as a shader preset takes its source). The caller's GL state is
     // not kept.
-    virtual void draw(GLuint framebuffer, bool top_row_first) = 0;
+    virtual void draw(unsigned int framebuffer, bool top_row_first) = 0;
 };
 
 } // namespace kairo

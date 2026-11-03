@@ -65,8 +65,15 @@ $start = New-Object System.Diagnostics.ProcessStartInfo
 $start.FileName = (Resolve-Path $Program).Path
 foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
 $start.UseShellExecute = $false
+# Through this script's own output, so a caller that captures it (*> file) gets the test's report too.
+$start.RedirectStandardOutput = $true
+$start.RedirectStandardError = $true
 $process = [System.Diagnostics.Process]::Start($start)
 [KairoJob]::Assign($job, $process.Handle)
+$stdout = $process.StandardOutput.ReadToEndAsync()
+$stderr = $process.StandardError.ReadToEndAsync()
 $process.WaitForExit()
+$stdout.Result.TrimEnd() | Write-Output
+if ($stderr.Result.Trim()) { $stderr.Result.TrimEnd() | Write-Output }
 "exit $($process.ExitCode), peak memory $([math]::Round([KairoJob]::Peak($job) / 1MB)) MB"
 exit $process.ExitCode

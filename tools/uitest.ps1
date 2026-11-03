@@ -43,6 +43,8 @@ param(
     [switch]$Emulator,
     # The emulator's Android API; the apps' minSdk otherwise. Only with -Emulator.
     [int]$Api,
+    # The emulator's console port (tools/emulator.ps1), so several runs can each have their own.
+    [int]$Port,
     # Test classes (comma-separated), or Class#method for one test; every test otherwise.
     [string]$Class,
     # A regular expression over full test names (package.Class#method); every test otherwise.
@@ -62,7 +64,7 @@ $module = Get-ChildItem $root -Directory | Where-Object {
 if (-not $module) { throw "No application module in ${root}: run this from an app's repository" }
 if ($Class -and $Filter) { throw '-Class and -Filter cannot be combined' }
 if ([bool]$Device -eq [bool]$Emulator) { throw 'Give either -Device or -Emulator' }
-if ($Api -and -not $Emulator) { throw '-Api chooses the emulator image; it needs -Emulator' }
+if (($Api -or $Port) -and -not $Emulator) { throw '-Api and -Port choose the emulator; they need -Emulator' }
 
 # The emulator images for Android 10 and older run x86_64 code only (Kairo#114).
 $abi = 'arm64-v8a'
@@ -70,6 +72,7 @@ if ($Emulator) {
     $abi = 'x86_64'
     $emulatorArguments = @{}
     if ($Api) { $emulatorArguments.Api = $Api }
+    if ($Port) { $emulatorArguments.Port = $Port }
     $started = & (Join-Path $PSScriptRoot 'emulator.ps1') @emulatorArguments
     $started | Write-Output
     $Device = @($started)[-1]

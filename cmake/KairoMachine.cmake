@@ -18,6 +18,21 @@ get_filename_component(KAIRO_SHARED_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE
 option(KAIRO_SHADERS "Present frames through the Slang shader runtime" ON)
 
 function(kairo_machine_library target)
+    if(NOT ANDROID)
+        # On the PC the same sources are the shared boot test (host-test/, Kairo#115), named after
+        # the product, so the app's own CMakeLists says once what its core is.
+        add_executable(${target} "${KAIRO_SHARED_ROOT}/host-test/main.cpp" "${KAIRO_SHARED_ROOT}/host-test/harness.cpp"
+            "${KAIRO_SHARED_ROOT}/host-test/checks.cpp"
+            "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp" ${ARGN})
+        target_compile_features(${target} PRIVATE cxx_std_17)
+        target_include_directories(${target} PRIVATE "${KAIRO_SHARED_ROOT}/host-test/include"
+            "${KAIRO_SHARED_ROOT}/host-test" "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp")
+        # One file to copy and run: no MinGW runtime beside it.
+        if(MINGW)
+            target_link_options(${target} PRIVATE -static)
+        endif()
+        return()
+    endif()
     add_library(${target} SHARED "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/machine_jni.cpp"
         "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp" ${ARGN})
     target_compile_features(${target} PRIVATE cxx_std_17)

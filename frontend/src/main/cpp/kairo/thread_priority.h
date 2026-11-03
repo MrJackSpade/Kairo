@@ -3,6 +3,17 @@
 // priority belongs to a thread, not to the threads it starts later.
 #pragma once
 
+namespace kairo {
+
+#if defined(_WIN32)
+// The shared PC boot test (Kairo#115), built for Windows: priority and thread names are the
+// device's concern, and Windows has neither call.
+inline void raise_emulation_priority(const char *) {}
+inline void name_thread(const char *) {}
+} // namespace kairo
+#else
+} // namespace kairo
+
 #include <android/log.h>
 #include <pthread.h>
 #include <sys/resource.h>
@@ -22,3 +33,5 @@ inline void raise_emulation_priority(const char *which) {
 inline void name_thread(const char *name) { pthread_setname_np(pthread_self(), name); }
 
 } // namespace kairo
+
+#endif
