@@ -655,6 +655,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val details = linkedMapOf("frames" to status.frames, "error" to status.error)
         mediaSlots.forEachIndexed { slot, media -> details["media.${text(media.label)}"] = mounted[slot]?.displayName ?: "" }
         currentGame?.let { game -> optionValues(game).forEach { (id, value) -> details["option.$id"] = value } }
+        // What a tap on the game does, with Auto decided from the guest's input (TouchTests).
+        if (currentGame != null) details["touch.mode"] = touchModeNow().name.lowercase()
         (bridge as? NativeMachine)?.startedSettings?.forEach { (name, value) -> details["machine.$name"] = value }
         status.core.forEach { (name, value) -> details["core.$name"] = value }
         return details

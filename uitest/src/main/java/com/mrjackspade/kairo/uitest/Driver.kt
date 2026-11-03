@@ -213,6 +213,11 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
             ?: error("No Kairo activity is open (resumed: ${resumed.map(Activity::getLocalClassName)})")
     }
 
+    /** Whether the app's window in front keeps the screen on (FLAG_KEEP_SCREEN_ON, Kairo#90). */
+    fun keepsScreenOn(): Boolean = onMain {
+        activityNow().window.attributes.flags and android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON != 0
+    }
+
     /** Whether any activity of the app is still open. Main thread only. */
     internal fun anyActivityOpen(): Boolean {
         val registry = ActivityLifecycleMonitorRegistry.getInstance()

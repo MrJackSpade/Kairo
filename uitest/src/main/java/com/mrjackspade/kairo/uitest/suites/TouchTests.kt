@@ -139,6 +139,46 @@ abstract class TouchTests : KairoUiTest() {
         driver.waitForInput("a mouse click", tap) { events -> events.any { it.kind == "button" && it.down } }
     }
 
+    /** Plays [game] with Screen tap on Auto, which decides from what the game reads (Kairo#78). */
+    private fun playOnAuto(game: String) {
+        screens.completeFirstRun().open(game).play()
+        screens.choose(screens.openGameSettingsInGame(), "game-tap", "auto")
+        screens.closeMenu()
+    }
+
+    private fun touchMode() = driver.probeNow().details["touch.mode"]
+
+    /**
+     * Kairo#78, KairoTowns#82, Kairo#104: in a game that reads the mouse, Auto makes the screen the
+     * mouse: a drag moves the guest's pointer, and a tap opens no keyboard.
+     */
+    @Test
+    fun autoTouchMovesTheMouseInAMouseGame() {
+        val game = requireNotNull(app.mouseGame) { "${app.name}'s test resources name no mouse game (AppUnderTest.mouseGame)" }
+        playOnAuto(game)
+        driver.waitUntil("Auto to find $game reading the mouse") { touchMode() == "mouse" }
+        val surface = driver.find(By.id("game.surface"))
+        val mark = driver.inputMark()
+        surface.drag(0.4f, 0.5f, 0.6f, 0.5f, steps = 20)
+        val moves = driver.inputSince(mark).filter { it.kind == "move" }
+        expect.that("a drag moves the guest's pointer", moves.isNotEmpty()) { driver.inputSince(mark).joinToString() }
+        val keyboardBefore = driver.find(By.id("keyboard.key")).exists()
+        surface.tap()
+        driver.waitFrames(30)
+        expect.that("a tap opens no keyboard", keyboardBefore || !driver.find(By.id("keyboard.key")).exists())
+    }
+
+    /** Kairo#104: in a game played with the keyboard or a pad, Auto opens the keyboard on a tap. */
+    @Test
+    fun autoTouchOpensTheKeyboardInAKeyboardGame() {
+        val game = requireNotNull(app.keyboardGame) { "${app.name}'s test resources name no keyboard game (AppUnderTest.keyboardGame)" }
+        playOnAuto(game)
+        driver.waitFrames(SETTLE_FRAMES)
+        expect.equal("what Auto makes of $game", "keyboard", touchMode())
+        driver.find(By.id("game.surface")).tap()
+        driver.find(By.id("keyboard.key")).waitUntilShown()
+    }
+
     @Test
     fun tappingTheGameInMouseModeClicks() {
         play()

@@ -65,6 +65,13 @@ abstract class AppUnderTest {
     /** [bootGameFile] below the games folder, as library entry keys name it (Library.entryFrom). */
     val bootGameEntryFile: String get() = bootGameFile.substringAfter('/')
 
+    /**
+     * A game that reads the guest's mouse, and one played with the keyboard or a pad, for Auto touch
+     * mode (TouchTests, Kairo#104). Every app names both; a missing one fails those tests.
+     */
+    open val mouseGame: String? = null
+    open val keyboardGame: String? = null
+
     /** Another game, for checking that one game's settings leave others alone. */
     abstract val otherGame: String
 
@@ -112,6 +119,14 @@ abstract class AppUnderTest {
      */
     class MediaSwap(val game: String, val slot: String, val insert: String, val filler: String? = null,
                     val page: String = "f-media")
+
+    /**
+     * The CD drive of an app whose machine has one: [game] starts from a CD in the media page's
+     * [slot] ("CD-ROM"), for StateTests' disc check (KairoTowns#76); null for a machine without one.
+     */
+    open val cdDrive: CdDrive? = null
+
+    class CdDrive(val game: String, val slot: String, val page: String = "f-media")
 
     class BiosFile(val file: String, val required: Boolean)
 }

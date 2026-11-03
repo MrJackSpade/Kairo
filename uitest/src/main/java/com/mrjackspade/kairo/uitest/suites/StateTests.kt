@@ -1,8 +1,11 @@
 package com.mrjackspade.kairo.uitest.suites
 
+import android.view.KeyEvent
 import com.mrjackspade.kairo.uitest.By
 import com.mrjackspade.kairo.uitest.KairoUiTest
+import com.mrjackspade.kairo.uitest.MediaDrive
 import com.mrjackspade.kairo.uitest.Picture
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
@@ -66,6 +69,71 @@ abstract class StateTests : KairoUiTest() {
         screens.library.waitUntilShown().open(app.bootGame).play()
         val loaded = load(1)
         expect.that("the state saved before the app closed loads", loaded.difference(saved) < 0.1) { "difference ${loaded.difference(saved)}" }
+    }
+
+    /** Starts the app's multi-disk game and returns the drive its disk swap uses. */
+    private fun playSwapGame(): MediaDrive {
+        val swap = app.mediaSwap
+        assumeTrue("${app.name} swaps no disks", swap != null)
+        screens.completeFirstRun().open(swap!!.game).play()
+        driver.waitFrames(SETTLE_FRAMES)
+        return MediaDrive(driver, screens, swap.slot, swap.page)
+    }
+
+    /**
+     * Kairo98#103, KairoTowns#76, Kairo68#69, Kairo64#49 (Kairo#103): a state saved with another
+     * disk in the drive loads with that disk, and the Disks page shows it.
+     */
+    @Test
+    fun aStateLoadsWithTheDiskItWasSavedWith() {
+        val drive = playSwapGame()
+        val insert = app.mediaSwap!!.insert
+        val started = drive.holds()
+        drive.pick(drive.openChoice(), MediaDrive.diskWith(insert))
+        drive.awaitHolds(insert) { it.contains(insert) }
+        screens.closeMenu()
+        driver.waitForGame("Running")
+        save(1)
+        val back = drive.openChoice()
+        if (started.isEmpty()) drive.eject(back) else drive.pick(back, MediaDrive.disk(started))
+        drive.awaitHolds("its first disk again") { it == started }
+        screens.closeMenu()
+        driver.waitForGame("Running")
+        load(1)
+        drive.awaitHolds("the state's disk, $insert") { it.contains(insert) }
+        screens.openGameMenu().find(By.item(app.mediaSwap!!.page)).tap()
+        val row = driver.find(By.anyItem().withText(drive.slot)).texts()
+        expect.that("the Disks page shows the state's disk in ${drive.slot}", row.any { it.contains(insert) }) { row.joinToString(" | ") }
+    }
+
+    /** Kairo68#73 (Kairo#103): a save right after an eject, the menu still open, succeeds. */
+    @Test
+    fun aStateSavesRightAfterAnEject() {
+        val drive = playSwapGame()
+        drive.eject(drive.openChoice())
+        drive.awaitHolds("nothing") { it.isEmpty() }
+        // From the media page straight back to the menu, where the game is still held, and save.
+        driver.press(KeyEvent.KEYCODE_BUTTON_B)
+        screens.saveState(1, driver.page("flyout").waitUntilShown())
+    }
+
+    /** KairoTowns#76 (Kairo#103): a state saved with a CD loads with it after the CD was ejected. */
+    @Test
+    fun aStateLoadsWithTheCdItWasSavedWith() {
+        val cd = app.cdDrive
+        assumeTrue("${app.name}'s machine has no CD drive", cd != null)
+        screens.completeFirstRun().open(cd!!.game).play()
+        driver.waitFrames(SETTLE_FRAMES)
+        val drive = MediaDrive(driver, screens, cd.slot, cd.page)
+        val disc = drive.holds()
+        expect.that("${cd.game} starts with a disc in ${cd.slot}", disc.isNotEmpty())
+        save(1)
+        drive.eject(drive.openChoice())
+        drive.awaitHolds("nothing") { it.isEmpty() }
+        screens.closeMenu()
+        driver.waitForGame("Running")
+        load(1)
+        drive.awaitHolds("the state's disc, $disc") { it == disc }
     }
 
     @Test

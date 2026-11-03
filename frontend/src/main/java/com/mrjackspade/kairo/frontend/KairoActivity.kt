@@ -1143,6 +1143,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     private fun configuredInputMode(): InputModeDecider.Mode = touchSelection().mode
 
+    /** What a tap on the game does now: the configured mode, with Auto as the guest's input decides it. */
+    protected fun touchModeNow(): InputModeDecider.Mode = inputModeDecider.resolve(configuredInputMode())
+
     protected fun showKeyboard() { touchUi.showKeyboard() }
 
     protected fun hideKeyboard() { touchUi.hideKeyboard() }

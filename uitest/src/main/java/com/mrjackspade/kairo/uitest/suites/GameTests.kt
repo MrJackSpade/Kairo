@@ -27,6 +27,17 @@ abstract class GameTests : KairoUiTest() {
         expect.equal("the session after returning to the library", "None", driver.probe().state)
     }
 
+    /** Kairo#90, Kairo#111: the library lets the device sleep, and only a running game keeps the screen on. */
+    @Test
+    fun onlyARunningGameKeepsTheScreenOn() {
+        val library = screens.completeFirstRun()
+        expect.that("the library lets the device sleep", !driver.keepsScreenOn())
+        library.open(app.bootGame).play()
+        driver.waitUntil("the running game to keep the screen on") { driver.keepsScreenOn() }
+        screens.endGame()
+        driver.waitUntil("the library to let the device sleep again") { !driver.keepsScreenOn() }
+    }
+
     @Test
     fun exitClosesTheApp() {
         screens.completeFirstRun().open(app.bootGame).play()
