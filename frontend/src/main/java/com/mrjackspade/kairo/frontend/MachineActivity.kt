@@ -1281,7 +1281,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         fun takes(entry: E) = entry.playable && mediaSlots[slot].accepts(entry)
         return GameDisks.choice(this, text(mediaSlots[slot].label), { currentGame?.title }, {
             val current = currentEntry ?: return@choice emptyList()
-            GameDisks.own(current, libraryEntries, mounted, catalog.setDisks(current).toSet(), catalog::matchId, ::takes)
+            ownDisks(current, ::takes)
         }, { libraryEntries.filter(::takes) }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) }) {
             listOfNotNull(SettingsRow.action("choose", getString(R.string.kairo_choose_file)) {
                 pickingMediaSlot = slot
@@ -1292,6 +1292,18 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             })
         }
     }
+
+    /**
+     * The running game's own disks a drive offers first, those [takes] accepts: by default its
+     * library entry, the other images of its archive, its catalog set and what the drives hold
+     * (GameDisks.own). A product whose games keep their disks elsewhere, such as KairoX86's machine
+     * folders, gives its own.
+     */
+    protected open fun ownDisks(current: E, takes: (E) -> Boolean): List<E> =
+        GameDisks.own(current, libraryEntries, mounted, catalog.setDisks(current).toSet(), catalog::matchId, takes)
+
+    /** What each drive holds now, by media slot. */
+    protected fun mountedMedia(): List<E?> = mounted.toList()
 
     /** The drive a disk image picked on the device goes into. */
     private var pickingMediaSlot: Int? = null
