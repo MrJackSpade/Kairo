@@ -21,7 +21,12 @@ class FirmwareSet(
     val parts: List<Part>,
     val requirements: List<List<Part>> = parts.filter { it.required }.map { listOf(it) },
     /** A short note under the set, such as which games use a machine. */
-    val note: UiText? = null
+    val note: UiText? = null,
+    /**
+     * Whether the Firmware page lists each part as its own row; a set of a whole ROM collection,
+     * such as 86Box's thousands of files, shows one row saying how many are installed instead.
+     */
+    val listed: Boolean = true
 ) {
     init { require(requirements.all { it.isNotEmpty() && parts.containsAll(it) }) }
 
@@ -52,6 +57,9 @@ class FirmwareSet(
     }
 
     private val hashed = parts.filter { it.sha1.isNotEmpty() }
+    /** The hashed parts by digest: one file can be several parts, as one ROM read at two places. */
+    private val byDigest: Map<String, List<Part>> = hashed.flatMap { part -> part.sha1.map { it to part } }
+        .groupBy({ it.first }, { it.second })
     private val largestHashed = hashed.maxOfOrNull { it.maxBytes } ?: 0L
     private val headed = parts.filter { it.identifies != null }
 
@@ -109,13 +117,28 @@ class FirmwareSet(
     fun importFolder(context: Context, tree: Uri, cancelled: AtomicBoolean): List<Part> {
         val files = DocumentTreeWalker(context).scan(tree, cancelled,
             { name -> hashed.isNotEmpty() || headed.isNotEmpty() || partFor(name) != null || isZip(name) }, {}).files
-        val candidates = candidates(context, files, cancelled)
+        val found = choose(candidates(context, files, cancelled), cancelled)
+        // Every copy is checked before any replaces an installed file.
+        val staged = found.map { (part, file) -> part to stage(context, part, file.open) }
+        try {
+            for ((part, copy) in staged) commit(copy, part)
+        } finally {
+            staged.forEach { it.second.delete() }
+        }
+        return found.map { it.first }
+    }
+
+    /**
+     * The file each part takes from a folder's [candidates]: by a name it accepts, then by its
+     * digest (one file can be several parts), then by its header.
+     */
+    internal fun choose(candidates: List<Candidate>, cancelled: AtomicBoolean): List<Pair<Part, Candidate>> {
         val byName = parts.mapNotNull { part -> candidates.firstOrNull { partFor(it.name) === part }?.let { part to it } }
         // Then by content: each file no larger than a hashed part can be, read once.
-        val byContent = candidates.filter { it.size in 1..largestHashed }.mapNotNull { file ->
+        val byContent = candidates.filter { it.size in 1..largestHashed }.flatMap { file ->
             if (cancelled.get()) throw java.util.concurrent.CancellationException("Cancelled")
             val digest = file.open().use(::sha1)
-            hashed.firstOrNull { digest in it.sha1 }?.let { it to file }
+            byDigest[digest].orEmpty().map { it to file }
         }
         // Then by header: each file of a size a headed part has, its first bytes read once; a part
         // takes the file it ranks highest.
@@ -127,19 +150,11 @@ class FirmwareSet(
                 else part.identifies!!(header)?.let { rank -> Triple(part, rank, file) }
             }
         }.groupBy { it.first }.map { (part, matches) -> part to matches.maxBy { it.second }.third }
-        val found = (byName + byContent + byHeader).distinctBy { it.first }
-        // Every copy is checked before any replaces an installed file.
-        val staged = found.map { (part, file) -> part to stage(context, part, file.open) }
-        try {
-            for ((part, copy) in staged) commit(copy, part)
-        } finally {
-            staged.forEach { it.second.delete() }
-        }
-        return found.map { it.first }
+        return (byName + byContent + byHeader).distinctBy { it.first }
     }
 
     /** A file a folder import can take: loose in the folder, or a member of a ZIP there. */
-    private class Candidate(val name: String, val size: Long, val open: () -> java.io.InputStream)
+    internal class Candidate(val name: String, val size: Long, val open: () -> java.io.InputStream)
 
     private fun isZip(name: String) = name.lowercase(Locale.ROOT).endsWith(".zip")
 
@@ -192,8 +207,10 @@ class FirmwareSet(
 
     /** A checked copy of what [open] reads for [part], beside its installed file. */
     private fun stage(context: Context, part: Part, open: () -> java.io.InputStream): File {
-        check(directory.isDirectory || directory.mkdirs()) { "Cannot create the firmware folder" }
-        val copy = File(directory, "${part.name}.part")
+        // A part's name can be a path in the set, such as machines/486ap4/bios.bin.
+        val folder = checkNotNull(file(part).parentFile) { "${part.name} has no folder" }
+        check(folder.isDirectory || folder.mkdirs()) { "Cannot create the firmware folder ${folder.name}" }
+        val copy = File(folder, "${file(part).name}.part")
         val label = part.label.resolve(context)
         try {
             importStream(context, open, copy, label, maxBytes = part.maxBytes) { file ->

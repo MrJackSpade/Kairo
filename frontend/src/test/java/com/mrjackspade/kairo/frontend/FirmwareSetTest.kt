@@ -70,4 +70,30 @@ class FirmwareSetTest {
         assertEquals(UiText.res(R.string.kairo_firmware_covered_by, UiText.fixed("ic18.rom")), set.state(bios))
         assertEquals(UiText.res(R.string.kairo_missing), set.state(font))
     }
+
+    private fun sha1(bytes: ByteArray) =
+        java.security.MessageDigest.getInstance("SHA-1").digest(bytes).joinToString("") { "%02x".format(it) }
+
+    private fun candidate(name: String, bytes: ByteArray) = FirmwareSet.Candidate(name, bytes.size.toLong()) { bytes.inputStream() }
+
+    /** A part known by content alone, at a path in a ROM collection (KairoX86#67). */
+    private fun hashed(path: String, bytes: ByteArray) = FirmwareSet.Part(path, UiText.fixed(path), UiText.fixed("$path for tests"),
+        emptySet(), required = false, sizes = setOf(bytes.size.toLong()), sha1 = setOf(sha1(bytes)))
+
+    @Test
+    fun aCollectionFindsItsFilesByContentUnderAnyName() {
+        val bios = "486 BIOS".toByteArray()
+        val video = "VGA BIOS".toByteArray()
+        val shared = "one ROM read at two places".toByteArray()
+        val parts = listOf(hashed("machines/486ap4/bios.bin", bios), hashed("video/vga/vga.rom", video),
+            hashed("machines/a/same.bin", shared), hashed("machines/b/same.bin", shared))
+        val set = FirmwareSet(folder.root, parts, requirements = emptyList(), listed = false)
+        val chosen = set.choose(listOf(candidate("renamed.dat", bios), candidate("SAME.BIN", shared),
+            candidate("not firmware.txt", "other".toByteArray())), java.util.concurrent.atomic.AtomicBoolean(false))
+        assertEquals(setOf("machines/486ap4/bios.bin" to "renamed.dat", "machines/a/same.bin" to "SAME.BIN",
+            "machines/b/same.bin" to "SAME.BIN"), chosen.map { (part, file) -> part.name to file.name }.toSet())
+        // Each file goes to its place in the collection.
+        assertEquals(java.io.File(folder.root, "machines/486ap4/bios.bin"), set.file(parts[0]))
+        assertTrue(set.missingRequirements.isEmpty())
+    }
 }

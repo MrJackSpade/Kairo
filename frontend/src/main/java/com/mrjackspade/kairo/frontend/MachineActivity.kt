@@ -941,8 +941,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             firmwareSets.first().second.chooseFolder(this, FIRMWARE_REQUEST, firmwareFolderStart(), ::toast)
         }
         val sets = firmwareSets.mapIndexed { index, (label, set) ->
-            RowGroup(text(label).uppercase(), set.parts.map { part -> firmwareRow(index, set, part, usable, reason) },
-                set.note?.let(::text))
+            // A whole ROM collection is one row: how many of its files are installed.
+            val rows = if (set.listed) set.parts.map { part -> firmwareRow(index, set, part, usable, reason) }
+                else listOf(SettingsRow.info("firmware$index-files", text(label)) {
+                    resources.getQuantityString(R.plurals.kairo_firmware_files_installed, set.installedCount,
+                        set.installedCount, set.parts.size)
+                })
+            RowGroup(text(label).uppercase(), rows, set.note?.let(::text))
         }
         return listOf(RowGroup(getString(R.string.kairo_firmware_group), listOf(folder),
             if (firmwareConfigurable()) firmwareText.third else getString(R.string.kairo_firmware_return_to_library))) + sets
