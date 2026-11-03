@@ -429,19 +429,21 @@ void clock(Test &test, const json::Value &spec) {
             " frames, a ratio of " + std::to_string(ratio) + ", not " + std::to_string(want) + " within " + std::to_string(margin));
 }
 
-// hardDisk (Kairo#123): the table's hard disk boots; the guest writes a file ("write": its startup
-// commands, a spec of commands); the session ends; a new session on the same working copy reads it
-// back ("read": commands whose answer screens show the file).
+// hardDisk (Kairo#123): the table's hard disk boots; the guest writes a file ("write"); the session
+// ends; a new session on the same working copy reads it back ("read", whose answer screens show the
+// file). Each step types its "commands", or, for a core that types none (KairoST), starts the
+// program that does the work: its "launch", as media and settings over the table's.
 void hard_disk(Test &test, const json::Value &spec) {
+    const json::Value &write = spec.at("write");
     {
-        Session session(test.launch(), test.folder, test.name + " writing");
-        type_commands(session, test, spec.at("write"));
+        Session session(test.launch(write.find("launch")), test.folder, test.name + " writing");
+        if (write.find("commands")) type_commands(session, test, write);
         session.run(test.frames(spec, "settle"));
         session.close();
     }
-    Session session(test.launch(), test.folder, test.name + " reading");
     const json::Value &read = spec.at("read");
-    type_commands(session, test, read);
+    Session session(test.launch(read.find("launch")), test.folder, test.name + " reading");
+    if (read.find("commands")) type_commands(session, test, read);
     wait_for_screen(session, screens(read), test.frames(read, "answerBy"), "the file written in the first session");
     session.close();
 }
