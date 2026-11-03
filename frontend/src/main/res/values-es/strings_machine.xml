@@ -204,6 +204,15 @@
     <string name="kairo_firmware_missing">Primero importa el firmware de %1$s en Menú › Máquina (falta %2$s)</string>
     <!-- EN: No %1$s firmware files in that folder -->
     <string name="kairo_firmware_none_in_folder">No hay archivos de firmware de %1$s en esa carpeta</string>
+    <!-- A ROM collection's row on the Firmware page: %1$d of its files are installed, of %2$d. -->
+    <plurals name="kairo_firmware_files_installed">
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="one">%1$d de %2$d archivos instalados</item>
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="many">%1$d de %2$d archivos instalados</item>
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="other">%1$d de %2$d archivos instalados</item>
+    </plurals>
     <plurals name="kairo_firmware_imported">
         <!-- EN: Imported %1$d firmware file -->
         <item quantity="one">%1$d archivo de firmware importado</item>

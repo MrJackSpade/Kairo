@@ -114,8 +114,10 @@
     <string name="kairo_library_source_foot">Atualizar encontra jogos adicionados e removidos. Verificar todos os arquivos de novo identifica cada arquivo outra vez.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">JOGO NOVO</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">Disquete · %1$s</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Hard disk · %1$s -->
     <string name="kairo_blank_hard_disk">Disco rígido · %1$s</string>
     <!-- EN: Create -->
@@ -124,16 +126,21 @@
     <string name="kairo_create_name_hint">Nome do jogo</string>
     <!-- EN: New game -->
     <string name="kairo_create_name_default">Jogo novo</string>
+    <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">Criando %1$s…</string>
+    <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
     <string name="kairo_created">%1$s criado</string>
+    <!-- The new game's name. -->
     <!-- EN: Could not create %1$s -->
     <string name="kairo_create_failed">Não foi possível criar %1$s</string>
+    <!-- The new game's name, then the games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: %1$s is already in the %2$s -->
     <string name="kairo_create_exists">%1$s já está em %2$s</string>
     <!-- EN: A game name can’t use / \ : * ? " < > | -->
     <string name="kairo_create_bad_name">O nome não pode usar / \ : * ? " &lt; &gt; |</string>
+    <!-- The games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: Select the same %1$s again and grant write access before creating games. -->
     <string name="kairo_create_grant">Selecione %1$s de novo e conceda acesso de gravação antes de criar jogos.</string>
     <!-- The library screen. -->

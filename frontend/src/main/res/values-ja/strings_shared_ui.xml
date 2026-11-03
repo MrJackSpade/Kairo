@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The translation of values/strings_shared_ui.xml. Each EN comment is the English a string translates; update it with the translation. -->
+<!-- Japanese (ja): the translation of values/strings_shared_ui.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Automatic -->
     <string name="kairo_automatic">自動</string>
@@ -40,7 +40,9 @@
     <string name="kairo_joystick_fire_2">ファイア2（未使用）</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">記号</string>
+    <!-- EN: ファンクション -->
     <string name="kairo_keyboard_function">ファンクション</string>
+    <!-- EN: テンキー -->
     <string name="kairo_keyboard_keypad">テンキー</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">フォルダへのアクセス期限が切れました。ゲームフォルダを選択し直してください。</string>

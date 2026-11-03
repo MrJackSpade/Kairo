@@ -204,6 +204,11 @@
     <string name="kairo_firmware_missing">先に メニュー › マシン で%1$sのファームウェアをインポートしてください（不足: %2$s）</string>
     <!-- EN: No %1$s firmware files in that folder -->
     <string name="kairo_firmware_none_in_folder">そのフォルダに%1$sのファームウェアファイルはありません</string>
+    <!-- A ROM collection's row on the Firmware page: %1$d of its files are installed, of %2$d. -->
+    <plurals name="kairo_firmware_files_installed">
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="other">%1$d / %2$d ファイルをインストール済み</item>
+    </plurals>
     <plurals name="kairo_firmware_imported">
         <!-- EN: Imported %1$d firmware files -->
         <item quantity="other">%1$d個のファームウェアファイルをインポートしました</item>

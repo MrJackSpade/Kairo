@@ -94,8 +94,10 @@
     <string name="kairo_library_source_foot">새로고침은 추가되거나 삭제된 게임을 찾습니다. 모든 파일 다시 확인은 모든 파일을 다시 식별합니다.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">새 게임</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">플로피 디스크 · %1$s</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Hard disk · %1$s -->
     <string name="kairo_blank_hard_disk">하드 디스크 · %1$s</string>
     <!-- EN: Create -->
@@ -104,16 +106,21 @@
     <string name="kairo_create_name_hint">게임 이름</string>
     <!-- EN: New game -->
     <string name="kairo_create_name_default">새 게임</string>
+    <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">%1$s 만드는 중…</string>
+    <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
     <string name="kairo_created">%1$s 만듦</string>
+    <!-- The new game's name. -->
     <!-- EN: Could not create %1$s -->
     <string name="kairo_create_failed">%1$s을(를) 만들 수 없음</string>
+    <!-- The new game's name, then the games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: %1$s is already in the %2$s -->
     <string name="kairo_create_exists">%1$s이(가) %2$s에 이미 있음</string>
     <!-- EN: A game name can’t use / \ : * ? " < > | -->
     <string name="kairo_create_bad_name">게임 이름에 / \ : * ? " &lt; &gt; | 을(를) 쓸 수 없음</string>
+    <!-- The games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: Select the same %1$s again and grant write access before creating games. -->
     <string name="kairo_create_grant">게임을 만들기 전에 같은 %1$s을(를) 다시 선택하고 쓰기 권한을 허용하세요.</string>
     <!-- The library screen. -->

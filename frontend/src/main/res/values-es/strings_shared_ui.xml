@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The translation of values/strings_shared_ui.xml. Each EN comment is the English a string translates; update it with the translation. -->
+<!-- Spanish (es): the translation of values/strings_shared_ui.xml. Each EN comment is the English a string translates; update it with the translation. Check with shared/tools/translations.py check. -->
 <resources>
     <!-- EN: Automatic -->
     <string name="kairo_automatic">Automática</string>
@@ -40,7 +40,9 @@
     <string name="kairo_joystick_fire_2">Disparo 2 (sin uso)</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">Símbolos</string>
+    <!-- EN: Función -->
     <string name="kairo_keyboard_function">Función</string>
+    <!-- EN: Teclado numérico -->
     <string name="kairo_keyboard_keypad">Teclado numérico</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">El acceso a la carpeta caducó. Vuelve a seleccionar la carpeta de juegos.</string>

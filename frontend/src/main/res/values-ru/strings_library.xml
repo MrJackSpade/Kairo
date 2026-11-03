@@ -124,8 +124,10 @@
     <string name="kairo_library_source_foot">«Обновить» находит добавленные и удаленные игры. «Перепроверить все файлы» заново определяет каждый файл.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">НОВАЯ ИГРА</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">Дискета · %1$s</string>
+    <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Hard disk · %1$s -->
     <string name="kairo_blank_hard_disk">Жёсткий диск · %1$s</string>
     <!-- EN: Create -->
@@ -134,16 +136,21 @@
     <string name="kairo_create_name_hint">Название игры</string>
     <!-- EN: New game -->
     <string name="kairo_create_name_default">Новая игра</string>
+    <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">Создание: %1$s…</string>
+    <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
     <string name="kairo_created">Создано: %1$s</string>
+    <!-- The new game's name. -->
     <!-- EN: Could not create %1$s -->
     <string name="kairo_create_failed">Не удалось создать: %1$s</string>
+    <!-- The new game's name, then the games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: %1$s is already in the %2$s -->
     <string name="kairo_create_exists">%1$s уже есть в папке «%2$s»</string>
     <!-- EN: A game name can’t use / \ : * ? " < > | -->
     <string name="kairo_create_bad_name">В названии нельзя использовать / \ : * ? " &lt; &gt; |</string>
+    <!-- The games folder's name (kairo_games_folder or the app's own). -->
     <!-- EN: Select the same %1$s again and grant write access before creating games. -->
     <string name="kairo_create_grant">Снова выберите «%1$s» и разрешите запись, чтобы создавать игры.</string>
     <!-- The library screen. -->

@@ -204,6 +204,11 @@
     <string name="kairo_firmware_missing">Impor firmware %1$s di Menu › Mesin terlebih dahulu (tidak ada: %2$s)</string>
     <!-- EN: No %1$s firmware files in that folder -->
     <string name="kairo_firmware_none_in_folder">Tidak ada file firmware %1$s di folder itu</string>
+    <!-- A ROM collection's row on the Firmware page: %1$d of its files are installed, of %2$d. -->
+    <plurals name="kairo_firmware_files_installed">
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="other">%1$d dari %2$d file terpasang</item>
+    </plurals>
     <plurals name="kairo_firmware_imported">
         <!-- EN: Imported %1$d firmware files -->
         <item quantity="other">%1$d file firmware diimpor</item>

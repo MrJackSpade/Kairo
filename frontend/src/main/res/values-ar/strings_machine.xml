@@ -204,6 +204,21 @@
     <string name="kairo_firmware_missing">استورد البرامج الثابتة لـ %1$s أولًا من القائمة › الجهاز (المفقود: %2$s)</string>
     <!-- EN: No %1$s firmware files in that folder -->
     <string name="kairo_firmware_none_in_folder">لا توجد ملفات برامج ثابتة لـ %1$s في ذلك المجلد</string>
+    <!-- A ROM collection's row on the Firmware page: %1$d of its files are installed, of %2$d. -->
+    <plurals name="kairo_firmware_files_installed">
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="zero">الملفات المثبتة: %1$d من %2$d</item>
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="one">الملفات المثبتة: %1$d من %2$d</item>
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="two">الملفات المثبتة: %1$d من %2$d</item>
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="few">الملفات المثبتة: %1$d من %2$d</item>
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="many">الملفات المثبتة: %1$d من %2$d</item>
+        <!-- EN: %1$d of %2$d files installed -->
+        <item quantity="other">الملفات المثبتة: %1$d من %2$d</item>
+    </plurals>
     <plurals name="kairo_firmware_imported">
         <!-- EN: Imported %1$d firmware files -->
         <item quantity="zero">تم استيراد %1$d ملف برامج ثابتة</item>
