@@ -195,11 +195,12 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
     )
 
     private val storeCache = VersionedLibraryCache(File(context.filesDir, cache.file), CACHE_LAYOUT,
-        MAX_STORE_BYTES, MAX_DOCUMENTS, ::writeCacheRecord, ::readCacheRecord,
+        MAX_STORE_BYTES, MAX_DOCUMENTS, DiskImageCacheRecords::write, { labeled(DiskImageCacheRecords.read(it)) },
         cache.legacy?.let { legacy ->
             VersionedLibraryCache.Legacy(legacy.file, legacy.version, legacy.collectionName) { labeled(legacy.decode(it)) }
         }, cache.earlierRecords.mapValues { (_, read) -> { input: DataInputStream -> labeled(read(input)) } } +
-            (4 to ::readCacheRecordV4) + (5 to ::readCacheRecordV5))
+            (4 to { input: DataInputStream -> labeled(DiskImageCacheRecords.readV4(input)) }) +
+            (5 to { input: DataInputStream -> labeled(DiskImageCacheRecords.readV5(input)) }))
     /** The games folder's listings, so a launch lists only the folders that changed (ScanDepth). */
     private val folderListings = FolderListings(File(context.filesDir, "folder-listings-v1.json"))
     private val scanPipeline by lazy {
@@ -364,12 +365,11 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
      * /data/user/0/<package> of the app's files), so [path] is taken as the same place under
      * [workingDirectory] whichever name of that folder it starts with.
      */
-    override fun entryForWorkingImage(path: String, entries: List<DiskImageEntry>): DiskImageEntry? {
-        val canonicalRoot = workingDirectory.canonicalPath + File.separator
-        val held = if (path.startsWith(canonicalRoot))
-            File(workingDirectory, path.removePrefix(canonicalRoot)).absolutePath else path
-        return entries.firstOrNull { workingImage(it).absolutePath == held }
-    }
+    override fun entryForWorkingImage(path: String, entries: List<DiskImageEntry>): DiskImageEntry? =
+        entryForWorkingImage(path, entries, workingDirectory.absolutePath, workingDirectory.canonicalPath) {
+            workingImage(it).absolutePath
+        }
+
 
     /** Inspect one launcher-provided document without requiring a selected ROM tree. */
     override fun inspectExternal(file: ExternalGameFile, cancelled: AtomicBoolean): List<DiskImageEntry> {
@@ -1065,34 +1065,20 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         return normalized
     }
 
-    private fun writeCacheRecord(output: DataOutputStream, entry: DiskImageEntry) = with(output) {
-        writeText(entry.id); writeText(entry.uri); writeText(entry.path); writeOptionalText(entry.zipEntry)
-        writeLong(entry.sourceSize); writeLong(entry.sourceModified)
-        writeLong(entry.imageSize); writeLong(entry.imageCrc)
-        writeOptionalText(entry.contentId); writeOptionalText(entry.error)
-        writeInt(entry.companions.size); entry.companions.forEach { writeText(it) }
-        writeOptionalText(entry.catalogId)
-        writeBoolean(entry.holdsGame)
-        writeInt(entry.folder.size); entry.folder.forEach { writeText(it.name); writeText(it.source) }
-    }
-
-    private fun readCacheRecord(input: DataInputStream) = with(input) {
-        readCacheRecordV5(input).copy(folder = List(readInt()) { FolderFile(readText(), readText()) })
-    }
-
-    /** Layout 5, from before programs' folders were recorded. */
-    private fun readCacheRecordV5(input: DataInputStream) = readCacheRecordV4(input).copy(holdsGame = input.readBoolean())
-
-    /** Layout 4, from before archives without a game were remembered. */
-    private fun readCacheRecordV4(input: DataInputStream) = with(input) {
-        labeled(DiskImageEntry(readText(), readText(), readText(), readOptionalText(), readLong(), readLong(),
-            readLong(), readLong(), readOptionalText(), readOptionalText(), List(readInt()) { readText() },
-            readOptionalText()))
-    }
-
     companion object {
-        /** The cache record layout: 5 records whether an archive holds a game, 6 a program's folder. */
-        private const val CACHE_LAYOUT = 6
+        /**
+         * The entry of [entries] whose working copy, named by [workingName] under [directory], is
+         * [path]; [path] may instead start with [canonicalDirectory], that folder's canonical name
+         * (Kairo68#69). Android paths, separated by '/'.
+         */
+        fun <E> entryForWorkingImage(path: String, entries: List<E>, directory: String, canonicalDirectory: String,
+                                     workingName: (E) -> String): E? {
+            val canonicalRoot = "$canonicalDirectory/"
+            val held = if (path.startsWith(canonicalRoot)) "$directory/" + path.removePrefix(canonicalRoot) else path
+            return entries.firstOrNull { workingName(it) == held }
+        }
+
+        private const val CACHE_LAYOUT = DiskImageCacheRecords.LAYOUT
         private const val MAX_DOCUMENTS = 50_000
         private const val MAX_ARCHIVE_ENTRIES = 50_000
         private const val MAX_ARCHIVE_IMAGES = 1_000
@@ -1105,5 +1091,40 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         private fun checkCancelled(cancelled: AtomicBoolean) {
             if (cancelled.get()) throw CancellationException("Cancelled")
         }
+    }
+}
+
+/**
+ * A [DiskImageEntry]'s record in the library cache, field by field (shared/tools/library_cache.py
+ * reads the same). Its media text is not stored: the library labels each entry from its format as
+ * it reads it.
+ */
+object DiskImageCacheRecords {
+    /** The record layout: 5 records whether an archive holds a game, 6 a program's folder. */
+    const val LAYOUT = 6
+
+    fun write(output: DataOutputStream, entry: DiskImageEntry) = with(output) {
+        writeText(entry.id); writeText(entry.uri); writeText(entry.path); writeOptionalText(entry.zipEntry)
+        writeLong(entry.sourceSize); writeLong(entry.sourceModified)
+        writeLong(entry.imageSize); writeLong(entry.imageCrc)
+        writeOptionalText(entry.contentId); writeOptionalText(entry.error)
+        writeInt(entry.companions.size); entry.companions.forEach { writeText(it) }
+        writeOptionalText(entry.catalogId)
+        writeBoolean(entry.holdsGame)
+        writeInt(entry.folder.size); entry.folder.forEach { writeText(it.name); writeText(it.source) }
+    }
+
+    fun read(input: DataInputStream): DiskImageEntry = with(input) {
+        readV5(input).copy(folder = List(readInt()) { FolderFile(readText(), readText()) })
+    }
+
+    /** Layout 5, from before programs' folders were recorded. */
+    fun readV5(input: DataInputStream): DiskImageEntry = readV4(input).copy(holdsGame = input.readBoolean())
+
+    /** Layout 4, from before archives without a game were remembered. */
+    fun readV4(input: DataInputStream): DiskImageEntry = with(input) {
+        DiskImageEntry(readText(), readText(), readText(), readOptionalText(), readLong(), readLong(),
+            readLong(), readLong(), readOptionalText(), readOptionalText(), List(readInt()) { readText() },
+            readOptionalText())
     }
 }

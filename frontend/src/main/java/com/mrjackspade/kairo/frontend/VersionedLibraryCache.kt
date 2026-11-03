@@ -24,9 +24,12 @@ class VersionedLibraryCache<T>(
     private val readRecord: (DataInputStream) -> T,
     /** The JSON cache that earlier versions wrote; read once and replaced by a binary cache. */
     private val legacy: Legacy<T>? = null,
-    private val earlierRecords: Map<Int, (DataInputStream) -> T> = emptyMap()
+    earlierRecords: Map<Int, (DataInputStream) -> T> = emptyMap()
 ) {
     data class Snapshot<T>(val treeUri: String, val entries: List<T>, val root: JSONObject)
+
+    /** The file's bytes, apart from where they are stored (Kairo#106). */
+    private val format = LibraryCacheFormat(version, writeRecord, readRecord, earlierRecords)
 
     class Legacy<T>(val file: File, val version: Int, val collectionName: String,
                     val decode: (JSONObject) -> T)
@@ -35,18 +38,7 @@ class VersionedLibraryCache<T>(
 
     @Synchronized fun read(): Snapshot<T>? {
         if (!exists()) return legacy?.let(::migrate)
-        DataInputStream(ByteArrayInputStream(AtomicFile(file).readFully())).use { input ->
-            if (input.readInt() != MAGIC) return null
-            val readRecord = input.readInt().let { written ->
-                if (written == version) readRecord else earlierRecords[written] ?: return null
-            }
-            val treeUri = input.readText()
-            val extras = JSONObject(input.readText())
-            val count = input.readInt()
-            val entries = ArrayList<T>(count)
-            repeat(count) { entries += readRecord(input) }
-            return Snapshot(treeUri, entries, extras)
-        }
+        return format.decode(AtomicFile(file).readFully())
     }
 
     /** Never offer entries from another selected document tree as this library's cache. */
@@ -58,16 +50,7 @@ class VersionedLibraryCache<T>(
         writtenVersion()?.let { written ->
             require(written <= version) { "Library cache uses a newer layout; update the app before scanning" }
         }
-        val buffer = ByteArrayOutputStream()
-        DataOutputStream(buffer).use { output ->
-            output.writeInt(MAGIC)
-            output.writeInt(version)
-            output.writeText(treeUri)
-            output.writeText(extras.toString())
-            output.writeInt(entries.size)
-            entries.forEach { writeRecord(output, it) }
-        }
-        val bytes = buffer.toByteArray()
+        val bytes = format.encode(treeUri, entries, extras)
         require(bytes.size <= maxBytes) { "Library cache is too large" }
         val atomic = AtomicFile(file)
         val stream = atomic.startWrite()
@@ -86,7 +69,7 @@ class VersionedLibraryCache<T>(
         if (!exists()) return null
         AtomicFile(file).openRead().use { stream ->
             DataInputStream(stream).use { input ->
-                return if (input.readInt() == MAGIC) input.readInt() else null
+                return if (input.readInt() == LibraryCacheFormat.MAGIC) input.readInt() else null
             }
         }
     }
@@ -106,7 +89,49 @@ class VersionedLibraryCache<T>(
         return snapshot
     }
 
-    private companion object {
+}
+
+/**
+ * A library cache file's bytes (shared/tools/library_cache.py reads the same): big-endian, the
+ * magic, the record layout [version], the library's tree URI, a JSON text of extras, the entry
+ * count, then each entry's record. A file of a layout in [earlierRecords] is read with its reader;
+ * one of any other layout is not read.
+ */
+class LibraryCacheFormat<T>(
+    private val version: Int,
+    private val writeRecord: (DataOutputStream, T) -> Unit,
+    private val readRecord: (DataInputStream) -> T,
+    private val earlierRecords: Map<Int, (DataInputStream) -> T> = emptyMap()
+) {
+    fun encode(treeUri: String, entries: List<T>, extras: JSONObject): ByteArray {
+        val buffer = ByteArrayOutputStream()
+        DataOutputStream(buffer).use { output ->
+            output.writeInt(MAGIC)
+            output.writeInt(version)
+            output.writeText(treeUri)
+            output.writeText(extras.toString())
+            output.writeInt(entries.size)
+            entries.forEach { writeRecord(output, it) }
+        }
+        return buffer.toByteArray()
+    }
+
+    /** The cache in [bytes]; null for another file or a layout this app does not read. */
+    fun decode(bytes: ByteArray): VersionedLibraryCache.Snapshot<T>? =
+        DataInputStream(ByteArrayInputStream(bytes)).use { input ->
+            if (input.readInt() != MAGIC) return null
+            val readRecord = input.readInt().let { written ->
+                if (written == version) readRecord else earlierRecords[written] ?: return null
+            }
+            val treeUri = input.readText()
+            val extras = JSONObject(input.readText())
+            val count = input.readInt()
+            val entries = ArrayList<T>(count)
+            repeat(count) { entries += readRecord(input) }
+            VersionedLibraryCache.Snapshot(treeUri, entries, extras)
+        }
+
+    companion object {
         /** "KLIB": a Kairo binary library cache. */
         const val MAGIC = 0x4B4C4942
     }

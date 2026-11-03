@@ -5,3 +5,5 @@ app/gitattributes text eol=lf
 githooks/* text eol=lf
 # Generated catalogs carry checksums of their exact bytes.
 catalog/** -text
+# Fixtures are compared byte for byte (LibraryCacheFixtureTest).
+tools/fixtures/** -text

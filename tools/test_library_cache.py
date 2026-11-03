@@ -62,5 +62,26 @@ class LibraryCacheTest(unittest.TestCase):
             self.read(cache(6, [record(6)]) + b"\0")
 
 
+class LibraryCacheFixtureTest(unittest.TestCase):
+    """fixtures/library-v2.bin, which the shared frontend's LibraryCacheFixtureTest writes with the app's
+    own code (Kairo#106): the reader must read what the app writes."""
+
+    def test_reads_what_the_app_writes(self):
+        result = library_cache.read(Path(__file__).parent / "fixtures" / "library-v2.bin")
+        self.assertEqual(result["treeUri"], "content://tree")
+        fields = ("id", "uri", "path", "zipEntry", "contentId", "error", "companions", "catalogId", "holdsGame", "folder")
+        self.assertEqual([tuple(entry[field] for field in fields) for entry in result["entries"]], [
+            ("Games/Set.zip/Disk 1.d88", "content://tree/Set.zip", "Games/Set.zip", "Disk 1.d88",
+             "sha256-fd-v1:" + "a" * 64, None, ["Disk 2.d88", "Disk 3.d88"], "sha256-fd-v1:" + "b" * 64, True, []),
+            ("Games/Broken.hdm", "content://tree/Broken.hdm", "Games/Broken.hdm", None,
+             None, "Unreadable disk image", [], None, True, []),
+            ("Games/Manuals.zip", "content://tree/Manuals.zip", "Games/Manuals.zip", None,
+             None, None, [], None, False, []),
+            ("Games/ゲーム/RUN.EXE", "content://tree/RUN.EXE", "Games/ゲーム/RUN.EXE", None,
+             "sha256-fd-v1:" + "c" * 64, None, [], "sha256-fd-v1:" + "c" * 64, True,
+             [("DATA/LEVEL1.DAT", "content://tree/LEVEL1.DAT"), ("CONFIG.SYS", "content://tree/CONFIG.SYS")]),
+        ])
+
+
 if __name__ == "__main__":
     unittest.main()
