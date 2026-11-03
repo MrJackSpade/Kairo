@@ -16,12 +16,18 @@ ADULT_PART = re.compile(r'assets/catalog/[^/]+\.nsfw\.')
 
 # Machine firmware and game disk images, which no Kairo app ships: BIOS images; Commodore's
 # KERNAL, BASIC, character and drive ROMs under the names players and VICE give them; and every
-# system's disk, tape, cartridge and program images. Free system software an app carries, such as
-# KairoST's EmuTOS image or Kairo64's Open ROMs (kernal_generic.rom), has its own names.
+# system's disk, tape, cartridge and program images; and the 86Box ROM set by its own layout
+# (roms/machines/..., roms/video/...), whose 1,700-odd files have no common name. Free system
+# software an app carries, such as Kairo64's Open ROMs (kernal_generic.rom) or KairoX86's GLaBIOS,
+# has its own names and paths; one that takes a disk image's extension (KairoST's EmuTOS image) is
+# named in FREE_SYSTEM_SOFTWARE.
 FORBIDDEN = re.compile(r'(?i)(^|/)bios\d*\.(rom|bin)$'
                        r'|(^|/)(c64_?)?(kernal|basic|chargen|char|dos15\d\d|drive-15\d\d\w*)(\.bin)?$'
+                       r'|(^|/)roms/(machines|video|hdd|scsi|sound|floppy|network|printer|rtc|memcard)/'
                        r'|\.(hdi|fdi|d88|d77|nfd|hdm|xdf|dim|fdd|iso|chd|cue|dsk|st|msa|stx|adf|ipf'
-                       r'|d64|d71|d81|g64|g71|p64|x64|t64|tap|crt|prg|p00)$')
+                       r'|d64|d71|d81|g64|g71|p64|x64|t64|tap|crt|prg|p00'
+                       r'|img|ima|imd|td0|86f|mfm|vfd|flp|hdx|vhd|mds|mdf|ccd)$')
+FREE_SYSTEM_SOFTWARE = re.compile(r'(?i)(^|/)etos\w*\.img$')
 
 # A bundle keeps the baseline profile as metadata; bundletool installs it as the APK's assets/dexopt/.
 BUNDLE_PROFILES = 'BUNDLE-METADATA/com.android.tools.build.profiles/'
@@ -32,7 +38,8 @@ def inspect(path, prefix, module, allow_art=False):
         payload = {}
         native = 0
         for name in archive.namelist():
-            assert not FORBIDDEN.search(name), f'{path}: firmware or disk image {name}'
+            assert not FORBIDDEN.search(name) or FREE_SYSTEM_SOFTWARE.search(name), \
+                f'{path}: firmware or disk image {name}'
             if prefix == 'base/' and name.startswith(BUNDLE_PROFILES) and not name.endswith('/'):
                 payload['assets/dexopt/' + name.removeprefix(BUNDLE_PROFILES)] = hashlib.sha256(archive.read(name)).hexdigest()
                 continue
@@ -61,7 +68,11 @@ def inspect(path, prefix, module, allow_art=False):
                 native += 1
         assert native, f'No native libraries in {path}'
         assert f'lib/arm64-v8a/lib{module}.so' in payload, f'{path}: no lib{module}.so'
-        assert any(n.startswith('assets/catalog/') for n in payload), f'{path}: no catalog'
+        # An app with a catalog (catalog/parts in its repository) ships it; one without (KairoX86, whose
+        # entries the player makes) ships none.
+        catalog = any(n.startswith('assets/catalog/') for n in payload)
+        assert catalog == Path('catalog/parts').is_dir(), \
+            f'{path}: catalog assets {"present" if catalog else "missing"}, catalog/parts {"missing" if catalog else "present"}'
         # The app's own assets (src/main/assets, its catalog built from catalog/parts instead), as committed.
         source = f'{module}/src/main/assets/'
         for file in subprocess.check_output(['git', 'ls-files', '-z', source], text=True).split('\0'):
