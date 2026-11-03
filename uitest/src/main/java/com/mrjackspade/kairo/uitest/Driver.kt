@@ -140,10 +140,30 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
             check(point.display == 0) { "Android ${Build.VERSION.SDK_INT} cannot tap display ${point.display}" }
             "input tap ${point.x} ${point.y}"
         }
-        val output = instrumentation.uiAutomation.executeShellCommand(command)
         // A tap prints nothing; anything printed is input's error or usage, and the tap was lost.
-        val printed = android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }.decodeToString().trim()
+        val printed = shell(command).trim()
         check(printed.isEmpty()) { "$command failed: $printed" }
+    }
+
+    /** What a shell command (as the shell user) prints. Not on the main thread. */
+    private fun shell(command: String): String {
+        val output = instrumentation.uiAutomation.executeShellCommand(command)
+        return android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }.decodeToString()
+    }
+
+    /** Whether the on-screen keyboard is open, on any screen. */
+    fun keyboardShown(): Boolean = shell("dumpsys input_method").contains("mInputShown=true")
+
+    /**
+     * Closes the on-screen keyboard with Back, as a player does before touching what it covers. In
+     * landscape it can cover the whole screen (Android's full-screen editor, as on the emulator's
+     * Android 8 Gboard), so a tap meant for the app would type into it instead.
+     */
+    fun closeKeyboard() {
+        if (!keyboardShown()) return
+        log.step("keyboard", "close the on-screen keyboard")
+        press(KeyEvent.KEYCODE_BACK, fromKeyboard = true)
+        waitUntil("the on-screen keyboard to close") { !keyboardShown() }
     }
 
     // Keys ------------------------------------------------------------------------------------

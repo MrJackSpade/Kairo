@@ -58,12 +58,29 @@ class Pictures internal constructor(private val driver: Driver) {
     private val handler = Handler(thread.looper)
 
     /** The game's picture as the player sees it now, from the game surface; saved to the log. */
-    fun game(name: String = "game"): Picture {
-        val surface = driver.find(By.id("game.surface")).waitUntilShown()
+    fun game(name: String = "game"): Picture = logged(name, captureGame())
+
+    /**
+     * The game's picture once it shows one ([Picture.drawn]), as [Patience] allows; saved to the log.
+     * A game still booting shows its firmware's few lines of text first, for as long as the machine
+     * takes to load it (longer on the emulator than on a device), so a test that needs the game's own
+     * picture waits for it rather than for a count of frames.
+     */
+    fun drawnGame(name: String = "game"): Picture {
+        var picture: Picture? = null
+        driver.waitUntil("the game to draw a picture") { captureGame().also { picture = it }.drawn() }
+        return logged(name, checkNotNull(picture))
+    }
+
+    private fun captureGame(): Picture {
+        driver.find(By.id("game.surface")).waitUntilShown()
         val view = driver.onMain { driver.resolve(listOf(By.id("game.surface"))).last() as SurfaceView }
-        val picture = Picture(copy(view))
+        return Picture(copy(view))
+    }
+
+    private fun logged(name: String, picture: Picture): Picture {
         driver.log.image(name, picture.bitmap)
-        driver.log.step("picture", surface.description, mapOf("lit" to picture.litFraction(), "colors" to picture.distinctColors()))
+        driver.log.step("picture", "id=game.surface", mapOf("lit" to picture.litFraction(), "colors" to picture.distinctColors()))
         return picture
     }
 

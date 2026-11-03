@@ -41,8 +41,8 @@ abstract class LaunchTests : KairoUiTest() {
         // Before setup the game is outside any library.
         answerLaunchNotice(driver, app, app.bootGame, inLibrary = false)
         driver.waitFrames(SETTLE_FRAMES)
-        val picture = driver.pictures.game("before-setup")
-        expect.that("the game draws without the app having been set up", picture.drawn()) { "lit ${picture.litFraction()}" }
+        // The wait is the check: the game draws without the app having been set up.
+        driver.pictures.drawnGame("before-setup")
     }
 
     @Test

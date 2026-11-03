@@ -120,7 +120,7 @@ class LibraryScreen<T : LibraryItem>(
     private val rowMetadata = HashMap<String, LibraryGame>()
     private val searchIndex = LibrarySearchIndex<T>(catalog, { action -> post(action) }) { records ->
         rowMetadata.putAll(records)
-        adapter.notifyDataSetChanged()
+        redrawRows()
         if (entries.getOrNull(selectedIndex)?.id in records) reannounceSelection()
         detailPage?.let { page ->
             if (page.entryId in records) allEntries.firstOrNull { it.id == page.entryId }?.let(page::show)
@@ -188,6 +188,21 @@ class LibraryScreen<T : LibraryItem>(
                 is Header -> headerView(item, convertView)
                 is Game -> gameView(item.index, convertView)
             }
+    }
+
+    /**
+     * Draws the visible rows again for a change to what they show (catalog details, artwork), the
+     * rows themselves unchanged. notifyDataSetChanged also resets the list's touch handling:
+     * AbsListView drops a tap whose finger was down when the data changed (mDataChanged), so a tap
+     * just after the library appeared, while the search index was still resolving its rows, did
+     * nothing. Rows scrolled into view later are bound with what is known then.
+     */
+    private fun redrawRows() {
+        for (child in 0 until list.childCount) {
+            val position = list.firstVisiblePosition + child
+            if (position >= adapter.count) break
+            adapter.getView(position, list.getChildAt(child), list)
+        }
     }
 
     private fun headerView(item: Header, convertView: View?): View {
@@ -421,7 +436,7 @@ class LibraryScreen<T : LibraryItem>(
     /** Newly downloaded images: retry rows that had none. Records name paths, not files. */
     fun refreshArtwork() {
         missingArt.clear()
-        adapter.notifyDataSetChanged()
+        redrawRows()
         detailPage?.refreshArtwork()
     }
 

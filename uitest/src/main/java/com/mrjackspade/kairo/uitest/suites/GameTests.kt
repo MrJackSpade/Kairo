@@ -13,8 +13,8 @@ abstract class GameTests : KairoUiTest() {
     fun theGameStartsAndDraws() {
         screens.completeFirstRun().open(app.bootGame).play()
         driver.waitFrames(SETTLE_FRAMES)
-        val picture = driver.pictures.game("running")
-        expect.that("the game draws a picture, not a blank screen", picture.drawn()) { "lit ${picture.litFraction()}" }
+        // The wait is the check: the game draws a picture, not a blank screen.
+        val picture = driver.pictures.drawnGame("running")
         expect.that("the picture has more than one colour", picture.distinctColors() > 1) { "${picture.distinctColors()} colours" }
         expect.equal("the running game's title", app.runningTitle, driver.probe().title)
     }

@@ -80,6 +80,8 @@ class Element internal constructor(private val driver: Driver, private val path:
         waitUntilShown()
         // A page still sliding in or out can take the touch meant for this view.
         driver.waitUntil("the pages to settle") { !driver.find(By.id("pages").withKey("moving")).exists() }
+        // A player closes the on-screen keyboard to touch anything but a text field; it may cover the view.
+        if (!driver.onMain { current() is android.widget.EditText }) driver.closeKeyboard()
         if (!driver.onMain { current()?.let(Views::tappable) == true }) {
             driver.log.step("scroll", "$description into view")
             // Asked again until it is there: a page that has just opened may still be scrolling its

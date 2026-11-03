@@ -111,6 +111,9 @@ foreach ($apk in @($tools)) {
     Write-Output "install $($apk.Name)"
     Adb install -r -d -t -g $apk.FullName | Out-Null
 }
+# The test storage service writes every test's log under /sdcard; from Android 11 that takes all-files
+# access, an app op install -g does not grant (a clean device or the emulator has never had it).
+if ($sdk -ge 30) { Adb shell appops set androidx.test.services MANAGE_EXTERNAL_STORAGE allow | Out-Null }
 
 # The packages this run installs, which it removes when it ends, passed or failed (Kairo#45). The
 # player's own install (the applicationId without .uitest) is never among them.
