@@ -72,6 +72,7 @@ from disk_sets import disk_sets, group as disk_group, ungrouped_sets
 from catalog_languages import LANGUAGES
 import catalog_descriptions
 import catalog_files
+import check_scan_cache
 import art_verdicts
 import japanese_titles
 from launchbox_artwork import URL
@@ -398,6 +399,9 @@ def assemble(root, moby_root):
         index = read(root / index_path, None)
         if index is None:
             raise SystemExit(f"missing media scan {index_path}")
+        # A cache that misses an archive's disks names the wrong games (KairoTowns#83, Kairo#108).
+        if problems := check_scan_cache.check_index(index, config.MEDIA):
+            raise SystemExit(f"{index_path} is out of date:\n" + "\n".join(problems))
         for archive in index["archives"]:
             if archive["status"] != "ready":
                 continue
