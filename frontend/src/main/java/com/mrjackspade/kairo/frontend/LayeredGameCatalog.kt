@@ -118,32 +118,12 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
 
     val artworkStore = CatalogArtworkStore(context, ::validImageUrl)
 
-    override val installedCatalogs by lazy {
+    override val installedCatalogs: InstalledCatalogs by lazy {
         InstalledCatalogs(context, schema.platform, ::requireUpdateFormat) {
             synchronized(this) { invalidate() }
         }
     }
     private val parts = CatalogParts(context)
-    private val base = readAsset("catalog/base-v1.json")
-    private val nameIndex by lazy { readAsset("catalog/name-index-v1.json") }
-    private val shardNames = readShardNames()
-    private val shardCache = object : android.util.LruCache<String, JSONObject>(8) {}
-    // A game's merged record and resolved metadata are reused until a catalog, override or
-    // artwork change; settings pages read them for every row and every focus move.
-    /** [owner] is the game whose overrides apply; null for its catalog record alone. */
-    private data class MemoKey(val contentId: String, val owner: GameKey?, val member: String?, val fileName: String? = null)
-    private val layeredMemo = HashMap<MemoKey, CatalogFieldLayers.Result>()
-    private val resolvedMemo = HashMap<MemoKey, CatalogGame>()
-    private fun invalidate() {
-        layeredMemo.clear()
-        resolvedMemo.clear()
-    }
-
-    /** Only this game's overrides changed. */
-    private fun invalidate(owner: GameKey) {
-        layeredMemo.keys.removeAll { it.owner == owner }
-        resolvedMemo.keys.removeAll { it.owner == owner }
-    }
     private val additionsFile = File(context.filesDir, "user-catalog-v1.json")
     private val overridesFile = File(context.filesDir, "overrides-v1.json")
     /** The language this device shows descriptions in besides English, or null for English alone. */
@@ -155,16 +135,6 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     // are parsed as they are read.
     private var update: Lazy<CatalogUpdateArchive?> = lazy { snapshot.activeFile()?.let(::CatalogUpdateArchive) }
     private var languageUpdate: Lazy<CatalogUpdateArchive?> = lazy { languageSnapshot?.activeFile()?.let(::CatalogUpdateArchive) }
-    // Every resolve reads these whole-library documents: each layer's name index and description
-    // document in this device's language. They are held for the catalog's life, as the shipped name
-    // index is; the caches below them are sized for shards, and one bigger than its cache, or two
-    // that did not fit it together, were parsed again for nearly every game of a library walk (Kairo#135).
-    private val languageDocument = language?.let { "descriptions/$it.json" }
-    private val shippedLanguage by lazy { languageDocument?.let(parts::main) }
-    private val additionalNames by lazy { parts.additional("name-index-v1.json") }
-    private val additionalLanguage by lazy { languageDocument?.let(parts::additional) }
-    private var updatedNames: Lazy<JSONObject?> = lazy { updated("name-index-v1.json") }
-    private var updatedLanguage: Lazy<JSONObject?> = lazy { updatedLanguageDocument() }
 
     init {
         // Before the v4 update an app kept the update as one JSON file.
@@ -175,16 +145,22 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         name.replaceFirst("core-", "core-update-") + ".zip", schema.catalogUrl + "$name.zip",
         schema.catalogUrl + "$name.meta.json", MAX_UPDATE_BYTES) { file -> CatalogUpdateArchive.validate(file, *required) }
 
-    /** A document of the downloaded update, or null without an update or without that document. */
-    private fun updated(path: String): JSONObject? = synchronized(this) { update.value?.document(path) }
-    private fun updatedLanguageDocument(): JSONObject? =
-        languageDocument?.let { path -> synchronized(this) { languageUpdate.value?.document(path) } }
     private var additions = readLocal(additionsFile)
     private val overrides = GameMetadataOverrides(overridesFile, MAX_LOCAL_JSON.toInt(),
         schemaEnvelope = true)
-    private val objectFields: Map<String, Set<String>> = COMMON_OBJECT_FIELDS +
-        ("input" to (if (schema.directTouch) INPUT_FIELDS else INPUT_FIELDS - "touch")) +
-        schema.fields.mapNotNull { (field, subfields) -> subfields?.let { field to it } }
+    private val layers = CatalogLayers(schema, object : CatalogLayers.Sources {
+        override fun shipped(path: String) = parts.read(path)
+        override fun shippedMain(path: String) = parts.main(path)
+        override fun shippedAdditional(path: String) = parts.additional(path)
+        override fun updated(path: String) = synchronized(this@LayeredGameCatalog) { update.value?.document(path) }
+        override fun updatedLanguage(path: String) = synchronized(this@LayeredGameCatalog) { languageUpdate.value?.document(path) }
+        override fun installed(): List<InstalledCatalogs.Catalog> = installedCatalogs.catalogs()
+        override fun additions() = additions
+        override fun override(game: GameKey) = overrides.record(game)
+    }, language)
+    private fun invalidate() = layers.invalidate()
+    private fun invalidate(owner: GameKey) = layers.invalidate(owner)
+    private val objectFields: Map<String, Set<String>> = layers.objectFields
     private val allFields: Set<String> = COMMON_FIELDS + schema.fields.keys
     private val mediaRoles = CatalogSetting.roles(schema.settings)
 
@@ -203,9 +179,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             if (languageUpdate.isInitialized()) languageUpdate.value?.close()
             update = lazy { snapshot.activeFile()?.let(::CatalogUpdateArchive) }
             languageUpdate = lazy { languageSnapshot?.activeFile()?.let(::CatalogUpdateArchive) }
-            updatedNames = lazy { updated("name-index-v1.json") }
-            updatedLanguage = lazy { updatedLanguageDocument() }
-            invalidate()
+            layers.updateReplaced()
         }
         return true
     }
@@ -241,74 +215,12 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         }.toList()
     }
 
-    /** [member] is the collection member the player picked, whose record sits above its collection's. */
-    private fun layered(contentId: String, owner: GameKey?, member: String?): CatalogFieldLayers.Result {
-        val key = MemoKey(contentId, owner, member)
-        return layeredMemo.getOrPut(key) { layeredUncached(key) }
-    }
-
-    private fun layeredUncached(key: MemoKey): CatalogFieldLayers.Result {
-        val contentId = key.contentId
-        val member = key.member
-        val baseRecord = base.optJSONObject("games")?.optJSONObject(contentId)
-        val shardRecord = shardFor(contentId)?.optJSONObject("games")?.optJSONObject(contentId)
-        val updateRecord = updatedRecord(contentId)
-        val userRecord = additions.optJSONObject("games")?.optJSONObject(contentId)
-        val overrideRecord = key.owner?.let(overrides::record)
-        val installed = installedCatalogs.catalogs()
-        // A disk record names its game's shared record. Each layer adds its own copy of that
-        // record beneath its disk records, so the disk's own fields override it in every layer.
-        // A collection member's game comes first from any layer that has the member: a layer
-        // that names only the collection's game (an update from before the collection) does not
-        // hide which game the player picked.
-        val records = listOf(overrideRecord, userRecord) +
-            installed.asReversed().map { it.data.getJSONObject("games").optJSONObject(contentId) } +
-            listOf(updateRecord, shardRecord, baseRecord)
-        fun gameOf(record: JSONObject?) = record?.optString("game")?.takeIf { it.isNotEmpty() }
-        val game = (records.map { member(it, member) } + records).firstNotNullOfOrNull(::gameOf)
-        // A collection's own game, whose shared fields (such as its controls) sit beneath its member's.
-        val collectionGame = records.firstNotNullOfOrNull(::gameOf)?.takeIf { member != null && it != game }
-        fun shared(games: JSONObject?) = game?.let { games?.optJSONObject("games")?.optJSONObject(it) }
-        fun collectionShared(games: JSONObject?) = collectionGame?.let { games?.optJSONObject("games")?.optJSONObject(it) }
-        // The game's description in this device's language, from a layer's language document.
-        fun translated(document: JSONObject?) = language?.let { language ->
-            game?.let { document?.optJSONObject("games")?.optString(it) }?.takeIf { it.isNotBlank() }
-                ?.let { JSONObject().put("descriptions", JSONObject().put(language, it)) }
-        }
-        val updatedNames = updatedNames.value
-        return CatalogFieldLayers.merge(listOf(
-            CatalogFieldLayers.Source("Shipped catalog", collectionShared(nameIndex)),
-            CatalogFieldLayers.Source("Shipped catalog", shared(nameIndex)),
-            CatalogFieldLayers.Source("Shipped catalog", translated(shippedLanguage)),
-            CatalogFieldLayers.Source("Shipped catalog", baseRecord),
-            CatalogFieldLayers.Source("Shipped catalog", shardRecord),
-            CatalogFieldLayers.Source("Updated catalog", collectionShared(updatedNames)),
-            CatalogFieldLayers.Source("Updated catalog", shared(updatedNames)),
-            CatalogFieldLayers.Source("Updated catalog", translated(updatedLanguage.value)),
-            CatalogFieldLayers.Source("Updated catalog", updateRecord),
-            CatalogFieldLayers.Source("Shipped catalog", collectionShared(additionalNames)),
-            CatalogFieldLayers.Source("Shipped catalog", shared(additionalNames)),
-            CatalogFieldLayers.Source("Shipped catalog", translated(additionalLanguage)),
-            CatalogFieldLayers.Source("Shipped catalog", bundledAdditional(contentId)),
-            *installedSources(installed, contentId, ::collectionShared, ::shared, ::translated, languageDocument).toTypedArray(),
-            CatalogFieldLayers.Source("User catalog", userRecord),
-            CatalogFieldLayers.Source("User override", overrideRecord)
-        ).let { withMember(it, member) }
-            .map { source -> source.copy(record = source.record?.let { record ->
-                record.optJSONObject("artwork")?.let { JsonCopy.shallow(record).put("artwork", schema.expandArtwork(it)) } ?: record
-            }) },
-            { path -> path.size == 1 && path[0] in objectFields },
-            schema::replacedSubfields)
-    }
-
     /**
      * A product's own catalog document [name], such as KairoDos's launch folders, from the shipped
      * catalog, the downloaded update and each installed catalog, lowest layer first. The update
      * holds them at their own paths; installed catalogs under "documents".
      */
-    @Synchronized fun documents(name: String): List<JSONObject> =
-        listOfNotNull(readAsset("catalog/$name").takeIf { it.length() > 0 }, updated(name)) +
-            installedCatalogs.catalogs().mapNotNull { it.data.optJSONObject("documents")?.optJSONObject(name) }
+    @Synchronized fun documents(name: String): List<JSONObject> = layers.documents(name)
 
     @Synchronized override fun resolve(item: LibraryItem): CatalogGame =
         resolve(matchId(item) ?: "", item.key, item.member, item.displayName)
@@ -317,72 +229,13 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     @Synchronized fun resolve(contentId: String, fileName: String): CatalogGame = resolve(contentId, null, null, fileName)
 
     private fun resolve(contentId: String, owner: GameKey?, member: String?, fileName: String): CatalogGame =
-        resolvedMemo.getOrPut(MemoKey(contentId, owner, member, fileName)) {
-            resolveUncached(contentId, owner, member, fileName)
-        }
+        layers.resolve(contentId, owner, member, fileName)
 
-    // An unedited game needs no lookup, so startup reads no shards for it.
-    @Synchronized override fun matchId(item: LibraryItem): String? {
-        val current = item.contentId ?: return item.catalogId
-        val first = item.catalogId ?: return current
-        return if (current == first || known(current)) current else first
-    }
+    private fun layered(contentId: String, owner: GameKey?, member: String?) = layers.layered(contentId, owner, member)
 
-    @Synchronized override fun knows(item: LibraryItem): Boolean = matchId(item)?.let(::known) == true
+    @Synchronized override fun matchId(item: LibraryItem): String? = layers.matchId(item)
 
-    /** Whether any catalog has a record for [contentId]. */
-    private fun known(contentId: String): Boolean {
-        fun has(source: JSONObject?) = source?.optJSONObject("games")?.has(contentId) == true
-        return has(base) || has(shardFor(contentId)) || updatedRecord(contentId) != null || has(additions) ||
-            has(parts.additional("shards/${contentId.substringAfter(':').take(2)}.json")) ||
-            installedCatalogs.sources(contentId).any { it.record != null }
-    }
-
-    private fun resolveUncached(contentId: String, owner: GameKey?, member: String?, fileName: String): CatalogGame {
-        val layers = layered(contentId, owner, member)
-        val merged = layers.record
-        val user = owner?.let(overrides::record)
-        val catalogTitle = merged.optString("title").takeIf { it.isNotBlank() }
-        // The game's own title in the device's language, where the catalog knows one (its Japanese
-        // title, Kairo#61), over a catalog's title but never over one the player or a catalog they
-        // installed gave it.
-        val localTitle = merged.optString("game").takeIf(String::isNotEmpty)
-            ?.let { localTitle(languageDocuments(), it) }?.takeIf { localTitleShows(layers.sourceOf("title")) }
-        val title = localTitle ?: catalogTitle
-            ?: fileName.substringAfterLast('/').substringAfterLast('\\').substringBeforeLast('.')
-        val artwork = merged.optJSONObject("artwork")
-        val controller = merged.optJSONObject("controller")
-        val input = merged.optJSONObject("input")
-        // Paths and URLs are checked where an image is opened or downloaded, for that game alone.
-        return CatalogGame(
-            contentId, schema.title(title.ifBlank { fileName }, fileName),
-            description(merged, layers),
-            merged.opt("heart") as? Boolean,
-            artwork?.optString("boxArt")?.takeIf { it.isNotEmpty() },
-            artwork?.optString("preview")?.takeIf { it.isNotEmpty() },
-            artwork?.optString("boxArtUrl")?.takeIf { it.isNotEmpty() },
-            artwork?.optString("previewUrl")?.takeIf { it.isNotEmpty() },
-            controller?.optString("profile")?.takeIf { it.length in 1..128 },
-            controller?.optJSONArray("bindings")?.toString(),
-            (controller?.optJSONObject("defaults")
-                ?: controller?.optJSONArray("bindings")?.takeIf {
-                    it.length() > 0 || controller.optString("profile") == "custom-v1"
-                }?.let { JSONObject().put("withoutSticks", it) })?.toString(),
-            input?.optString("mode")?.takeIf { it in INPUT_MODES },
-            input?.optString("touch")?.takeIf { it in INPUT_TOUCH },
-            input?.optString("secondary")?.takeIf { it in INPUT_SECONDARY },
-            user?.keys()?.asSequence()?.toSet() ?: emptySet(),
-            merged, layers, tagText(), catalogTitle.takeIf { localTitle != null })
-    }
-
-    /** This device's language documents, the downloaded update's before the shipped one's. */
-    private fun languageDocuments(): List<JSONObject> = listOfNotNull(updatedLanguage.value, shippedLanguage)
-
-    /**
-     * Tags in this device's language: each catalog language document names its tags' words
-     * ("tags"), the downloaded update's over the shipped ones (KairoDos#141).
-     */
-    private fun tagText(): (String) -> String = tagText(languageDocuments())
+    @Synchronized override fun knows(item: LibraryItem): Boolean = matchId(item)?.let(layers::known) == true
 
     override fun openArtwork(path: String): InputStream = installedCatalogs.openArtwork(path) ?: artworkStore.open(path)
 
@@ -432,17 +285,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     }
 
     /** Read for every library entry, so it takes the field from the highest layer instead of merging records. */
-    @Synchronized override fun setDisks(item: LibraryItem): List<String> {
-        val contentId = matchId(item) ?: return emptyList()
-        fun disks(record: JSONObject?) = record?.optJSONArray("setDisks")
-        fun game(source: JSONObject?) = source?.optJSONObject("games")?.optJSONObject(contentId)
-        val array = disks(overrides.record(item.key)) ?: disks(game(additions))
-            ?: installedCatalogs.sources(contentId).asReversed().firstNotNullOfOrNull { disks(it.record) }
-            ?: disks(game(parts.additional("shards/${contentId.substringAfter(':').take(2)}.json")))
-            ?: disks(updatedRecord(contentId)) ?: disks(game(shardFor(contentId))) ?: disks(game(base))
-            ?: return emptyList()
-        return (0 until array.length()).map(array::getString)
-    }
+    @Synchronized override fun setDisks(item: LibraryItem): List<String> = layers.setDisks(item)
 
     @Synchronized fun updateOverrideSubfields(game: GameKey, field: String, changes: Map<String, Any?>) {
         require(field in objectFields) { "Unsupported setting" }
@@ -547,8 +390,6 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         else -> field in schema.fields && schema.validField(field, value)
     }
 
-    private fun readAsset(path: String): JSONObject = parts.read(path.removePrefix("catalog/"))
-
     /**
      * The system's controller mapping from the catalog's system definition (system-v2.json, which
      * binds the C and Z buttons; system-v1.json beside it is the same without them, for apps from
@@ -556,7 +397,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
      * downloaded update's when it has one, so a corrected mapping reaches players without a new
      * build (Kairo#55), else the shipped one. Games' own mappings layer over it as their records do.
      */
-    @Synchronized fun systemControllerBindings(): org.json.JSONArray = systemController().getJSONArray("bindings")
+    @Synchronized fun systemControllerBindings(): org.json.JSONArray = layers.systemControllerBindings()
 
     /**
      * A layer of the system's definition that a game's machine settings choose over the system's
@@ -564,50 +405,11 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
      * 6-button pad's games play with. Its `controller.layers` holds it by name.
      */
     @Synchronized fun systemControllerLayer(name: String): org.json.JSONArray =
-        requireNotNull(systemController().optJSONObject("layers")?.optJSONArray(name)) {
+        requireNotNull(layers.systemController().optJSONObject("layers")?.optJSONArray(name)) {
             "The system definition has no controller layer $name"
         }
 
-    private fun systemController(): JSONObject =
-        (updated(SYSTEM_DOCUMENT) ?: readAsset("catalog/$SYSTEM_DOCUMENT")).getJSONObject("controller")
-
-    private fun bundledAdditional(contentId: String): JSONObject? =
-        parts.additional("shards/${contentId.substringAfter(':').take(2)}.json")
-            .optJSONObject("games")?.optJSONObject(contentId)
-
-    private fun installedSources(catalogs: List<InstalledCatalogs.Catalog>, contentId: String,
-                                 collectionShared: (JSONObject?) -> JSONObject?,
-                                 shared: (JSONObject?) -> JSONObject?, translated: (JSONObject?) -> JSONObject?,
-                                 languageDocument: String?): List<CatalogFieldLayers.Source> =
-        catalogs.flatMap { catalog ->
-            val names = catalog.data.getJSONObject("nameIndex")
-            listOf(CatalogFieldLayers.Source(catalog.name, collectionShared(names)),
-                CatalogFieldLayers.Source(catalog.name, shared(names)),
-                CatalogFieldLayers.Source(catalog.name, translated(languageDocument?.let {
-                    catalog.data.optJSONObject("documents")?.optJSONObject(it) })),
-                CatalogFieldLayers.Source(catalog.name, catalog.data.getJSONObject("games").optJSONObject(contentId)))
-        }
-
-    private fun readShardNames(): Set<String> {
-        val manifest = readAsset("catalog/manifest-v1.json")
-        require(manifest.optInt("schemaVersion") == 1) { "Unsupported catalog manifest" }
-        val names = manifest.getJSONArray("shards")
-        return (0 until names.length()).map { names.getString(it) }.filter { it.matches(SHARD_NAME) }.toSet()
-    }
-
-    private fun shardFor(contentId: String): JSONObject? {
-        val name = contentId.substringAfter(':').take(2)
-        if (name !in shardNames) return null
-        shardCache.get(name)?.let { return it }
-        return readAsset("catalog/shards/$name.json").also { shardCache.put(name, it) }
-    }
-
     private fun readLocal(file: File): JSONObject = LocalCatalogFile.read(file, MAX_LOCAL_JSON.toInt()) ?: empty()
-
-    /** A content ID's record in the downloaded update: in its shard, or the base records. */
-    private fun updatedRecord(contentId: String): JSONObject? =
-        updated("shards/${contentId.substringAfter(':').take(2)}.json")?.optJSONObject("games")?.optJSONObject(contentId)
-            ?: updated("base-v1.json")?.optJSONObject("games")?.optJSONObject(contentId)
 
     /** An installed catalog's format (InstalledCatalogs). */
     private fun requireUpdateFormat(root: JSONObject) {
@@ -635,18 +437,17 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     companion object {
         /** The catalog's system definition: the system's controller mapping, below every game's. */
         const val SYSTEM_DOCUMENT = "system-v2.json"
-        private val SHARD_NAME = Regex("[0-9a-f]{2}")
         private const val MAX_LOCAL_JSON = 8L * 1024 * 1024
         /** The downloaded update's format (CatalogUpdateArchive), and how large a download may be. */
         private const val UPDATE_VERSION = CatalogUpdateArchive.UPDATE_VERSION
         private const val MAX_UPDATE_BYTES = 64L * 1024 * 1024
-        private val INPUT_MODES = setOf("auto", "keyboard", "mouse")
-        private val INPUT_TOUCH = setOf("touchpad", "direct")
-        private val INPUT_SECONDARY = setOf("keyboard", "touchpad")
+        internal val INPUT_MODES = setOf("auto", "keyboard", "mouse")
+        internal val INPUT_TOUCH = setOf("touchpad", "direct")
+        internal val INPUT_SECONDARY = setOf("keyboard", "touchpad")
         private val ART_PATH_FIELDS = setOf("boxArt", "preview")
         private val ART_URL_FIELDS = setOf("boxArtUrl", "previewUrl")
         private val ART_FIELDS = ART_PATH_FIELDS + ART_URL_FIELDS
-        private val INPUT_FIELDS = setOf("mode", "touch", "secondary")
+        internal val INPUT_FIELDS = setOf("mode", "touch", "secondary")
         private val DISPLAY_FIELDS = setOf("landscapeAnchor", "portraitAnchor")
         /** The [member] of [record]'s collection, the game the player picked from it. */
         fun member(record: JSONObject?, member: String?): JSONObject? =
@@ -685,7 +486,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
             val englishLayer = layers.sourceIndexOf("description") ?: -1
             return if ((layers.sourceIndexOf("descriptions", language) ?: -1) >= englishLayer) translated else english
         }
-        private val COMMON_OBJECT_FIELDS = mapOf(
+        internal val COMMON_OBJECT_FIELDS = mapOf(
             "artwork" to ART_FIELDS,
             // "layer" is the player's own mapping layer (ControllerDefaults.cascade); catalogs never hold one.
             "controller" to setOf("profile", "bindings", "defaults", "layer"),
