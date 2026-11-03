@@ -24,6 +24,14 @@ abstract class AppUnderTest {
     /** Every BIOS file the page lists, in order, and whether it is required. */
     open val biosFiles: List<BiosFile> = emptyList()
 
+    /**
+     * Whether [bootGame] needs firmware of the player's, so a launch before setup asks for it instead
+     * of starting. By default, when any firmware is required; an app whose required firmware is for
+     * other machines than the boot game's (KairoMSX: its real machines, the game on the bundled
+     * C-BIOS) says false.
+     */
+    open val bootGameNeedsFirmware: Boolean get() = biosFiles.any { it.required }
+
     /** The test resources' folder of BIOS files; null when the tests use none, as with a built-in BIOS. */
     open val biosResource: String? = "bios"
 
