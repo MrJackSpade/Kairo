@@ -36,7 +36,7 @@ if (-not $module) { throw "No application module in ${root}: run this from an ap
 $table = Join-Path $root 'core\test\boot-tests.json'
 if (-not (Test-Path $table)) { throw "No boot test table at $table" }
 
-$toolchain = 'F:/tools/llvm-mingw-20261006-ucrt-x86_64/bin'
+$toolchain = 'G:/tools/llvm-mingw-20261006-ucrt-x86_64/bin'
 # The Android SDK's cmake and ninja (ANDROID_HOME, set at user scope).
 $sdk = $env:ANDROID_HOME
 if (-not $sdk) { $sdk = [Environment]::GetEnvironmentVariable('ANDROID_HOME', 'User') }

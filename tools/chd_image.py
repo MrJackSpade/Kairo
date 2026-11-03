@@ -15,7 +15,7 @@ from pathlib import Path
 
 SHARED = Path(__file__).resolve().parents[1]
 BUILD = SHARED / ".build" / "chd-host"
-TOOLCHAIN = Path("F:/tools/llvm-mingw-20261006-ucrt-x86_64/bin")
+TOOLCHAIN = Path("G:/tools/llvm-mingw-20261006-ucrt-x86_64/bin")
 # The Android SDK's cmake and ninja (ANDROID_HOME, set at user scope).
 SDK = Path(os.environ["ANDROID_HOME"])
 CMAKE = SDK / "cmake/3.22.1/bin/cmake.exe"
