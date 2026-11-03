@@ -28,6 +28,8 @@ APPS = {
     'kairomsx': App('KairoMSX', 'msx', 'kairomsx-art.nsfw', 'kairomsx-art', 'KairoMSX artwork'),
     'kairost': App('KairoST', 'atarist', 'kairost-art.nsfw', 'kairost-art', 'KairoST artwork'),
     'kairo64': App('Kairo64', 'c64', 'kairo64-art.nsfw', 'kairo64-art', 'Kairo64 artwork'),
+    # KairoX86 has no game catalog: its catalog is the system definition alone (KairoX86#66).
+    'kairox86': App('KairoX86', 'pc', 'kairox86-art.nsfw', 'kairox86-art', 'KairoX86 artwork'),
 }
 
 CONTROL_FIELDS = {'controller', 'input', 'machine', 'launch', 'startupChoices', 'diskSwaps', 'media'}
