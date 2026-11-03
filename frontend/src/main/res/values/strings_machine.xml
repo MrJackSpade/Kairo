@@ -22,6 +22,9 @@
     <string name="kairo_file_not_hashed">Not hashed</string>
     <string name="kairo_saved">Saved</string>
     <string name="kairo_saved_machine">Saved. Machine changes apply on next launch or restart.</string>
+    <!-- A machine choice the other choices no longer allow (such as a processor the newly chosen PC
+         does not take): the player picks another. %1$s is the setting's name. -->
+    <string name="kairo_machine_choice_unfit">%1$s no longer fits this machine. Choose another.</string>
     <string name="kairo_machine_answer_saved">Saved in the game\'s settings</string>
     <!-- %1$s is the setting's name, in lower case; %2$s what the player typed. -->
     <string name="kairo_setting_invalid">Not a valid %1$s: %2$s</string>

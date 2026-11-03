@@ -59,8 +59,14 @@ class Confirm(val message: String, val verb: String, val danger: Boolean = false
         focus = 0)
 }
 
-/** A choice's [label] and [description] are UiText, as a catalog's choices are declared without a Context. */
-class ChoiceOption(val id: String, val label: UiText, val description: UiText? = null) {
+/**
+ * A choice's [label] and [description] are UiText, as a catalog's choices are declared without a Context.
+ * A choice with [disabledReason] shows but cannot be picked, the reason on its row (such as firmware the
+ * player has not given). A choice with [folder] lists in that folder of its choice page, with the other
+ * choices of the same folder, for a long choice (Kairo#143).
+ */
+class ChoiceOption(val id: String, val label: UiText, val description: UiText? = null,
+                   val disabledReason: UiText? = null, val folder: String? = null) {
     /** A choice named by text that is never translated, such as a file or a game's name. */
     constructor(id: String, label: String, description: String? = null) :
         this(id, UiText.fixed(label), description?.let(UiText::fixed))
@@ -91,7 +97,9 @@ class ChoiceSpec(
     /** Keep the page open after a pick, for pages whose pick starts something else. */
     val stay: Boolean = false,
     /** Whether Left and Right on the row step through the options in place. */
-    val cycles: Boolean = true
+    val cycles: Boolean = true,
+    /** After a pick has closed the choice's pages (not for [stay]): what the pick leads to, such as another question. */
+    val closed: () -> Unit = {}
 ) {
     /** Every option, folders included, in page order. */
     val options: List<ChoiceOption> get() = flatten(groups())
@@ -196,8 +204,8 @@ class SettingsRow private constructor(
 
         /** A choice page option, the only row with a description line. */
         fun option(id: String, label: String, description: String?, selected: () -> Boolean,
-                   enabled: () -> Boolean = always, pick: () -> Unit) = SettingsRow(id, Kind.OPTION,
-            label, shown(blank), { ValueTone.CURRENT }, none, description, enabled, none, false, never,
-            pick, null, selected, null, null, null, null)
+                   enabled: () -> Boolean = always, disabledReason: () -> String? = none, pick: () -> Unit) =
+            SettingsRow(id, Kind.OPTION, label, shown(blank), { ValueTone.CURRENT }, none, description, enabled,
+                disabledReason, false, never, pick, null, selected, null, null, null, null)
     }
 }

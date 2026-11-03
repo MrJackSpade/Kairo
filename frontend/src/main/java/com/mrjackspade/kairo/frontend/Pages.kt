@@ -167,8 +167,9 @@ class ChoicePage private constructor(
                 SettingsRow.nav("f:${folder.id}", folder.label, { folder.find(spec.selected())?.label?.resolve(context) ?: "" },
                     { ValueTone.CURRENT }) { open(folder) }
             } + group.options.map { option ->
+                val disabled = option.disabledReason?.resolve(context)
                 SettingsRow.option("o:${option.id}", option.label.resolve(context), option.description?.resolve(context),
-                    { spec.selected() == option.id }) { pick(option.id) }
+                    { spec.selected() == option.id }, enabled = { disabled == null }, disabledReason = { disabled }) { pick(option.id) }
             }, group.foot)
         }
         val actions = if (first == null) spec.actions() else emptyList()
@@ -200,6 +201,7 @@ class ChoicePage private constructor(
             if (stack.top === this) {
                 stack.popThrough(first ?: this)
                 rowId?.let(stack::flash)
+                spec.closed()
             }
         }, 150)
     }

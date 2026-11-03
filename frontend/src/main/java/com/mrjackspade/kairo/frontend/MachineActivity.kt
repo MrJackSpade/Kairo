@@ -448,6 +448,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             askOption(entry, option) { launch(entry, fromFrontend) }
             return
         }
+        // A choice its other choices no longer allow is asked again before the machine starts (Kairo#143).
+        machineStore?.let { store ->
+            if (unfit(entry, store) != null) {
+                askUnfit(entry, store) { launch(entry, fromFrontend) }
+                return
+            }
+        }
         val choices = try {
             game.diskSwaps
             game.startupChoices
@@ -703,13 +710,12 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     is CatalogSetting.Choice -> {
                         // The app's own option, which may offer more than the catalog's (such as importing a file).
                         val option = machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option
-                        val value = machineStore?.let { store ->
-                            GameValue({ store.read(entry, option) }, { option.default }, { GameSource.BUILT_IN },
-                                { picked -> saveGameSetting(entry, getString(R.string.kairo_saved_machine)) { store.write(entry, option, picked) } })
-                        } ?: machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
-                            { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES, toStored = option::stored)
-                        GameSettingsRows.choice(this, option.id, text(option.label), scope, { option.choices }, value,
-                            enabled, noHash, actions = option.actions)
+                        machineStore?.let { storedChoiceRow(entry, option, it, enabled) }
+                            ?: GameSettingsRows.choice(this, option.id, text(option.label), scope, { option.choices },
+                                machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
+                                    { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES,
+                                    toStored = option::stored),
+                                enabled, noHash, actions = option.actions)
                     }
                     is CatalogSetting.Drive -> driveRow(entry, setting, scope, enabled, noHash)
                     is CatalogSetting.Lines -> linesRow(entry, setting, enabled, noHash)
@@ -723,6 +729,56 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             }
         if (rows.isEmpty()) return null
         return RowGroup(getString(R.string.kairo_machine_group), rows, getString(R.string.kairo_machine_group_foot))
+    }
+
+    /** The options the catalog gives a game's machine rows, in their order. */
+    private fun choiceOptions(entry: E): List<MachineOption> = catalog.schema.settings
+        .filter { setting -> entry.contentId?.let(setting.appliesTo) ?: true }
+        .filterIsInstance<CatalogSetting.Choice>()
+        .map { setting -> machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option }
+
+    /**
+     * Every choice of [entry] kept in [store], by option ID: its own value, else its default given the
+     * options before it, which are the ones an option depends on (Kairo#143).
+     */
+    private fun storedValues(entry: E, store: GameMachineStore<E>): Map<String, String> {
+        val values = LinkedHashMap<String, String>()
+        for (option in choiceOptions(entry)) values[option.id] = store.read(entry, option) ?: option.default(values)
+        return values
+    }
+
+    /**
+     * A machine row of [option] kept in [store], with the choices its options allow (Kairo#142, #143);
+     * once a pick has closed its page, [after] (by default, asking for any choice the pick no longer allows).
+     */
+    private fun storedChoiceRow(entry: E, option: MachineOption, store: GameMachineStore<E>, enabled: () -> Boolean,
+                                after: () -> Unit = { askUnfit(entry, store) {} }): SettingsRow {
+        val value = GameValue({ store.read(entry, option) }, { option.default(storedValues(entry, store)) }, { GameSource.BUILT_IN },
+            { picked ->
+                saveGameSetting(entry, getString(R.string.kairo_saved_machine)) { store.write(entry, option, picked) }
+                // Left or Right on the row changed it with no choice page to close first.
+                if (pages.top !is ChoicePage) after()
+            })
+        val defaultLabel = option.labelOf?.let { label -> { label(value.fallback()) } }
+        return GameSettingsRows.choice(this, option.id, text(option.label), { titleOf(entry) },
+            { option.choices(storedValues(entry, store)) }, value, enabled, { GameSettingsRows.noHash(this) },
+            defaultLabel = defaultLabel, actions = option.actions, closed = after)
+    }
+
+    /** The first of [entry]'s choices kept in [store] that its other choices no longer allow, or null. */
+    private fun unfit(entry: E, store: GameMachineStore<E>): MachineOption? {
+        val values = storedValues(entry, store)
+        return choiceOptions(entry).firstOrNull { option -> store.read(entry, option)?.let { !option.fits(it, values) } ?: false }
+    }
+
+    /**
+     * The first of [entry]'s choices the others no longer allow, asked again, never replaced
+     * (Kairo#143); each answer asks for the next, and once every choice fits, [then].
+     */
+    private fun askUnfit(entry: E, store: GameMachineStore<E>, then: () -> Unit) {
+        val option = unfit(entry, store) ?: return then()
+        toast(getString(R.string.kairo_machine_choice_unfit, text(option.label)))
+        storedChoiceRow(entry, option, store, { true }) { askUnfit(entry, store, then) }.choice?.let { pages.push(ChoicePage(it)) }
     }
 
     /**

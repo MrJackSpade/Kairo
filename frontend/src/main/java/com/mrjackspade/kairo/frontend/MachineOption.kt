@@ -21,6 +21,11 @@ import org.json.JSONObject
  * player has not set it for is asked it at launch (MachineActivity.launch), and the answer is kept
  * as the game's own setting, which stays changeable in its settings. A catalogued game without a
  * value takes [default]: the catalog names the games that differ (the FM Towns Marty's).
+ *
+ * An option can depend on others (Kairo#143), such as the processors a chosen PC takes: its choices
+ * and its default come from the values of the options it [dependsOn] ([choicesWith], [defaultWith]),
+ * by option ID. A game's value that the others no longer allow is not replaced: the player is asked
+ * for a new one (MachineActivity).
  */
 class MachineOption(
     val id: String,
@@ -31,7 +36,12 @@ class MachineOption(
     private val accepts: ((String) -> Boolean)? = null,
     val actions: (select: (String) -> Unit) -> List<SettingsRow> = { emptyList() },
     val ownFirmware: String? = null,
-    val question: UiText? = null
+    val question: UiText? = null,
+    val dependsOn: List<String> = emptyList(),
+    private val choicesWith: ((Map<String, String>) -> List<ChoiceOption>)? = null,
+    private val defaultWith: ((Map<String, String>) -> String)? = null,
+    /** How a value reads where no choice names it, such as a default the machine's choices do not include. */
+    val labelOf: ((String) -> String)? = null
 ) {
     constructor(id: String, label: UiText, choices: List<ChoiceOption>, default: String, numeric: Boolean = false,
                 ownFirmware: String? = null, question: UiText? = null) :
@@ -42,6 +52,15 @@ class MachineOption(
 
     /** The choices as they are now. */
     val choices: List<ChoiceOption> get() = choicesOf()
+
+    /** The choices of a game whose options have [values] (by option ID): the ones its [dependsOn] allow. */
+    fun choices(values: Map<String, String>): List<ChoiceOption> = choicesWith?.invoke(values) ?: choices
+
+    /** The default of a game whose options have [values]. */
+    fun default(values: Map<String, String>): String = defaultWith?.invoke(values) ?: default
+
+    /** Whether a game whose options have [values] can keep [value]. */
+    fun fits(value: String, values: Map<String, String>): Boolean = choices(values).any { it.id == value }
 
     private fun accepted(value: String) = accepts?.invoke(value) ?: choices.any { it.id == value }
 
