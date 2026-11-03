@@ -20,20 +20,29 @@ object ShippedAssets {
      * Installs the asset at [path] (a file, or a folder and everything in it) as [target], unless this
      * app version already did; [progress] hears the shared "Preparing the emulator" first when it does.
      */
-    fun install(context: Context, path: String, target: File, progress: (String) -> Unit = {}) {
+    fun install(context: Context, path: String, target: File, progress: (String) -> Unit = {}) =
+        install(appVersion(context), target, { progress(context.getString(R.string.kairo_preparing_emulator)) }) { copy ->
+            copy(context, path, copy)
+        }
+
+    /**
+     * Installs as [target] what [write] writes (a file or a folder at the path it is given), unless
+     * [version] already did; [starting] runs first when it does. Apart from Android so unit tests
+     * reach it (Kairo#113).
+     */
+    fun install(version: String, target: File, starting: () -> Unit, write: (File) -> Unit) {
         val marker = File(target.parentFile, ".${target.name}.installed")
-        val version = appVersion(context)
         if (target.exists() && marker.takeIf { it.isFile }?.readText() == version) return
-        progress(context.getString(R.string.kairo_preparing_emulator))
+        starting()
         val parent = target.parentFile!!
         check(parent.mkdirs() || parent.isDirectory) { "Could not create $parent" }
         val copy = File(parent, "${target.name}.new")
         copy.deleteRecursively()
-        copy(context, path, copy)
+        write(copy)
         if (copy.isDirectory) {
             // A folder can't replace another in one rename: the old one goes first.
             target.deleteRecursively()
-            check(copy.renameTo(target)) { "Could not install $path in $target" }
+            check(copy.renameTo(target)) { "Could not install $target" }
         } else {
             Files.move(copy.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         }
