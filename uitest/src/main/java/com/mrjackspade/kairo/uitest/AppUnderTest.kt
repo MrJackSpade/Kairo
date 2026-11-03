@@ -72,6 +72,12 @@ abstract class AppUnderTest {
     open val mouseGame: String? = null
     open val keyboardGame: String? = null
 
+    /**
+     * Keys [mouseGame] waits for before it reads the mouse, as Android key codes from a keyboard,
+     * such as a language choice (KairoMSX's Shoot That Flying Windows!: 1 for English).
+     */
+    open val mouseGameKeys: List<Int> = emptyList()
+
     /** Another game, for checking that one game's settings leave others alone. */
     abstract val otherGame: String
 

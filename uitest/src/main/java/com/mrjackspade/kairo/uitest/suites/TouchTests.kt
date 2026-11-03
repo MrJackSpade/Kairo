@@ -1,5 +1,6 @@
 package com.mrjackspade.kairo.uitest.suites
 
+import android.os.SystemClock
 import com.mrjackspade.kairo.frontend.GuestKeyboardPanel
 import com.mrjackspade.kairo.uitest.By
 import com.mrjackspade.kairo.uitest.KairoUiTest
@@ -156,7 +157,16 @@ abstract class TouchTests : KairoUiTest() {
     fun autoTouchMovesTheMouseInAMouseGame() {
         val game = requireNotNull(app.mouseGame) { "${app.name}'s test resources name no mouse game (AppUnderTest.mouseGame)" }
         playOnAuto(game)
-        driver.waitUntil("Auto to find $game reading the mouse") { touchMode() == "mouse" }
+        // Keys the game asks for first go in again every two seconds, as a player answers a prompt
+        // that may not be up yet: one pressed before the guest reads it is lost.
+        var nextKeys = 0L
+        driver.waitUntil("Auto to find $game reading the mouse") {
+            if (app.mouseGameKeys.isNotEmpty() && SystemClock.uptimeMillis() >= nextKeys) {
+                app.mouseGameKeys.forEach { driver.press(it, fromKeyboard = true) }
+                nextKeys = SystemClock.uptimeMillis() + 2000
+            }
+            touchMode() == "mouse"
+        }
         val surface = driver.find(By.id("game.surface"))
         val mark = driver.inputMark()
         surface.drag(0.4f, 0.5f, 0.6f, 0.5f, steps = 20)
