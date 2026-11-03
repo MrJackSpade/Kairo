@@ -1271,12 +1271,20 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** What each media slot holds, by library entry; null for an empty slot or media the library lacks. */
     private val mounted: MutableList<E?> by lazy { MutableList(mediaSlots.size) { null } }
     @Volatile private var mediaBusy = false
+    /** Which slots the running machine has a drive for ([MachineBridge.mediaDrives]); empty for every one. */
+    private var drives: List<Boolean> = emptyList()
 
-    /** Called from [startGame] once the machine runs: what each slot booted with. */
-    protected fun mediaStarted(entries: List<E?>) = runOnUiThread {
+    /**
+     * Called from [startGame] once the machine runs: what each slot booted with, and which slots the
+     * machine has a drive for ([MachineBridge.mediaDrives]; empty when it has every one).
+     */
+    protected fun mediaStarted(entries: List<E?>, present: List<Boolean> = emptyList()) = runOnUiThread {
+        drives = present
         mounted.fill(null)
         entries.forEachIndexed { slot, entry -> if (slot < mounted.size) mounted[slot] = entry }
     }
+
+    private fun hasDrive(slot: Int) = drives.getOrNull(slot) != false
 
     /**
      * Starts a media change the product makes itself, as a disk swap at a game's prompt: false while
@@ -1319,7 +1327,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     private fun mediaPage() = GroupsPage(text(mediaPageTitle), { currentGame?.title }, {
-        listOf(RowGroup(getString(R.string.kairo_media_drives_group), mediaSlots.indices.map(::mediaRow),
+        listOf(RowGroup(getString(R.string.kairo_media_drives_group), mediaSlots.indices.filter(::hasDrive).map(::mediaRow),
             getString(R.string.kairo_media_drives_foot)))
     })
 

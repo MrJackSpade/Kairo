@@ -105,6 +105,7 @@ public:
     bool media_in_state() override { return core_->media_in_state(); }
     int media(int slot, const std::string &path) override { return core_->media(slot, path); }
     std::vector<std::string> media_paths() override { return core_->media_paths(); }
+    std::vector<bool> media_drives() override { return core_->media_drives(); }
     kairo::Prompt prompt() override { return core_->prompt(); }
     bool typed_key(char c, int &code, bool &shift) override { return core_->typed_key(c, code, shift); }
     int special_key(kairo::SpecialKey key) override { return core_->special_key(key); }
@@ -266,6 +267,19 @@ extern "C" JNIEXPORT jobjectArray JNICALL NATIVE_MACHINE(nativeMediaPaths)(JNIEn
                                              nullptr);
     for (size_t slot = 0; slot < paths.size(); ++slot)
         env->SetObjectArrayElement(array, static_cast<jsize>(slot), env->NewStringUTF(paths[slot].c_str()));
+    return array;
+}
+
+extern "C" JNIEXPORT jbooleanArray JNICALL NATIVE_MACHINE(nativeMediaDrives)(JNIEnv *env, jobject) {
+    std::vector<bool> drives;
+    const int result = machine.call([&drives](kairo::MachineCore &core) {
+        drives = core.media_drives();
+        return 0;
+    });
+    if (result != 0) return nullptr;
+    std::vector<jboolean> values(drives.begin(), drives.end());
+    jbooleanArray array = env->NewBooleanArray(static_cast<jsize>(values.size()));
+    env->SetBooleanArrayRegion(array, 0, static_cast<jsize>(values.size()), values.data());
     return array;
 }
 

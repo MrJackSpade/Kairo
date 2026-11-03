@@ -142,6 +142,9 @@ public:
     virtual int media(int slot, const std::string &path) { (void) slot; (void) path; return kUnsupported; }
     // What each slot holds, "" for an empty one.
     virtual std::vector<std::string> media_paths() { return {}; }
+    // Which slots the running machine has a drive for (the Disks page lists those); {} when it
+    // has every slot's.
+    virtual std::vector<bool> media_drives() { return {}; }
 
     // Startup commands (startup_typer.h), for a core whose games start from a prompt: what the
     // guest waits for now, the key that types a character (and whether Shift goes with it), a

@@ -25,6 +25,7 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
 
     override fun media(slot: Int, path: String?): Boolean = nativeMedia(slot, path) == 0
     override fun mediaPaths(): List<String>? = nativeMediaPaths()?.toList()
+    override fun mediaDrives(): List<Boolean>? = nativeMediaDrives()?.toList()
 
     override fun stop() = nativeStop()
     override fun createBlankDisk(kind: String, path: String) {
@@ -99,6 +100,7 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeMouseWarpDone(): Boolean
     private external fun nativeMedia(slot: Int, path: String?): Int
     private external fun nativeMediaPaths(): Array<String>?
+    private external fun nativeMediaDrives(): BooleanArray?
     private external fun nativeSaveState(directory: String): Int
     private external fun nativeLoadState(directory: String, from: Array<String>, to: Array<String>): Int
     private external fun nativeLocks(): Int

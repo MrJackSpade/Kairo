@@ -56,6 +56,8 @@ interface MachineBridge {
     fun media(slot: Int, path: String?): Boolean = error("This machine cannot change media")
     /** What each media slot holds, "" for an empty one; null when no machine runs. */
     fun mediaPaths(): List<String>? = null
+    /** Which media slots the running machine has a drive for, empty when it has every one; null when no machine runs. */
+    fun mediaDrives(): List<Boolean>? = null
     /** The guest's keyboard and mouse reads for Auto touch mode ([InputModeDecider.GuestInput]), or null when it has none. */
     fun inputTelemetry(): LongArray? = null
 
