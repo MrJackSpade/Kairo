@@ -52,6 +52,16 @@
     <string name="kairo_return_to_frontend_confirm">이 게임이 중지되고 %1$s이(가) 닫힙니다. 마지막 저장 이후의 진행 상황은 사라집니다.</string>
     <!-- EN: End game -->
     <string name="kairo_end_game">게임 끝내기</string>
+    <!-- The same confirmations for a machine without save states (KairoDos, KairoX86): ending it is
+         switching it off, and what the game saved on its own disks stays. %1$s is the app's name. -->
+    <!-- EN: The machine starts again, as switching it off and on does: what the game has not saved is lost. -->
+    <string name="kairo_flyout_restart_confirm_no_saves">전원을 껐다 켠 것처럼 기기가 다시 시작됩니다. 게임이 저장하지 않은 내용은 사라집니다.</string>
+    <!-- EN: The machine stops, as switching it off does: what the game has not saved is lost. -->
+    <string name="kairo_flyout_exit_confirm_no_saves">전원을 끈 것처럼 기기가 멈춥니다. 게임이 저장하지 않은 내용은 사라집니다.</string>
+    <!-- EN: This game stops, as switching the machine off does: what it has not saved is lost. -->
+    <string name="kairo_return_to_library_confirm_no_saves">기기 전원을 끈 것처럼 이 게임이 종료됩니다. 저장하지 않은 내용은 사라집니다.</string>
+    <!-- EN: This game stops and %1$s closes, as switching the machine off does: what it has not saved is lost. -->
+    <string name="kairo_return_to_frontend_confirm_no_saves">기기 전원을 끈 것처럼 이 게임이 종료되고 %1$s이(가) 닫힙니다. 저장하지 않은 내용은 사라집니다.</string>
     <!-- The machine's state on the game menu's status line. -->
     <!-- EN: Running -->
     <string name="kairo_state_running">실행 중</string>

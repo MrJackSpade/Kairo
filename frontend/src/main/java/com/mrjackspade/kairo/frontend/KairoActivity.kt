@@ -159,6 +159,12 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** What tapping the screen means in each mode, for the Screen tap choice. */
     protected abstract val touchModes: List<Pair<InputModeDecider.Mode, ChoiceOption>>
     protected abstract val directTouchExplanation: UiText
+    /**
+     * Whether the machine saves and loads states (Save state and Load state in the game's flyout).
+     * A machine without them (KairoDos's DOSBox Staging, KairoX86's 86Box) keeps its saves in
+     * [saveKinds] of its own, and ending it is switching it off: the confirmations say so.
+     */
+    protected open val saveStates: Boolean = true
     /** Whether the guest mouse can take a touched point; without it, mouse touch is a touchpad. */
     protected open val directTouchAvailable: Boolean = false
 
@@ -821,7 +827,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }?.let(::titleOf) ?: unit.game
 
     /** The game flyout: the game's own pages, settings, then leaving. */
-    private fun gameFlyout() = SessionMenus.gameFlyout(this, identity.brand, identity.appName,
+    private fun gameFlyout() = SessionMenus.gameFlyout(this, identity.brand, identity.appName, saveStates,
         { currentEntry?.let(::titleOf) ?: getString(R.string.kairo_no_game) }, ::menuStatusText, sessionNavigation,
         ::gameRows, { currentEntry != null }, { currentEntry?.let(::showGameDetails) },
         ::settingsRows, restart = {

@@ -42,15 +42,20 @@ class SessionNavigationCoordinator(
 
     /**
      * The game flyout's return row. A game launched by a frontend returns to the frontend and
-     * the app closes; with no game loaded the row returns without asking.
+     * the app closes; with no game loaded the row returns without asking. [saveStates]: whether the
+     * machine keeps save states; without, ending it is switching it off.
      */
-    fun returnRow(context: Context, appName: String): SettingsRow {
+    fun returnRow(context: Context, appName: String, saveStates: Boolean): SettingsRow {
         val external = hasGame() && externalSession()
         return SettingsRow.action("f-library",
             context.getString(if (external) R.string.kairo_return_to_frontend else R.string.kairo_return_to_library),
             confirm = if (!hasGame()) null else Confirm(
-                if (external) context.getString(R.string.kairo_return_to_frontend_confirm, appName)
-                else context.getString(R.string.kairo_return_to_library_confirm), context.getString(R.string.kairo_end_game),
+                when {
+                    external && saveStates -> context.getString(R.string.kairo_return_to_frontend_confirm, appName)
+                    external -> context.getString(R.string.kairo_return_to_frontend_confirm_no_saves, appName)
+                    saveStates -> context.getString(R.string.kairo_return_to_library_confirm)
+                    else -> context.getString(R.string.kairo_return_to_library_confirm_no_saves)
+                }, context.getString(R.string.kairo_end_game),
                 title = context.getString(if (external) R.string.kairo_return_to_frontend_title else R.string.kairo_return_to_library_title),
                 run = ::returnToLibrary),
             run = ::returnToLibrary)

@@ -52,6 +52,16 @@
     <string name="kairo_return_to_frontend_confirm">Este juego se detendrá y %1$s se cerrará. Se perderá el progreso desde la última vez que guardaste.</string>
     <!-- EN: End game -->
     <string name="kairo_end_game">Terminar juego</string>
+    <!-- The same confirmations for a machine without save states (KairoDos, KairoX86): ending it is
+         switching it off, and what the game saved on its own disks stays. %1$s is the app's name. -->
+    <!-- EN: The machine starts again, as switching it off and on does: what the game has not saved is lost. -->
+    <string name="kairo_flyout_restart_confirm_no_saves">La máquina se reinicia, como al apagarla y volver a encenderla: se pierde lo que el juego no haya guardado.</string>
+    <!-- EN: The machine stops, as switching it off does: what the game has not saved is lost. -->
+    <string name="kairo_flyout_exit_confirm_no_saves">La máquina se detiene, como al apagarla: se pierde lo que el juego no haya guardado.</string>
+    <!-- EN: This game stops, as switching the machine off does: what it has not saved is lost. -->
+    <string name="kairo_return_to_library_confirm_no_saves">Este juego se detiene, como al apagar la máquina: se pierde lo que no haya guardado.</string>
+    <!-- EN: This game stops and %1$s closes, as switching the machine off does: what it has not saved is lost. -->
+    <string name="kairo_return_to_frontend_confirm_no_saves">Este juego se detiene y %1$s se cierra, como al apagar la máquina: se pierde lo que no haya guardado.</string>
     <!-- The machine's state on the game menu's status line. -->
     <!-- EN: Running -->
     <string name="kairo_state_running">En marcha</string>

@@ -23,11 +23,6 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     )
 
     protected abstract val machine: Machine
-    /**
-     * Whether the machine saves and loads states (Save state and Load state in the game's flyout).
-     * A machine without them (KairoDos's DOSBox Staging) keeps its saves in [saveKinds] of its own.
-     */
-    protected open val saveStates: Boolean = true
     protected abstract val bridge: MachineBridge
     protected abstract fun createCatalog(): LayeredGameCatalog
     protected abstract fun createLibrary(catalog: LayeredGameCatalog): MachineLibrary<E>

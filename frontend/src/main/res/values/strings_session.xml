@@ -29,6 +29,12 @@
     <string name="kairo_return_to_frontend_title">Return to frontend?</string>
     <string name="kairo_return_to_frontend_confirm">This game stops and %1$s closes. Progress since your last save is lost.</string>
     <string name="kairo_end_game">End game</string>
+    <!-- The same confirmations for a machine without save states (KairoDos, KairoX86): ending it is
+         switching it off, and what the game saved on its own disks stays. %1$s is the app's name. -->
+    <string name="kairo_flyout_restart_confirm_no_saves">The machine starts again, as switching it off and on does: what the game has not saved is lost.</string>
+    <string name="kairo_flyout_exit_confirm_no_saves">The machine stops, as switching it off does: what the game has not saved is lost.</string>
+    <string name="kairo_return_to_library_confirm_no_saves">This game stops, as switching the machine off does: what it has not saved is lost.</string>
+    <string name="kairo_return_to_frontend_confirm_no_saves">This game stops and %1$s closes, as switching the machine off does: what it has not saved is lost.</string>
     <!-- The machine's state on the game menu's status line. -->
     <string name="kairo_state_running">Running</string>
     <string name="kairo_state_paused">Paused</string>
