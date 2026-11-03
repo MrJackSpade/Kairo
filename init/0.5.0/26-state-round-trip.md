@@ -12,7 +12,7 @@ The app has save states.
 
 ## Check
 
-- In `boot_test`, save a state during play and during a load, run on, load it, and compare the machine one frame after the load with one frame after the save, every chip included.
+- The shared PC boot test's `state` check (Kairo#115), in {{app}}'s `core/test/boot-tests.json` with `"sound": true`: save during a load, run on, load, and run the same frames again; every frame's picture and sound after the load must be the same frame's after the save, the first one too (the paused game under the menu shows it).
 
 ## Passes when
 

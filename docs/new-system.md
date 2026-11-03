@@ -83,8 +83,17 @@ python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system
 - [ ] No binding sends inputs the machine can't tell apart (validation)
 - [ ] A save state restores the disks it was saved with (implement)
 - [ ] A save state loads back exactly (validation)
-- [ ] The host boot test (implement)
+- [ ] The shared PC boot test (implement)
 - [ ] game_profile: speed and exactness on host and device (implement)
+- [ ] PC test: a state loads with the disks it was saved with (validation)
+- [ ] PC test: guest input classifies known mouse and keyboard games (validation)
+- [ ] PC test: several sessions in one process, including a start at the prompt (validation)
+- [ ] PC test: startup commands are typed at each prompt and run (validation)
+- [ ] PC test: the machine runs flat out while loading, and only then (validation)
+- [ ] PC test: a direct tap puts the guest's pointer on the point and clicks there (validation)
+- [ ] PC test: the machine runs at the clock it is set to (validation)
+- [ ] PC test: a hard disk boots, and what the guest writes stays in a new session (validation)
+- [ ] PC test: lock keys read back from the core, and a loaded state restores them (validation)
 
 ## 0.6.0
 

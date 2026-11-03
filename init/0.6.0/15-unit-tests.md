@@ -13,6 +13,7 @@ Every new system.
 ## Work
 
 - Tests for the keyboard mapping and the firmware identification, and the shared `CatalogSettingsTest`.
+- The shared unit tests the app's machine calls for, each subclassed in the app's own tests: `LaunchTablesTest` (its launch tables), and `KanaLegendsTest` when the machine has a Japanese keyboard layout.
 
 ## Done when
 

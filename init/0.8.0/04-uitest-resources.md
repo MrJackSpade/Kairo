@@ -13,6 +13,7 @@ Every new system.
 ## Work
 
 - `uitest/resources.json` naming the test games and firmware, and the encrypted bundle `uitest/TestResources.part1.dat` (keyed from `LOCAL_BUILD_TOKEN`).
+- Among the games, what the shared UI and PC tests need, named in the app's `AppUnderTest`: a multi-disk game (`mediaSwap`), a mouse game (`mouseGame`) and a keyboard game (`keyboardGame`), and a CD game (`cdDrive`) when the machine has a CD drive. Files only the shared PC boot test uses (a hard disk made for it) go under `host/`, which the device's test APK leaves out.
 
 ## Done when
 
