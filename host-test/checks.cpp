@@ -64,15 +64,14 @@ void state(Test &test, const json::Value &spec) {
 }
 
 // sessions (Kairo#118): in one process, start the game, end it, start it again: the second
-// session's first "frames" frames must be the first's. Each starts from the table's files alone (a
-// new home and new working copies), so what the first wrote, such as a CMOS or a user disk, does
-// not change the second: what differs is what the process kept. Then a start at the prompt
+// session's first "frames" frames must be the first's. Each starts with new working copies, so what
+// the first wrote to its disks does not change the second; the home stays, as the app keeps it (a
+// core may hold its files for the process: VICE's log). Then a start at the prompt
 // ("prompt": the launch the app makes for it, as media and settings over the table's) must run as long.
 void sessions(Test &test, const json::Value &spec) {
     const uint64_t frames = test.frames(spec, "frames");
     std::vector<uint64_t> first;
     for (int round = 0; round < 2; ++round) {
-        fs::remove_all(test.paths.home);
         fs::remove_all(test.folder / "media");
         Session session(test.launch(), test.folder, test.name + " session " + std::to_string(round + 1));
         session.run(frames);
