@@ -56,10 +56,12 @@ function(kairo_library_beside_test target library)
         message(FATAL_ERROR "kairo_library_beside_test is for the PC boot test")
     endif()
     set(beside "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_NAME:${library}>")
-    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${library}.beside-test"
+    # Named by both, as one library may go beside several executables.
+    set(stamp "${CMAKE_CURRENT_BINARY_DIR}/${library}-beside-${target}.stamp")
+    add_custom_command(OUTPUT "${stamp}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${library}> "${beside}"
-        COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_CURRENT_BINARY_DIR}/${library}.beside-test"
+        COMMAND ${CMAKE_COMMAND} -E touch "${stamp}"
         DEPENDS ${library} $<TARGET_FILE:${library}>)
-    add_custom_target(${library}_beside_test DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${library}.beside-test")
-    add_dependencies(${target} ${library}_beside_test)
+    add_custom_target(${library}_beside_${target} DEPENDS "${stamp}")
+    add_dependencies(${target} ${library}_beside_${target})
 endfunction()
