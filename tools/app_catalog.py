@@ -295,6 +295,18 @@ def metadata(key, entry, config):
     return record
 
 
+def shared_set_disks(research_games):
+    """The disks in more than one game's sets (a data edition's set holding its base game's disks, a
+    blank user disk several games ship), by content ID, with those games: shared media, which no
+    game's record names, so it never identifies one of them (KairoTowns#83, Kairo#109)."""
+    holders = {}
+    for key, entry in research_games.items():
+        for fields in entry.get("diskSets", {}).values():
+            for disk in fields.get("setDisks", []):
+                holders.setdefault(disk, set()).add(key)
+    return {disk: sorted(keys) for disk, keys in holders.items() if len(keys) > 1}
+
+
 def meta(name, content):
     """The metadata an app checks a download against: its archive's name, SHA-256 and size."""
     return (json.dumps({"schemaVersion": 1, "archive": name, "sha256": hashlib.sha256(content).hexdigest(),
@@ -313,6 +325,7 @@ def generate(root, check=False):
     require(research.get("schemaVersion") == 1, "unsupported research schema")
     policy = json.loads((root / "catalog/core-review-v1.json").read_text(encoding="utf-8"))
     games, names, source_games = {}, {}, []
+    shared = shared_set_disks(research["games"])
     for key, entry in sorted(research["games"].items()):
         require(GAME_KEY.fullmatch(key) and key.split(":", 1)[0] in config.PLATFORMS, f"invalid game key {key}")
         require(not entry.get("adult") or key in policy["excluded"], f"adult game missing from core review: {key}")
@@ -343,8 +356,9 @@ def generate(root, check=False):
                 own.setdefault(disk, {})["launch"] = launch
         for disk, fields in sorted(own.items()):
             require(disk in entry.get("contentIds", []), f"{key}: {disk} is not one of its disks")
+            require(disk not in shared, f"{key}: {disk} has fields of its own but is in the sets of {shared.get(disk)}")
             source_games.append({"contentIds": [disk], "game": key, **fields})
-        ids = sorted(set(entry.get("contentIds", [])) - own.keys())
+        ids = sorted(set(entry.get("contentIds", [])) - own.keys() - shared.keys())
         for start in range(0, len(ids), MAX_IDS):
             source_games.append({"contentIds": ids[start:start + MAX_IDS], "game": key})
         if entry.get("named", True) is False:
