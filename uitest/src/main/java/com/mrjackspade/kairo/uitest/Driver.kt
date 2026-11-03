@@ -9,7 +9,6 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
-import android.view.inspector.WindowInspector
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import com.mrjackspade.kairo.frontend.GameProbe
@@ -25,10 +24,6 @@ import com.mrjackspade.kairo.frontend.TestAttributes
 class Driver(val instrumentation: Instrumentation, val log: TestLog) {
     val expect = Expect(log)
 
-    init {
-        check(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { "The UI tests need Android 10 or later (window inspection)" }
-    }
-
     /** Runs [block] on the main thread and returns its result; its failure fails the caller. */
     fun <T> onMain(block: () -> T): T {
         // Already there, as when a block reads roots(): runOnMainSync refuses the main thread.
@@ -39,14 +34,14 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
     }
 
     /** The root view of every window the app shows, on every display, bottom to top. */
-    fun roots(): List<View> = onMain { WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow } }
+    fun roots(): List<View> = onMain { WindowRoots.attached() }
 
     /**
      * The name of every page still on a page stack, shown or not. find() sees only what the player
      * sees, and a page under another is hidden; this says whether it is still open to return to.
      */
     fun openPages(): List<String> = onMain {
-        WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }
+        WindowRoots.attached()
             .flatMap { Views.descendants(it) }
             .filter { TestAttributes.id(it) == TestAttributes.PAGE }
             .mapNotNull { TestAttributes.key(it) }
@@ -68,7 +63,7 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
 
     /** [resolve] for steps that may each keep one match by index. Main thread only. */
     internal fun resolveSteps(path: List<Element.Step>): List<View> {
-        var scopes = WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }
+        var scopes = WindowRoots.attached()
         for ((depth, step) in path.withIndex()) {
             val matches = scopes.flatMap { scope ->
                 // A scope does not match itself again; the first selector may match a window's root.
@@ -91,7 +86,7 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
 
     /** Every text the app shows now, in every window, as the player could read it. */
     fun visibleTexts(): List<String> = onMain {
-        WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }.flatMap(Views::texts)
+        WindowRoots.attached().flatMap(Views::texts)
     }
 
     /**
@@ -109,7 +104,7 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
         var count = 0
         val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener { count++ }
         val observed = onMain {
-            WindowInspector.getGlobalWindowViews().filter { it.isAttachedToWindow }.onEach {
+            WindowRoots.attached().onEach {
                 it.viewTreeObserver.addOnGlobalLayoutListener(listener)
             }
         }
@@ -139,8 +134,16 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
      */
     internal fun tap(point: TapPoint) {
         check(Looper.myLooper() != Looper.getMainLooper()) { "A tap from the main thread would wait on itself" }
-        val output = instrumentation.uiAutomation.executeShellCommand("input -d ${point.display} tap ${point.x} ${point.y}")
-        android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }
+        // input -d (a display) is Android 10+; before it, input reaches display 0 only.
+        val command = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) "input -d ${point.display} tap ${point.x} ${point.y}"
+        else {
+            check(point.display == 0) { "Android ${Build.VERSION.SDK_INT} cannot tap display ${point.display}" }
+            "input tap ${point.x} ${point.y}"
+        }
+        val output = instrumentation.uiAutomation.executeShellCommand(command)
+        // A tap prints nothing; anything printed is input's error or usage, and the tap was lost.
+        val printed = android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }.decodeToString().trim()
+        check(printed.isEmpty()) { "$command failed: $printed" }
     }
 
     // Keys ------------------------------------------------------------------------------------

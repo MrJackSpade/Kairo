@@ -29,35 +29,41 @@ dependencies {
     testImplementation("org.json:json:20240303")
 }
 
-// Build the pinned Slang runtime from source, once for either product. The
-// frontend AAR carries the same arm64 library into both APK variants and AABs.
+// Build the pinned Slang runtime from source, once for either product, for the build's ABI
+// (kairoAbi, gradle/android-module.gradle). The frontend AAR carries the same library into both
+// APK variants and AABs.
+val kairoAbi = extra["kairoAbi"] as String
+val slangTriple = mapOf("arm64-v8a" to "aarch64-linux-android", "x86_64" to "x86_64-linux-android").getValue(kairoAbi)
 val slangSource = projectDir.resolve("../third_party/librashader")
 val slangTarget = layout.buildDirectory.dir("librashader-target")
-val slangJni = layout.buildDirectory.dir("generated/slang-jni")
+// Its own folder per ABI, holding <abi>/liblibrashader_capi.so (the old generated/slang-jni held arm64-v8a/).
+val slangJni = layout.buildDirectory.dir("generated/slang-runtime/$kairoAbi")
+val slangLibrary = slangTarget.map { it.file("$slangTriple/release/liblibrashader_capi.so") }
 val buildSlangRuntime = tasks.register<Exec>("buildSlangRuntime") {
     val sdk = android.sdkDirectory
     val host = if (System.getProperty("os.name").startsWith("Windows"))
         "windows-x86_64" else "linux-x86_64"
     val ndkBin = sdk.resolve("ndk/${android.ndkVersion}/toolchains/llvm/prebuilt/$host/bin")
     val suffix = if (host.startsWith("windows")) ".cmd" else ""
-    val clang = ndkBin.resolve("aarch64-linux-android26-clang$suffix").absolutePath
-    val clangxx = ndkBin.resolve("aarch64-linux-android26-clang++$suffix").absolutePath
+    val clang = ndkBin.resolve("${slangTriple}26-clang$suffix").absolutePath
+    val clangxx = ndkBin.resolve("${slangTriple}26-clang++$suffix").absolutePath
+    val envTriple = slangTriple.replace('-', '_')
     workingDir(slangSource)
     environment("CARGO_TARGET_DIR", slangTarget.get().asFile.absolutePath)
-    environment("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", clang)
-    environment("CC_aarch64_linux_android", clang)
-    environment("CXX_aarch64_linux_android", clangxx)
-    environment("AR_aarch64_linux_android", ndkBin.resolve(
+    environment("CARGO_TARGET_${envTriple.uppercase()}_LINKER", clang)
+    environment("CC_$envTriple", clang)
+    environment("CXX_$envTriple", clangxx)
+    environment("AR_$envTriple", ndkBin.resolve(
         if (host.startsWith("windows")) "llvm-ar.exe" else "llvm-ar").absolutePath)
     commandLine("cargo", "build", "--release", "--locked", "-p", "librashader-capi",
-        "--target", "aarch64-linux-android", "--no-default-features", "--features", "runtime-opengl")
+        "--target", slangTriple, "--no-default-features", "--features", "runtime-opengl")
     inputs.files(fileTree(slangSource) { exclude("target/**", "vendor/**") })
-    outputs.file(slangTarget.map { it.file("aarch64-linux-android/release/liblibrashader_capi.so") })
+    outputs.file(slangLibrary)
 }
 val packageSlangRuntime = tasks.register<Copy>("packageSlangRuntime") {
     dependsOn(buildSlangRuntime)
-    from(slangTarget.map { it.file("aarch64-linux-android/release/liblibrashader_capi.so") })
-    into(slangJni.map { it.dir("arm64-v8a") })
+    from(slangLibrary)
+    into(slangJni.map { it.dir(kairoAbi) })
 }
 if (kairoShaders) {
     android.sourceSets.getByName("main").jniLibs.srcDir(slangJni)

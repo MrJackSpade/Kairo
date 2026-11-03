@@ -21,6 +21,10 @@ shared\tools\uitest.ps1 -Device 192.168.1.118:5555
 Every test of this app.
 
 .EXAMPLE
+shared\tools\uitest.ps1 -Emulator
+Every test of this app on the API 26 emulator (tools/emulator.ps1), with an x86_64 build.
+
+.EXAMPLE
 shared\tools\uitest.ps1 -Device 192.168.1.118:5555 -Class com.mrjackspade.kairo88.uitest.Pc88Tests
 One test class; -Class takes several, comma-separated, and Class#method for one test.
 
@@ -33,8 +37,12 @@ shared\tools\uitest.ps1 -Device 192.168.1.118:5555 -SkipBuild -PatienceSeconds 1
 Runs the APKs already built, with a shorter bound on every wait.
 #>
 param(
-    # The device's adb serial, such as 192.168.1.118:5555.
-    [Parameter(Mandatory = $true)][string]$Device,
+    # The device's adb serial, such as 192.168.1.118:5555; or -Emulator.
+    [string]$Device,
+    # Runs on the test emulator (tools/emulator.ps1, started if it is not running) with an x86_64 build.
+    [switch]$Emulator,
+    # The emulator's Android API; the apps' minSdk otherwise. Only with -Emulator.
+    [int]$Api,
     # Test classes (comma-separated), or Class#method for one test; every test otherwise.
     [string]$Class,
     # A regular expression over full test names (package.Class#method); every test otherwise.
@@ -53,15 +61,30 @@ $module = Get-ChildItem $root -Directory | Where-Object {
 } | Select-Object -First 1 -ExpandProperty Name
 if (-not $module) { throw "No application module in ${root}: run this from an app's repository" }
 if ($Class -and $Filter) { throw '-Class and -Filter cannot be combined' }
+if ([bool]$Device -eq [bool]$Emulator) { throw 'Give either -Device or -Emulator' }
+if ($Api -and -not $Emulator) { throw '-Api chooses the emulator image; it needs -Emulator' }
+
+# The emulator images for Android 10 and older run x86_64 code only (Kairo#114).
+$abi = 'arm64-v8a'
+if ($Emulator) {
+    $abi = 'x86_64'
+    $emulatorArguments = @{}
+    if ($Api) { $emulatorArguments.Api = $Api }
+    $started = & (Join-Path $PSScriptRoot 'emulator.ps1') @emulatorArguments
+    $started | Write-Output
+    $Device = @($started)[-1]
+    if ($Device -notmatch '^emulator-\d+$') { throw "emulator.ps1 did not give a serial: $Device" }
+}
 
 # The adb program itself: inside this script the name adb would call the Adb function below.
 $adb = (Get-Command adb -CommandType Application | Select-Object -First 1).Source
 # Its error output too, so a failure says why (adb prints install failures there).
 function Adb { $out = & $adb -s $Device @args 2>&1; if ($LASTEXITCODE -ne 0) { throw "adb $args failed: $out" }; $out }
 
-# The device must be there, and new enough for the framework's window inspection.
+# The device must be there, and run an Android the apps support (their minSdk).
+$minSdk = [int]((Get-Content (Join-Path $PSScriptRoot '..\gradle\android-versions.properties') | Where-Object { $_ -match '^min_sdk=' }) -replace '^min_sdk=', '')
 $sdk = [int]((Adb shell getprop ro.build.version.sdk) | Select-Object -First 1)
-if ($sdk -lt 29) { throw "$Device runs Android API $sdk; the UI tests need Android 10 (API 29) or later" }
+if ($sdk -lt $minSdk) { throw "$Device runs Android API $sdk; the apps need API $minSdk or later" }
 
 $variant = $Flavor.Substring(0, 1).ToUpper() + $Flavor.Substring(1) + 'UiTest'
 if (-not $SkipBuild) {
@@ -70,7 +93,7 @@ if (-not $SkipBuild) {
     if (-not $env:LOCAL_BUILD_TOKEN) { throw 'LOCAL_BUILD_TOKEN is not set: the UI test resources cannot be decrypted here' }
     Push-Location $root
     try {
-        & .\gradlew.bat ":${module}:assemble$variant" ":${module}:assemble${variant}AndroidTest" ":${module}:uiTestTools" --console=plain
+        & .\gradlew.bat ":${module}:assemble$variant" ":${module}:assemble${variant}AndroidTest" ":${module}:uiTestTools" --console=plain "-PkairoAbi=$abi"
         if ($LASTEXITCODE -ne 0) { throw 'The UI test build failed' }
     } finally { Pop-Location }
 }

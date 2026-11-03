@@ -139,8 +139,8 @@ page (Kairo98's Disks page has its own tests).
 
 ### What you need
 
-- **A device on adb**, Android 10 or later (the framework inspects windows), such as the RG DS at
-  `192.168.1.118:5555`. `adb devices` must list it. Nothing of the app's needs to be on it already.
+- **A device on adb** running Android 8.0 (API 26, the apps' `minSdk`) or later, such as the RG DS at
+  `192.168.1.118:5555`, or the API 26 emulator (`tools/emulator.ps1`). `adb devices` must list it. Nothing of the app's needs to be on it already.
 - **The `LOCAL_BUILD_TOKEN` user environment variable** on this machine, which decrypts the test
   resources during the build (see Test resources). The runner reads it from the user scope itself,
   so a shell opened before it was set works too.
@@ -239,7 +239,7 @@ test in an app without a touchpad, is skipped with its reason.
 | Message | Cause |
 | --- | --- |
 | `LOCAL_BUILD_TOKEN is not set` | The key is missing on this machine, so the encrypted resources cannot be unpacked. |
-| `… runs Android API n; the UI tests need Android 10 (API 29) or later` | The device is too old for the framework. |
+| `… runs Android API n; the apps need API 26 or later` | The device is older than the apps' `minSdk`. |
 | `Expected one UI test instrumentation …` | The test APK did not install; see the install lines above it. |
 | `The app's data was not cleared before this test` | The tests ran without the orchestrator's `clearPackageData`, not through the runner. |
 | `The test APK has no test resources` | The build did not unpack them; build again without `-SkipBuild`. |

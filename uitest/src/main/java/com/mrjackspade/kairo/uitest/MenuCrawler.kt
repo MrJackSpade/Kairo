@@ -121,9 +121,12 @@ class MenuCrawler(
             "^slot|^f-library$|^play$|^command$|^layout:|^footer:save$|^done$", RegexOption.IGNORE_CASE)
 
         /**
-         * Destructive, slow or network items, options (picking one changes a setting) and the
-         * buttons that commit a page's changes and close it (a mapping's Save, an arrangement's Done).
+         * Destructive, slow or network items, options (picking one changes a setting: a choice's o:
+         * rows and a scaling anchor's a: squares) and the buttons that commit a page's changes and
+         * close it (a mapping's Save, an arrangement's Done). A pick closes its page a moment later
+         * (ScalingAnchor.pick), so a crawl that picked raced that close.
          */
-        fun skipByDefault(item: String): Boolean = DESTRUCTIVE.containsMatchIn(item) || item.startsWith("o:")
+        fun skipByDefault(item: String): Boolean =
+            DESTRUCTIVE.containsMatchIn(item) || item.startsWith("o:") || item.startsWith("a:")
     }
 }

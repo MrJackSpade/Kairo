@@ -19,7 +19,11 @@ shared\tools\uitest-all.ps1 -Device 192.168.1.118:5555 -Filter 'MenuTests' -Apps
 The menu crawls of two apps.
 #>
 param(
-    [Parameter(Mandatory = $true)][string]$Device,
+    # The device's adb serial; or -Emulator (each app on the test emulator, tools/emulator.ps1).
+    [string]$Device,
+    [switch]$Emulator,
+    # The emulator's Android API; the apps' minSdk otherwise.
+    [int]$Api,
     # The folder holding the app repositories; the one around this app's repository otherwise.
     [string]$Workspace,
     # Only these apps (repository names); every app otherwise.
@@ -48,7 +52,10 @@ foreach ($name in $names) {
         $results[$name] = 'no UI tests'; continue
     }
     Write-Output "=== $name"
-    $arguments = @{ Device = $Device }
+    $arguments = @{}
+    if ($Device) { $arguments.Device = $Device }
+    if ($Emulator) { $arguments.Emulator = $true }
+    if ($Api) { $arguments.Api = $Api }
     if ($Filter) { $arguments.Filter = $Filter }
     if ($PatienceSeconds) { $arguments.PatienceSeconds = $PatienceSeconds }
     if ($SkipBuild) { $arguments.SkipBuild = $true }

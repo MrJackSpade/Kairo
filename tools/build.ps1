@@ -11,6 +11,7 @@ only the result, errors, and the APK path.
 .EXAMPLE
 shared\tools\build.ps1 -Install 192.168.1.118:5555
 shared\tools\build.ps1 -Type release -VersionCode 1000003 -VersionName 1.0.3-dev
+shared\tools\build.ps1 -Abi x86_64 -Install emulator-5554
 #>
 param(
     # The app module; the checkout's only application module when omitted.
@@ -23,7 +24,9 @@ param(
     # Deletes the build's intermediate state first (build, .cxx and the shared frontend's build).
     [switch]$Clean,
     # adb serial to install the APK on with adb install -r.
-    [string]$Install
+    [string]$Install,
+    # The ABI to build: arm64-v8a ships; x86_64 is for the emulator (tools/emulator.ps1).
+    [ValidateSet('arm64-v8a', 'x86_64')][string]$Abi = 'arm64-v8a'
 )
 $ErrorActionPreference = 'Stop'
 
@@ -55,7 +58,7 @@ if ($Clean) {
 # Every app's module (gradle/kairo-app.gradle) has the artwork flavors.
 $variant = $Flavor + (Get-Culture).TextInfo.ToTitleCase($Type)
 $task = ":${Module}:assemble$($variant.Substring(0,1).ToUpper())$($variant.Substring(1))"
-$arguments = @($task, '--console=plain')
+$arguments = @($task, '--console=plain', "-PkairoAbi=$Abi")
 if ($VersionCode) { $arguments += "-P${Module}VersionCode=$VersionCode" }
 if ($VersionName) { $arguments += "-P${Module}VersionName=$VersionName" }
 

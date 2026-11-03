@@ -4,6 +4,15 @@ new File(buildscript.sourceFile.parentFile, 'android-versions.properties').withI
     versions.load(it)
 }
 
+// The one ABI a build holds (Gradle property kairoAbi): arm64-v8a, which ships, or x86_64 for the
+// emulator test runs (tools/emulator.ps1, Kairo#114). The app's native library and the frontend's
+// shader runtime are both built for it.
+def kairoAbi = providers.gradleProperty('kairoAbi').orElse('arm64-v8a').get()
+if (!(kairoAbi in ['arm64-v8a', 'x86_64'])) {
+    throw new GradleException("kairoAbi must be arm64-v8a or x86_64, not $kairoAbi")
+}
+ext.kairoAbi = kairoAbi
+
 def configureAndroid = { boolean application ->
     def android = extensions.getByName('android')
     android.compileSdk = versions.compile_sdk.toInteger()

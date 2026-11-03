@@ -4,6 +4,9 @@ outputs:
   build-tools:
     description: Android build tools version
     value: ${{ steps.versions.outputs.build-tools }}
+  min-sdk:
+    description: The apps' minSdk, the Android API the emulator checks run on (Kairo#114)
+    value: ${{ steps.versions.outputs.min-sdk }}
 runs:
   using: composite
   steps:
@@ -29,6 +32,7 @@ runs:
         echo "java=$java" >> "$GITHUB_OUTPUT"
         echo "rust=$rust" >> "$GITHUB_OUTPUT"
         echo "build-tools=$build_tools" >> "$GITHUB_OUTPUT"
+        echo "min-sdk=$(value min_sdk)" >> "$GITHUB_OUTPUT"
         echo "packages=platform-tools platforms;android-$compile_sdk build-tools;$build_tools ndk;$ndk cmake;$cmake" >> "$GITHUB_OUTPUT"
     - uses: actions/setup-java@v6
       with:
@@ -40,7 +44,8 @@ runs:
     - uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ steps.versions.outputs.rust }}
-        targets: aarch64-linux-android
+        # x86_64 for the emulator checks' builds (kairoAbi, Kairo#114).
+        targets: aarch64-linux-android,x86_64-linux-android
     - uses: gradle/actions/setup-gradle@v6
       with:
         cache-provider: basic

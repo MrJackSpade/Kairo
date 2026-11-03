@@ -43,7 +43,8 @@ android {
         resValue 'bool', 'kairo_update_check', (providers.gradleProperty('kairoDistribution').orNull != 'play').toString()
         resValue 'color', 'ic_launcher_background',
             project.ext.has('kairoLauncherBackground') ? project.ext.kairoLauncherBackground as String : '#05080D'
-        ndk { abiFilters += 'arm64-v8a' }
+        // arm64-v8a ships; x86_64 is for the emulator test runs (tools/emulator.ps1, Kairo#114).
+        ndk { abiFilters += project.ext.kairoAbi }
         // Only the app's library (named after the product): a core's own tests and tools stay out.
         externalNativeBuild {
             cmake {
@@ -52,7 +53,9 @@ android {
                 if (providers.gradleProperty('kairoShaders').orNull == 'false') arguments += '-DKAIRO_SHADERS=OFF'
                 // A core built with its recorded profile (shared/cmake/KairoPgo.cmake); pgo=false for
                 // the unprofiled build to compare against.
-                arguments += '-DKAIRO_PGO=' + (providers.gradleProperty('pgo').orElse('true').get() == 'true' ? 'ON' : 'OFF')
+                // The profiles are recorded on arm64 (core/pgo/arm64.proftext), so another ABI builds without.
+                def pgoDefault = project.ext.kairoAbi == 'arm64-v8a' ? 'true' : 'false'
+                arguments += '-DKAIRO_PGO=' + (providers.gradleProperty('pgo').orElse(pgoDefault).get() == 'true' ? 'ON' : 'OFF')
                 targets += product
                 if (project.ext.has('kairoChd') && project.ext.kairoChd) targets += 'kairo_chd_jni'
             }

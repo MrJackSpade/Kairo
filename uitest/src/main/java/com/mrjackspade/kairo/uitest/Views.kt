@@ -62,7 +62,7 @@ object Views {
      * not take a touch (hidden, faded, not part of the page the player has), for a failing test.
      */
     fun dump(): String = buildString {
-        for (root in android.view.inspector.WindowInspector.getGlobalWindowViews()) {
+        for (root in WindowRoots.all()) {
             append("window ").append(root.javaClass.simpleName).append(" on display ")
                 .append(root.display?.displayId).append('\n')
             fun visit(view: View, depth: Int) {

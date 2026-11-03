@@ -47,7 +47,57 @@ permissions:
   contents: read
 
 jobs:
+  # The app must open on the oldest Android it supports (its minSdk) before anything is published:
+  # Kairo#144 closed every app at launch on Android 12 and older for several releases, unseen on
+  # the Android 13+ test devices. The emulator images that old run x86_64 code only, so the check
+  # builds the same release (R8, signing) for x86_64 (kairoAbi, Kairo#114).
+  launch-check:
+    runs-on: ubuntu-24.04
+    env:
+      MODULE: ${{ inputs.module }}
+      PACKAGE: ${{ inputs.package }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out the pinned Kairo frontend
+        run: |
+          git submodule update --init --recursive shared
+          bash shared/tools/verify_checkout.sh "$(git rev-parse HEAD:shared)"
+      - uses: ./shared/.github/actions/setup-android
+        id: android-toolchain
+      - name: Prepare the persistent signing key
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.KAIRO_RELEASE_KEYSTORE_B64 }}
+        run: |
+          keystore="$RUNNER_TEMP/kairo-release.p12"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$keystore"
+          echo "KAIRO_RELEASE_KEYSTORE=$keystore" >> "$GITHUB_ENV"
+      - name: Build the release APK for x86_64
+        env:
+          KAIRO_RELEASE_PASSWORD: ${{ secrets.KAIRO_RELEASE_PASSWORD }}
+        run: ./gradlew --no-daemon ":$MODULE:assembleWithoutImagesRelease" -PkairoAbi=x86_64
+      - name: Let the emulator use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Open the app on its minimum Android
+        uses: reactivecircus/android-emulator-runner@v2.33.0
+        with:
+          api-level: ${{ steps.android-toolchain.outputs.min-sdk }}
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: true
+          # GLESDynamicVersion: without it an Android 8 guest gets OpenGL ES 2.0 only (tools/emulator.ps1).
+          emulator-options: -no-window -gpu swiftshader_indirect -feature GLESDynamicVersion -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: >-
+            pwsh -NoProfile -File shared/tools/launch-check.ps1 -Device emulator-5554
+            -Apk "$MODULE/build/outputs/apk/withoutImages/release/$MODULE-withoutImages-release.apk"
+            -Package "$PACKAGE" -Activity "com.mrjackspade.$MODULE.MainActivity"
+
   build:
+    needs: launch-check
     runs-on: ubuntu-24.04
     permissions:
       contents: write
