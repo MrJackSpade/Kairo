@@ -52,7 +52,12 @@ class LayeredCatalogSettings(private val schema: LayeredGameCatalog.Schema) : Ca
             val documents = zip.entries().asSequence()
                 .filter { it.name == "name-index-v1.json" || it.name.matches(Regex("shards/[0-9a-f]{2}\\.json")) }
                 .sortedBy { it.name }.toList()
-            require(documents.size > 1) { "${catalog.path} has no records" }
+            // The name index always; shards whenever it names games (KairoX86's catalog names none).
+            val index = documents.firstOrNull { it.name == "name-index-v1.json" }
+                ?: throw IllegalArgumentException("${catalog.path} has no name index")
+            val named = JSONObject(zip.getInputStream(index).use { it.readBytes() }.toString(Charsets.UTF_8))
+                .getJSONObject("games").length()
+            require(named == 0 || documents.size > 1) { "${catalog.path} has no records" }
             for (entry in documents) {
                 val games = JSONObject(zip.getInputStream(entry).use { it.readBytes() }.toString(Charsets.UTF_8))
                     .getJSONObject("games")
