@@ -93,10 +93,16 @@ void Session::close() {
 fs::path Test::working_copy(const std::string &name) const {
     if (name.empty()) return {};
     const fs::path source = paths.resources / fs::u8path(name);
-    if (!fs::is_regular_file(source)) throw std::runtime_error(entry->path() + ": no test resource " + source.string());
     // In the platform's own form, as a core reports the paths it holds (media_paths).
     const fs::path copy = (folder / "media" / fs::u8path(name)).make_preferred();
     if (fs::exists(copy)) return copy;
+    // A folder whole, for a core whose drive is a folder (KairoDos's C: drive, KairoDos#140).
+    if (fs::is_directory(source)) {
+        fs::create_directories(copy.parent_path());
+        fs::copy(source, copy, fs::copy_options::recursive);
+        return copy;
+    }
+    if (!fs::is_regular_file(source)) throw std::runtime_error(entry->path() + ": no test resource " + source.string());
     fs::create_directories(copy.parent_path());
     // With the files it reads beside it, as the app's working copy has them: a descriptor's track
     // data under its own name (a CUE's ISO, a CCD's IMG), and every file a CUE sheet names.
