@@ -7,8 +7,12 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import java.io.OutputStream
 
-/** A blank disk a player makes a new game on, in a format and size the app's system used. */
-sealed class BlankDisk(val id: String, val label: UiText) {
+/**
+ * A blank disk a player makes a new game on, in a format and size the app's system used.
+ * [unavailable] says why it cannot be made now (its row is then disabled with that reason), such
+ * as firmware the player has not imported; null when it can.
+ */
+sealed class BlankDisk(val id: String, val label: UiText, val unavailable: () -> UiText? = { null }) {
     /**
      * An image written to the games folder at once: [extension] is its file extension; [write]
      * writes the whole blank image, as the system's own tools would find a new, unformatted disk.
@@ -20,6 +24,19 @@ sealed class BlankDisk(val id: String, val label: UiText) {
      * game to the games folder once it holds a file; an empty one leaves nothing behind.
      */
     class Drive(id: String, label: UiText, val start: (name: String) -> Unit) : BlankDisk(id, label)
+
+    /**
+     * A new entry written to the games folder at once as a folder of [files], each at its path in
+     * the folder (such as `86box.cfg` and `nvr/486ap4.nvr`) with what [write] puts in it.
+     */
+    class Folder(id: String, label: UiText, val files: List<Pair<String, (OutputStream) -> Unit>>,
+                 unavailable: () -> UiText? = { null }) : BlankDisk(id, label, unavailable) {
+        init {
+            require(files.isNotEmpty() && files.all { (path, _) ->
+                path.split('/').let { parts -> parts.all { it.isNotEmpty() && it != "." && it != ".." } }
+            }) { "$id has a file outside its folder" }
+        }
+    }
 }
 
 /**
@@ -36,8 +53,10 @@ object CreateGameFlow {
     fun <T : LibraryItem> rows(activity: Activity, library: LibraryFlow<T>, blanks: List<BlankDisk>,
                                folder: String): List<SettingsRow> = blanks.map { blank ->
         SettingsRow.action("create-${blank.id}", blank.label.resolve(activity),
-            enabled = { library.tree != null },
-            disabledReason = { activity.getString(R.string.kairo_library_choose_in_manage) },
+            enabled = { library.tree != null && blank.unavailable() == null },
+            disabledReason = {
+                blank.unavailable()?.resolve(activity) ?: activity.getString(R.string.kairo_library_choose_in_manage)
+            },
             tray = {
                 if (library.tree?.let(library::hasWriteGrant) != true) TraySpec(activity.getString(R.string.kairo_create_grant, folder),
                     listOf(TrayButton(activity.getString(R.string.kairo_cancel)),
@@ -66,7 +85,13 @@ object CreateGameFlow {
         val tree = library.tree ?: return
         screen.showStatus(activity.getString(R.string.kairo_creating, name), LibraryScreen.StatusKind.TASK)
         Thread {
-            val result = runCatching { write(activity.contentResolver, tree, blank as BlankDisk.Image, name, folder, activity) }
+            val result = runCatching {
+                when (blank) {
+                    is BlankDisk.Image -> write(activity.contentResolver, tree, blank, name, folder, activity)
+                    is BlankDisk.Folder -> write(activity.contentResolver, tree, blank, name, folder, activity)
+                    is BlankDisk.Drive -> error("${blank.id} starts a drive, it writes nothing")
+                }
+            }
             activity.runOnUiThread {
                 result.onSuccess {
                     screen.showStatus(activity.getString(R.string.kairo_created, name), LibraryScreen.StatusKind.SUMMARY)
@@ -92,6 +117,25 @@ object CreateGameFlow {
             ?: error(activity.getString(R.string.kairo_create_failed, name))
         checkNotNull(resolver.openOutputStream(file, "w")) { activity.getString(R.string.kairo_create_failed, name) }
             .use { blank.write(it) }
+    }
+
+    /** Writes [blank]'s files into a new folder `<name>` under [tree]'s root; fails when [name] is already there. */
+    private fun write(resolver: ContentResolver, tree: Uri, blank: BlankDisk.Folder, name: String, folder: String, activity: Activity) {
+        val root = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree))
+        check(name !in childNames(resolver, tree, root)) { activity.getString(R.string.kairo_create_exists, name, folder) }
+        val failed = { activity.getString(R.string.kairo_create_failed, name) }
+        val directory = DocumentsContract.createDocument(resolver, root, Document.MIME_TYPE_DIR, name) ?: error(failed())
+        // The folders the files go in, each made once.
+        val folders = HashMap<String, Uri>().apply { put("", directory) }
+        fun folderOf(path: String): Uri = folders.getOrPut(path) {
+            DocumentsContract.createDocument(resolver, folderOf(path.substringBeforeLast('/', "")), Document.MIME_TYPE_DIR,
+                path.substringAfterLast('/')) ?: error(failed())
+        }
+        for ((path, write) in blank.files) {
+            val file = DocumentsContract.createDocument(resolver, folderOf(path.substringBeforeLast('/', "")),
+                "application/octet-stream", path.substringAfterLast('/')) ?: error(failed())
+            checkNotNull(resolver.openOutputStream(file, "w")) { failed() }.use { write(it) }
+        }
     }
 
     /** The names in [tree]'s root folder, for a product's own new game ([BlankDisk.Drive]). */
