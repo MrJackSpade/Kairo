@@ -31,7 +31,11 @@ int main(int argc, char **argv) {
         const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         const kairo::json::Value table = kairo::json::Value::parse(text, table_file.filename().string());
 
-        Paths paths{fs::u8path(argv[2]), fs::u8path(argv[3])};
+        // The table is the app's core/test/boot-tests.json.
+        const fs::path app = fs::absolute(table_file).parent_path().parent_path().parent_path();
+        if (!fs::is_directory(app / "shared")) throw std::runtime_error(table_file.string() + " is not in an app's core/test");
+        Paths paths{fs::u8path(argv[2]), fs::u8path(argv[3]), app, fs::u8path(argv[3]) / "home"};
+        fs::remove_all(paths.home);
         if (!fs::is_directory(paths.resources)) throw std::runtime_error("No resources at " + paths.resources.string());
         std::set<std::string> wanted;
         for (int i = 4; i < argc; ++i) wanted.insert(argv[i]);

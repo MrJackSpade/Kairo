@@ -29,6 +29,11 @@ struct Paths {
     fs::path resources;
     // This run's folder; each test writes under its own name in it.
     fs::path work;
+    // The app's repository, whose own files a table's "home" names ("app:<path>").
+    fs::path app;
+    // The core's home, one for the run as the app has one: a core may keep it for the process
+    // (openMSX reads its folders once). Emptied as the run starts.
+    fs::path home;
 };
 
 // A session of the table's machine: one create_core, run frame by frame.

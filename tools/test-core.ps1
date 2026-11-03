@@ -61,6 +61,14 @@ if (-not $env:LOCAL_BUILD_TOKEN) { throw 'LOCAL_BUILD_TOKEN is not set: the test
 & python (Join-Path $PSScriptRoot 'host_resources.py') $bundle $resources
 if ($LASTEXITCODE -ne 0) { throw "Could not unpack $bundle" }
 
+# What the app's build makes that its core reads (KairoMSX's openMSX data), which an app with
+# tools/prepare_host_test.py makes for the test, under .build\host-data, for its table's "home".
+$prepare = Join-Path $root 'tools\prepare_host_test.py'
+if (Test-Path $prepare) {
+    & python -I $prepare (Join-Path $root '.build\host-data')
+    if ($LASTEXITCODE -ne 0) { throw "$prepare failed" }
+}
+
 $work = Join-Path $root '.build\boot'
 New-Item -ItemType Directory -Force $work | Out-Null
 & (Join-Path $PSScriptRoot 'run-limited.ps1') (Join-Path $build "$module.exe") $table $resources $work @Test

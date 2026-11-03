@@ -34,7 +34,10 @@ void boot(Test &test, const json::Value &spec) {
 }
 
 // state (Kairo#115): at frame "at" (during a load, where states went wrong), save; run "frames"
-// frames; load; run them again. The two runs must be the same frames, and so the same machine.
+// frames; load; run them again. The two runs must be the same frames, and so the same machine. A
+// load comes with the frame NativeMachine runs to redraw the paused game (frame_machine.h
+// redraw_paused), so the frames after the load are compared with those after the save from its
+// second on: a core whose picture lags its machine by a frame shows the loaded state from there.
 void state(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     session.run(test.frames(spec, "at"));
@@ -43,10 +46,12 @@ void state(Test &test, const json::Value &spec) {
     const uint64_t frames = test.frames(spec, "frames");
     session.mark();
     session.run(frames);
-    const std::vector<uint64_t> after_save = session.signatures();
+    std::vector<uint64_t> after_save = session.signatures();
+    after_save.erase(after_save.begin());
     session.load_state(saved);
+    session.run(1);
     session.mark();
-    session.run(frames);
+    session.run(frames - 1);
     const std::vector<uint64_t> &after_load = session.signatures();
     const int64_t at = first_difference(after_save, after_load);
     if (at >= 0) {
@@ -69,7 +74,7 @@ void sessions(Test &test, const json::Value &spec) {
     const uint64_t frames = test.frames(spec, "frames");
     std::vector<uint64_t> first;
     for (int round = 0; round < 2; ++round) {
-        fs::remove_all(test.folder / "home");
+        fs::remove_all(test.paths.home);
         fs::remove_all(test.folder / "media");
         Session session(test.launch(), test.folder, test.name + " session " + std::to_string(round + 1));
         session.run(frames);
@@ -374,7 +379,8 @@ void mouse_motion(Test &test, const json::Value &spec) {
 
 // clock (Kairo#122): the table's timing program reaches one of "screens" (its end) in a number of
 // frames at each of "values" of the setting "setting"; the second count over the first is "ratio",
-// within "margin".
+// within "margin". A program the guest is given as "commands" (a BASIC loop) is counted from when
+// its typing ends, so the boot before it does not count.
 void clock(Test &test, const json::Value &spec) {
     const std::string setting = spec.at("setting").string();
     const std::vector<uint64_t> done = screens(spec);
@@ -383,8 +389,10 @@ void clock(Test &test, const json::Value &spec) {
     for (const json::Value &value : spec.at("values").array()) {
         json::Value overrides = json::Value::parse("{\"settings\":{\"" + setting + "\":\"" + value.string() + "\"}}", spec.path());
         Session session(test.launch(&overrides), test.folder, test.name + " at " + setting + "=" + value.string());
+        if (spec.find("commands")) type_commands(session, test, spec);
+        const uint64_t start = spec.find("commands") ? session.frames() : 0;
         wait_for_screen(session, done, limit, "the timing program to finish");
-        counts.push_back(session.frames());
+        counts.push_back(session.frames() - start);
         session.close();
     }
     if (counts.size() != 2) throw std::runtime_error(spec.at("values").path() + ": expected two values");

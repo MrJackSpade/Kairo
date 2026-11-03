@@ -126,8 +126,23 @@ Launch Test::launch(const json::Value *overrides) const {
         }
         launch.firmware = installed.u8string();
     }
-    const fs::path home = folder / "home";
+    // The core's home, with what the app installs there ("home": {path in the home: source}), such as
+    // KairoMSX's openMSX data and the player's firmware: a resource, or the app's own files
+    // ("app:<path in the repository>"), a file or a folder copied whole.
+    const fs::path &home = paths.home;
     fs::create_directories(home);
+    if (const json::Value *installs = entry->find("home")) {
+        for (const auto &[name, source] : installs->object()) {
+            const std::string from_name = source.string();
+            const fs::path from = from_name.rfind("app:", 0) == 0 ? paths.app / fs::u8path(from_name.substr(4))
+                                                                 : paths.resources / fs::u8path(from_name);
+            if (!fs::exists(from)) throw std::runtime_error(source.path() + ": no " + from.string());
+            const fs::path to = home / fs::u8path(name);
+            if (fs::exists(to)) continue;
+            fs::create_directories(to.parent_path());
+            fs::copy(from, to, fs::copy_options::recursive);
+        }
+    }
     launch.home = home.u8string();
     // The checks compare runs: of one session against itself, and of one session against the next.
     launch.repeatable = true;
