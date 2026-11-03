@@ -949,8 +949,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 })
             RowGroup(text(label).uppercase(), rows, set.note?.let(::text))
         }
-        return listOf(RowGroup(getString(R.string.kairo_firmware_group), listOf(folder),
-            if (firmwareConfigurable()) firmwareText.third else getString(R.string.kairo_firmware_return_to_library))) + sets
+        // "Files marked Required ..." only where a set has required files.
+        val required = firmwareSets.any { (_, set) -> set.requirements.isNotEmpty() }
+        val note = if (!firmwareConfigurable()) getString(R.string.kairo_firmware_return_to_library)
+            else if (required) firmwareText.third else null
+        return listOf(RowGroup(getString(R.string.kairo_firmware_group), listOf(folder), note)) + sets
     }
 
     /** One firmware file: what it is for, Required or Optional, its state, and a tray to pick or remove it. */
