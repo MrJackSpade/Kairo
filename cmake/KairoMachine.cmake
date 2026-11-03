@@ -47,3 +47,19 @@ function(kairo_machine_library target)
     # Frames reach the window through OpenGL ES with or without shaders (gl_frame_presenter.h).
     target_link_libraries(${target} PRIVATE log android aaudio EGL GLESv3)
 endfunction()
+
+# On the PC: a library the core loads by file name (KairoST's Hatari, KairoDos's Staging) beside the
+# boot test, copied whenever the library changes. A POST_BUILD copy ran only when the test itself
+# relinked, so a change in the library alone left the test loading the old copy.
+function(kairo_library_beside_test target library)
+    if(ANDROID)
+        message(FATAL_ERROR "kairo_library_beside_test is for the PC boot test")
+    endif()
+    set(beside "$<TARGET_FILE_DIR:${target}>/$<TARGET_FILE_NAME:${library}>")
+    add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${library}.beside-test"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${library}> "${beside}"
+        COMMAND ${CMAKE_COMMAND} -E touch "${CMAKE_CURRENT_BINARY_DIR}/${library}.beside-test"
+        DEPENDS ${library} $<TARGET_FILE:${library}>)
+    add_custom_target(${library}_beside_test DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${library}.beside-test")
+    add_dependencies(${target} ${library}_beside_test)
+endfunction()
