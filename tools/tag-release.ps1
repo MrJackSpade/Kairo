@@ -4,7 +4,8 @@ Tags every Kairo app with the release version in shared/release-version and push
 
 .DESCRIPTION
 Every Kairo app releases the same version. This reads it from the release-version file beside this
-script's shared checkout, and for every app in docs/templates/apps.json checked out beside this one
+script's shared checkout, and for every released app in docs/templates/apps.json (an app with
+"released": false has had no release yet and is skipped) checked out beside this one
 (in -Workspace, by default the folder holding this app's repository) it checks, before tagging any:
 origin/main pins a shared commit whose release-version is the same, origin/main has
 docs/releases/v<version>.md; an app that has the tag already is left as it is. Then it tags each app's origin/main
@@ -38,6 +39,8 @@ function Invoke-Git([string]$repo) {
 $apps = @()
 $problems = @()
 foreach ($app in $registry.apps) {
+    # An app before its first release ("released": false in apps.json) is not tagged with the others.
+    if ($app.released -eq $false) { continue }
     $repo = Join-Path $Workspace $app.repo
     if (-not (Test-Path $repo)) { $problems += "$($app.repo): not checked out in $Workspace"; continue }
     Invoke-Git $repo fetch -q origin main --tags | Out-Null

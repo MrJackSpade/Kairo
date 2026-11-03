@@ -124,6 +124,19 @@
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format"
+  },
+  {
+   "repo": "KairoX86",
+   "system": "IBM PC compatible",
+   "module": "kairox86",
+   "package": "com.loxifi.kairox86",
+   "released": false,
+   "googlePlay": false,
+   "firmware": true,
+   "saveStates": true,
+   "artworkHosts": ["raw.githubusercontent.com"],
+   "privacyPage": true,
+   "problemDetail": "disk format"
   }
  ]
 }
