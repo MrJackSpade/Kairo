@@ -334,8 +334,9 @@ class SpinnerView(context: Context, private val stroke: Int) : View(context) {
     }
 
     override fun onDraw(canvas: Canvas) {
-        val inset = stroke / 2f
-        bounds.set(inset, inset, width - inset, height - inset)
+        // A circle in the largest square centered in the view, whatever shape the view is given (Kairo#153).
+        val radius = minOf(width, height) / 2f - stroke / 2f
+        bounds.set(width / 2f - radius, height / 2f - radius, width / 2f + radius, height / 2f + radius)
         canvas.drawOval(bounds, ring)
         canvas.drawArc(bounds, -135f, 90f, false, segment)
     }

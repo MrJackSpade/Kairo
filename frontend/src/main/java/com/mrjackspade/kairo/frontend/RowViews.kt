@@ -204,7 +204,8 @@ internal class RowView(private val context: Context, private val host: RowHost, 
             tag = Ui.chip(context, "").testId("tag").also { line.addView(it, gap()) }
             spinner = Ui.spinner(context).testId("busy").also {
                 it.visibility = View.GONE
-                line.addView(it, gap(16))
+                // Its own size both ways: a spinner has none, and would take the row's whole height (Kairo#153).
+                line.addView(it, gap(16, 16))
             }
         }
         when (next.kind) {
