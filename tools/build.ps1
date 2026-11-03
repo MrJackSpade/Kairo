@@ -83,9 +83,12 @@ if (-not $apk) { throw "No $variant APK under $Module\build\outputs\apk" }
 "APK: $($apk.FullName)"
 
 if ($Install) {
-    $adb = Get-ChildItem 'F:\android-sdk\platform-tools\adb.exe', 'D:\android-sdk\platform-tools\adb.exe' -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if (-not $adb) { throw 'adb not found in the Android SDK' }
+    # The Android SDK the build uses (ANDROID_HOME, set at user scope).
+    $sdk = $env:ANDROID_HOME
+    if (-not $sdk) { $sdk = [Environment]::GetEnvironmentVariable('ANDROID_HOME', 'User') }
+    if (-not $sdk) { throw 'ANDROID_HOME is not set: it names the Android SDK' }
+    $adb = Get-Item (Join-Path $sdk 'platform-tools\adb.exe') -ErrorAction SilentlyContinue
+    if (-not $adb) { throw "adb not found in the Android SDK at $sdk" }
     & $adb.FullName -s $Install install -r $apk.FullName
     if ($LASTEXITCODE -ne 0) { throw "Install on $Install failed" }
 }

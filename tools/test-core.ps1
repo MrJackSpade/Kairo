@@ -37,8 +37,12 @@ $table = Join-Path $root 'core\test\boot-tests.json'
 if (-not (Test-Path $table)) { throw "No boot test table at $table" }
 
 $toolchain = 'F:/tools/llvm-mingw-20261006-ucrt-x86_64/bin'
-$cmake = 'F:\android-sdk\cmake\3.22.1\bin\cmake.exe'
-$ninja = 'F:/android-sdk/cmake/3.22.1/bin/ninja.exe'
+# The Android SDK's cmake and ninja (ANDROID_HOME, set at user scope).
+$sdk = $env:ANDROID_HOME
+if (-not $sdk) { $sdk = [Environment]::GetEnvironmentVariable('ANDROID_HOME', 'User') }
+if (-not $sdk) { throw 'ANDROID_HOME is not set: it names the Android SDK' }
+$cmake = Join-Path $sdk 'cmake\3.22.1\bin\cmake.exe'
+$ninja = (Join-Path $sdk 'cmake\3.22.1\bin\ninja.exe').Replace('\', '/')
 $build = Join-Path $root '.build\host-test'
 $env:PATH = "$($toolchain.Replace('/', '\'));$env:PATH"
 

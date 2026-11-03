@@ -7,6 +7,7 @@ host core tests use (test-core.ps1), into shared/.build/chd-host.
 """
 
 import hashlib
+import os
 import shutil
 import subprocess
 import tempfile
@@ -15,8 +16,10 @@ from pathlib import Path
 SHARED = Path(__file__).resolve().parents[1]
 BUILD = SHARED / ".build" / "chd-host"
 TOOLCHAIN = Path("F:/tools/llvm-mingw-20261006-ucrt-x86_64/bin")
-CMAKE = Path("F:/android-sdk/cmake/3.22.1/bin/cmake.exe")
-NINJA = Path("F:/android-sdk/cmake/3.22.1/bin/ninja.exe")
+# The Android SDK's cmake and ninja (ANDROID_HOME, set at user scope).
+SDK = Path(os.environ["ANDROID_HOME"])
+CMAKE = SDK / "cmake/3.22.1/bin/cmake.exe"
+NINJA = SDK / "cmake/3.22.1/bin/ninja.exe"
 CHUNK = 1024 * 1024
 
 
