@@ -66,6 +66,8 @@ def main():
         if not module.is_dir():
             raise SystemExit(f"{module} is not the app's module (preset \"module\")")
         art, play = module / ICON_ART, args.app / PLAY_ICON
+        # A new app has no docs/play-assets yet.
+        play.parent.mkdir(parents=True, exist_ok=True)
         art.write_bytes(render(svg, 1024))
         play.write_bytes(render(svg, 512))
         print(art.resolve())
