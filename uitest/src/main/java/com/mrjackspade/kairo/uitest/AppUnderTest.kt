@@ -32,6 +32,13 @@ abstract class AppUnderTest {
      */
     open val bootGameNeedsFirmware: Boolean get() = biosFiles.any { it.required }
 
+    /**
+     * Whether [text], shown in the library, is the app asking for the boot game's firmware: by
+     * default the shared prompt (kairo_firmware_missing); an app with its own (KairoST's own TOS)
+     * says which.
+     */
+    open fun isFirmwarePrompt(text: String): Boolean = text.startsWith("Launch failed: Import the") && "firmware" in text
+
     /** The test resources' folder of BIOS files; null when the tests use none, as with a built-in BIOS. */
     open val biosResource: String? = "bios"
 

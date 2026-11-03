@@ -33,7 +33,7 @@ abstract class LaunchTests : KairoUiTest() {
         if (screens.controllerLayout.exists()) screens.answerControllerLayout()
         if (app.bootGameNeedsFirmware) {
             driver.waitUntil("the app to ask for the firmware the game needs") {
-                driver.visibleTexts().any { it.startsWith("Launch failed: Import the") && "firmware" in it }
+                driver.visibleTexts().any(app::isFirmwarePrompt)
             }
             return
         }
