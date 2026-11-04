@@ -12,11 +12,15 @@ internal object Checks {
 
     /**
      * No text on screen calls games or BIOS files "ROMs". A document the app quotes (id document),
-     * such as a license's "installed in ROM", is its authors' words, not the app's.
+     * such as a license's "installed in ROM", is its authors' words, not the app's; so is a product's
+     * name (TestAttributes.quoted), such as 86Box's "Iskra EGA (Cyrillic ROM)".
      */
     fun noRom(driver: Driver, expect: Expect, where: String) {
         driver.idle()
-        val quoted = driver.onMain { driver.resolve(listOf(By.id("document"))).flatMap(Views::texts).toSet() }
+        val quoted = driver.onMain {
+            (driver.resolve(listOf(By.id("document"))) + driver.resolve(listOf(By.quoted())))
+                .flatMap(Views::texts).toSet()
+        }
         val found = driver.visibleTexts().filter { it !in quoted && rom.containsMatchIn(it) }
         expect.that("$where never says \"ROM\"", found.isEmpty()) { found.joinToString(" | ") }
     }

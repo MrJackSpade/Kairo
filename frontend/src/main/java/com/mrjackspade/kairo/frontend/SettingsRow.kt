@@ -144,7 +144,9 @@ class SettingsRow private constructor(
     val setChecked: ((Boolean) -> Unit)?,
     val slider: SliderSpec?,
     val tray: (() -> TraySpec)?,
-    val confirm: Confirm?
+    val confirm: Confirm?,
+    /** The label is a name the app quotes, such as a product's (TestAttributes.markQuoted). */
+    val quoted: Boolean = false
 ) {
     enum class Kind { NAV, CHOICE, SWITCH, SLIDER, ACTION, INFO, OPTION }
 
@@ -204,8 +206,9 @@ class SettingsRow private constructor(
 
         /** A choice page option, the only row with a description line. */
         fun option(id: String, label: String, description: String?, selected: () -> Boolean,
-                   enabled: () -> Boolean = always, disabledReason: () -> String? = none, pick: () -> Unit) =
+                   enabled: () -> Boolean = always, disabledReason: () -> String? = none, quoted: Boolean = false,
+                   pick: () -> Unit) =
             SettingsRow(id, Kind.OPTION, label, shown(blank), { ValueTone.CURRENT }, none, description, enabled,
-                disabledReason, false, never, pick, null, selected, null, null, null, null)
+                disabledReason, false, never, pick, null, selected, null, null, null, null, quoted)
     }
 }

@@ -73,6 +73,7 @@ internal class RowView(private val context: Context, private val host: RowHost, 
         line.alpha = if (enabled || next.kind == SettingsRow.Kind.INFO) 1f else 0.45f
         line.isSelected = focused || trayOpen
         label?.text = next.label
+        label?.let { TestAttributes.markQuoted(it, next.quoted) }
         label?.setTextColor(if (next.danger) Ui.DANGER else Ui.TEXT)
         description?.text = next.description
         val shown = next.value(context)

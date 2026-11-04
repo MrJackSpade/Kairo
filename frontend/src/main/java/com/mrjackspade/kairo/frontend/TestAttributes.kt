@@ -30,6 +30,14 @@ object TestAttributes {
     /** Whether a page's item is the one its controller focus is on. */
     fun focused(view: View): Boolean = view.getTag(R.id.kairo_test_focused) == true
 
+    /**
+     * Marks whether a view's text is a name the app quotes, not its own words: a product's name
+     * ([UiText.Fixed]) such as 86Box's "Phoenix ROM BIOS PLUS 1.10", which the wording checks leave alone.
+     */
+    fun markQuoted(view: View, quoted: Boolean) = view.setTag(R.id.kairo_test_quoted, quoted)
+
+    fun quoted(view: View): Boolean = view.getTag(R.id.kairo_test_quoted) == true
+
     /** The role of a page's focusable items: rows, buttons, tabs and keys a controller can reach. */
     const val ITEM = "item"
 

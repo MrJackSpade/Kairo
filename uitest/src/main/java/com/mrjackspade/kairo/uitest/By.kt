@@ -33,6 +33,9 @@ class By private constructor(val description: String, private val test: (View) -
 
     companion object {
         fun id(id: String) = By("id=$id") { TestAttributes.id(it) == id }
+
+        /** A text the app quotes rather than writes, such as a product's name (TestAttributes.quoted). */
+        fun quoted() = By("a quoted name", TestAttributes::quoted)
         fun key(key: String) = By("key=$key") { TestAttributes.key(it) == key }
 
         /**

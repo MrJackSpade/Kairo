@@ -169,7 +169,8 @@ class ChoicePage private constructor(
             } + group.options.map { option ->
                 val disabled = option.disabledReason?.resolve(context)
                 SettingsRow.option("o:${option.id}", option.label.resolve(context), option.description?.resolve(context),
-                    { spec.selected() == option.id }, enabled = { disabled == null }, disabledReason = { disabled }) { pick(option.id) }
+                    { spec.selected() == option.id }, enabled = { disabled == null }, disabledReason = { disabled },
+                    quoted = option.label is UiText.Fixed) { pick(option.id) }
             }, group.foot)
         }
         val actions = if (first == null) spec.actions() else emptyList()

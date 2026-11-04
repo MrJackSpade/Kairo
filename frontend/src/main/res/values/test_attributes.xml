@@ -5,4 +5,5 @@
     <item name="kairo_test_key" type="id" />
     <item name="kairo_test_role" type="id" />
     <item name="kairo_test_focused" type="id" />
+    <item name="kairo_test_quoted" type="id" />
 </resources>
