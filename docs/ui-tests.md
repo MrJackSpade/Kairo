@@ -131,8 +131,9 @@ Each app's own tests:
 | KairoDos (`DosTests`) | An eXoDOS installer installs and runs on its first launch; the ARM64 dynamic core runs generated code; the video card choice is kept. |
 | KairoST (`StTests`) | A touch on the on-screen keyboard reaches the game within half a second. |
 | Kairo64 (`C64Tests`) | A game set to the player's C64 firmware starts on it and draws; a game set to the 1541 runs the drive and draws. |
+| KairoX86 (`X86Tests`) | The XT starts on the free GLaBIOS with nothing imported; the 486 starts on the player's 86Box firmware, found by content; the floppy a machine's 86box.cfg names is in drive A; the memory and video card chosen in Game settings reach 86Box; the XT's boot runs faster than the real machine. |
 
-KairoDos has no saved states, so it runs no `StateTests`; Kairo98 and KairoDos have no shared media
+KairoDos and KairoX86 have no saved states, so they run no `StateTests`; Kairo98 and KairoDos have no shared media
 page (Kairo98's Disks page has its own tests).
 
 ## Running
@@ -202,6 +203,7 @@ test package, plus its own class:
 | KairoMSX | `com.mrjackspade.kairomsx.uitest` | all thirteen | `MsxTests` |
 | KairoST | `com.mrjackspade.kairost.uitest` | all thirteen | `StTests` |
 | Kairo64 | `com.mrjackspade.kairo64.uitest` | all thirteen | `C64Tests` |
+| KairoX86 | `com.mrjackspade.kairox86.uitest` | all but State | `X86Tests` |
 
 The thirteen are FirstRun, Library, Search, Game, Wording, Menu, Controller, Touch, Launch, State,
 Media, LibraryManagement and Settings. KairoMSX's prefix is `KairoMsx` (`KairoMsxMenuTests`) and KairoST's `KairoSt` (`KairoStMenuTests`).
