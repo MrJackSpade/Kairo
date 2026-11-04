@@ -589,7 +589,11 @@ class LibraryScreen<T : LibraryItem>(
         // Until the search reruns, results must not offer games that left the library.
         if (query.isNotEmpty()) publishFilter(query, entries.mapNotNull { current[it.id] }, null)
         applyFilter()
-        rows.rowAfterRefresh()?.let(list::setSelection)
+        // A controller's selection is what the list shows, so the list follows it. A finger scrolls
+        // the list itself: a refresh (the scan's last games, the visibility pass after it) keeps that
+        // place, as ListView does through a data change, rather than throwing it back to the
+        // selection, the top for a library nothing was picked in (Kairo88's tape game scrolled away).
+        if (!list.isInTouchMode) rows.rowAfterRefresh()?.let(list::setSelection)
         detailPage?.let { page ->
             val refreshed = allEntries.firstOrNull { it.id == page.entryId }
             if (refreshed == null) closeDetail() else page.show(refreshed)
