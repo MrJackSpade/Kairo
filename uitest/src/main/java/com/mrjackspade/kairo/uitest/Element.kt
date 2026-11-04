@@ -85,26 +85,27 @@ class Element internal constructor(private val driver: Driver, private val path:
         driver.awaitPagesSettled()
         // A player closes the on-screen keyboard to touch anything but a text field; it may cover the view.
         if (!driver.onMain { current() is android.widget.EditText }) driver.closeKeyboard()
-        if (!driver.onMain { current()?.let(Views::tappable) == true }) {
-            driver.log.step("scroll", "$description into view")
-            // Asked again until it is there: a page that has just opened may still be scrolling its
-            // focused row into view, and that scroll ends where it was going, over this one.
-            driver.waitUntil("$description to be on screen") {
-                driver.onMain {
-                    val view = current() ?: return@onMain false
-                    if (Views.tappable(view)) return@onMain true
-                    view.requestRectangleOnScreen(android.graphics.Rect(0, 0, view.width, view.height), true)
-                    false
-                }
-            }
-            waitUntilShown()
-        }
         // Found again at the moment of the tap: a list that refreshes its rows (the library after a
-        // scan) has none for a moment between the waits above and this.
+        // scan) has none for a moment between the waits above and this. One its page has scrolled
+        // (partly) away is brought back, and again until it stays: a page that has just opened may
+        // still be scrolling its focused row into view, and that scroll ends where it was going, over
+        // this one, even after this one was on screen (Kairo88#53: Drive 2's Empty row).
         var point: Driver.TapPoint? = null
+        var scrolled = false
+        // Tapped where it has stopped: two checks in a row find it at the same place.
+        var last: android.graphics.Rect? = null
         driver.waitUntil("$description to take the tap") {
             driver.onMain {
-                val view = current()?.takeIf(Views::tappable) ?: return@onMain false
+                val view = current() ?: return@onMain false
+                if (!Views.tappable(view)) {
+                    if (!scrolled) driver.log.step("scroll", "$description into view")
+                    scrolled = true
+                    last = null
+                    view.requestRectangleOnScreen(android.graphics.Rect(0, 0, view.width, view.height), true)
+                    return@onMain false
+                }
+                val bounds = Views.boundsInWindow(view)
+                if (bounds != last) { last = bounds; return@onMain false }
                 driver.log.step("tap", description, mapOf("view" to Views.describe(view), "bounds" to Views.boundsInWindow(view).toShortString()))
                 point = driver.tapPoint(view)
                 true
