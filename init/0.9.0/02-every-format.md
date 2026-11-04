@@ -14,7 +14,6 @@ Every new system. Test on the RG DS with a release-like build (`shared\tools\bui
 
 For one game of every media kind, loose and inside a ZIP and a 7z:
 - play past its load;
-- use the controller;
 - save and load a state;
 - then start a second game in the same process.
 
