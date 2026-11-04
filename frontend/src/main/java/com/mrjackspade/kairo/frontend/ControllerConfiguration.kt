@@ -137,6 +137,25 @@ object ControllerDefaults {
         return merged.values.toList()
     }
 
+    /** The D-pad's directions, which always send the arrow keys of the layer below. */
+    val DPAD = setOf("virtual:up", "virtual:down", "virtual:left", "virtual:right")
+
+    /**
+     * A catalog's game [layer] as laid over [below]: a D-pad direction it binds keeps the keys
+     * [below] sends for it, ahead of the layer's own, so the D-pad always sends the arrow keys
+     * whatever a game adds to it (a joystick, a mouse direction, a key cycle, other keys; Kairo#173).
+     * Only what we ship goes through it: a player's own layer is theirs.
+     */
+    fun keepArrowKeys(below: List<ControllerBinding>, layer: List<ControllerBinding>): List<ControllerBinding> {
+        val under = below.associateBy { it.input }
+        return layer.map { binding ->
+            val arrows = under[binding.input]?.keys.orEmpty()
+            if (binding.input !in DPAD || binding.unbound || arrows.isEmpty()) return@map binding
+            require(binding.action == null) { "A shipped layer puts an action on ${binding.input}, which cannot send its arrow keys" }
+            binding.copy(keys = (arrows + binding.keys).distinct())
+        }
+    }
+
     /**
      * The layer a player saves: over [inherited] (the layers below it), it gives [edited]. Bindings
      * that differ from what they inherit, and an explicit null for each inherited input [edited]

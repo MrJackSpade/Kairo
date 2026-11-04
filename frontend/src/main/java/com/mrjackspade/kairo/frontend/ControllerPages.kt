@@ -41,20 +41,23 @@ data class ControllerGuestSpec(
         actions.firstOrNull { it.first == id }?.second?.resolve(context) ?: id.replaceFirstChar(Char::uppercase)
 
     /** What a binding sends, as the controller pages and the keyboard panel name it. */
-    fun describe(context: Context, binding: ControllerBinding): String = when {
-        binding.cycleKeys.isNotEmpty() -> context.getString(
-            if (binding.input == ControllerKeyCycles.pair(binding.input)?.first) R.string.kairo_binding_cycle_previous
-            else R.string.kairo_binding_cycle_next,
-            binding.cycleKeys.joinToString(" → ") { keyLabel(it) })
-        binding.mouse != null -> {
-            val target = MOUSE_TARGETS[binding.mouse]?.let(context::getString)
-                ?: context.getString(R.string.kairo_binding_mouse_other, binding.mouse.removePrefix("move").lowercase())
-            if (binding.mouse.startsWith("move")) context.getString(R.string.kairo_binding_mouse_speed, target, binding.mouseSpeed)
-            else target
+    fun describe(context: Context, binding: ControllerBinding): String {
+        if (binding.action != null) return actionLabel(context, binding.action)
+        val cycle = binding.cycleKeys.takeIf { it.isNotEmpty() }?.let { keys ->
+            context.getString(
+                if (binding.input == ControllerKeyCycles.pair(binding.input)?.first) R.string.kairo_binding_cycle_previous
+                else R.string.kairo_binding_cycle_next,
+                keys.joinToString(" → ") { keyLabel(it) })
         }
-        binding.action != null -> actionLabel(context, binding.action)
-        else -> (binding.keys.map { keyLabel(it) } +
-            listOfNotNull(binding.joystick?.let { joystickTarget(context, it) })).joinToString(" + ")
+        val mouse = binding.mouse?.let { target ->
+            val name = MOUSE_TARGETS[target]?.let(context::getString)
+                ?: context.getString(R.string.kairo_binding_mouse_other, target.removePrefix("move").lowercase())
+            if (target.startsWith("move")) context.getString(R.string.kairo_binding_mouse_speed, name, binding.mouseSpeed)
+            else name
+        }
+        // Every part it sends: keys, with a joystick input, a mouse target or a key cycle (Kairo#173).
+        return (binding.keys.map { keyLabel(it) } + listOfNotNull(binding.joystick?.let { joystickTarget(context, it) },
+            mouse, cycle)).joinToString(" + ")
     }
 
     companion object {
@@ -817,7 +820,9 @@ class ControllerPages<Game : Any>(
                     if (cycle.size !in 2..16) { message(str(R.string.kairo_target_choose_cycle)); return }
                     null
                 }
-                Tab.MOUSE -> ControllerBinding(input, mouse = mouse ?: run { message(str(R.string.kairo_target_choose_mouse)); return },
+                // The keys go with a mouse direction as with a joystick input: a D-pad keeps its arrow keys.
+                Tab.MOUSE -> ControllerBinding(input, keys.sortedWith(compareBy<Int> { it !in guest.modifierCodes }.thenBy { it }),
+                    mouse = mouse ?: run { message(str(R.string.kairo_target_choose_mouse)); return },
                     mouseSpeed = if (mouse!!.startsWith("move")) speed / 10f else 1f)
                 Tab.ACTION -> ControllerBinding(input, action = action ?: run { message(str(R.string.kairo_target_choose_action)); return })
             }

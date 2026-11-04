@@ -194,6 +194,10 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
             # A game's layer replaces what it binds; it never ships an explicit null.
             require(not any("unbound" in b or set(b) == {"input"} for bindings in defaults.values() for b in bindings),
                     "controller defaults ship an explicit null")
+            # The D-pad keeps the arrow keys under whatever a game adds to it (shared
+            # ControllerDefaults.keepArrowKeys, Kairo#173); an action cannot send them with it.
+            require(not any(b["input"] in DPAD and "action" in b for bindings in defaults.values() for b in bindings),
+                    "controller defaults put an action on the D-pad")
             # Released apps read every game's defaults and reject a control they lack (V1_CONTROLS).
             require(all(v1_input(b["input"]) for bindings in defaults.values() for b in bindings),
                     "controller defaults bind a control released apps do not know")

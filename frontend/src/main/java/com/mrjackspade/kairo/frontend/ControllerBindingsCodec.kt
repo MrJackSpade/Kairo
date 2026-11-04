@@ -33,12 +33,13 @@ class ControllerBindingsCodec(
             val joystick = item.optString("joystick").takeIf(String::isNotEmpty)
             val mouse = item.optString("mouse").takeIf(String::isNotEmpty)
             val cycleKeys = item.optJSONArray("cycleKeys")
-            val targets = listOf(keys != null, action != null, joystick != null, mouse != null,
-                cycleKeys != null).count { it }
-            // Keys may go with a joystick input, as a D-pad that sends both; every other target stands alone.
-            if (targets != 1 && !(targets == 2 && keys != null && joystick != null)) return false
+            val others = listOf(action != null, joystick != null, mouse != null, cycleKeys != null).count { it }
+            // One target, and keys may go with a joystick input, a mouse direction or a key cycle, as a
+            // D-pad sends its arrow keys whatever else it sends (Kairo#173); an action stands alone.
+            if (others > 1 || (others == 0 && keys == null) || (action != null && keys != null)) return false
             if (keys != null) {
-                if (keys.length() !in 1..4) return false
+                // A preset's keys with the arrow keys under them (ControllerDefaults.keepArrowKeys).
+                if (keys.length() !in 1..8) return false
                 val mapped = ArrayList<Int>()
                 for (keyIndex in 0 until keys.length()) {
                     val value = keys.opt(keyIndex)
@@ -98,11 +99,11 @@ class ControllerBindingsCodec(
             when {
                 binding.unbound -> item.put(UNBOUND, true)
                 binding.action != null -> item.put("action", binding.action)
-                binding.mouse != null -> item.put("mouse", binding.mouse)
-                binding.cycleKeys.isNotEmpty() -> item.put("cycleKeys", JSONArray(binding.cycleKeys))
                 else -> {
-                    if (binding.keys.isNotEmpty() || binding.joystick == null) item.put("keys", JSONArray(binding.keys))
+                    if (binding.keys.isNotEmpty()) item.put("keys", JSONArray(binding.keys))
                     binding.joystick?.let { item.put("joystick", it) }
+                    binding.mouse?.let { item.put("mouse", it) }
+                    if (binding.cycleKeys.isNotEmpty()) item.put("cycleKeys", JSONArray(binding.cycleKeys))
                 }
             }
             if (binding.mouseSpeed != 1f) item.put("mouseSpeed", binding.mouseSpeed.toDouble())

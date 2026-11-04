@@ -33,12 +33,23 @@ class ControllerBindingsCodecTest {
         assertEquals(bindings, codec.parse(codec.toJson(bindings).toString()))
     }
 
+    /** Kairo#173: keys go with a joystick input, a mouse target or a key cycle; an action stands alone. */
     @Test
-    fun onlyKeysMayGoWithAnotherTarget() {
+    fun keysMayGoWithAnyTargetButAnAction() {
         assertTrue(codec.valid(JSONArray("""[{"input":"virtual:up","keys":[58],"joystick":"up"}]""")))
+        assertTrue(codec.valid(JSONArray("""[{"input":"virtual:up","keys":[58],"mouse":"moveUp"}]""")))
+        assertTrue(codec.valid(JSONArray("""[{"input":"virtual:left","keys":[58],"cycleKeys":[49,50]}]""")))
         assertFalse(codec.valid(JSONArray("""[{"input":"virtual:up","keys":[58],"action":"menu"}]""")))
         assertFalse(codec.valid(JSONArray("""[{"input":"virtual:up","joystick":"up","action":"menu"}]""")))
-        assertFalse(codec.valid(JSONArray("""[{"input":"virtual:up","keys":[58],"mouse":"leftButton"}]""")))
+        assertFalse(codec.valid(JSONArray("""[{"input":"virtual:up","joystick":"up","mouse":"moveUp"}]""")))
         assertFalse(codec.valid(JSONArray("""[{"input":"virtual:up","keys":[58],"joystick":"up","action":"menu"}]""")))
+    }
+
+    @Test
+    fun keysWithAMouseTargetOrAKeyCycleRoundTrip() {
+        val bindings = listOf(ControllerBinding("virtual:up", listOf(0x3a), mouse = "moveUp", mouseSpeed = 2f),
+            ControllerBinding("virtual:left", listOf(0x3b), cycleKeys = listOf(0x31, 0x32)),
+            ControllerBinding("virtual:right", listOf(0x3c, 0x3d, 0x3e, 0x3f, 0x40), joystick = "up"))
+        assertEquals(bindings, codec.parse(codec.toJson(bindings).toString()))
     }
 }
