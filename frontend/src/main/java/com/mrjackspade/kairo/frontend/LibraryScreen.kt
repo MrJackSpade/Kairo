@@ -168,21 +168,29 @@ class LibraryScreen<T : LibraryItem>(
         rows.request(position)
         if (top == null) list.setSelection(position) else list.setSelectionFromTop(position, top)
     }
-    private fun indexAt(position: Int) = rows.indexAt(position)
-    /** The row a finger went down on, for the click it ends in: its game's id, or null for a header. */
-    private class Touch(val id: String?)
-    private var touch: Touch? = null
+    /** The game a finger went down on, by id, for the click it ends in. */
+    private var touchedId: String? = null
 
     /**
-     * The game a click on the row at [position] opens: the one the finger went down on, when a
-     * finger made it, wherever the rows have since put it; none when it touched a header or its
-     * game left the library.
+     * The game a tap on a row opens: the one the finger went down on, wherever the rows have since
+     * put it; none when its game left the library.
      */
-    private fun clickedIndex(position: Int): Int? {
-        val touched = touch ?: return indexAt(position)
-        touch = null
-        val id = touched.id ?: return null
+    private fun touchedIndex(): Int? {
+        val id = touchedId ?: return null
+        touchedId = null
         return entries.indexOfFirst { it.id == id }.takeIf { it >= 0 }
+    }
+
+    /** A tap on a game's row opens its page; a long press opens its settings over it. */
+    private fun openTouched(settings: Boolean): Boolean {
+        val index = touchedIndex() ?: return false
+        selectedIndex = index
+        focusGames()
+        notifySelection()
+        // Game settings opens over the game page, so Play is one Back away.
+        openDetail(entries[index])
+        if (settings) details(entries[index])
+        return true
     }
 
     private val adapter = object : BaseAdapter() {
@@ -302,6 +310,17 @@ class LibraryScreen<T : LibraryItem>(
             view.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
             holder = Row(art, mark, title, detail)
             view.tag = holder
+            // Each row takes its own taps. ListView's item click drops a tap whose rows changed
+            // before the next layout (a scan publishing games just as one is touched: KairoDos's
+            // game page never opened), and clicks the position, which a change may have given
+            // another game. The row opens the game the finger went down on.
+            view.setOnTouchListener { row, event ->
+                if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN)
+                    touchedId = entries.getOrNull((row.tag as Row).index)?.id
+                false
+            }
+            view.setOnClickListener { openTouched(settings = false) }
+            view.setOnLongClickListener { openTouched(settings = true) }
         }
         val entry = entries[index]
         TestAttributes.mark(view, "library.entry", entry.id)
@@ -413,31 +432,6 @@ class LibraryScreen<T : LibraryItem>(
             overScrollMode = View.OVER_SCROLL_NEVER
             isVerticalScrollBarEnabled = false
             adapter = this@LibraryScreen.adapter
-            // ListView clicks the row at the position the finger went down on: rows that changed
-            // and were laid out before it lifted (a scan's new games right after setup) put another
-            // game there. A tap opens the game it touched.
-            setOnTouchListener { _, event ->
-                if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN)
-                    touch = Touch(indexAt(pointToPosition(event.x.toInt(), event.y.toInt()))?.let { entries[it].id })
-                false
-            }
-            setOnItemClickListener { _, _, position, _ ->
-                val index = clickedIndex(position) ?: return@setOnItemClickListener
-                selectedIndex = index
-                focusGames()
-                notifySelection()
-                openDetail(entries[index])
-            }
-            setOnItemLongClickListener { _, _, position, _ ->
-                val index = clickedIndex(position) ?: return@setOnItemLongClickListener false
-                selectedIndex = index
-                focusGames()
-                notifySelection()
-                // Game settings opens over the game page, so Play is one Back away.
-                openDetail(entries[index])
-                details(entries[index])
-                true
-            }
         }
         gameArea.addView(list, FrameLayout.LayoutParams(-1, -1))
         emptyState.apply {
