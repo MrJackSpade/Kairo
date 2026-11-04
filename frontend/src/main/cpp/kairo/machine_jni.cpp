@@ -96,6 +96,7 @@ public:
     bool guest_input(GuestInput &input) override { return core_->guest_input(input); }
     // While a line goes in, so typing does not take the guest's real time.
     bool loading() override { return core_->loading() || typer_.typing(); }
+    bool displays() override { return core_->displays(); }
     std::string details() override { return core_->details(); }
     void reset() override { core_->reset(); }
     std::string close() override { return core_->close(); }

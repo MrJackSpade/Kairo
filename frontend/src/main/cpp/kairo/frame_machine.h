@@ -263,6 +263,12 @@ private:
             ended_ready_.notify_all();
             return;
         }
+        // A machine with nothing to show has shown all it will: its start does not wait for a picture.
+        if (!core->displays()) {
+            std::lock_guard<std::mutex> guard(command_mutex_);
+            pictured_ = true;
+            pictured_seen_ = true;
+        }
         report("Running");
         name_thread("kairo-frames");
         raise_emulation_priority("worker");
