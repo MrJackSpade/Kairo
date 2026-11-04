@@ -78,6 +78,13 @@ abstract class AppUnderTest {
      */
     open val mouseGameKeys: List<Int> = emptyList()
 
+    /**
+     * Game settings [mouseGame] is played with, set on its Game settings before it starts, as
+     * {row: option}: for an app whose catalog gives no game the mouse (Kairo64's test 1351 program,
+     * Controls: mouse).
+     */
+    open val mouseGameSettings: Map<String, String> = emptyMap()
+
     /** Another game, for checking that one game's settings leave others alone. */
     abstract val otherGame: String
 

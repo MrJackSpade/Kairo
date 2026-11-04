@@ -141,8 +141,14 @@ abstract class TouchTests : KairoUiTest() {
     }
 
     /** Plays [game] with Screen tap on Auto, which decides from what the game reads (Kairo#78). */
-    private fun playOnAuto(game: String) {
-        screens.completeFirstRun().open(game).play()
+    private fun playOnAuto(game: String, settings: Map<String, String> = emptyMap()) {
+        val page = screens.completeFirstRun().open(game)
+        if (settings.isNotEmpty()) {
+            val settingsPage = page.openSettings()
+            settings.forEach { (row, option) -> screens.choose(settingsPage, row, option) }
+            page.closeSettings()
+        }
+        page.play()
         screens.choose(screens.openGameSettingsInGame(), "game-tap", "auto")
         screens.closeMenu()
     }
@@ -156,7 +162,7 @@ abstract class TouchTests : KairoUiTest() {
     @Test
     fun autoTouchMovesTheMouseInAMouseGame() {
         val game = requireNotNull(app.mouseGame) { "${app.name}'s test resources name no mouse game (AppUnderTest.mouseGame)" }
-        playOnAuto(game)
+        playOnAuto(game, app.mouseGameSettings)
         // Keys the game asks for first go in again every two seconds, as a player answers a prompt
         // that may not be up yet: one pressed before the guest reads it is lost.
         var nextKeys = 0L
