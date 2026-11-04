@@ -50,4 +50,17 @@ class GameDisksTest {
             UiText.res(R.string.kairo_disk_in_archive, "A.zip", "Game A.st"),
             UiText.res(R.string.kairo_disk_in_archive, "A.zip", "Game B.st"), UiText.fixed("Data disk.st")), options)
     }
+
+    /** One image unpacked from a ZIP and from a 7z, two archives of one name, and two of an archive's images of one name. */
+    @Test
+    fun disksNamedAlikeAreNamedByTheirPaths() {
+        val disks = listOf(Disk("doomhd (zip)/doomhd.vhd"), Disk("doomhd (7z)/doomhd.vhd"),
+            Disk("One/Game.zip", "Game.st"), Disk("Two/Game.zip", "Game.st"),
+            Disk("Set.zip", "a/Disk.st"), Disk("Set.zip", "b/Disk.st"), Disk("Lone.st"))
+        assertEquals(listOf(UiText.fixed("doomhd (zip)/doomhd.vhd"), UiText.fixed("doomhd (7z)/doomhd.vhd"),
+            UiText.fixed("One/Game.zip"), UiText.fixed("Two/Game.zip"),
+            UiText.res(R.string.kairo_disk_in_archive, "Set.zip", "a/Disk.st"),
+            UiText.res(R.string.kairo_disk_in_archive, "Set.zip", "b/Disk.st"), UiText.fixed("Lone.st")),
+            GameDisks.options(disks).map { it.label })
+    }
 }

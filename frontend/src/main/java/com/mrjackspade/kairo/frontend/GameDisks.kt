@@ -27,17 +27,24 @@ object GameDisks {
 
     /**
      * Options for [entries]: a loose disk by its file name, one in an archive by the archive's, and
-     * one of several images in an archive by both.
+     * one of several images in an archive by both. Disks those would name alike, such as two copies
+     * of one image unpacked from a ZIP and from a 7z, are named by their paths instead.
      */
     fun <E : LibraryItem> options(entries: List<E>): List<ChoiceOption> {
         val images = entries.groupingBy { it.uri }.eachCount()
-        return entries.map { entry ->
-            val archive = entry.zipEntry?.let { entry.path.substringAfterLast('/') }
-            ChoiceOption(entry.id, when {
-                archive == null -> UiText.fixed(entry.displayName)
-                images.getValue(entry.uri) > 1 -> UiText.res(R.string.kairo_disk_in_archive, archive, entry.displayName)
+        fun label(entry: E, full: Boolean): UiText {
+            val archive = entry.zipEntry?.let { if (full) entry.path else entry.path.substringAfterLast('/') }
+            return when {
+                archive == null -> UiText.fixed(if (full) entry.path else entry.displayName)
+                images.getValue(entry.uri) > 1 -> UiText.res(R.string.kairo_disk_in_archive, archive,
+                    if (full) entry.zipEntry!! else entry.displayName)
                 else -> UiText.fixed(archive)
-            })
+            }
+        }
+        val short = entries.map { label(it, full = false) }
+        val alike = short.groupingBy { it }.eachCount()
+        return entries.mapIndexed { index, entry ->
+            ChoiceOption(entry.id, if (alike.getValue(short[index]) > 1) label(entry, full = true) else short[index])
         }
     }
 
