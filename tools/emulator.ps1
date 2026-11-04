@@ -45,13 +45,16 @@ $serial = "emulator-$Port"
 $sdkRoot = $env:ANDROID_HOME
 if (-not $sdkRoot) { $sdkRoot = [Environment]::GetEnvironmentVariable('ANDROID_HOME', 'User') }
 if (-not $sdkRoot -or -not (Test-Path $sdkRoot)) { throw "ANDROID_HOME is not set to the Android SDK" }
-$adb = Join-Path $sdkRoot 'platform-tools\adb.exe'
-$emulator = Join-Path $sdkRoot 'emulator\emulator.exe'
+# The SDK's programs as the platform names them: the CI runs this on Linux (Kairo#114).
+$exe = if ($IsWindows) { '.exe' } else { '' }
+$bat = if ($IsWindows) { '.bat' } else { '' }
+$adb = Join-Path $sdkRoot "platform-tools/adb$exe"
+$emulator = Join-Path $sdkRoot "emulator/emulator$exe"
 
 # The emulator's own processes on -Port, by their command line: the one adb lists, and any adb lost
 # track of (Kairo#171: a second instance started beside one adb briefly did not list).
 function Get-EmulatorProcess {
-    Get-CimInstance Win32_Process -Filter "Name LIKE 'qemu-system-%'" |
+    Get-Process -Name 'qemu-system-*' -ErrorAction SilentlyContinue |
         Where-Object { $_.CommandLine -match "(^|\s)-port\s+$Port(\s|$)" }
 }
 
@@ -61,8 +64,8 @@ if ($Stop) {
     $found = @(Get-EmulatorProcess)
     if ($found.Count -eq 0) { throw "No emulator runs on port $Port" }
     foreach ($process in $found) {
-        Stop-Process -Id $process.ProcessId -Force
-        Wait-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
+        Stop-Process -Id $process.Id -Force
+        Wait-Process -Id $process.Id -ErrorAction SilentlyContinue
     }
     # A start right after must not find the old one still listed.
     while ((& $adb devices) -match "^$serial\s") { Start-Sleep -Milliseconds 500 }
@@ -71,28 +74,34 @@ if ($Stop) {
 }
 
 if (-not $Api) {
-    $properties = Join-Path $PSScriptRoot '..\gradle\android-versions.properties'
+    $properties = Join-Path $PSScriptRoot '../gradle/android-versions.properties'
     $Api = [int]((Get-Content $properties | Where-Object { $_ -match '^min_sdk=' }) -replace '^min_sdk=', '')
 }
 $image = "system-images;android-$Api;google_apis;x86_64"
 $name = "kairo-test-api$Api"
 
-$cmdline = Get-ChildItem (Join-Path $sdkRoot 'cmdline-tools\*\bin\sdkmanager.bat') | Select-Object -First 1
+$cmdline = Get-ChildItem (Join-Path $sdkRoot "cmdline-tools/*/bin/sdkmanager$bat") | Select-Object -First 1
 if (-not $cmdline) { throw "No cmdline-tools in $sdkRoot (sdkmanager and avdmanager are needed)" }
 $bin = $cmdline.DirectoryName
-$imageDir = Join-Path $sdkRoot "system-images\android-$Api\google_apis\x86_64"
+$imageDir = Join-Path $sdkRoot "system-images/android-$Api/google_apis/x86_64"
 if (-not (Test-Path (Join-Path $imageDir 'system.img'))) {
     Write-Output "install $image"
     # The licences were accepted for this SDK; sdkmanager asks again per package.
-    'y', 'y', 'y' | & (Join-Path $bin 'sdkmanager.bat') "--sdk_root=$sdkRoot" $image
+    'y', 'y', 'y' | & (Join-Path $bin "sdkmanager$bat") "--sdk_root=$sdkRoot" $image
     if ($LASTEXITCODE -ne 0) { throw "sdkmanager could not install $image" }
 }
 
-$avdHome = if ($env:ANDROID_AVD_HOME) { $env:ANDROID_AVD_HOME } else { Join-Path $env:USERPROFILE '.android\avd' }
-$config = Join-Path $avdHome "$name.avd\config.ini"
+if (-not (Test-Path $emulator)) {
+    Write-Output 'install emulator'
+    'y', 'y', 'y' | & (Join-Path $bin "sdkmanager$bat") "--sdk_root=$sdkRoot" 'emulator'
+    if ($LASTEXITCODE -ne 0) { throw 'sdkmanager could not install the emulator' }
+}
+
+$avdHome = if ($env:ANDROID_AVD_HOME) { $env:ANDROID_AVD_HOME } else { Join-Path $HOME '.android/avd' }
+$config = Join-Path $avdHome "$name.avd/config.ini"
 if (-not (Test-Path $config)) {
     Write-Output "create $name"
-    'no' | & (Join-Path $bin 'avdmanager.bat') create avd --name $name --package $image --abi google_apis/x86_64 --force
+    'no' | & (Join-Path $bin "avdmanager$bat") create avd --name $name --package $image --abi google_apis/x86_64 --force
     if ($LASTEXITCODE -ne 0) { throw "avdmanager could not create $name" }
     # The RP6's screen: 1920x1080 landscape. 4 GB, as the RP6's apps see far more than they use.
     $settings = [ordered]@{
@@ -117,7 +126,7 @@ if ($running) {
 # An emulator that holds the port while adb does not list it is not to be started beside (Kairo#171).
 $stray = @(Get-EmulatorProcess)
 if ($stray.Count -gt 0) {
-    throw "An emulator already runs on port $Port (process $($stray.ProcessId -join ', ')) but adb does not list $serial; stop it first (-Stop)"
+    throw "An emulator already runs on port $Port (process $($stray.Id -join ', ')) but adb does not list $serial; stop it first (-Stop)"
 }
 
 $log = Join-Path ([IO.Path]::GetTempPath()) "kairo-emulator-$Port.log"
@@ -129,8 +138,10 @@ $arguments = @('-avd', $name, '-port', "$Port", '-read-only', '-no-snapshot', '-
     '-gpu', 'swiftshader_indirect', '-feature', 'GLESDynamicVersion')
 if (-not $Window) { $arguments += '-no-window' }
 Write-Output "boot $name as $serial (log $log)"
-$process = Start-Process -FilePath $emulator -ArgumentList $arguments -PassThru -WindowStyle Hidden `
-    -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+$start = @{ FilePath = $emulator; ArgumentList = $arguments; PassThru = $true
+    RedirectStandardOutput = $log; RedirectStandardError = "$log.err" }
+if ($IsWindows) { $start.WindowStyle = 'Hidden' }
+$process = Start-Process @start
 
 # As long as booting takes: the emulator's own exit is the failure that ends the wait.
 while ($true) {

@@ -2,12 +2,12 @@ name: Kairo app UI tests
 
 # Every Kairo app's UI test suite (shared/uitest, the app's uitest module) on the Android emulator
 # (Kairo#114), called by the app's uitest.yml with `uses:
-# MrJackSpade/Kairo/.github/workflows/app-uitest.yml@<pinned commit>` and `secrets: inherit`. The
-# emulator is the google_apis x86_64 image of the apps' minSdk (Android 8.0), set up as
-# shared/tools/emulator.ps1 sets up the local one: 1920x1080 landscape at 400 dpi, as the
-# Retroid Pocket 6, with a hardware keyboard and SwiftShader's GL. The app and its tests build for
-# x86_64 (kairoAbi) and run through shared/tools/uitest.ps1, as they do locally; the run's logs,
-# screenshots and pictures are kept as a workflow artifact, passed or failed.
+# MrJackSpade/Kairo/.github/workflows/app-uitest.yml@<pinned commit>` and `secrets: inherit`. It runs
+# shared/tools/uitest.ps1 -Emulator, as a local run does: shared/tools/emulator.ps1 creates the AVD
+# (the google_apis x86_64 image of the apps' minSdk, Android 8.0, with the Retroid Pocket 6's
+# 1920x1080 landscape screen, a hardware keyboard and SwiftShader's GL) and boots it, and the app and
+# its tests build for x86_64. The run's logs, screenshots and pictures are kept as a workflow
+# artifact, passed or failed.
 #
 # The app repository provides the secret LOCAL_BUILD_TOKEN, the key of its encrypted UI test
 # resources (uitest/TestResources.part1.dat).
@@ -49,26 +49,12 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Run the UI tests on the minimum Android
-        uses: reactivecircus/android-emulator-runner@v2.33.0
         env:
           LOCAL_BUILD_TOKEN: ${{ secrets.LOCAL_BUILD_TOKEN }}
           FILTER: ${{ inputs.filter }}
-        with:
-          api-level: ${{ steps.android-toolchain.outputs.min-sdk }}
-          target: google_apis
-          arch: x86_64
-          force-avd-creation: true
-          ram-size: 4096M
-          # As tools/emulator.ps1's AVD: the RP6's screen, a hardware keyboard.
-          pre-emulator-launch-script: |
-            config="$HOME/.android/avd/test.avd/config.ini"
-            printf '%s\n' 'hw.lcd.width=1920' 'hw.lcd.height=1080' 'hw.lcd.density=400' \
-              'hw.initialOrientation=landscape' 'hw.keyboard=yes' 'vm.heapSize=512' >> "$config"
-          # GLESDynamicVersion: without it an Android 8 guest gets OpenGL ES 2.0 only (tools/emulator.ps1).
-          emulator-options: -no-window -gpu swiftshader_indirect -feature GLESDynamicVersion -no-snapshot -noaudio -no-boot-anim
-          disable-animations: true
-          # An empty -Filter runs every test (uitest.ps1).
-          script: pwsh -NoProfile -File shared/tools/uitest.ps1 -Device emulator-5554 -Filter "$FILTER"
+        # As a local run: tools/emulator.ps1 creates and boots the AVD of the minSdk, and the app and
+        # its tests build for x86_64. An empty -Filter runs every test.
+        run: pwsh -NoProfile -File shared/tools/uitest.ps1 -Emulator -Filter "$FILTER"
       - name: Keep the run's logs
         if: always()
         uses: actions/upload-artifact@v4
