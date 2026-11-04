@@ -242,6 +242,9 @@ def v1_input(value):
     return isinstance(value, str) and (not value.startswith("virtual:") or value.removeprefix("virtual:") in V1_CONTROLS)
 
 
+DPAD = ("virtual:up", "virtual:down", "virtual:left", "virtual:right")
+
+
 def validate_system(system):
     """The system's definition: one controller mapping, every binding an input and what it sends, and
     the named layers a game's machine settings choose over it ("layers", shared
@@ -260,6 +263,14 @@ def validate_system(system):
                 len(set(inputs)) == len(inputs), f"invalid system controller {name}")
         require(not any("unbound" in b or set(b) == {"input"} for b in mapping),
                 f"the system definition's {name} ship an explicit null")
+    # The D-pad always sends the arrow keys, whatever else it sends (a joystick, a mouse); a layer
+    # may add to a direction, never take its keys away.
+    base = {b["input"]: b for b in bindings}
+    require(all(direction in base and base[direction].get("keys") for direction in DPAD),
+            "the system definition's D-pad does not send the arrow keys")
+    for name, layer in layers.items():
+        require(all(set(base[b["input"]]["keys"]) <= set(b.get("keys", [])) for b in layer if b["input"] in DPAD),
+                f"the system definition's {name} takes the arrow keys from the D-pad")
 
 
 def system_v1(system):
@@ -315,6 +326,8 @@ def meta(name, content):
 
 def generate(root, check=False):
     config = load_config(root)
+    system = json.loads((root / "catalog/system-v2.json").read_text(encoding="utf-8"))
+    validate_system(system)
     # The media roles a game's disks fill: its companions', or MEDIA_ROLES for an app without disk sets.
     media_roles = getattr(config, "MEDIA_ROLES", {rule[1] for rule in config.COMPANION.values()})
     validate_record = validator(config.KINDS, config.ARTWORK, media_roles,
@@ -379,8 +392,6 @@ def generate(root, check=False):
     source = {"schemaVersion": 1, "datasets": [{"id": f"{config.APP}-research", "provenance": provenance,
                                                 "games": source_games}]}
     manifest, shards = catalog_documents.build(source, validate_record)
-    system = json.loads((root / "catalog/system-v2.json").read_text(encoding="utf-8"))
-    validate_system(system)
     own_documents = config.DOCUMENTS(research["games"]) if hasattr(config, "DOCUMENTS") else {}
     require(not own_documents.keys() & {"base-v1.json", "manifest-v1.json", "name-index-v1.json", "system-v1.json",
                                         "system-v2.json"}
