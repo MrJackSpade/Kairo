@@ -1,5 +1,5 @@
 ---
-title: Starting games: first picture, several in a row, other frontends
+title: Starting games: first picture, several in a row
 kind: validation
 ---
 Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
@@ -14,11 +14,10 @@ Every new system. Test on the RG DS with a release-like build (`shared\tools\bui
 
 - Time from Play to the first picture.
 - Several games in one process: a program after a disk, a game after a loaded state.
-- Launches from ES-DE, NeoStation and Daijisho.
 
 ## Passes when
 
-- The first picture comes quickly, every game runs as it does alone, and a frontend's launch is the library's game, with its saves and settings.
+- The first picture comes quickly, and every game runs as it does alone.
 
 ## Closing
 
