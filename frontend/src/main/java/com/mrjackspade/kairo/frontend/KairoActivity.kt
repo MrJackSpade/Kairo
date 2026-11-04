@@ -219,8 +219,11 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
      * [probeDetails]. Call it on the main thread.
      */
     fun gameProbe(): GameProbe = currentEntry.let { entry ->
-        GameProbe(entry?.let(::titleOf), if (entry == null) "None" else sessionStatus(),
-            if (entry == null) emptyMap() else probeDetails())
+        // The guest may run before the player sees it: its start's progress covers the screen, and
+        // takes every touch, until the game draws a picture (a boot's fast-forward presents none, Kairo68#96).
+        val state = if (entry == null) "None"
+            else sessionStatus().let { if (it == "Running" && sessionProgress != null) "Starting" else it }
+        GameProbe(entry?.let(::titleOf), state, if (entry == null) emptyMap() else probeDetails())
     }
 
     /** Details of the running session for [gameProbe], such as its frame count and media. */
