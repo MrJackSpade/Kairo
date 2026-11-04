@@ -288,11 +288,14 @@ private:
 };
 
 // guestInput (Kairo#117): after "frames" frames (with the spec's "keys"), Auto touch mode, deciding
-// from guest_input as the app does, is "expect" (mouse or keyboard).
+// from guest_input as the app does, is "expect" (mouse or keyboard). With "from", Auto starts watching
+// only at that frame, as when the player switches to Auto in a running game: a guest already waiting
+// for its input must still be found (KairoST#91).
 void guest_input(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     const uint64_t frames = test.frames(spec, "frames");
     const double frame_ms = session.core().frame_seconds() * 1000.0;
+    const uint64_t from = spec.find("from") ? test.frames(spec, "from") : 0;
     InputMode mode;
     double next_sample = 0;
     std::vector<std::pair<uint64_t, int>> keys;
@@ -305,7 +308,7 @@ void guest_input(Test &test, const json::Value &spec) {
         if (next_key < keys.size() && session.frames() >= keys[next_key].first) session.press(keys[next_key++].second);
         else session.run(1);
         const double now = static_cast<double>(session.frames()) * frame_ms;
-        if (now < next_sample) continue;
+        if (session.frames() < from || now < next_sample) continue;
         next_sample = now + 250;
         MachineCore::GuestInput input;
         if (!session.core().guest_input(input)) session.fail("the core reports no guest input (guest_input is false)");
