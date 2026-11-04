@@ -14,7 +14,11 @@ the script fails with the end of its log.
 Apps run on it as x86_64 builds (build.ps1 -Abi x86_64; uitest.ps1 -Emulator): the emulator images
 for Android 10 and older cannot run arm64 code.
 
-The SDK is ANDROID_HOME. The image is installed with sdkmanager when it is missing.
+The SDK is ANDROID_HOME. The image is installed with sdkmanager when it is missing. The emulator is
+brought to the newest release of its canary channel before every boot no other emulator is running
+for: 37.2.12 leaked about 130 MB of host memory in SwiftShader for every app process that ended, so a
+night of suites grew it to 86 GB, and 37.3.6 does not (Kairo#171). One left at the version it was
+first installed with went stale without anyone deciding so.
 
 .EXAMPLE
 shared\tools\emulator.ps1
@@ -91,12 +95,6 @@ if (-not (Test-Path (Join-Path $imageDir 'system.img'))) {
     if ($LASTEXITCODE -ne 0) { throw "sdkmanager could not install $image" }
 }
 
-if (-not (Test-Path $emulator)) {
-    Write-Output 'install emulator'
-    'y', 'y', 'y' | & (Join-Path $bin "sdkmanager$bat") "--sdk_root=$sdkRoot" 'emulator'
-    if ($LASTEXITCODE -ne 0) { throw 'sdkmanager could not install the emulator' }
-}
-
 $avdHome = if ($env:ANDROID_AVD_HOME) { $env:ANDROID_AVD_HOME } else { Join-Path $HOME '.android/avd' }
 $config = Join-Path $avdHome "$name.avd/config.ini"
 if (-not (Test-Path $config)) {
@@ -129,10 +127,24 @@ if ($stray.Count -gt 0) {
     throw "An emulator already runs on port $Port (process $($stray.Id -join ', ')) but adb does not list $serial; stop it first (-Stop)"
 }
 
-$log = Join-Path ([IO.Path]::GetTempPath()) "kairo-emulator-$Port.log"
+# Each boot logs on its own: the next boot must not overwrite the log of one that died mid-suite.
+# The five newest stay, for an emulator found gone after the next has started.
+Get-ChildItem ([IO.Path]::GetTempPath()) -Filter "kairo-emulator-$Port-*.log*" | Sort-Object LastWriteTime -Descending |
+    Select-Object -Skip 10 | Remove-Item
+# The newest emulator, installed or updated, while none runs: sdkmanager replaces its files, which a
+# running emulator holds. One running on another port boots this one from the same install.
+if (@(Get-Process -Name 'emulator', 'qemu-system-*' -ErrorAction SilentlyContinue).Count -eq 0) {
+    'y', 'y', 'y' | & (Join-Path $bin "sdkmanager$bat") "--sdk_root=$sdkRoot" '--channel=3' 'emulator' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'sdkmanager could not install or update the emulator' }
+}
+if (-not (Test-Path $emulator)) { throw "No emulator at $emulator" }
+$version = ([xml](Get-Content (Join-Path $sdkRoot 'emulator/package.xml') -Raw)).repository.localPackage.revision
+Write-Output "emulator $($version.major).$($version.minor).$($version.micro)"
+
+$log = Join-Path ([IO.Path]::GetTempPath()) ("kairo-emulator-$Port-{0:yyyyMMdd-HHmmss}.log" -f (Get-Date))
 # -read-only: every boot starts from the same clean disk, and several emulators (one per port) can
 # run the same AVD at once, such as a launch check beside a running suite.
-# GLESDynamicVersion: the emulator (37.2) leaves it off, which caps an Android 8 guest at OpenGL ES
+# GLESDynamicVersion: the emulator (37.2, and 37.3 was not tried without it) leaves it off, which caps an Android 8 guest at OpenGL ES
 # 2.0, and every core presents through an ES 3 context ("Could not create an OpenGL ES 3 context").
 $arguments = @('-avd', $name, '-port', "$Port", '-read-only', '-no-snapshot', '-no-audio', '-no-boot-anim',
     '-gpu', 'swiftshader_indirect', '-feature', 'GLESDynamicVersion')
