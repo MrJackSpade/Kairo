@@ -4,15 +4,12 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.os.ParcelFileDescriptor
-import org.apache.commons.compress.archivers.sevenz.SevenZFile
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
-import org.apache.commons.compress.archivers.zip.ZipFile
+import com.mrjackspade.kairo.frontend.DiskArchive.Member
 import org.json.JSONObject
 import java.io.Closeable
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.security.MessageDigest
@@ -155,7 +152,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         fun isProgram(name: String) = kind(name) in programs
         /** Whether a scan lists every file: a program's folder holds files of any kind. */
         val listsEveryFile: Boolean get() = programs.isNotEmpty()
-        fun isArchive(name: String) = extension(name) in ARCHIVES
+        fun isArchive(name: String) = DiskArchive.isArchive(name)
         /** Whether [name] is a CD kept as a CHD, whose content ID hashes its disc image (ChdImage). */
         fun isChd(name: String) = extension(name) == "chd"
         /** Whether [name] is track data, read only through its descriptor. */
@@ -176,7 +173,6 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
             if (probe != null && isData(name)) probe.invoke(head(), size)?.also { require(it in maxBytes) } else null
 
         companion object {
-            private val ARCHIVES = setOf("zip", "7z")
             /** How much of a file [probe] reads. */
             const val PROBE_BYTES = 512
         }
@@ -820,9 +816,6 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         val newest: Long get() = maxOf(modified, data.maxOfOrNull { it.modified } ?: 0, folder.maxOfOrNull { it.second.modified } ?: 0)
     }
 
-    /** An archive member: its normalized path, size, and CRC-32 when the archive records one. */
-    private class Member(val name: String, val size: Long, val crc: Long)
-
     /**
      * An image in an archive, with the members its bytes come from in order: itself, or a
      * descriptor's track data (empty when it is missing). A program also has its folder: the other
@@ -840,10 +833,17 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         fun missing() = context.getString(R.string.kairo_disk_track_data_missing_archive, name)
     }
 
-    /** A ZIP or 7z archive's members, read in place from its document. */
-    private abstract inner class Archive(private val document: ParcelFileDescriptor) : Closeable {
-        protected abstract fun members(checkCancelled: () -> Unit): List<Member>
-        abstract fun open(member: Member): InputStream
+    /** A ZIP or 7z archive's images, read in place through the shared reader. */
+    private inner class Archive(private val archive: DiskArchive) : Closeable {
+        /** The files the format reads: its images and their track data, or every file for a format that lists them all. */
+        private fun members(checkCancelled: () -> Unit): List<Member> = archive.members.filter { member ->
+            checkCancelled()
+            val name = DiskArchive.safeName(member.name)
+            format.listsEveryFile || format.isImage(name) || format.isData(name)
+        }
+
+        fun open(member: Member): InputStream = archive.open(member)
+
         /** A descriptor's track data among [byName]: its own-name file, else a CUE's FILE lines' files. */
         private fun trackData(sheet: Member, byName: Map<String, Member>): List<Member> {
             format.dataOf(sheet.name, byName)?.let { return listOf(it) }
@@ -852,13 +852,10 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
 
         /** Every file, of any kind, by its path in the archive, with its size. */
-        abstract fun allFiles(): Map<String, Long>
-        abstract fun openFile(name: String): InputStream
-        protected abstract fun closeReader()
+        fun allFiles(): Map<String, Long> = archive.members.associate { it.name to it.size }
+        fun openFile(name: String): InputStream = archive.open(name)
 
-        override fun close() {
-            try { closeReader() } finally { document.close() }
-        }
+        override fun close() = archive.close()
 
         /**
          * The archive's images, none for an archive of other files; a descriptor whose track data
@@ -896,93 +893,8 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         }
     }
 
-    /**
-     * Opens [source]'s archive where it is: the document's file descriptor is seekable, so the
-     * readers fetch only the bytes they need and nothing is copied.
-     */
-    private fun openArchive(source: Source): Archive {
-        require(source.size <= MAX_ARCHIVE_BYTES) { context.getString(R.string.kairo_disk_archive_too_large) }
-        val document = context.contentResolver.openFileDescriptor(source.uri, "r") ?: error("Unable to open archive")
-        try {
-            if (source.size >= 0) require(document.statSize == source.size) {
-                context.getString(R.string.kairo_disk_archive_changed)
-            }
-            val channel = FileInputStream(document.fileDescriptor).channel
-            // A provider that streams the document through a pipe cannot be read in place.
-            require(document.statSize >= 0 && runCatching { channel.position(0) }.isSuccess) {
-                context.getString(R.string.kairo_disk_archive_not_seekable)
-            }
-            return if (format.extension(source.path) == "7z") SevenZArchive(document, channel) else ZipArchive(document, channel)
-        } catch (error: Exception) {
-            document.close()
-            throw error
-        }
-    }
-
-    private inner class ZipArchive(document: ParcelFileDescriptor, channel: java.nio.channels.FileChannel) : Archive(document) {
-        private val zip = ZipFile.builder().setSeekableByteChannel(channel).get()
-        private val byName = HashMap<String, ZipArchiveEntry>()
-
-        override fun members(checkCancelled: () -> Unit): List<Member> {
-            val names = HashSet<String>()
-            val members = ArrayList<Member>()
-            var inspected = 0
-            for (item in zip.entries.asSequence()) {
-                checkCancelled()
-                require(++inspected <= MAX_ARCHIVE_ENTRIES) { context.getString(R.string.kairo_disk_archive_too_many_entries) }
-                val name = safeEntryName(item.name)
-                require(names.add(name.lowercase(Locale.ROOT))) { context.getString(R.string.kairo_disk_archive_duplicate) }
-                if (item.isDirectory || !(format.listsEveryFile || format.isImage(name) || format.isData(name))) continue
-                // No expansion-ratio cap: a disc's silent track deflates at about 1024:1, and what a
-                // member expands to is bounded by the media size limit as it is read (ContentHash, Kairo#139).
-                byName[item.name] = item
-                members.add(Member(item.name, item.size, item.crc))
-            }
-            return members
-        }
-
-        override fun open(member: Member): InputStream =
-            zip.getInputStream(byName[member.name] ?: error(context.getString(R.string.kairo_disk_member_missing, member.name)))
-
-        override fun allFiles() = zip.entries.asSequence().filter { !it.isDirectory }.associate { it.name to it.size }
-
-        override fun openFile(name: String): InputStream =
-            zip.getInputStream(zip.getEntry(name) ?: error(context.getString(R.string.kairo_disk_member_missing, name)))
-
-        override fun closeReader() = zip.close()
-    }
-
-    private inner class SevenZArchive(document: ParcelFileDescriptor, channel: java.nio.channels.FileChannel) : Archive(document) {
-        private val archive = SevenZFile.builder().setSeekableByteChannel(channel).get()
-        private val byName = HashMap<String, org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry>()
-
-        override fun members(checkCancelled: () -> Unit): List<Member> {
-            val names = HashSet<String>()
-            val members = ArrayList<Member>()
-            var inspected = 0
-            for (item in archive.entries) {
-                checkCancelled()
-                require(++inspected <= MAX_ARCHIVE_ENTRIES) { context.getString(R.string.kairo_disk_archive_too_many_entries) }
-                val name = safeEntryName(item.name)
-                require(names.add(name.lowercase(Locale.ROOT))) { context.getString(R.string.kairo_disk_archive_duplicate) }
-                if (item.isDirectory || !item.hasStream() ||
-                    !(format.listsEveryFile || format.isImage(name) || format.isData(name))) continue
-                byName[item.name] = item
-                members.add(Member(item.name, item.size, if (item.hasCrc) item.crcValue else -1))
-            }
-            return members
-        }
-
-        override fun open(member: Member): InputStream =
-            archive.getInputStream(byName[member.name] ?: error(context.getString(R.string.kairo_disk_member_missing, member.name)))
-
-        override fun allFiles() = archive.entries.filter { !it.isDirectory && it.hasStream() }.associate { it.name to it.size }
-
-        override fun openFile(name: String): InputStream =
-            archive.getInputStream(archive.entries.firstOrNull { it.name == name } ?: error(context.getString(R.string.kairo_disk_member_missing, name)))
-
-        override fun closeReader() = archive.close()
-    }
+    /** Opens [source]'s archive where it is (DiskArchive). */
+    private fun openArchive(source: Source): Archive = Archive(DiskArchive.open(context, source.uri, source.path, source.size))
 
     /** The content ID of a medium of [kind] whose bytes [input] reads: its track data for a descriptor. */
     private fun contentId(input: InputStream, expectedSize: Long, expectedCrc: Long, cancelled: AtomicBoolean,
@@ -1056,15 +968,6 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
         sameSource(old, Source(Uri.parse(item.uri), item.path, item.sourceSize, item.sourceModified)) &&
             old.imageSize == item.imageSize && old.imageCrc == item.imageCrc
 
-    private fun safeEntryName(name: String): String {
-        val normalized = name.replace('\\', '/').removeSuffix("/")
-        require(normalized.isNotBlank() && !normalized.startsWith('/') &&
-            normalized.length <= 4096 && normalized.split('/').none(String::isEmpty) &&
-            !normalized.contains(':') && !normalized.contains('\u0000') &&
-            normalized.split('/').none { it == ".." || it == "." }) { "Unsafe archive entry path" }
-        return normalized
-    }
-
     companion object {
         /**
          * The entry of [entries] whose working copy, named by [workingName] under [directory], is
@@ -1080,9 +983,7 @@ class DiskImageLibrary(private val context: Context, private val format: Format,
 
         private const val CACHE_LAYOUT = DiskImageCacheRecords.LAYOUT
         private const val MAX_DOCUMENTS = 50_000
-        private const val MAX_ARCHIVE_ENTRIES = 50_000
         private const val MAX_ARCHIVE_IMAGES = 1_000
-        private const val MAX_ARCHIVE_BYTES = 8L * 1024 * 1024 * 1024
         private const val MAX_STORE_BYTES = 16 * 1024 * 1024
         /** A working copy's kind in a [GamePathMigration.Conflict]. */
         private const val WORKING_COPY = "disk"
