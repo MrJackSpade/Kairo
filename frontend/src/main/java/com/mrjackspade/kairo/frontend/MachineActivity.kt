@@ -686,6 +686,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             "published" to status.published, "presented" to status.presented)
         mediaSlots.forEachIndexed { slot, media -> details["media.${text(media.label)}"] = mounted[slot]?.displayName ?: "" }
         currentGame?.let { game -> optionValues(game).forEach { (id, value) -> details["option.$id"] = value } }
+        // A product keeping its machine settings itself ([machineStore], KairoX86's 86box.cfg) reports them from there.
+        val entry = currentEntry
+        val store = machineStore
+        if (entry != null && store != null) for (setting in catalog.schema.settings.filterIsInstance<CatalogSetting.Choice>()) {
+            val option = machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option
+            details["option.${option.id}"] = store.read(entry, option) ?: option.default
+        }
         // What a tap on the game does, with Auto decided from the guest's input (TouchTests).
         if (currentGame != null) details["touch.mode"] = touchModeNow().name.lowercase()
         (bridge as? NativeMachine)?.startedSettings?.forEach { (name, value) -> details["machine.$name"] = value }
