@@ -210,11 +210,26 @@ class LibraryScreen<T : LibraryItem>(
      * just after the library appeared, while the search index was still resolving its rows, did
      * nothing. Rows scrolled into view later are bound with what is known then.
      */
+    private var redrawAfterLayout = false
+
     private fun redrawRows() {
-        // A data change (publishFilter) waits for its layout, which binds every row from the new
-        // items; until then the children are the old items' rows and a position may now be another
-        // kind of row (a header where a game was: a crash on Kairo88's state test).
-        if (list.isLayoutRequested) return
+        // While a layout is pending the children may be the old items' rows, and a position may now
+        // be another kind of row (a header where a game was: a crash on Kairo88's state test). The
+        // redraw waits for that layout: a ListView layout without a data change keeps the rows on
+        // screen as they are, unbound, so records that arrived meanwhile were never drawn and games
+        // stayed under their file names (Kairo#167).
+        if (list.isLayoutRequested) {
+            if (redrawAfterLayout) return
+            redrawAfterLayout = true
+            list.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    list.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    redrawAfterLayout = false
+                    redrawRows()
+                }
+            })
+            return
+        }
         for (child in 0 until list.childCount) {
             val position = list.firstVisiblePosition + child
             if (position >= adapter.count) break
