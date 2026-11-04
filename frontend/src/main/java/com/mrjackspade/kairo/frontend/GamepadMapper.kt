@@ -173,31 +173,32 @@ class GamepadMapper(private val router: InputRouter,
             return
         }
         activations.forEach { it(binding) }
-        if (binding.action != null) {
-            heldActions[owner] = binding.action
-            runAction(binding.action)
-            return
-        }
-        // Every part the binding names: its keys go with a joystick input, a mouse direction or a key
-        // cycle, as a D-pad sends its arrow keys whatever else a game gives it (Kairo#173).
-        val keys = ArrayList(binding.keys)
-        if (binding.cycleKeys.isNotEmpty()) {
-            val pair = checkNotNull(ControllerKeyCycles.pair(binding.input)) { "${binding.input} cannot cycle keys" }
-            val sequence = binding.cycleKeys
-            val group = "${pair.first}:${sequence.joinToString(",")}"
-            val previous = cycleIndex[group] ?: -1
-            val backwards = binding.input == pair.first
-            val next = if (backwards) {
-                if (previous < 0) sequence.lastIndex else (previous + sequence.size - 1) % sequence.size
-            } else (previous + 1) % sequence.size
-            cycleIndex[group] = next
-            keys += sequence[next]
-        }
-        binding.joystick?.let { joystick.hold(owner, it) }
-        if (keys.isNotEmpty()) router.hold(owner, keys)
-        if (binding.mouse != null) {
-            mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)
-            startMouseTick()
+        when {
+            binding.mouse != null -> {
+                mouse.hold(owner, binding.mouse, strength, binding.mouseSpeed)
+                startMouseTick()
+            }
+            binding.joystick != null -> {
+                joystick.hold(owner, binding.joystick)
+                if (binding.keys.isNotEmpty()) router.hold(owner, binding.keys)
+            }
+            binding.action != null -> {
+                heldActions[owner] = binding.action
+                runAction(binding.action)
+            }
+            binding.cycleKeys.isNotEmpty() -> {
+                val pair = ControllerKeyCycles.pair(binding.input) ?: return
+                val sequence = binding.cycleKeys
+                val group = "${pair.first}:${sequence.joinToString(",")}"
+                val previous = cycleIndex[group] ?: -1
+                val backwards = binding.input == pair.first
+                val next = if (backwards) {
+                    if (previous < 0) sequence.lastIndex else (previous + sequence.size - 1) % sequence.size
+                } else (previous + 1) % sequence.size
+                cycleIndex[group] = next
+                router.hold(owner, listOf(sequence[next]))
+            }
+            else -> router.hold(owner, binding.keys)
         }
     }
 

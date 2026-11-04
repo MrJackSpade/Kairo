@@ -7,36 +7,6 @@ class ControllerConfigurationTest {
     private fun device(left: Boolean, right: Boolean, external: Boolean = false, id: String = "pad") =
         ControllerCapabilities.Device(id, id, external, left, right)
 
-    /** Kairo#173: a game's layer may add to a D-pad direction, never take the arrow keys under it away. */
-    @Test fun aGamesLayerKeepsTheArrowKeysUnderItsDpad() {
-        val below = listOf(ControllerBinding("virtual:up", listOf(72), joystick = "up"),
-            ControllerBinding("virtual:down", listOf(80)), ControllerBinding("virtual:left", listOf(75)),
-            ControllerBinding("virtual:right", listOf(77)), ControllerBinding("virtual:a", listOf(28)))
-        val layer = listOf(ControllerBinding("virtual:up", mouse = "moveUp"),
-            ControllerBinding("virtual:down", joystick = "down"),
-            ControllerBinding("virtual:left", cycleKeys = listOf(2, 3)),
-            ControllerBinding("virtual:right", listOf(77, 4)),
-            ControllerBinding("virtual:a", listOf(57)))
-        val merged = ControllerDefaults.cascade(below, ControllerDefaults.keepArrowKeys(below, layer)).associateBy { it.input }
-        assertEquals(ControllerBinding("virtual:up", listOf(72), mouse = "moveUp"), merged["virtual:up"])
-        assertEquals(ControllerBinding("virtual:down", listOf(80), joystick = "down"), merged["virtual:down"])
-        assertEquals(ControllerBinding("virtual:left", listOf(75), cycleKeys = listOf(2, 3)), merged["virtual:left"])
-        assertEquals("an arrow key the game also sends is sent once", listOf(77, 4), merged["virtual:right"]!!.keys)
-        assertEquals("a button outside the D-pad is the game's", listOf(57), merged["virtual:a"]!!.keys)
-    }
-
-    @Test fun aDpadThePlayerLeftWithoutKeysGetsNoneFromAGame() {
-        val below = listOf(ControllerBinding("virtual:up", joystick = "up"))
-        val layer = listOf(ControllerBinding("virtual:up", mouse = "moveUp"))
-        assertEquals(layer, ControllerDefaults.keepArrowKeys(below, layer))
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun aShippedActionOnTheDpadFails() {
-        ControllerDefaults.keepArrowKeys(listOf(ControllerBinding("virtual:up", listOf(72))),
-            listOf(ControllerBinding("virtual:up", action = "menu")))
-    }
-
     @Test fun autoRequiresTwoSticksOnOneController() {
         assertEquals(ControllerLayout.WITHOUT_STICKS, ControllerCapabilities.detect(emptyList()).layout)
         assertEquals(ControllerLayout.WITHOUT_STICKS, ControllerCapabilities.detect(listOf(device(false, false))).layout)

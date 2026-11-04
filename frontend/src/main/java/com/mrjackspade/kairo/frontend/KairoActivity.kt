@@ -149,9 +149,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun clearGameBindings(game: GameKey)
     /** What [entry] plays with: the system's mapping, the player's global layer, the catalog's, the player's. */
     protected fun gameBindings(entry: E): List<ControllerBinding> = controllerFlow.gameBindings(entry)
-    private fun inheritedBindings(entry: E): List<ControllerBinding> = controllerFlow.global().let { global ->
-        ControllerDefaults.cascade(global, ControllerDefaults.keepArrowKeys(global, catalogControllerLayer(entry)))
-    }
+    private fun inheritedBindings(entry: E): List<ControllerBinding> =
+        ControllerDefaults.cascade(controllerFlow.global(), catalogControllerLayer(entry))
     /** Where [entry]'s bindings come from, as a source tag. */
     protected abstract fun controllerSource(entry: E): String
     /** A note on the Button mapping page, such as a fallback the catalog chose. */
