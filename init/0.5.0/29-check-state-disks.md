@@ -14,7 +14,7 @@ The machine has a drive, tape or cartridge slot whose medium the Disks page can 
 
 The shared check `stateDisks` (Kairo#116): with a slot's medium in, swap it (or eject it), save, swap back and load; the load puts the state's medium back, as `media_paths()` reports, and an eject right before a save leaves the save working. The check is written once, in the shared PC boot test ({{ref:boot-test}}); this ticket writes no test of its own. It gives {{app}}'s entries in `core/test/boot-tests.json` and makes them pass:
 
-- An entry for every slot that can change: each drive, the tape, the cartridge, the CD and the hard disk, with a multi-disk game from the test media where one exists.
+- An entry for every slot that can change: each drive, the tape, the cartridge, the CD and the hard disk, with a multi-disk game from the test media where one exists. A slot the running machine cannot empty (a hard disk some cores keep in for the whole run) says `"eject": false` and swaps to another medium.
 
 ## Passes when
 

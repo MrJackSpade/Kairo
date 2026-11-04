@@ -219,7 +219,8 @@ void type_commands(Session &session, const Test &test, const json::Value &spec) 
 // stateDisks (Kairo#116): with "drive"'s disk in at frame "at", swap to "swap" (or eject, ""), save,
 // swap back and load: the load puts the state's disk back, as media_paths() reports. And an eject
 // right before a save, as the Disks page does while the menu holds the machine (Kairo68#73), leaves
-// the save working.
+// the save working. A slot a running machine cannot empty (KairoMSX's hard disk) says "eject": false:
+// its "swap" is another medium, and the eject is not tried.
 void state_disks(Test &test, const json::Value &spec) {
     const int drive = static_cast<int>(spec.at("drive").integer());
     Session session(test.launch(), test.folder, test.name);
@@ -229,12 +230,16 @@ void state_disks(Test &test, const json::Value &spec) {
     if (static_cast<int>(before.size()) <= drive || before[static_cast<size_t>(drive)].empty())
         session.fail("drive " + std::to_string(drive) + " holds nothing to start with");
     const std::string original = before[static_cast<size_t>(drive)];
+    const json::Value *eject = spec.find("eject");
+    const bool ejects = !eject || eject->boolean();
+    if (!ejects && spec.at("swap").string().empty())
+        throw std::runtime_error(spec.at("swap").path() + ": with \"eject\": false the swap is another medium");
     const std::string swap = spec.at("swap").string().empty() ? "" : test.working_copy(spec.at("swap").string()).u8string();
-    if (const int result = core.media(drive, swap)) session.fail("swapping drive " + std::to_string(drive) + " returned " + std::to_string(result));
+    if (const int result = core.media(drive, swap)) session.fail("swapping drive " + std::to_string(drive) + " returned " + std::to_string(result) + ": " + core.error());
     session.run(10);
     const fs::path saved = test.folder / "state-disks";
     session.save_state(saved, "save_state after the swap");
-    if (const int result = core.media(drive, original)) session.fail("swapping back returned " + std::to_string(result));
+    if (const int result = core.media(drive, original)) session.fail("swapping back returned " + std::to_string(result) + ": " + core.error());
     session.run(10);
     session.load_state(saved);
     session.run(1);
@@ -242,8 +247,10 @@ void state_disks(Test &test, const json::Value &spec) {
     const std::string now = static_cast<int>(loaded.size()) > drive ? loaded[static_cast<size_t>(drive)] : "";
     if (now != swap) session.fail("after the load drive " + std::to_string(drive) + " holds \"" + now + "\", not the state's \"" + swap + "\"");
 
-    if (const int result = core.media(drive, "")) session.fail("ejecting drive " + std::to_string(drive) + " returned " + std::to_string(result));
-    session.save_state(test.folder / "state-after-eject", "a save right after an eject");
+    if (ejects) {
+        if (const int result = core.media(drive, "")) session.fail("ejecting drive " + std::to_string(drive) + " returned " + std::to_string(result) + ": " + core.error());
+        session.save_state(test.folder / "state-after-eject", "a save right after an eject");
+    }
     session.close();
 }
 
