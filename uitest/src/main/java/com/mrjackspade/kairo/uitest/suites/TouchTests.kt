@@ -160,12 +160,17 @@ abstract class TouchTests : KairoUiTest() {
         // Keys the game asks for first go in again every two seconds, as a player answers a prompt
         // that may not be up yet: one pressed before the guest reads it is lost.
         var nextKeys = 0L
-        driver.waitUntil("Auto to find $game reading the mouse") {
-            if (app.mouseGameKeys.isNotEmpty() && SystemClock.uptimeMillis() >= nextKeys) {
-                app.mouseGameKeys.forEach { driver.press(it, fromKeyboard = true) }
-                nextKeys = SystemClock.uptimeMillis() + 2000
+        try {
+            driver.waitUntil("Auto to find $game reading the mouse") {
+                if (app.mouseGameKeys.isNotEmpty() && SystemClock.uptimeMillis() >= nextKeys) {
+                    app.mouseGameKeys.forEach { driver.press(it, fromKeyboard = true) }
+                    nextKeys = SystemClock.uptimeMillis() + 2000
+                }
+                touchMode() == "mouse"
             }
-            touchMode() == "mouse"
+        } finally {
+            // What the core reported of the guest's input (its details), for a run that never decides.
+            driver.probe()
         }
         val surface = driver.find(By.id("game.surface"))
         val mark = driver.inputMark()
