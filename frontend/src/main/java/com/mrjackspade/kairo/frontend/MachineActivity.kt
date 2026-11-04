@@ -69,6 +69,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** The session's game started; the product may begin its own work, such as typing a command. */
     protected open fun gameStarted(entry: E, game: CatalogGame) {}
 
+    /**
+     * The on-screen keyboard for the keyboard the running machine names in its core's details
+     * ("keyboard", from its first frame), for a product whose machines have keyboards of their own;
+     * null keeps [keyboard] for every machine.
+     */
+    protected open val keyboardNamed: ((String) -> GuestKeyboardLayout)? = null
+
     // What most machines share: firmware, media drives, and machine options -----------------------
 
     /** The machine's choices, each a game setting and an all-games default in Machine. */
@@ -590,6 +597,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     if (atPrompt) selectedChoices = emptyList()
                     startAutomation(game, atPrompt)
                     gameStarted(entry, game)
+                    keyboardNamed?.let { followKeyboard(generation, it) }
                     keptMedia?.let { kept ->
                         keptMedia = null
                         restoreMedia(kept)
@@ -621,6 +629,28 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     /** Ends the session's loading once the machine shows a picture, or stops without one. */
+    /**
+     * Shows the keyboard the session's machine names once its first frame ran. The session waits
+     * for it on a thread of its own: the guest is paused while a launch prepares, so a launch that
+     * waited for a frame would never end (Kairo#155). A machine that stops first has nothing to
+     * name, and its end is [watchEnd]'s to report.
+     */
+    private fun followKeyboard(generation: Int, layoutFor: (String) -> GuestKeyboardLayout) {
+        Thread {
+            while (current(generation)) {
+                val status = MachineStatus(bridge.status())
+                if (!status.running) return@Thread
+                val name = status.core["keyboard"]
+                if (name != null) {
+                    val layout = layoutFor(name)
+                    runOnUiThread { if (current(generation)) useKeyboard(layout) }
+                    return@Thread
+                }
+                Thread.sleep(KEYBOARD_POLL_MILLIS)
+            }
+        }.apply { name = "${identity.appName}-keyboard"; start() }
+    }
+
     private fun awaitPicture(generation: Int) {
         handler.postDelayed({
             if (!current(generation) || currentEntry == null) return@postDelayed
@@ -1444,6 +1474,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         private const val EMPTY_DRIVE = GameDisks.EMPTY
         /** How often a loading session checks whether the machine shows a picture yet. */
         private const val PICTURE_POLL_MILLIS = 100L
+        private const val KEYBOARD_POLL_MILLIS = 20L
         /** How often the frontend checks on the startup typer. */
         private const val STARTUP_POLL_MILLIS = 100L
         /** How long a startup choice waits for its screen before the typer stalls on it. */
