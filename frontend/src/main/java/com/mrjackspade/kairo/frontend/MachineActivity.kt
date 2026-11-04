@@ -1469,12 +1469,16 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         if (!beginMediaChange()) return
         refreshSettingValues()
         Thread {
+            // The drive holds the disk the library names the prepared file as: a disk KairoX86
+            // unpacks from an archive becomes the machine's own (KairoX86#217).
+            var held = entry
             val failure = try {
                 val image = entry?.let { library.prepareMedia(it, AtomicBoolean(false)) { } }
                 check(bridge.media(slot, image?.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
+                if (image != null) held = library.entryForWorkingImage(image.absolutePath, libraryEntries) ?: entry
                 null
             } catch (error: Exception) { error.message ?: getString(R.string.kairo_media_change_failed) }
-            endMediaChange(slot, entry, failure == null)
+            endMediaChange(slot, held, failure == null)
             runOnUiThread {
                 toast(failure ?: getString(R.string.kairo_media_changed, text(mediaSlots[slot].label),
                     entry?.displayName ?: getString(R.string.kairo_empty)))
