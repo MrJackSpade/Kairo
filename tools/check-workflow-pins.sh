@@ -8,7 +8,7 @@ set -eu
 commit=${1:-HEAD}
 pinned=$(git rev-parse "$commit^{commit}:shared")
 status=0
-for file in .github/workflows/tag-builds.yml .github/workflows/play-release.yml .github/workflows/android.yml; do
+for file in .github/workflows/tag-builds.yml .github/workflows/play-release.yml .github/workflows/android.yml .github/workflows/uitest.yml; do
     calls=$(git show "$commit:$file" 2>/dev/null | grep 'MrJackSpade/Kairo/.github/workflows/' || true)
     [ -n "$calls" ] || continue
     if printf '%s\n' "$calls" | grep -vq "@$pinned\$"; then

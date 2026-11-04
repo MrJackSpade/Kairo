@@ -85,7 +85,7 @@ $adb = (Get-Command adb -CommandType Application | Select-Object -First 1).Sourc
 function Adb { $out = & $adb -s $Device @args 2>&1; if ($LASTEXITCODE -ne 0) { throw "adb $args failed: $out" }; $out }
 
 # The device must be there, and run an Android the apps support (their minSdk).
-$minSdk = [int]((Get-Content (Join-Path $PSScriptRoot '..\gradle\android-versions.properties') | Where-Object { $_ -match '^min_sdk=' }) -replace '^min_sdk=', '')
+$minSdk = [int]((Get-Content (Join-Path $PSScriptRoot '../gradle/android-versions.properties') | Where-Object { $_ -match '^min_sdk=' }) -replace '^min_sdk=', '')
 $sdk = [int]((Adb shell getprop ro.build.version.sdk) | Select-Object -First 1)
 if ($sdk -lt $minSdk) { throw "$Device runs Android API $sdk; the apps need API $minSdk or later" }
 
@@ -96,18 +96,20 @@ if (-not $SkipBuild) {
     if (-not $env:LOCAL_BUILD_TOKEN) { throw 'LOCAL_BUILD_TOKEN is not set: the UI test resources cannot be decrypted here' }
     Push-Location $root
     try {
-        & .\gradlew.bat ":${module}:assemble$variant" ":${module}:assemble${variant}AndroidTest" ":${module}:uiTestTools" --console=plain "-PkairoAbi=$abi"
+        # The wrapper for the platform: the CI runs this on Linux (Kairo#114).
+        $gradlew = if ($IsWindows) { '.\gradlew.bat' } else { './gradlew' }
+        & $gradlew ":${module}:assemble$variant" ":${module}:assemble${variant}AndroidTest" ":${module}:uiTestTools" --console=plain "-PkairoAbi=$abi"
         if ($LASTEXITCODE -ne 0) { throw 'The UI test build failed' }
     } finally { Pop-Location }
 }
 
-$outputs = Join-Path $root "$module\build\outputs\apk"
+$outputs = Join-Path $root "$module/build/outputs/apk"
 # The selected flavor's outputs exactly: an output folder left by an older layout of the build
 # (such as one without flavors) must never be installed instead.
-$appApk = Get-Item (Join-Path $outputs "$Flavor\uiTest\$module-$Flavor-uiTest.apk") -ErrorAction SilentlyContinue
-$testApk = Get-Item (Join-Path $outputs "androidTest\$Flavor\uiTest\$module-$Flavor-uiTest-androidTest.apk") -ErrorAction SilentlyContinue
+$appApk = Get-Item (Join-Path $outputs "$Flavor/uiTest/$module-$Flavor-uiTest.apk") -ErrorAction SilentlyContinue
+$testApk = Get-Item (Join-Path $outputs "androidTest/$Flavor/uiTest/$module-$Flavor-uiTest-androidTest.apk") -ErrorAction SilentlyContinue
 if (-not $appApk -or -not $testApk) { throw "Missing the $Flavor UI test APKs under $outputs; build them first (run without -SkipBuild)" }
-$tools = Get-ChildItem (Join-Path $root "$module\build\uitest-tools") -Filter '*.apk'
+$tools = Get-ChildItem (Join-Path $root "$module/build/uitest-tools") -Filter '*.apk'
 if (@($tools).Count -ne 2) { throw "Missing the orchestrator and test services APKs; run without -SkipBuild" }
 
 foreach ($apk in @($tools)) {
@@ -151,7 +153,7 @@ $command = 'CLASSPATH=$(pm path androidx.test.services) app_process / androidx.t
 $output = & $adb -s $Device shell $command 2>&1
 $output | Write-Output
 
-$local = Join-Path $root ".build\uitest\$runId"
+$local = Join-Path $root ".build/uitest/$runId"
 New-Item -ItemType Directory -Force $local | Out-Null
 $output | Set-Content -Encoding utf8 (Join-Path $local 'instrument.txt')
 Adb pull "/sdcard/googletest/test_outputfiles/$runId" $local | Out-Null
