@@ -27,8 +27,13 @@ if (-not $version) { throw 'release-version is empty' }
 $tag = "v$version"
 $registry = Get-Content (Join-Path $shared 'docs\templates\apps.json') -Raw | ConvertFrom-Json
 # Git for Windows' sh runs the shared shell checks; PowerShell has no sh of its own.
-$sh = Join-Path (Split-Path (Split-Path (Get-Command git.exe).Source)) 'bin\sh.exe'
-if (-not (Test-Path $sh)) { throw "Git's sh.exe was not found at $sh" }
+# git.exe may be Git's cmd\ or mingw64\bin\ copy, so its folders are walked up to the install's bin\sh.exe.
+$git = (Get-Command git.exe).Source
+$sh = $null
+for ($dir = Split-Path $git; $dir; $dir = Split-Path $dir) {
+    if (Test-Path (Join-Path $dir 'bin\sh.exe')) { $sh = Join-Path $dir 'bin\sh.exe'; break }
+}
+if (-not $sh) { throw "Git's sh.exe was not found in a folder above $git" }
 
 function Invoke-Git([string]$repo) {
     $output = & git.exe -C $repo @args 2>&1
