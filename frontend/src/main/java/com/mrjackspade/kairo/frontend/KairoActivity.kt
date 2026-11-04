@@ -1079,7 +1079,14 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     /** The session's game is now [entry], as when an installer's game replaces it. */
     protected fun replaceSessionEntry(entry: E) {
-        if (currentEntry != null) currentEntry = entry
+        if (currentEntry == null) return
+        currentEntry = entry
+        // What the session took from its entry follows the new one: an installer's settings moved
+        // to the game it installed, and the controls read the installer's emptied key (KairoDos#149).
+        touchStore.secondaryTouchpad(entry)?.let { setSecondaryInitialMode(it.custom() ?: it.fallback()) }
+        gamepadMapper.bindings = gameBindings(entry)
+        controllerRefreshed()
+        touchChanged()
     }
 
     private fun endSessionForLibrary(done: () -> Unit) {

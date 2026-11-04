@@ -173,11 +173,16 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
     }
 
     /** Read for every library entry, so it takes the field from the highest layer instead of merging records. */
-    fun setDisks(item: LibraryItem): List<String> {
+    fun setDisks(item: LibraryItem): List<String> = setDisks(item, withOverride = true)
+
+    /** The set the catalogs give [item], without the player's own. */
+    fun catalogSetDisks(item: LibraryItem): List<String> = setDisks(item, withOverride = false)
+
+    private fun setDisks(item: LibraryItem, withOverride: Boolean): List<String> {
         val contentId = matchId(item) ?: return emptyList()
         fun disks(record: JSONObject?) = record?.optJSONArray("setDisks")
         fun game(source: JSONObject?) = source?.optJSONObject("games")?.optJSONObject(contentId)
-        val array = disks(sources.override(item.key)) ?: disks(game(sources.additions()))
+        val array = (if (withOverride) disks(sources.override(item.key)) else null) ?: disks(game(sources.additions()))
             ?: sources.installed().asReversed().firstNotNullOfOrNull { disks(game(it.data)) }
             ?: disks(game(sources.shippedAdditional(shardPath(contentId))))
             ?: disks(updatedRecord(contentId)) ?: disks(game(shardFor(contentId))) ?: disks(game(base))

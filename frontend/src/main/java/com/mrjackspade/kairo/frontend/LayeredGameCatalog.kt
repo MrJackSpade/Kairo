@@ -287,6 +287,9 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     /** Read for every library entry, so it takes the field from the highest layer instead of merging records. */
     @Synchronized override fun setDisks(item: LibraryItem): List<String> = layers.setDisks(item)
 
+    /** The set the catalogs give [item], without the player's own: its disks stay on its Disks page. */
+    @Synchronized fun catalogSetDisks(item: LibraryItem): List<String> = layers.catalogSetDisks(item)
+
     @Synchronized fun updateOverrideSubfields(game: GameKey, field: String, changes: Map<String, Any?>) {
         require(field in objectFields) { "Unsupported setting" }
         if (changes.isEmpty()) return

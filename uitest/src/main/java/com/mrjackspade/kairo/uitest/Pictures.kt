@@ -90,6 +90,11 @@ class Pictures internal constructor(private val driver: Driver) {
 
     private fun captureGame(): Picture {
         driver.find(By.id("game.surface")).waitUntilShown()
+        // A surface no frame has reached yet has nothing to copy (PixelCopy's ERROR_SOURCE_NO_DATA):
+        // a booting game may publish many frames before the first is shown (KairoST#92).
+        driver.waitUntil("the game to show its first frame") {
+            checkNotNull(driver.probeNow().details["presented"]) { "The probe reports no presented frames" }.toLong() > 0
+        }
         val view = driver.onMain { driver.resolve(listOf(By.id("game.surface"))).last() as SurfaceView }
         return Picture(copy(view))
     }

@@ -299,7 +299,9 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
 
     /**
      * The game's disks as the player puts them together (Kairo#134): a switch for each disk of
-     * [entry]'s folder or archive, as the Drive rows offer, and any already in its set. The game
+     * [entry]'s folder or archive, as the Drive rows offer, and any in its set or the catalog's. A disk
+     * the catalog sets keeps its row when the player switches it off, so it can be switched on again
+     * (Kairo88#53). The game
      * starts from [entry]; the disks switched on are its `setDisks`, so they leave the library and
      * are its own disks in drives and disk swaps.
      */
@@ -308,7 +310,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         fun set() = catalog.setDisks(entry).toSet()
         fun candidates() = libraryEntries.filter { other ->
             val id = other.takeIf { it.playable && it.id != entry.id }?.let(catalog::matchId)
-            id != null && id != own && (isDisk(other) && sameSource(entry, other) || id in set())
+            id != null && id != own && (isDisk(other) && sameSource(entry, other) || id in set() ||
+                id in catalog.catalogSetDisks(entry))
         }.distinctBy(catalog::matchId)
         if (own != null && candidates().isEmpty()) return null
         val title = getString(R.string.kairo_game_disks)
