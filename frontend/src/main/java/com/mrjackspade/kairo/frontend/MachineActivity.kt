@@ -1382,7 +1382,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         return GameDisks.choice(this, text(mediaSlots[slot].label), { currentGame?.title }, {
             val current = currentEntry ?: return@choice emptyList()
             ownDisks(current, ::takes)
-        }, { libraryEntries.filter(::takes) }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) }) {
+        }, {
+            val current = currentEntry ?: return@choice emptyList()
+            otherDisks(current, ::takes)
+        }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) }) {
             listOfNotNull(SettingsRow.action("choose", getString(R.string.kairo_choose_file)) {
                 pickingMediaSlot = slot
                 DocumentPicker.open(this, MEDIA_FILE_REQUEST, failed = ::toast)
@@ -1401,6 +1404,13 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     protected open fun ownDisks(current: E, takes: (E) -> Boolean): List<E> =
         GameDisks.own(current, libraryEntries, mounted, catalog.setDisks(current).toSet(), catalog::matchId, takes)
+
+    /**
+     * The disks a drive's Other page offers, those [takes] accepts: by default every disk of the
+     * library. A product whose library entries are no disks, such as KairoX86's machine folders,
+     * gives the images it found.
+     */
+    protected open fun otherDisks(current: E, takes: (E) -> Boolean): List<E> = libraryEntries.filter(takes)
 
     /** What each drive holds now, by media slot. */
     protected fun mountedMedia(): List<E?> = mounted.toList()
