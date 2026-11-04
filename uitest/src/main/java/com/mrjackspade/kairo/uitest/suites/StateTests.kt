@@ -19,8 +19,13 @@ abstract class StateTests : KairoUiTest() {
         driver.waitFrames(SETTLE_FRAMES)
     }
 
-    /** Saves to [slot] from the game menu; returns the picture as it was saved (the menu pauses the game). */
-    private fun save(slot: Int): Picture {
+    /**
+     * Saves to [slot] from the game menu; returns the picture as it was saved (the menu pauses the
+     * game). With [still], first waits for the game's picture to hold still, so that the picture a
+     * load shows, a few frames on from the state, is still the saved one.
+     */
+    private fun save(slot: Int, still: Boolean = false): Picture {
+        if (still) driver.pictures.awaitStillGame(SETTLE_FRAMES)
         val menu = screens.openGameMenu()
         driver.waitForGame("Paused")
         val picture = driver.pictures.game("saved-slot$slot")
@@ -29,11 +34,18 @@ abstract class StateTests : KairoUiTest() {
     }
 
     /**
-     * Loads [slot] from the game menu; returns the picture as soon as the app says it loaded. The
+     * Loads [slot] from the game menu; returns the picture as soon as the window shows the load's. The
      * game runs on from the loaded state at once, so a game that animates moves on from it.
      */
     private fun load(slot: Int): Picture {
         screens.loadState(slot)
+        // The load's picture is handed to the presenter before the app says it loaded; the window
+        // shows it once the presenter has drawn it, which a slow emulator does well after that
+        // (KairoMSX#63). Every picture published by now has to be drawn.
+        val published = driver.probeNow().details.getValue("published").toLong()
+        driver.waitUntil("the loaded picture to be drawn") {
+            driver.probeNow().details["presented"]?.toLongOrNull()?.let { it >= published } == true
+        }
         val picture = driver.pictures.game("loaded-slot$slot")
         driver.waitForGame("Running")
         return picture
@@ -42,7 +54,7 @@ abstract class StateTests : KairoUiTest() {
     @Test
     fun aSavedStateLoadsBackToWhereItWasSaved() {
         play()
-        val saved = save(1)
+        val saved = save(1, still = true)
         driver.waitFrames(SETTLE_FRAMES * 3)
         val loaded = load(1)
         expect.equal("the game's error after loading", "", driver.probe().details["error"].orEmpty())
@@ -52,7 +64,7 @@ abstract class StateTests : KairoUiTest() {
     @Test
     fun eachSlotKeepsItsOwnState() {
         play()
-        val first = save(1)
+        val first = save(1, still = true)
         driver.waitFrames(SETTLE_FRAMES * 3)
         val second = save(2)
         val loaded = load(1)
@@ -64,7 +76,7 @@ abstract class StateTests : KairoUiTest() {
     @Test
     fun aStateOutlivesTheApp() {
         play()
-        val saved = save(1)
+        val saved = save(1, still = true)
         session.relaunch()
         screens.library.waitUntilShown().open(app.bootGame).play()
         val loaded = load(1)

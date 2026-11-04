@@ -676,13 +676,14 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     }
 
     /**
-     * Frames, error, each media slot by its label ("media.Drive 1"), each machine option as the
+     * Frames, error, the pictures published and the last one presented, each media slot by its label ("media.Drive 1"), each machine option as the
      * game's settings give it ("option.basic"), what the native machine started with
      * ("machine.basic"), and what the core reports of itself ("core.tape").
      */
     override fun probeDetails(): Map<String, String> {
         val status = MachineStatus(bridge.status())
-        val details = linkedMapOf("frames" to status.frames, "error" to status.error)
+        val details = linkedMapOf("frames" to status.frames, "error" to status.error,
+            "published" to status.published, "presented" to status.presented)
         mediaSlots.forEachIndexed { slot, media -> details["media.${text(media.label)}"] = mounted[slot]?.displayName ?: "" }
         currentGame?.let { game -> optionValues(game).forEach { (id, value) -> details["option.$id"] = value } }
         // What a tap on the game does, with Auto decided from the guest's input (TouchTests).

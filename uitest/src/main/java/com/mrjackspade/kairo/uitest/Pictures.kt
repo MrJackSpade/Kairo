@@ -72,6 +72,20 @@ class Pictures internal constructor(private val driver: Driver) {
         return logged(name, checkNotNull(picture))
     }
 
+    /**
+     * Waits, as [Patience] allows, for the game's picture to hold still: the same picture [frames]
+     * frames apart. A state saved on such a picture shows it again a few frames after its load (the
+     * game runs on from it at once), where one saved as a screen changes may not (KairoMSX#63).
+     */
+    fun awaitStillGame(frames: Long) {
+        var last = captureGame()
+        driver.waitUntil("the game's picture to hold still for $frames frames") {
+            driver.waitFrames(frames)
+            val now = captureGame()
+            (now.difference(last) == 0.0).also { last = now }
+        }
+    }
+
     private fun captureGame(): Picture {
         driver.find(By.id("game.surface")).waitUntilShown()
         val view = driver.onMain { driver.resolve(listOf(By.id("game.surface"))).last() as SurfaceView }

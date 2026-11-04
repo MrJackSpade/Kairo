@@ -200,13 +200,22 @@ public:
         return end_state_ + "|" + end_error_;
     }
 
-    // "<state>|<error>|<frames>|<audio>|<xruns>|<audio config>|<pictured>": state is
-    // Stopped, Starting, Running, Paused or Error; pictured is 1 once a frame that is
-    // not all black has been published.
+    // "<state>|<error>|<frames>|<audio>|<xruns>|<audio config>|<pictured>|<published>|<presented>|<details>":
+    // state is Stopped, Starting, Running, Paused or Error; pictured is 1 once a frame that is not all
+    // black has been published; published counts the pictures handed to the presenter, and presented
+    // is the number of the last one it drew to the window (a test that looks at the window after a
+    // change, such as a state's load, waits for presented to reach published).
     std::string status() {
+        uint64_t published;
+        {
+            std::lock_guard<std::mutex> guard(present_mutex_);
+            published = published_;
+        }
         std::lock_guard<std::mutex> guard(command_mutex_);
         return state_ + "|" + error_ + "|" + std::to_string(frames_) + "|" + audio_state_ + "|" +
-               std::to_string(xruns_) + "|" + audio_config_ + "|" + (pictured_ ? "1" : "0") + "|" + details_;
+               std::to_string(xruns_) + "|" + audio_config_ + "|" + (pictured_ ? "1" : "0") + "|" +
+               std::to_string(published) + "|" + std::to_string(presented_.load(std::memory_order_acquire)) + "|" +
+               details_;
     }
 
 private:
@@ -451,6 +460,7 @@ private:
             }
             pending_shape_ = shape;
             has_pending_ = true;
+            pending_number_ = ++published_;
         }
         present_ready_.notify_one();
         return replaced;
@@ -488,6 +498,7 @@ private:
             }
             pending_packet_ = std::move(packet);
             has_pending_ = true;
+            pending_number_ = ++published_;
         }
         present_ready_.notify_one();
         return replaced;
@@ -520,6 +531,8 @@ private:
         std::unique_ptr<GpuPicture::Packet> packet;
         // Whether the picture has had a packet to show.
         bool applied = false;
+        // The number of the last picture taken (publish), drawn once a presenter renders.
+        uint64_t number = 0;
         ANativeWindow *window = nullptr;
         unsigned window_generation = ~0u, shader_generation = ~0u;
         {
@@ -536,6 +549,7 @@ private:
                 });
                 if (present_stop_) break;
                 if (has_pending_) {
+                    number = pending_number_;
                     if (picture) packet = std::move(pending_packet_);
                     else {
                         frame.swap(pending_);
@@ -573,13 +587,13 @@ private:
                     spare_packets_.push_back(std::move(packet));
                 }
                 if (!window || !applied) continue;
-                if (shader.render(window, *picture)) continue;
-                plain.render(window, *picture);
+                if (!shader.render(window, *picture)) plain.render(window, *picture);
+                presented_.store(number, std::memory_order_release);
                 continue;
             }
             if (!window || frame.empty()) continue;
-            if (shader.render(window, frame.data(), shape)) continue;
-            plain.render(window, frame.data(), shape);
+            if (!shader.render(window, frame.data(), shape)) plain.render(window, frame.data(), shape);
+            presented_.store(number, std::memory_order_release);
         }
         shader.destroy();
         plain.destroy();
@@ -640,6 +654,10 @@ private:
     std::unique_ptr<GpuPicture::Packet> pending_packet_;
     std::vector<std::unique_ptr<GpuPicture::Packet>> spare_packets_;
     bool has_pending_ = false;
+    // Pictures published so far, and the number of the pending one (status).
+    uint64_t published_ = 0, pending_number_ = 0;
+    // The number of the last picture drawn to the window (present_loop).
+    std::atomic<uint64_t> presented_{0};
 };
 
 } // namespace kairo
