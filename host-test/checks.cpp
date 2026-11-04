@@ -346,12 +346,18 @@ bool pointer(MachineCore &core, int &x, int &y) {
 // ({"x", "y"} in frame pixels): mouse_warp there, wait for mouse_warp_done within "warpBy" frames,
 // and the guest's pointer is within "tolerance" pixels. At a point with "screens", a click then
 // shows one of them (what was there is selected). A guest that keeps a pointer of its own
-// ("ownPointer": true, Lemmings) is judged by those screens alone.
+// ("ownPointer": true, Lemmings) is judged by those screens alone; a click holds the button
+// "clickFrames" frames. A mouse program the guest is given
+// as "commands" (KairoMSX's BASIC line) is typed first, and "frames" count from its typing's end.
 void direct_tap(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
-    run_with_keys(session, spec, test.frames(spec, "frames"));
+    if (spec.find("commands")) type_commands(session, test, spec);
+    run_with_keys(session, spec, session.frames() + test.frames(spec, "frames"));
     const int tolerance = static_cast<int>(spec.at("tolerance").integer());
     const uint64_t warp_by = test.frames(spec, "warpBy");
+    // How long a click holds the button: "clickFrames", as the app holds a tap's click
+    // (KairoActivity.tapClickMillis, 700 ms unless the app sets its own), else 4 frames.
+    const uint64_t click_frames = spec.find("clickFrames") ? test.frames(spec, "clickFrames") : 4;
     for (const json::Value &point : spec.at("points").array()) {
         const int x = static_cast<int>(point.at("x").integer()), y = static_cast<int>(point.at("y").integer());
         session.core().mouse_warp(x, y);
@@ -371,7 +377,7 @@ void direct_tap(Test &test, const json::Value &spec) {
         }
         if (point.find("screens")) {
             session.core().mouse_button(1, true);
-            session.run(4);
+            session.run(click_frames);
             session.core().mouse_button(1, false);
             wait_for_screen(session, screens(point), test.frames(point, "selectedBy"), "the click to select what is there");
         }
