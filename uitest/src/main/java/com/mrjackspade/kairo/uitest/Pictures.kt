@@ -73,16 +73,18 @@ class Pictures internal constructor(private val driver: Driver) {
     }
 
     /**
-     * Waits, as [Patience] allows, for the game's picture to hold still: the same picture [frames]
-     * frames apart. A state saved on such a picture shows it again a few frames after its load (the
-     * game runs on from it at once), where one saved as a screen changes may not (KairoMSX#63).
+     * Waits, as [Patience] allows, for the game's picture to hold: two pictures [frames] frames apart
+     * differing by less than [tolerance] ([Picture.difference]). A state saved on such a picture shows
+     * it again a few frames after its load (the game runs on from it at once), where one saved as the
+     * whole screen changes may not (KairoMSX#63). A game that animates in place holds within the
+     * tolerance its pictures are compared with; asking for the very same picture never ends for it.
      */
-    fun awaitStillGame(frames: Long) {
+    fun awaitSteadyGame(frames: Long, tolerance: Double) {
         var last = captureGame()
-        driver.waitUntil("the game's picture to hold still for $frames frames") {
+        driver.waitUntil("the game's picture to hold for $frames frames") {
             driver.waitFrames(frames)
             val now = captureGame()
-            (now.difference(last) == 0.0).also { last = now }
+            (now.difference(last) < tolerance).also { last = now }
         }
     }
 

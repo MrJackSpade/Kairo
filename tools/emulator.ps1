@@ -48,12 +48,25 @@ if (-not $sdkRoot -or -not (Test-Path $sdkRoot)) { throw "ANDROID_HOME is not se
 $adb = Join-Path $sdkRoot 'platform-tools\adb.exe'
 $emulator = Join-Path $sdkRoot 'emulator\emulator.exe'
 
+# The emulator's own processes on -Port, by their command line: the one adb lists, and any adb lost
+# track of (Kairo#171: a second instance started beside one adb briefly did not list).
+function Get-EmulatorProcess {
+    Get-CimInstance Win32_Process -Filter "Name LIKE 'qemu-system-%'" |
+        Where-Object { $_.CommandLine -match "(^|\s)-port\s+$Port(\s|$)" }
+}
+
 if ($Stop) {
-    & $adb -s $serial emu kill
-    if ($LASTEXITCODE -ne 0) { throw "No emulator answered on $serial" }
-    # emu kill returns at once; a start right after must not find the old one still listed.
+    # Its processes end directly: its console can stop answering (Kairo#171), and a -read-only
+    # emulator holds nothing to save.
+    $found = @(Get-EmulatorProcess)
+    if ($found.Count -eq 0) { throw "No emulator runs on port $Port" }
+    foreach ($process in $found) {
+        Stop-Process -Id $process.ProcessId -Force
+        Wait-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
+    }
+    # A start right after must not find the old one still listed.
     while ((& $adb devices) -match "^$serial\s") { Start-Sleep -Milliseconds 500 }
-    Write-Output "stopped $serial"
+    Write-Output "stopped $serial ($($found.Count) process(es))"
     exit 0
 }
 
@@ -99,6 +112,12 @@ if ($running) {
     if ($sdk -ne "$Api") { throw "$serial is already running API $sdk, not $Api; stop it first (-Stop)" }
     Write-Output $serial
     exit 0
+}
+
+# An emulator that holds the port while adb does not list it is not to be started beside (Kairo#171).
+$stray = @(Get-EmulatorProcess)
+if ($stray.Count -gt 0) {
+    throw "An emulator already runs on port $Port (process $($stray.ProcessId -join ', ')) but adb does not list $serial; stop it first (-Stop)"
 }
 
 $log = Join-Path ([IO.Path]::GetTempPath()) "kairo-emulator-$Port.log"

@@ -13,6 +13,9 @@ import org.junit.Test
  * keeps its own, a used slot shows it, and states outlive the app. (KairoDos has no states: its
  * subclass leaves this suite out.)
  */
+/** How far a loaded state's picture may differ from the saved one: the game runs on a few frames. */
+private const val PICTURE_TOLERANCE = 0.1
+
 abstract class StateTests : KairoUiTest() {
     private fun play() {
         screens.completeFirstRun().open(app.bootGame).play()
@@ -21,11 +24,11 @@ abstract class StateTests : KairoUiTest() {
 
     /**
      * Saves to [slot] from the game menu; returns the picture as it was saved (the menu pauses the
-     * game). With [still], first waits for the game's picture to hold still, so that the picture a
-     * load shows, a few frames on from the state, is still the saved one.
+     * game). With [still], first waits for the game's picture to hold (within the tolerance a load's
+     * picture is compared with), so that the picture a load shows, a few frames on, is still the saved one.
      */
     private fun save(slot: Int, still: Boolean = false): Picture {
-        if (still) driver.pictures.awaitStillGame(SETTLE_FRAMES)
+        if (still) driver.pictures.awaitSteadyGame(SETTLE_FRAMES, PICTURE_TOLERANCE)
         val menu = screens.openGameMenu()
         driver.waitForGame("Paused")
         val picture = driver.pictures.game("saved-slot$slot")
@@ -58,7 +61,7 @@ abstract class StateTests : KairoUiTest() {
         driver.waitFrames(SETTLE_FRAMES * 3)
         val loaded = load(1)
         expect.equal("the game's error after loading", "", driver.probe().details["error"].orEmpty())
-        expect.that("the loaded picture is the saved one", loaded.difference(saved) < 0.1) { "difference ${loaded.difference(saved)}" }
+        expect.that("the loaded picture is the saved one", loaded.difference(saved) < PICTURE_TOLERANCE) { "difference ${loaded.difference(saved)}" }
     }
 
     @Test
@@ -80,7 +83,7 @@ abstract class StateTests : KairoUiTest() {
         session.relaunch()
         screens.library.waitUntilShown().open(app.bootGame).play()
         val loaded = load(1)
-        expect.that("the state saved before the app closed loads", loaded.difference(saved) < 0.1) { "difference ${loaded.difference(saved)}" }
+        expect.that("the state saved before the app closed loads", loaded.difference(saved) < PICTURE_TOLERANCE) { "difference ${loaded.difference(saved)}" }
     }
 
     /** Starts the app's multi-disk game and returns the drive its disk swap uses. */

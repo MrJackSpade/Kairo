@@ -2,7 +2,7 @@
 
 Every Kairo app has device tests in the style of Selenium tests: the app names its elements, the
 tests select them by those names, act on them as a player would, and assert what the player would
-see. They run on a real device, in a build that installs beside any other copy of the app.
+see. They run on a real device or the API 26 emulator, in a build that installs beside any other copy of the app.
 
 ## Structure
 
@@ -187,6 +187,26 @@ shared\tools\uitest-all.ps1 -Device <serial> -Apps Kairo88,KairoMSX -Filter 'Sta
 
 It takes `-Filter`, `-PatienceSeconds` and `-SkipBuild` as above, `-Apps` to choose apps
 by repository name, and `-Workspace` for a folder of repositories other than the one around this app.
+
+### The emulator, in CI, and the tests that need a device
+
+`-Emulator` (on `uitest.ps1` and `uitest-all.ps1`) runs the tests on the Android emulator of the apps'
+`minSdk`, API 26, instead of a device: `tools/emulator.ps1` creates the AVD (the google_apis x86_64
+image, the RP6's 1920x1080 landscape screen, a hardware keyboard, SwiftShader's GL), boots it headless
+and gives its serial, and the app and its tests build for x86_64. `uitest-all.ps1 -Emulator` stops the
+emulator after each app's suite, so every app runs on a fresh one (Kairo#171).
+
+CI runs the same suites through the shared workflow `.github/workflows/app-uitest.yml`, which each app
+calls from its `uitest.yml` (a manual run, with an optional `filter`); the app's `LOCAL_BUILD_TOKEN`
+secret decrypts the resources, and the run's logs are kept as its artifact.
+
+Every test runs on the emulator except these, which need a real device and skip themselves on the
+emulator (`Assume`), so a device run still covers them:
+
+| Test | Needs | Why |
+| --- | --- | --- |
+| `LibraryTests#onTwoScreensSearchIsTypedOnTheLowerScreen` | the RG DS | The library's lower screen: it skips with "this device has one screen". |
+| `LibraryTests#onTwoScreensTheLowerScreenShowsTheGameThenItsSettings` | the RG DS | The same. |
 
 ### The test classes
 

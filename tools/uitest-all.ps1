@@ -62,6 +62,12 @@ foreach ($name in $names) {
     # Each app's own runner, in its own process, so one app's failure cannot stop the others.
     & pwsh -NoProfile -File (Join-Path $repo 'shared\tools\uitest.ps1') @arguments
     $results[$name] = if ($LASTEXITCODE -eq 0) { 'passed' } else { 'FAILED' }
+    # Each app's suite on an emulator of its own: one left running across every app's suite grew to
+    # 86 GB over a night and starved the PC (Kairo#171).
+    if ($Emulator) {
+        $stopArguments = @{ Stop = $true }
+        & (Join-Path $shared 'tools\emulator.ps1') @stopArguments
+    }
 }
 
 Write-Output ''
