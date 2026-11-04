@@ -263,14 +263,10 @@ def validate_system(system):
                 len(set(inputs)) == len(inputs), f"invalid system controller {name}")
         require(not any("unbound" in b or set(b) == {"input"} for b in mapping),
                 f"the system definition's {name} ship an explicit null")
-    # The D-pad always sends the arrow keys, whatever else it sends (a joystick, a mouse); a layer
-    # may add to a direction, never take its keys away.
+    # The D-pad's default is the arrow keys: what a game binds to it replaces them (cascade).
     base = {b["input"]: b for b in bindings}
     require(all(direction in base and base[direction].get("keys") for direction in DPAD),
             "the system definition's D-pad does not send the arrow keys")
-    for name, layer in layers.items():
-        require(all(set(base[b["input"]]["keys"]) <= set(b.get("keys", [])) for b in layer if b["input"] in DPAD),
-                f"the system definition's {name} takes the arrow keys from the D-pad")
 
 
 def system_v1(system):
