@@ -31,7 +31,6 @@ abstract class MediaTests : KairoUiTest() {
     private val drive get() = MediaDrive(driver, screens, swap.slot, swap.page)
     private fun openChoice(): Element = drive.openChoice()
     private fun pick(choices: Element, disk: By) = drive.pick(choices, disk)
-    private fun rows(page: Element): Element = drive.rows(page)
     private fun diskWith(part: String) = MediaDrive.diskWith(part)
     private fun disk(file: String) = MediaDrive.disk(file)
     private fun media(): List<String> = drive.allMedia()
@@ -124,7 +123,7 @@ abstract class MediaTests : KairoUiTest() {
         driver.log.step("timing", "choice $choiceMillis ms, Other $otherMillis ms with $FILLER_DISKS filler disks")
         expect.that("the drive's choice opens promptly", choiceMillis < PROMPT_MILLIS) { "$choiceMillis ms" }
         expect.that("Other opens promptly with $FILLER_DISKS more disks", otherMillis < PROMPT_MILLIS) { "$otherMillis ms" }
-        other.find(diskWith(swap.insert)).revealIn(rows(other)).tap()
+        other.find(diskWith(swap.insert)).revealIn(other.choiceRows()).tap()
         awaitDrive(swap.insert) { it.contains(swap.insert) }
         screens.closeMenu()
         expectRunning()

@@ -64,7 +64,9 @@ object Views {
     fun dump(): String = buildString {
         for (root in WindowRoots.all()) {
             append("window ").append(root.javaClass.simpleName).append(" on display ")
-                .append(root.display?.displayId).append('\n')
+                .append(root.display?.displayId)
+                // The window that takes the controller's keys has input focus.
+                .append(if (root.hasWindowFocus()) ", input focus" else "").append('\n')
             fun visit(view: View, depth: Int) {
                 append("  ".repeat(depth + 1)).append(describe(view)).append(' ')
                     .append(boundsInWindow(view).toShortString())

@@ -31,6 +31,10 @@ abstract class LaunchTests : KairoUiTest() {
             screens.controllerLayout.exists() || driver.probeNow().state == "Running"
         }
         if (screens.controllerLayout.exists()) screens.answerControllerLayout()
+        app.launchBeforeSetupMessage?.let { message ->
+            driver.waitUntil("the app to say \"$message\"") { driver.visibleTexts().any { message in it } }
+            return
+        }
         if (app.bootGameNeedsFirmware) {
             driver.waitUntil("the app to ask for the firmware the game needs") {
                 driver.visibleTexts().any(app::isFirmwarePrompt)

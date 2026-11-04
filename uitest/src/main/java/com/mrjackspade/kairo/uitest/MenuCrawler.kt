@@ -75,6 +75,8 @@ class MenuCrawler(
             val switched = element.keyNow()
             element.tap()
             driver.idle()
+            // A page the tap opened is off screen until it slides in, and so not yet the top page.
+            driver.awaitPagesSettled()
             report.items += where
             val top = topPage()
             when {
@@ -95,7 +97,11 @@ class MenuCrawler(
         while (topPage() != page) {
             // The page may be hidden under the one on top, so ask the stack rather than the screen.
             check(page in driver.openPages()) { "The crawl lost its way: $page is no longer open (on top: ${topPage()})" }
+            val before = topPage()
             driver.press(KeyEvent.KEYCODE_BUTTON_B)
+            // The page closes as it slides away: one B at a time, or a slow close takes several.
+            driver.waitUntil("B to close $before") { topPage() != before }
+            driver.awaitPagesSettled()
             presses++
             check(presses <= 20) { "B did not return to $page" }
         }

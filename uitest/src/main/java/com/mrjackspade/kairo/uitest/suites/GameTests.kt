@@ -7,6 +7,9 @@ import org.junit.Test
 /** Frames to let a game run before judging its picture, about two seconds. */
 internal const val SETTLE_FRAMES = 120L
 
+/** How long a game must go without loading before its load counts as done (ControllerTests' fast-forward). */
+internal const val LOADED_QUIET_MILLIS = 3000L
+
 /** Playing a game, in every app: it starts and draws, and exits. */
 abstract class GameTests : KairoUiTest() {
     @Test

@@ -69,6 +69,9 @@ class Element internal constructor(private val driver: Driver, private val path:
     /** The text it shows itself now, without waiting; null when it is not on screen. */
     fun textNow(): String? = driver.onMain { current()?.let(Views::ownText) }
 
+    /** Whether the view shows the focus a controller moves (TestAttributes.focused); false when absent. */
+    fun focusedNow(): Boolean = driver.onMain { current()?.let(TestAttributes::focused) == true }
+
     /** Its navigation id as a focusable item (TestAttributes.item); fails for a view that is not one. */
     fun itemId(): String = withView { view -> checkNotNull(TestAttributes.item(view)) { "$description is not a focusable item" } }
 
@@ -79,7 +82,7 @@ class Element internal constructor(private val driver: Driver, private val path:
     fun tap(): Element {
         waitUntilShown()
         // A page still sliding in or out can take the touch meant for this view.
-        driver.waitUntil("the pages to settle") { !driver.find(By.id("pages").withKey("moving")).exists() }
+        driver.awaitPagesSettled()
         // A player closes the on-screen keyboard to touch anything but a text field; it may cover the view.
         if (!driver.onMain { current() is android.widget.EditText }) driver.closeKeyboard()
         if (!driver.onMain { current()?.let(Views::tappable) == true }) {
@@ -175,6 +178,14 @@ class Element internal constructor(private val driver: Driver, private val path:
      * views only for the rows on screen: scrolls from the top, a screen at a time, until it is
      * there; fails at the end of the list.
      */
+    /** The rows of this choice page: a recycled list on a long page, a scroll view on a short one. */
+    fun choiceRows(): Element {
+        val list = find(By.id("page.list"))
+        val scroll = find(By.id("page.scroll"))
+        driver.waitUntil("the rows of $description") { list.exists() || scroll.exists() }
+        return if (list.exists()) list else scroll
+    }
+
     fun revealIn(container: Element): Element {
         if (exists()) return this
         driver.log.step("scroll", "$description in ${container.description}")

@@ -144,8 +144,15 @@ abstract class ControllerTests : KairoUiTest() {
         target.waitUntilGone()
         screens.closeMenu()
         // A game that still loads already runs flat out (MachineCore::booting), so fast-forward
-        // shows only once its load is done.
-        driver.waitUntil("the game to finish loading") { driver.probeNow().details["core.loading"] != "1" }
+        // shows only once its load is done: one that reads its disk now and then between loads (a
+        // DOS booting from a floppy) has done so once it has not loaded for a while.
+        var quietSince = 0L
+        driver.waitUntil("the game to finish loading") {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (driver.probeNow().details["core.loading"] == "1") quietSince = 0L
+            else if (quietSince == 0L) quietSince = now
+            quietSince != 0L && now - quietSince >= LOADED_QUIET_MILLIS
+        }
         val normal = frameRate(2000)
         val fast = frameRate(2000, KeyEvent.KEYCODE_BUTTON_R1)
         driver.log.step("measure", "%.1f frames a second normally, %.1f with R1 held".format(normal, fast))
@@ -162,8 +169,11 @@ abstract class ControllerTests : KairoUiTest() {
         driver.press(KeyEvent.KEYCODE_BUTTON_B)
         driver.page("flyout").waitUntilGone()
         expect.that("B closes the library menu", !driver.page("flyout").exists())
-        library.open(app.bootGame)
-        driver.press(KeyEvent.KEYCODE_BUTTON_A) // Play is focused on a playable game's page.
+        val game = library.open(app.bootGame)
+        // Play takes the focus as a playable game's page settles; a player presses A once it shows.
+        val play = game.page.find(By.item("play"))
+        driver.waitUntil("Play to be focused") { play.focusedNow() }
+        driver.press(KeyEvent.KEYCODE_BUTTON_A)
         driver.waitForGame("Running")
         expect.equal("the game A started", app.runningTitle, driver.probe().title)
     }

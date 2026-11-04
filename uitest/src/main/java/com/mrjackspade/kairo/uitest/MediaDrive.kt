@@ -24,7 +24,7 @@ class MediaDrive(private val driver: Driver, private val screens: Screens, val s
         else {
             choices.find(By.item("f:other")).tap()
             val other = driver.page("Other").waitUntilShown()
-            other.find(disk).revealIn(rows(other)).tap()
+            other.find(disk).revealIn(other.choiceRows()).tap()
         }
         driver.waitUntil("the disk choice to close") { !driver.page(slot).exists() && !driver.page("Other").exists() }
     }
@@ -33,14 +33,6 @@ class MediaDrive(private val driver: Driver, private val screens: Screens, val s
     fun eject(choices: Element) {
         choices.find(By.item("o:empty")).tap()
         choices.waitUntilGone()
-    }
-
-    /** The rows of a choice [page]: a recycled list on a long page, a scroll view on a short one. */
-    fun rows(page: Element): Element {
-        val list = page.find(By.id("page.list"))
-        val scroll = page.find(By.id("page.scroll"))
-        driver.waitUntil("the rows of ${page.description}") { list.exists() || scroll.exists() }
-        return if (list.exists()) list else scroll
     }
 
     /** What the drive holds, as the app shows it (the probe's media.<slot>); empty when nothing. */

@@ -61,17 +61,20 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
 
     /**
      * Imports the test resources' [bios] folder from a BIOS page's folder row, and waits until the
-     * import has finished: a BIOS file is installed, every required one is, and the folder row no
-     * longer shows it working. Until then the page refuses to move on, which an app whose BIOS
-     * files are all optional would otherwise not wait for.
+     * import has finished: a BIOS file is installed (or every set shows the test BIOS's files in
+     * it), every required one is, and the folder row no longer shows it working. Until then the
+     * page refuses to move on, which an app whose BIOS files are all optional would otherwise not
+     * wait for.
      */
     fun importBiosFolder(page: Element, bios: String = checkNotNull(app.biosResource) { "${app.name}'s tests have no BIOS files" }) {
         val folderRow = page.find(By.id("firmware-folder"))
         documents.answerFolder(documents.folder(bios)) { folderRow.tap() }
         fun installed(file: AppUnderTest.BiosFile) = biosRow(page, file.file).find(By.id("value")).textNow() == "Installed"
+        fun installed(set: AppUnderTest.BiosSet) =
+            page.find(By.id("firmware${set.index}-files")).find(By.id("value")).textNow()?.startsWith("${set.installed} of ") == true
         driver.waitUntil("the BIOS import from $bios to finish") {
-            app.biosFiles.any(::installed) && app.biosFiles.filter { it.required }.all(::installed) &&
-                !folderRow.find(By.id("busy")).exists()
+            val some = app.biosFiles.any(::installed) || (app.biosSets.isNotEmpty() && app.biosSets.all(::installed))
+            some && app.biosFiles.filter { it.required }.all(::installed) && !folderRow.find(By.id("busy")).exists()
         }
     }
 
@@ -142,7 +145,8 @@ class Screens(val driver: Driver, val app: AppUnderTest, val documents: TestDocu
         // gives ("All games: 512 KB"), so the pick changes what the game gets.
         val defaultRow = choices.find(By.item("o:default"))
         val defaultValue = if (defaultRow.exists()) defaultRow.find(By.id("description")).textNow()?.substringAfter(": ") else null
-        val picked = option?.let { choices.find(By.item("o:$it")) }
+        // A long list is recycled: the named option may be scrolled out of it.
+        val picked = option?.let { choices.find(By.item("o:$it")).revealIn(choices.choiceRows()) }
             ?: choices.find(By.anyItem()).all().first {
                 it.key() == "false" && it.itemId().startsWith("o:") && it.itemId() != "o:default" &&
                     it.find(By.id("label")).textNow() != defaultValue
@@ -296,7 +300,8 @@ class Library(private val driver: Driver, private val app: AppUnderTest) {
 
 /** A game's page: its picture and description, Play, and Game settings. */
 class GamePage(private val driver: Driver, private val app: AppUnderTest, private val game: String?) {
-    val page = driver.page("Game")
+    // The game screen's: a two-screen device's lower screen opens the game's page a moment before it.
+    val page = driver.find(By.mainPage("Game"))
 
     /** Starts the game and waits until it runs, answering the notice its start shows as a player does. */
     fun play() {
@@ -311,7 +316,9 @@ class GamePage(private val driver: Driver, private val app: AppUnderTest, privat
      */
     fun openSettings(): Element {
         val settings = driver.page("Game settings")
-        if (!settings.exists()) page.find(By.id("settings")).tap()
+        // A two-screen device's lower screen shows them a moment after the game opens, and hides the
+        // page's button then: its button may be on screen for that moment, so never race it.
+        if (!twoScreens) page.find(By.id("settings")).tap()
         return settings.waitUntilShown()
     }
 
@@ -320,10 +327,18 @@ class GamePage(private val driver: Driver, private val app: AppUnderTest, privat
      * game's page: on a two-screen device too, where its Game settings button is on the lower screen.
      */
     fun openSettingsAbove(): Element {
-        if (!settingsBeside) return openSettings()
+        if (!twoScreens) return openSettings()
+        // The page takes the controller once it has slid in, as a player sees it there.
+        driver.awaitPagesSettled()
         driver.press(android.view.KeyEvent.KEYCODE_BUTTON_MODE)
         return driver.find(By.mainPage("Game settings")).waitUntilShown()
     }
+
+    /**
+     * Whether the app shows its lower screen, where a game's settings go beside its page: known at
+     * once, unlike [settingsBeside], which is false until they arrive there.
+     */
+    private val twoScreens: Boolean get() = driver.find(By.id("secondary.library")).exists()
 
     /** Whether the game's settings are on a two-screen device's lower screen, beside its page. */
     val settingsBeside: Boolean get() = driver.find(By.id("secondary.library")).find(By.page("Game settings")).exists()

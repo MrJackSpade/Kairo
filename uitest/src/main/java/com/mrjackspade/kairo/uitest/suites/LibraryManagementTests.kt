@@ -75,6 +75,7 @@ abstract class SettingsTests : KairoUiTest() {
     fun aMachineDefaultAppliesToGames() {
         val option = app.defaultOption
         org.junit.Assume.assumeTrue("${app.name} has no machine option to change", option != null)
+        org.junit.Assume.assumeTrue("${app.name} keeps machine settings per game, with no all-games defaults", app.machineDefaults)
         val library = screens.completeFirstRun().waitForGame(app.bootGame)
         val picked = screens.choose(screens.openMachinePage(), "default-$option")
         screens.closeMenu()

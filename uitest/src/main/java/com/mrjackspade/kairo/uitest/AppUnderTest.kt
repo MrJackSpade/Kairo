@@ -25,6 +25,12 @@ abstract class AppUnderTest {
     open val biosFiles: List<BiosFile> = emptyList()
 
     /**
+     * Every firmware set the page shows as one row ("N of M files installed", a whole collection
+     * such as 86Box's), with how many of its files the test resources' [biosResource] install.
+     */
+    open val biosSets: List<BiosSet> = emptyList()
+
+    /**
      * Whether [bootGame] needs firmware of the player's, so a launch before setup asks for it instead
      * of starting. By default, when any firmware is required; an app whose required firmware is for
      * other machines than the boot game's (KairoMSX: its real machines, the game on the bundled
@@ -38,6 +44,12 @@ abstract class AppUnderTest {
      * says which.
      */
     open fun isFirmwarePrompt(text: String): Boolean = text.startsWith("Launch failed: Import the") && "firmware" in text
+
+    /**
+     * What a frontend's launch of [bootGameFile] says before setup, for an app whose games are folders
+     * a launched file cannot reach on its own (KairoX86's machines); null when such a launch starts the game.
+     */
+    open val launchBeforeSetupMessage: String? = null
 
     /** The test resources' folder of BIOS files; null when the tests use none, as with a built-in BIOS. */
     open val biosResource: String? = "bios"
@@ -62,8 +74,11 @@ abstract class AppUnderTest {
     /** [bootGame]'s file in the test resources, such as "games/Acrojet.zip", for launches from a frontend. */
     abstract val bootGameFile: String
 
-    /** [bootGameFile] below the games folder, as library entry keys name it (Library.entryFrom). */
-    val bootGameEntryFile: String get() = bootGameFile.substringAfter('/')
+    /**
+     * [bootGameFile] below the games folder, as library entry keys name it (Library.entryFrom); an
+     * app whose entry is the folder holding that file (KairoX86's machine folders) names the folder.
+     */
+    open val bootGameEntryFile: String get() = bootGameFile.substringAfter('/')
 
     /**
      * A game that reads the guest's mouse, and one played with the keyboard or a pad, for Auto touch
@@ -93,6 +108,12 @@ abstract class AppUnderTest {
      * [bootGame]'s catalog record leaves alone; null for an app without such options.
      */
     open val defaultOption: String? = null
+
+    /**
+     * Whether the Machine page holds an all-games default of each machine option (default-<option>);
+     * false for an app whose machine settings are each game's own only (KairoX86: its folders' 86box.cfg).
+     */
+    open val machineDefaults: Boolean = true
 
     /** Games whose disks, dumps and other releases must show as exactly one library entry each. */
     open val singleEntryGames: List<String> = emptyList()
@@ -142,4 +163,6 @@ abstract class AppUnderTest {
     class CdDrive(val game: String, val slot: String, val page: String = "f-media")
 
     class BiosFile(val file: String, val required: Boolean)
+    /** A set of [index] on the firmware page (its row firmware<index>-files), [installed] of its files from the test BIOS. */
+    class BiosSet(val index: Int, val installed: Int)
 }

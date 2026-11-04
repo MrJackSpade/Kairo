@@ -117,14 +117,45 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
 
     // Touch -----------------------------------------------------------------------------------
 
-    /** Where a tap on [view] lands: its display and its centre on that display. Main thread only. */
-    internal class TapPoint(val display: Int, val x: Int, val y: Int)
+    /**
+     * Where a tap on [view] lands: its display and its centre on that display, and the touches its
+     * window had received before it ([touches], [before]). Main thread only.
+     */
+    internal class TapPoint(val display: Int, val x: Int, val y: Int, val touches: TouchCount, val before: Int)
 
     internal fun tapPoint(view: View): TapPoint {
         val origin = IntArray(2)
         view.getLocationOnScreen(origin)
+        val touches = touchCount(view)
         return TapPoint(checkNotNull(view.display) { "${Views.describe(view)} is on no display" }.displayId,
-            origin[0] + view.width / 2, origin[1] + view.height / 2)
+            origin[0] + view.width / 2, origin[1] + view.height / 2, touches, touches.ends)
+    }
+
+    /**
+     * Counts the touches an activity's window receives: `input tap` returns before the app has the
+     * touch, so a tap waits for its own end to arrive, or the next step would see the screen as it
+     * was before the tap (a page it opened not there yet).
+     */
+    internal class TouchCount(private val original: android.view.Window.Callback) : android.view.Window.Callback by original {
+        @Volatile var ends = 0
+            private set
+
+        override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+            val handled = original.dispatchTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) ends++
+            return handled
+        }
+    }
+
+    /** The [TouchCount] of [view]'s window, installed on its activity the first time. Main thread only. */
+    private fun touchCount(view: View): TouchCount {
+        val registry = ActivityLifecycleMonitorRegistry.getInstance()
+        val activity = listOf(Stage.RESUMED, Stage.PAUSED, Stage.STARTED, Stage.STOPPED).asSequence()
+            .flatMap { registry.getActivitiesInStage(it).asSequence() }
+            .firstOrNull { it.window.decorView === view.rootView }
+            ?: error("${Views.describe(view)} is in no activity's window, so a tap on it cannot be followed")
+        val window = activity.window
+        return window.callback as? TouchCount ?: TouchCount(window.callback).also { window.callback = it }
     }
 
     /**
@@ -143,6 +174,7 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
         // A tap prints nothing; anything printed is input's error or usage, and the tap was lost.
         val printed = shell(command).trim()
         check(printed.isEmpty()) { "$command failed: $printed" }
+        waitUntil("the tap to reach its window") { point.touches.ends > point.before }
     }
 
     /** What a shell command (as the shell user) prints. Not on the main thread. */
@@ -150,6 +182,9 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
         val output = instrumentation.uiAutomation.executeShellCommand(command)
         return android.os.ParcelFileDescriptor.AutoCloseInputStream(output).use { it.readBytes() }.decodeToString()
     }
+
+    /** Waits until no page is sliding in or out: one opening starts off screen, not yet shown. */
+    fun awaitPagesSettled() = waitUntil("the pages to settle") { !find(By.id("pages").withKey("moving")).exists() }
 
     /** Whether the on-screen keyboard is open, on any screen. */
     fun keyboardShown(): Boolean = shell("dumpsys input_method").contains("mInputShown=true")
@@ -179,7 +214,9 @@ class Driver(val instrumentation: Instrumentation, val log: TestLog) {
      * focus, as the device's controller (or keyboard, for [fromKeyboard]) would.
      */
     fun press(keyCode: Int, holdMillis: Long = 80, fromKeyboard: Boolean = false) {
-        log.step("key", KeyEvent.keyCodeToString(keyCode), mapOf("holdMillis" to holdMillis))
+        // The display whose window takes the key: the one with input focus.
+        val focus = onMain { WindowRoots.attached().filter { it.hasWindowFocus() }.map { it.display?.displayId } }
+        log.step("key", KeyEvent.keyCodeToString(keyCode), mapOf("holdMillis" to holdMillis, "focus" to focus.joinToString()))
         val source = if (fromKeyboard) InputDevice.SOURCE_KEYBOARD else InputDevice.SOURCE_GAMEPAD
         val device = if (fromKeyboard) KeyEvent.KEYCODE_UNKNOWN else gamepad?.id ?: KeyEvent.KEYCODE_UNKNOWN
         val down = SystemClock.uptimeMillis()
