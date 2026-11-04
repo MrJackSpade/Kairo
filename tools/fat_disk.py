@@ -1,9 +1,10 @@
 """FAT disks for the PC boot test: empty hard disk images for its hardDisk check (Kairo#123), an MBR
 with one FAT16 partition over the whole disk, which a machine's own DOS mounts as a drive (EmuTOS on
-an ST, Nextor on an MSX's Sunrise IDE); and a file added to an existing FAT12 or FAT16 volume, such
-as a test program on a DOS disk (Kairo98's mouse program).
+an ST, Nextor on an MSX's Sunrise IDE); an empty 1232 KB 2HD floppy (KairoTowns' mouse program
+disk); and a file added to an existing FAT12 or FAT16 volume, such as a test program on a DOS disk
+(Kairo98's mouse program).
 
-    from fat_disk import mbr_fat16, add_file
+    from fat_disk import mbr_fat16, floppy_2hd, add_file
     image = mbr_fat16(16)
     add_file(image_bytearray, volume_offset, "MOUSE98.COM", program)
 """
@@ -76,6 +77,32 @@ def add_file(image, volume, name, data):
     record[26:28] = struct.pack("<H", free[0])
     record[28:32] = struct.pack("<I", len(data))
     image[slot:slot + 32] = record
+
+
+def floppy_2hd():
+    """An empty 1232 KB 2HD floppy as FM Towns and PC-98 DOS format one: 77 cylinders, 2 heads, 8
+    sectors of 1024 bytes, FAT12 with 1 sector a cluster, 1 reserved, 2 FATs of 2 sectors, 192 root
+    entries, media FEh."""
+    bps, per_cluster, reserved, fats, roots, total, fat_sectors = 1024, 1, 1, 2, 192, 1232, 2
+    image = bytearray(total * bps)
+    boot = image
+    boot[0:3] = bytes([0xEB, 0x3C, 0x90])
+    boot[3:11] = b"KAIRO   "
+    boot[11:13] = bps.to_bytes(2, "little")
+    boot[13] = per_cluster
+    boot[14:16] = reserved.to_bytes(2, "little")
+    boot[16] = fats
+    boot[17:19] = roots.to_bytes(2, "little")
+    boot[19:21] = total.to_bytes(2, "little")
+    boot[21] = 0xFE
+    boot[22:24] = fat_sectors.to_bytes(2, "little")
+    boot[24:26] = (8).to_bytes(2, "little")
+    boot[26:28] = (2).to_bytes(2, "little")
+    boot[510:512] = bytes([0x55, 0xAA])
+    for fat in range(fats):
+        at = (reserved + fat * fat_sectors) * bps
+        image[at:at + 3] = bytes([0xFE, 0xFF, 0xFF])
+    return image
 
 
 def mbr_fat16(megabytes):
