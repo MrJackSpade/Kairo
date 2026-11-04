@@ -18,7 +18,7 @@ private const val PICTURE_TOLERANCE = 0.1
 
 abstract class StateTests : KairoUiTest() {
     private fun play() {
-        screens.completeFirstRun().open(app.bootGame).play()
+        screens.completeFirstRun().open(app.stateGame).play()
         driver.waitFrames(SETTLE_FRAMES)
     }
 
@@ -81,7 +81,7 @@ abstract class StateTests : KairoUiTest() {
         play()
         val saved = save(1, still = true)
         session.relaunch()
-        screens.library.waitUntilShown().open(app.bootGame).play()
+        screens.library.waitUntilShown().open(app.stateGame).play()
         val loaded = load(1)
         expect.that("the state saved before the app closed loads", loaded.difference(saved) < PICTURE_TOLERANCE) { "difference ${loaded.difference(saved)}" }
     }

@@ -88,6 +88,13 @@ abstract class AppUnderTest {
     open val keyboardGame: String? = null
 
     /**
+     * The game the state tests save and load: one whose picture holds still a while after it starts,
+     * as a state is saved on a still picture to be found again after its load. The boot game, unless
+     * it never holds (KairoST's Goal! runs on into an intro that moves all over the screen).
+     */
+    open val stateGame: String get() = bootGame
+
+    /**
      * Keys [mouseGame] waits for before it reads the mouse, as Android key codes from a keyboard,
      * such as a language choice (KairoMSX's Shoot That Flying Windows!: 1 for English).
      */
