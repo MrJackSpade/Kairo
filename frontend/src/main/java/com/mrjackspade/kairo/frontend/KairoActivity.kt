@@ -1097,6 +1097,16 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         applyPauseState()
     }
 
+    /**
+     * A launch's preparation ended before its start (MachineActivity's settings made first): what
+     * comes next, a question or the start, shows itself.
+     */
+    protected fun endPreparation() {
+        transitioning = false
+        gameOrientation.launchFailed()
+        applyPauseState()
+    }
+
     /** A launch that did not start; [message] says why. */
     protected fun launchFailed(message: String) {
         transitioning = false

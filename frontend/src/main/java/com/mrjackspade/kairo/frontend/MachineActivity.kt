@@ -459,6 +459,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             askOption(entry, option) { launch(entry, fromFrontend) }
             return
         }
+        // Settings the store makes when first needed are made first, off the UI thread (KairoX86#227).
+        machineStore?.takeIf { !it.ready(entry) }?.let { store ->
+            prepareSettings(entry, store) { launch(entry, fromFrontend) }
+            return
+        }
         // A choice its other choices no longer allow is asked again before the machine starts (Kairo#143).
         machineStore?.let { store ->
             if (unfit(entry, store) != null) {
@@ -481,6 +486,31 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         }
         if (choices.isNotEmpty() && !skipStartupChoices) chooseStartupOptions(entry, game, choices, 0, emptyList(), fromFrontend)
         else startWithChoices(entry, game, emptyList(), fromFrontend)
+    }
+
+    /**
+     * Makes [entry]'s machine settings in [store] ([GameMachineStore.prepare]) on a thread, the launch's
+     * progress showing what it does, then [then]; a failure fails the launch with why.
+     */
+    private fun prepareSettings(entry: E, store: GameMachineStore<E>, then: () -> Unit) {
+        val generation = beginLaunch(getString(R.string.kairo_launch_preparing, entry.displayName))
+        val cancelled = AtomicBoolean(false)
+        Thread {
+            val failure = try {
+                store.prepare(entry, cancelled) { message -> runOnUiThread { if (current(generation)) showProgress(message) } }
+                check(store.ready(entry)) { "${entry.displayName}'s settings were not made" }
+                null
+            } catch (error: Exception) {
+                if (error is MissingDisk) text(error.text) else error.message ?: error.javaClass.simpleName
+            }
+            runOnUiThread {
+                if (!current(generation)) return@runOnUiThread
+                if (failure == null) {
+                    endPreparation()
+                    then()
+                } else launchFailed(failure)
+            }
+        }.apply { name = "${identity.appName}-prepare"; start() }
     }
 
     /** The first option with a question that [entry], a game no catalog knows, has no answer to. */
@@ -744,13 +774,16 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun machineGroup(entry: E, enabled: () -> Boolean): RowGroup? {
         val scope = { titleOf(entry) }
         val noHash = { GameSettingsRows.noHash(this) }
+        // A store's settings it makes when first needed show once they are made (KairoX86#227)
+        val store = machineStore
+        val unmade = store != null && !store.ready(entry)
         val rows = catalog.schema.settings.filter { setting -> entry.contentId?.let(setting.appliesTo) ?: true }
             .mapNotNull { setting ->
                 when (setting) {
-                    is CatalogSetting.Choice -> {
+                    is CatalogSetting.Choice -> if (unmade) null else {
                         // The app's own option, which may offer more than the catalog's (such as importing a file).
                         val option = machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option
-                        machineStore?.let { storedChoiceRow(entry, option, it, enabled) }
+                        store?.let { storedChoiceRow(entry, option, it, enabled) }
                             ?: GameSettingsRows.choice(this, option.id, text(option.label), scope, { option.choices },
                                 machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
                                     { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES,
