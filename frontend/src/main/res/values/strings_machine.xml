@@ -46,6 +46,7 @@
     <string name="kairo_touch_tap_keyboard_help">Tap opens the %1$s keyboard</string>
     <string name="kairo_touch_direct_explanation">Direct tap lands on the touched point in games that move the cursor one pixel per mouse count and stop it at the screen’s top-left edge.</string>
     <string name="kairo_touch_group">TOUCH SCREEN</string>
+    <string name="kairo_mouse_group">MOUSE</string>
     <string name="kairo_touch_screen_tap">Screen tap</string>
     <string name="kairo_touch_mouse_touch">Mouse touch</string>
     <string name="kairo_touch_touchpad">Touchpad</string>

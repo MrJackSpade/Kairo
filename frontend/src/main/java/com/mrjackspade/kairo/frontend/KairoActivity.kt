@@ -77,6 +77,14 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun sendJoystick(control: Int, down: Boolean)
     protected abstract fun sendMouseMove(dx: Int, dy: Int)
     protected abstract fun sendMouseButton(button: Int, down: Boolean)
+    /**
+     * Whether the guest's mouse has a middle button (button 3) and a wheel, which a Bluetooth or USB
+     * mouse's then drive (PhysicalMouse); the machines' own mice mostly have neither.
+     */
+    protected open val mouseHasMiddleButton: Boolean = false
+    protected open val mouseHasWheel: Boolean = false
+    /** Wheel notches, positive toward the player (down); only for a guest whose mouse [mouseHasWheel]. */
+    protected open fun sendMouseWheel(notches: Int): Unit = error("This guest's mouse has no wheel")
     /** The guest's keyboard and mouse reads for Auto touch mode, as [InputModeDecider.GuestInput.fromNative] takes them. */
     protected open fun inputTelemetry(): LongArray? = null
     /** The frame size the keyboard's touchpad tab, which every app has, scales its movement to. */
@@ -340,6 +348,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private fun recordedJoystick(control: Int, down: Boolean) { guestInput.joystick(control, down); sendJoystick(control, down) }
     private fun recordedMove(dx: Int, dy: Int) { guestInput.move(dx, dy); sendMouseMove(dx, dy) }
     private fun recordedButton(button: Int, down: Boolean) { guestInput.button(button, down); sendMouseButton(button, down) }
+    private fun recordedWheel(notches: Int) { guestInput.wheel(notches); sendMouseWheel(notches) }
     protected val inputRouter by lazy { InputRouter(::recordedKey, maxKeyCode, keyboard.lockCodes) }
 
     /**
@@ -368,6 +377,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     }
     protected val joystickRouter by lazy { JoystickInputRouter(::recordedJoystick, joystickControls) }
     protected val mouseRouter by lazy { MouseInputRouter(::recordedMove, ::recordedButton, tapClickMillis) }
+    private val physicalMouse by lazy {
+        PhysicalMouse(this, mouseRouter, preferences, mouseHasMiddleButton, if (mouseHasWheel) ::recordedWheel else null)
+    }
     protected val gamepadMapper by lazy {
         GamepadMapper(inputRouter, joystickRouter, mouseRouter, ::controllerAction, ::controllerActionReleased,
             emptyList())
@@ -391,7 +403,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected open val automationOwners: Set<String> = emptySet()
     protected open fun cancelAutomation() {}
     private val controllerDevices by lazy {
-        ControllerDeviceMonitor(this, inputDispatch::releaseDevice) {
+        ControllerDeviceMonitor(this, { device -> inputDispatch.releaseDevice(device); physicalMouse.releaseDevice(device) }) {
             controllerProfiles.configuration.devicesChanged()
             if (::onScreenControls.isInitialized) onScreenControls.devicesChanged()
             if (currentEntry == null) gamepadMapper.bindings = controllerFlow.global()
@@ -619,7 +631,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { controllerFlow.deadZone }, { controllerFlow.deadZone = it },
             controllerSpec, { bindingsCodec.toJson(it) }, controllerProfiles.configuration,
             { releaseInputs(); controllerFlow.refresh(null) }, ::controllerMappingStatus, ::titleOf, ::controllerSource,
-            onScreenControls, touchSettingsCoordinator) { releaseInputs() }
+            onScreenControls, touchSettingsCoordinator, physicalMouse) { releaseInputs() }
         val libraryPage = LibraryScreen(this, catalog, identity.strings, pages,
             ::chooseRomFolder, { preferences.getString("last_played_entry", null) },
             { launchFromLibrary(it, false) }, ::showDetailPreview, ::showGameDetails, ::showLibrarySelection,
@@ -748,8 +760,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         screen = newScreen()
         root.setOnTouchListener { _, event ->
             !libraryVisible && !menuOpen &&
-                touchUi.handleKeyboardTouch(event,
-                    inputModeDecider.resolve(configuredInputMode()) == InputModeDecider.Mode.KEYBOARD)
+                touchUi.handleKeyboardTouch(event, tapOpensKeyboard())
         }
         val (width, height) = videoSize()
         root.addView(screen, FrameLayout.LayoutParams(width, height, Gravity.CENTER))
@@ -766,6 +777,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         root.addView(swappedKeyboardPanel, FrameLayout.LayoutParams(-1, -1))
 
         overlay = GameOverlay(this)
+        // A notice's buttons need the Android cursor.
+        overlay.noticeChanged = ::updatePhysicalMouse
         root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
         pages = PageStack(this, root)
         pages.menuKey = { if (libraryVisible) libraryScreen.menuKey() else closeMenu() }
@@ -793,6 +806,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
         setContentView(root)
         screen.requestFocus()
+        physicalMouse.attach(screen)
     }
 
     private fun newScreen() = SurfaceView(this).apply {
@@ -814,6 +828,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         root.removeView(old)
         screen = newScreen()
         root.addView(screen, index, params)
+        physicalMouse.attach(screen)
         updateViewport()
     }
 
@@ -948,6 +963,16 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 showingGuest, ::secondaryKeyboard.isInitialized && secondaryKeyboard.swapped)
             else onScreenControls.refreshVisibility(false)
         }
+        guestShown = showingGuest
+        updatePhysicalMouse()
+    }
+
+    /** Whether the guest is on screen, as [applyPauseState] last found it. */
+    private var guestShown = false
+
+    /** A Bluetooth or USB mouse is the guest's while the guest is on screen with no notice asking for a choice. */
+    private fun updatePhysicalMouse() {
+        if (::screen.isInitialized && ::overlay.isInitialized) physicalMouse.update(guestShown && !overlay.takesInput)
     }
 
     private fun chooseRomFolder() = libraryFlow.chooseFolder()
@@ -1163,6 +1188,18 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
 
     protected fun showKeyboard() { touchUi.showKeyboard() }
 
+    /**
+     * Whether a Bluetooth or USB keyboard is connected: a tap then leaves the touch keyboard closed,
+     * which the menu and the edge swipe still open (Kairo#176).
+     */
+    private fun hardwareKeyboard() = resources.configuration.let {
+        it.keyboard == Configuration.KEYBOARD_QWERTY && it.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO
+    }
+
+    /** A tap on the game opens the touch keyboard: Keyboard touch mode, with no keyboard connected. */
+    private fun tapOpensKeyboard() = !hardwareKeyboard() &&
+        inputModeDecider.resolve(configuredInputMode()) == InputModeDecider.Mode.KEYBOARD
+
     protected fun hideKeyboard() { touchUi.hideKeyboard() }
 
     /**
@@ -1291,9 +1328,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** A screen touch drives the guest mouse in Mouse mode, and opens the keyboard otherwise. */
     private fun handleScreenTouch(event: MotionEvent, width: Int, height: Int): Boolean {
         if (libraryVisible || menuOpen) return false
-        if (touchUi.handleKeyboardTouch(event,
-                inputModeDecider.resolve(configuredInputMode()) == InputModeDecider.Mode.KEYBOARD))
-            return true
+        if (touchUi.handleKeyboardTouch(event, tapOpensKeyboard())) return true
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             // With the keyboard on the second screen, the main screen touch is always the mouse.
             mouseTouchActive = (::secondaryKeyboard.isInitialized && secondaryKeyboard.isKeyboardVisible) ||
@@ -1302,7 +1337,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         if (mouseTouchActive) {
             handleMouseTouch(event, width, height)
             if (event.actionMasked == MotionEvent.ACTION_UP) hideKeyboard()
-        } else if (event.actionMasked == MotionEvent.ACTION_UP) showKeyboard()
+        } else if (event.actionMasked == MotionEvent.ACTION_UP && !hardwareKeyboard()) showKeyboard()
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL)
             mouseTouchActive = false
         return true
@@ -1522,6 +1557,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         super.onWindowFocusChanged(hasFocus)
         if (relocating) return
         guestLifecycle.onWindowFocusChanged(hasFocus)
+        if (::screen.isInitialized) physicalMouse.windowFocusChanged(hasFocus)
     }
 
     override fun onDestroy() {

@@ -15,12 +15,12 @@ class MouseInputRouter(private val move: (Int, Int) -> Unit,
     }
     private data class Held(val target: String, val strength: Float, val speed: Float)
     private val owners = HashMap<String, Held>()
-    private val buttonCounts = IntArray(2)
+    private val buttonCounts = IntArray(3)
     private var remainderX = 0f
     private var remainderY = 0f
 
     @Synchronized fun hold(owner: String, target: String, strength: Float = 1f, speed: Float = 1f) {
-        require(target in TARGETS)
+        require(target in TARGETS || target == MIDDLE_BUTTON)
         val value = strength.coerceIn(0f, 1f)
         require(speed.isFinite() && speed in MIN_SPEED..MAX_SPEED)
         val prior = owners[owner]
@@ -79,12 +79,15 @@ class MouseInputRouter(private val move: (Int, Int) -> Unit,
     private fun buttonIndex(target: String): Int? = when (target) {
         "leftButton" -> 0
         "rightButton" -> 1
+        MIDDLE_BUTTON -> 2
         else -> null
     }
 
     companion object {
         val TARGETS = listOf("moveUp", "moveDown", "moveLeft", "moveRight",
             "leftButton", "rightButton")
+        /** A Bluetooth or USB mouse's middle button, for a guest mouse with one (PhysicalMouse); no binding names it. */
+        const val MIDDLE_BUTTON = "middleButton"
         private const val COUNTS_PER_SECOND = 480f
         const val MIN_SPEED = 0.1f
         const val MAX_SPEED = 20f

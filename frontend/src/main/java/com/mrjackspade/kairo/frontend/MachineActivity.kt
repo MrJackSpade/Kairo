@@ -123,6 +123,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun sendJoystick(control: Int, down: Boolean) = bridge.joystick(control, down)
     override fun sendMouseMove(dx: Int, dy: Int) = bridge.mouseMove(dx, dy)
     override fun sendMouseButton(button: Int, down: Boolean) = bridge.mouseButton(button, down)
+    override fun sendMouseWheel(notches: Int) = bridge.mouseWheel(notches)
     /** The point in [videoSize] terms goes to the core as a fraction of the picture, which the view shows whole. */
     override fun warpMouse(x: Int, y: Int) {
         val (width, height) = videoSize()

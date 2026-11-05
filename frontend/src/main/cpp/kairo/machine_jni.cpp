@@ -90,6 +90,7 @@ public:
     void joystick(int control, bool down) override { core_->joystick(control, down); }
     void mouse_move(int dx, int dy) override { core_->mouse_move(dx, dy); }
     void mouse_button(int button, bool down) override { core_->mouse_button(button, down); }
+    void mouse_wheel(int notches) override { core_->mouse_wheel(notches); }
     void mouse_warp(int x, int y) override { core_->mouse_warp(x, y); }
     bool mouse_warp_done() override { return core_->mouse_warp_done(); }
     int locks() override { return core_->locks(); }
@@ -248,8 +249,12 @@ extern "C" JNIEXPORT jboolean JNICALL NATIVE_MACHINE(nativeMouseWarpDone)(JNIEnv
 }
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMouseButton)(JNIEnv *, jobject, jint button, jboolean down) {
-    if (button != 1 && button != 2) return;
+    // NativeMachine.mouseButton checks the button.
     machine.post([button, down](kairo::MachineCore &core) { core.mouse_button(button, down == JNI_TRUE); });
+}
+
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMouseWheel)(JNIEnv *, jobject, jint notches) {
+    machine.post([notches](kairo::MachineCore &core) { core.mouse_wheel(notches); });
 }
 
 extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeMedia)(JNIEnv *env, jobject, jint slot, jstring path) {

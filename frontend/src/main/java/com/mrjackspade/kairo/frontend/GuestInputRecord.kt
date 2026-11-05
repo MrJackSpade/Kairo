@@ -7,13 +7,14 @@ package com.mrjackspade.kairo.frontend
  */
 class GuestInputRecord {
     /**
-     * One input: [kind] is "key", "joystick", "move" or "button"; [code] the key, control or button;
+     * One input: [kind] is "key", "joystick", "move", "button" or "wheel"; [code] the key, control, button or wheel notches;
      * [at] when it was sent to the guest (SystemClock.uptimeMillis).
      */
     class Event(val sequence: Long, val kind: String, val code: Int, val down: Boolean, val dx: Int = 0, val dy: Int = 0,
                 val at: Long = android.os.SystemClock.uptimeMillis()) {
         override fun toString() = when (kind) {
             "move" -> "#$sequence move $dx,$dy"
+            "wheel" -> "#$sequence wheel $code"
             else -> "#$sequence $kind $code ${if (down) "down" else "up"}"
         }
     }
@@ -36,6 +37,8 @@ class GuestInputRecord {
     @Synchronized fun move(dx: Int, dy: Int) = add(Event(next++, "move", 0, false, dx, dy))
 
     @Synchronized fun button(button: Int, down: Boolean) = add(Event(next++, "button", button, down))
+
+    @Synchronized fun wheel(notches: Int) = add(Event(next++, "wheel", notches, false))
 
     /** The sequence number of the newest event; 0 before any. */
     @get:Synchronized val latest: Long get() = next - 1

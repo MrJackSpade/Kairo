@@ -25,9 +25,11 @@ interface MachineBridge {
     fun reset()
     fun key(code: Int, down: Boolean)
     fun joystick(control: Int, down: Boolean)
-    /** Relative guest mouse movement, and button 1 (left) or 2 (right). */
+    /** Relative guest mouse movement, and button 1 (left), 2 (right) or 3 (middle, for a mouse with one). */
     fun mouseMove(dx: Int, dy: Int)
     fun mouseButton(button: Int, down: Boolean)
+    /** Wheel notches, positive toward the player (down), for a machine whose mouse has a wheel. */
+    fun mouseWheel(notches: Int): Unit = error("This machine's mouse has no wheel")
     /**
      * Direct touch: the guest's pointer to the point ([x], [y]) in 1/65536ths of the picture's width and
      * height, for a machine whose catalog sets directTouch.

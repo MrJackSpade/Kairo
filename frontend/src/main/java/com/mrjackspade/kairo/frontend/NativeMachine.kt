@@ -38,7 +38,11 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     override fun key(code: Int, down: Boolean) = nativeKey(code, down)
     override fun joystick(control: Int, down: Boolean) = nativeJoystick(control, down)
     override fun mouseMove(dx: Int, dy: Int) = nativeMouseMove(dx, dy)
-    override fun mouseButton(button: Int, down: Boolean) = nativeMouseButton(button, down)
+    override fun mouseButton(button: Int, down: Boolean) {
+        require(button in 1..3) { "No mouse button $button" }
+        nativeMouseButton(button, down)
+    }
+    override fun mouseWheel(notches: Int) = nativeMouseWheel(notches)
     override fun warpMouse(x: Int, y: Int) = nativeMouseWarp(x, y)
     override fun mouseWarpDone(): Boolean = nativeMouseWarpDone()
     override fun saveState(directory: String) = nativeSaveState(directory)
@@ -96,6 +100,7 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeJoystick(control: Int, down: Boolean)
     private external fun nativeMouseMove(dx: Int, dy: Int)
     private external fun nativeMouseButton(button: Int, down: Boolean)
+    private external fun nativeMouseWheel(notches: Int)
     private external fun nativeMouseWarp(x: Int, y: Int)
     private external fun nativeMouseWarpDone(): Boolean
     private external fun nativeMedia(slot: Int, path: String?): Int

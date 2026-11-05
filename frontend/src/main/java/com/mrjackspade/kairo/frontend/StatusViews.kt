@@ -107,6 +107,8 @@ class GameOverlay(context: Context) : FrameLayout(context) {
     /** A notice with buttons takes the D-pad and A or B while the menu is closed. */
     val takesInput: Boolean get() = notice.visibility == View.VISIBLE && buttonViews.isNotEmpty()
     val progressShown: Boolean get() = progress.visibility == View.VISIBLE
+    /** Told whenever a notice shows or hides, as [takesInput] may change with it. */
+    var noticeChanged: () -> Unit = {}
 
     init {
         isClickable = false
@@ -166,11 +168,13 @@ class GameOverlay(context: Context) : FrameLayout(context) {
         noticeFocus = buttonViews.lastIndex
         select()
         notice.visibility = View.VISIBLE
+        noticeChanged()
     }
 
     fun hideNotice() {
         current = null
         notice.visibility = View.GONE
+        noticeChanged()
     }
 
     /** True while [notice] is the one shown, for updates from the task that posted it. */

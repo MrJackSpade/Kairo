@@ -90,8 +90,15 @@ public:
     // A control in JoystickInputRouter's order.
     virtual void joystick(int control, bool down) = 0;
     virtual void mouse_move(int dx, int dy) = 0;
-    // Button 1 (left) or 2 (right).
+    // Button 1 (left) or 2 (right), and 3 (middle) for a product whose mouse has one
+    // (KairoActivity.mouseHasMiddleButton).
     virtual void mouse_button(int button, bool down) = 0;
+    // Wheel notches, positive toward the player (down). Only a product whose mouse has a wheel
+    // (KairoActivity.mouseHasWheel) sends them.
+    virtual void mouse_wheel(int notches) {
+        (void) notches;
+        throw std::logic_error("This core's mouse has no wheel");
+    }
     // Direct touch: moves the guest's pointer to frame point (x, y) over the next frames. Only a
     // product whose catalog sets directTouch asks; any other core has none.
     virtual void mouse_warp(int x, int y) {
