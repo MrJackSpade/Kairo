@@ -60,7 +60,8 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
     // A game's merged record and resolved metadata are reused until a catalog, override or
     // artwork change; settings pages read them for every row and every focus move.
     /** [owner] is the game whose overrides apply; null for its catalog record alone. */
-    private data class MemoKey(val contentId: String, val owner: GameKey?, val member: String?, val fileName: String? = null)
+    private data class MemoKey(val contentId: String, val owner: GameKey?, val member: String?, val fileName: String? = null,
+                                val nameTitle: String? = null)
     private val layeredMemo = HashMap<MemoKey, CatalogFieldLayers.Result>()
     private val resolvedMemo = HashMap<MemoKey, CatalogGame>()
 
@@ -152,9 +153,11 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
         listOfNotNull(sources.shipped(name).takeIf { it.length() > 0 }, sources.updated(name)) +
             sources.installed().mapNotNull { it.data.optJSONObject("documents")?.optJSONObject(name) }
 
-    fun resolve(contentId: String, owner: GameKey?, member: String?, fileName: String): CatalogGame =
-        resolvedMemo.getOrPut(MemoKey(contentId, owner, member, fileName)) {
-            resolveUncached(contentId, owner, member, fileName)
+    /** [contentId]'s game; [nameTitle] its title when no catalog gives one ([LibraryItem.nameTitle]). */
+    fun resolve(contentId: String, owner: GameKey?, member: String?, fileName: String,
+                nameTitle: String = LibraryItem.nameTitle(fileName, folder = false)): CatalogGame =
+        resolvedMemo.getOrPut(MemoKey(contentId, owner, member, fileName, nameTitle)) {
+            resolveUncached(contentId, owner, member, fileName, nameTitle)
         }
 
     // An unedited game needs no lookup, so startup reads no shards for it.
@@ -190,7 +193,7 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
         return (0 until array.length()).map(array::getString)
     }
 
-    private fun resolveUncached(contentId: String, owner: GameKey?, member: String?, fileName: String): CatalogGame {
+    private fun resolveUncached(contentId: String, owner: GameKey?, member: String?, fileName: String, nameTitle: String): CatalogGame {
         val layers = layered(contentId, owner, member)
         val merged = layers.record
         val user = owner?.let(sources::override)
@@ -201,8 +204,7 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
         val localTitle = merged.optString("game").takeIf(String::isNotEmpty)
             ?.let { LayeredGameCatalog.localTitle(languageDocuments(), it) }
             ?.takeIf { LayeredGameCatalog.localTitleShows(layers.sourceOf("title")) }
-        val title = localTitle ?: catalogTitle
-            ?: fileName.substringAfterLast('/').substringAfterLast('\\').substringBeforeLast('.')
+        val title = localTitle ?: catalogTitle ?: nameTitle
         val artwork = merged.optJSONObject("artwork")
         val controller = merged.optJSONObject("controller")
         val input = merged.optJSONObject("input")

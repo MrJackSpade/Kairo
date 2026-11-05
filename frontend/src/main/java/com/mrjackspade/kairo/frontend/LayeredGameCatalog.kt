@@ -199,7 +199,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
 
     /** The game without the user's own changes, so each Default option can show its value. */
     @Synchronized fun resolveDefault(item: LibraryItem): CatalogGame =
-        resolve(matchId(item) ?: "", null, item.member, item.displayName)
+        resolve(matchId(item) ?: "", null, item.member, item.displayName, item.nameTitle)
 
     /**
      * The games of [item]'s collection, in the order the player sees them: one medium holding
@@ -211,7 +211,7 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         val contentId = matchId(item) ?: return emptyList()
         val members = layered(contentId, item.key, null).record.optJSONObject("collection") ?: return emptyList()
         return members.keys().asSequence().sortedBy { it.toInt() }.map { member ->
-            CollectionMember(member, resolve(contentId, item.key.member(member), member, item.displayName).title)
+            CollectionMember(member, resolve(contentId, item.key.member(member), member, item.displayName, item.nameTitle).title)
         }.toList()
     }
 
@@ -223,13 +223,14 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
     @Synchronized fun documents(name: String): List<JSONObject> = layers.documents(name)
 
     @Synchronized override fun resolve(item: LibraryItem): CatalogGame =
-        resolve(matchId(item) ?: "", item.key, item.member, item.displayName)
+        resolve(matchId(item) ?: "", item.key, item.member, item.displayName, item.nameTitle)
 
     /** A catalog record alone, as for a disk a game names that is not a library entry. */
-    @Synchronized fun resolve(contentId: String, fileName: String): CatalogGame = resolve(contentId, null, null, fileName)
+    @Synchronized fun resolve(contentId: String, fileName: String): CatalogGame =
+        resolve(contentId, null, null, fileName, LibraryItem.nameTitle(fileName, folder = false))
 
-    private fun resolve(contentId: String, owner: GameKey?, member: String?, fileName: String): CatalogGame =
-        layers.resolve(contentId, owner, member, fileName)
+    private fun resolve(contentId: String, owner: GameKey?, member: String?, fileName: String, nameTitle: String): CatalogGame =
+        layers.resolve(contentId, owner, member, fileName, nameTitle)
 
     private fun layered(contentId: String, owner: GameKey?, member: String?) = layers.layered(contentId, owner, member)
 

@@ -38,7 +38,8 @@ fun variantTags(name: String): List<String> =
  */
 fun fileLabel(entry: LibraryItem, inner: Boolean = true): String {
     fun stem(name: String) = name.substringBeforeLast('.').takeIf { name.contains('.') } ?: name
-    val file = stem(entry.path)
+    // A folder's name has no extension: "Dr. Sulfur's Night Lab (1996)" is all name (KairoX86#224)
+    val file = if (entry.isFolder) entry.path else stem(entry.path)
     val image = entry.zipEntry?.takeIf { inner }?.substringAfterLast('/')?.let(::stem)
     return if (image == null || image == file.substringAfterLast('/')) file else "$file  ›  $image"
 }

@@ -27,6 +27,21 @@ interface LibraryItem {
     val mediaLabel: UiText
     /** False for a file the scan remembers but that holds no game, such as an archive of manuals; never listed. */
     val holdsGame: Boolean get() = true
+    /** Whether the entry is a folder (KairoX86's machine folders), whose name has no extension. */
+    val isFolder: Boolean get() = false
+    /** Its title when no catalog gives one ([nameTitle] of its name). */
+    val nameTitle: String get() = nameTitle(displayName, isFolder)
+
+    companion object {
+        /**
+         * The title a file or folder's name gives a game no catalog names: a file's name without its
+         * extension, a folder's whole name ("Dr. Sulfur's Night Lab (1996)", KairoX86#224).
+         */
+        fun nameTitle(name: String, folder: Boolean): String {
+            val last = name.substringAfterLast('/').substringAfterLast('\\')
+            return if (folder) last else last.substringBeforeLast('.')
+        }
+    }
 }
 
 /** A game of a collection: its [id] in the collection's record and its title. */
