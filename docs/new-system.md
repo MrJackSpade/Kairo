@@ -143,7 +143,7 @@ python shared/tools/init_system.py --repo MrJackSpade/<App> --app <App> --system
 - [ ] A game boots and draws on the device (validation)
 - [ ] Every media kind plays past its load (validation)
 - [ ] Full speed on the heaviest games (validation)
-- [ ] Starting games: first picture, several in a row, other frontends (validation)
+- [ ] Starting games: first picture, several in a row (validation)
 - [ ] Every control reaches the guest as itself (validation)
 - [ ] The on-screen keyboard (validation)
 - [ ] Mouse games (validation)

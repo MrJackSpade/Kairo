@@ -12,11 +12,11 @@ The standard sets hold games that ship a hard disk or CMOS image.
 
 ## Check
 
-- Start each such set.
+- Start one set of each configuration (a set with a hard disk, a set with a CMOS image, each kind of image), never every such set.
 
 ## Passes when
 
-- Each reaches its game.
+- Each one tested reaches its game.
 
 ## Closing
 

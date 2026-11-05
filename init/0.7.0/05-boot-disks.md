@@ -18,7 +18,8 @@ A disk can start by itself, start from a desktop or a prompt, or hold only data.
 
 ## Done when
 
-- Every set starts from its boot disk, and a desktop or prompt disk starts its game.
+- Every set records its boot disk.
+- Starting is checked once for each way a disk starts (by itself, from a program on it, from a desktop or prompt), never for every set.
 
 ## Closing
 

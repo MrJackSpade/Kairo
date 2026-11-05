@@ -4,11 +4,11 @@ kind: translation
 ---
 Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Write findings, decisions and results into this description, not into comments.
 
-**Kind:** Required. Every new system needs this; it is never closed as not planned.
+**Kind:** Implement, when it applies. Build it only if **Applies when** holds for {{system}}.
 
 ## Applies when
 
-Every new system. Proper multilingual support is a hard requirement.
+{{app}} has a game catalog. Proper multilingual support is a hard requirement.
 
 ## Work
 
@@ -29,3 +29,4 @@ Depends on {{ref:descriptions}}, and on {{ref:adult-descriptions}} where the cat
 ## Closing
 
 - **Done:** write what was built (commits) and how it was verified into this description, then close as completed.
+- **Does not apply, or {{app}} already has it:** write what was checked and why into this description, then close as not planned.

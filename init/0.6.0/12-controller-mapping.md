@@ -20,7 +20,7 @@ The mapping lives in `catalog/system-v1.json`, never in Kotlin defaults, so it s
 
 ## Done when
 
-- No input is left unmapped in either layout, and each reaches the game as described.
+- No input is left unmapped in either layout, and each reaches the guest as described, checked once per input for the system, never per game.
 
 ## Closing
 

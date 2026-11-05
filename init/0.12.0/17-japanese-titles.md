@@ -8,7 +8,7 @@ Part of {{app}}'s new-system tickets (Kairo `docs/new-system.md`, `init/`). Writ
 
 ## Applies when
 
-{{system}} games were released under Japanese titles.
+{{app}} has a game catalog, and {{system}} games were released under Japanese titles.
 
 ## Work
 

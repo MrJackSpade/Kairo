@@ -12,11 +12,12 @@ Every new system. Test on the RG DS with a release-like build (`shared\tools\bui
 
 ## Check
 
-- Start games on the shipped firmware, and on the player's own chosen per game. Import the player's firmware at first run.
+- Import the player's firmware at first run.
+- Start one game on each firmware once: the shipped firmware, and each of the player's chosen for a game. Never one test per game: a firmware that loads in one game loads in all.
 
 ## Passes when
 
-- Each game runs on the firmware chosen for it.
+- Each firmware loads once and the game on it runs.
 
 ## Closing
 

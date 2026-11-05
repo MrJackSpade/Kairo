@@ -16,7 +16,8 @@ Choosing the player's firmware needs more than matching files by name (a version
 
 ## Done when
 
-- Each game runs on the firmware its model needs.
+- The helper picks the right firmware for each model, checked once per model.
+- Where {{app}} has a game catalog, each catalog game runs on the firmware its model needs (part of the catalog setup).
 
 ## Closing
 

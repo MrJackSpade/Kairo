@@ -12,11 +12,12 @@ The machine came with more than one memory size.
 
 ## Work
 
-- A memory machine option defaulting to the most memory that breaks no game, with a per-game override for the games that need less.
+- A memory machine option defaulting to the most memory the machine had, with a per-game override.
+- Research, never a test of every game: from the machine survey and the sources (manuals, emulator notes, player reports), find whether more memory is known to break games. Test only a game there is a reason to suspect.
 
 ## Done when
 
-- Games start without running out of memory, and the ones that need less have it in the catalog.
+- The default and the per-game override reach the machine, checked once, and the games known to need less have it in the catalog. This description lists what the research found.
 
 ## Closing
 
