@@ -492,7 +492,12 @@ class GuestKeyboardPanel(
         val shifted = layout.shiftCodes.any { it in latched }
         val locks = input.lockedKeys()
         for ((key, view) in keyViews) {
-            view.text = layout.legend(key, shifted, locks)
+            // Only a legend that changed is set: setText lays the key out again (fitting its
+            // auto-sized text) even for the same text, and this runs for every key the guest gets,
+            // so typing on a hardware keyboard blocked the main thread until Android dropped keys
+            // (KairoX86#226).
+            val legend = layout.legend(key, shifted, locks)
+            if (view.text.toString() != legend) view.text = legend
             view.isActivated = key.code in latched || key.code in locks
         }
         updateHighlights()
