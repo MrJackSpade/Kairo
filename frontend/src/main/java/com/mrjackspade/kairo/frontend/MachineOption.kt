@@ -80,6 +80,17 @@ class MachineOption(
         fun skipMemoryCheck() = MachineOption(SKIP_MEMORY_CHECK, UiText.res(R.string.kairo_option_skip_memory_check),
             listOf(ChoiceOption("on", UiText.res(R.string.kairo_on)), ChoiceOption("off", UiText.res(R.string.kairo_off))), "on")
 
+        const val HARDWARE_ACCELERATION = "hardwareAcceleration"
+
+        /**
+         * Hardware acceleration (KairoX86#282): on, the emulated graphics hardware's work that has a GPU
+         * version runs on the device's GPU; off, all of it runs in software, the reference the GPU version
+         * matches within the graphics batch's margin (KairoX86#283). Read at the machine's start.
+         */
+        fun hardwareAcceleration(default: String) = MachineOption(HARDWARE_ACCELERATION,
+            UiText.res(R.string.kairo_option_hardware_acceleration),
+            listOf(ChoiceOption("on", UiText.res(R.string.kairo_on)), ChoiceOption("off", UiText.res(R.string.kairo_off))), default)
+
         /** Whether [value] is a `machine` section holding only valid choices of [options]. */
         fun validSection(options: List<MachineOption>, value: Any): Boolean = value is JSONObject &&
             value.keys().asSequence().all { key -> options.firstOrNull { it.id == key }?.valid(value.opt(key)) == true }
