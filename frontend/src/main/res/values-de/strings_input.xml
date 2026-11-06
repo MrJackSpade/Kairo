@@ -57,6 +57,8 @@
     <string name="kairo_onscreen_left_stick">Linker Stick</string>
     <!-- EN: Right stick -->
     <string name="kairo_onscreen_right_stick">Rechter Stick</string>
+    <!-- EN: Fast forward -->
+    <string name="kairo_onscreen_fast_forward">Vorspulen</string>
     <!-- EN: Done -->
     <string name="kairo_done">Fertig</string>
     <!-- EN: Controller mapping -->

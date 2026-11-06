@@ -66,6 +66,12 @@ class GamepadMapper(private val router: InputRouter,
         if (binding != null) activate(owner, binding)
     }
 
+    /** An on-screen button that is an app action in itself, not a mappable control. [releaseVirtual] ends it. */
+    fun pressAction(action: String, owner: String) {
+        require(owner.startsWith("onscreen:")) { "On-screen actions only: $owner" }
+        activate(owner, ControllerBinding(owner, action = action))
+    }
+
     /** Use the same directional mappings/dead zone as hardware, including proportional mouse speed. */
     fun moveVirtualStick(stick: String, x: Float, y: Float) {
         require(stick == "ls" || stick == "rs")

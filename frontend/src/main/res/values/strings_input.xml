@@ -30,6 +30,7 @@
     <string name="kairo_onscreen_group_sticks">STICKS</string>
     <string name="kairo_onscreen_left_stick">Left stick</string>
     <string name="kairo_onscreen_right_stick">Right stick</string>
+    <string name="kairo_onscreen_fast_forward">Fast forward</string>
     <string name="kairo_done">Done</string>
 
     <string name="kairo_keyboard_mapping">Controller mapping</string>

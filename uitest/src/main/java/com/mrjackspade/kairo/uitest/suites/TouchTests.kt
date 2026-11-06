@@ -54,6 +54,20 @@ abstract class TouchTests : KairoUiTest() {
     }
 
     @Test
+    fun theOnScreenFastForwardButtonIsOffUntilTurnedOnAndSpeedsUpTheGame() {
+        play()
+        showOnScreenControls()
+        val button = driver.find(By.id("touch.control").withKey("ff"))
+        expect.that("the on-screen fast-forward button is hidden by default", !button.exists())
+        screens.openGameMenu().find(By.item("f-controls")).tap()
+        driver.page("Controls").waitUntilShown().find(By.item("visible")).tap()
+        driver.page("Visible buttons").waitUntilShown().find(By.item("v:ff")).tap()
+        screens.closeMenu()
+        button.waitUntilShown()
+        expectFastForwardWhileHeld("the on-screen button") { button.hold(it) }
+    }
+
+    @Test
     fun hidingTheOnScreenControlsRemovesThem() {
         play()
         showOnScreenControls()

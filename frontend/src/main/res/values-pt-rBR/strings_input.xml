@@ -57,6 +57,8 @@
     <string name="kairo_onscreen_left_stick">Analógico esquerdo</string>
     <!-- EN: Right stick -->
     <string name="kairo_onscreen_right_stick">Analógico direito</string>
+    <!-- EN: Fast forward -->
+    <string name="kairo_onscreen_fast_forward">Avanço rápido</string>
     <!-- EN: Done -->
     <string name="kairo_done">Concluído</string>
     <!-- EN: Controller mapping -->

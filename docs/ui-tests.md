@@ -112,7 +112,7 @@ Shared suites run in every app through its descriptor:
 | `WordingTests` | No screen says "ROM": the setup steps, the library, a game's page (the crawls check every other page). |
 | `MenuTests` | Every page and item of the library menu, the game menu, and a game's settings opens and returns (MenuCrawler), with plain words on each. |
 | `ControllerTests` | Every mapped button reaches the game and is released; mapping a button to a key sends that key; a game's own mapping stays with it; Reset restores the defaults; a fast-forward button speeds the game while held; the controller drives the menus. |
-| `TouchTests` | On-screen buttons and the D-pad reach the game; hiding the on-screen controls removes them; the touch keyboard types its keys; the touchpad moves and clicks the mouse; a tap on the game in Mouse mode clicks. |
+| `TouchTests` | On-screen buttons and the D-pad reach the game; the on-screen fast-forward button is hidden until turned on and speeds the game while held; hiding the on-screen controls removes them; the touch keyboard types its keys; the touchpad moves and clicks the mouse; a tap on the game in Mouse mode clicks. |
 | `LaunchTests` | A frontend launch starts the game, also before setup; returning from it closes the app; a second launch replaces the first. |
 | `StateTests` | A saved state loads back to where it was saved; each slot keeps its own; a state outlives the app; a game's states are its own. |
 | `MediaTests` | Inserting a disk (the game's own, or one from Other) puts it in the drive; ejecting empties it; swapping back and again keeps the game running, and works in a second game; with 2,000 more disks in the library the drive's choice and Other open within 1.5 s. KairoDos has no media page. |
