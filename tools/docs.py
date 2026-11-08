@@ -15,8 +15,9 @@ In every repository, including Kairo itself, its tracked README.md and docs/*.md
   ...replaced by templates/blocks/NAME.md...
   <!-- /kairo:NAME -->
 The rest of each file is the repository's own. "family" is the grid of the other Kairo apps.
-An app with "released": false (no release yet) is left out of the family grids and of
-tools/tag-release.ps1, which releases every other app; its own documents are still written.
+An app with "released": false (no release yet) is left out of tools/tag-release.ps1, which releases
+every other app, and of the family grids unless it has "listed": true (shown before its first
+release, KairoX86#12); its own documents are still written.
 
 Templates use {{name}} (a value, which must exist), {{#name}}...{{/name}} (repeated for each
 item of a list, kept once for any other true value) and {{^name}}...{{/name}} (kept when the value
@@ -167,9 +168,9 @@ def documents(root):
     current = next((app for app in apps if app["repo"] == name), None)
     if current is None and name != registry["frontend"]:
         raise SystemExit(f"{name} is not in {TEMPLATES / 'apps.json'}")
-    # An app before its first release ("released": false) has no build or icon to show yet: the
-    # other apps' family grids leave it out until it ships.
-    others = [app for app in apps if app["repo"] != name and app.get("released", True)]
+    # An app before its first release ("released": false) is left out of the other apps' family
+    # grids until it ships, unless it is "listed" before then (its icon published, KairoX86#12).
+    others = [app for app in apps if app["repo"] != name and app.get("listed", app.get("released", True))]
     context = {**base, **(current or {"repo": name, "url": base["frontendUrl"]}),
                "isFrontend": current is None,
                "familyRows": [{"apps": others[start:start + GRID_COLUMNS]}

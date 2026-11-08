@@ -131,6 +131,7 @@
    "module": "kairox86",
    "package": "com.loxifi.kairox86",
    "released": false,
+   "listed": true,
    "googlePlay": false,
    "firmware": true,
    "saveStates": true,
