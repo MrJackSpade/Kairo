@@ -73,6 +73,10 @@
     <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <string name="kairo_blank_hard_disk">Hard disk · %1$s</string>
     <string name="kairo_create">Create</string>
+    <!-- The New game workflow (Kairo#181): a step's button to the next step, the name step's title, and the first step's choice of what to make. -->
+    <string name="kairo_next">Next</string>
+    <string name="kairo_create_name_title">Name</string>
+    <string name="kairo_new_game_kind">Kind</string>
     <string name="kairo_create_name_hint">Game name</string>
     <string name="kairo_create_name_default">New game</string>
     <!-- The new game's name. -->

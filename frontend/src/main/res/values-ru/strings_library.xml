@@ -135,6 +135,13 @@
     <string name="kairo_blank_hard_disk">Жёсткий диск · %1$s</string>
     <!-- EN: Create -->
     <string name="kairo_create">Создать</string>
+    <!-- The New game workflow (Kairo#181): a step's button to the next step, the name step's title, and the first step's choice of what to make. -->
+    <!-- EN: Next -->
+    <string name="kairo_next">Далее</string>
+    <!-- EN: Name -->
+    <string name="kairo_create_name_title">Название</string>
+    <!-- EN: Kind -->
+    <string name="kairo_new_game_kind">Тип</string>
     <!-- EN: Game name -->
     <string name="kairo_create_name_hint">Название игры</string>
     <!-- EN: New game -->

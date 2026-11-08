@@ -191,6 +191,17 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun setTitle(game: GameKey, title: String?)
     /** The blank disks a player makes a new game on, in the formats and sizes the system used (CreateGameFlow). */
     protected abstract val blankDisks: List<BlankDisk>
+
+    /**
+     * The app's New game workflow (Kairo#181): by default, which of its [blankDisks] to make, then the
+     * name; an app with choices of its own (a machine's hardware) gives its own pages. Null when the
+     * app makes no new games.
+     */
+    protected open val newGameWorkflow: NewGameWorkflow? by lazy {
+        blankDisks.takeIf { it.isNotEmpty() }?.let {
+            NewGameWorkflow.ofBlankDisks(it, UiText.res(R.string.kairo_library_new_game), UiText.res(R.string.kairo_new_game_kind))
+        }
+    }
     /**
      * Game settings › Library › Disks: the disks the player puts in [entry]'s game (Kairo#134), or
      * null when it has none it could hold.
@@ -653,7 +664,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { message -> if (firstRunSetup.isOpen) toast(message) }, writableFolder, ::storeLibrary)
         artworkDownloads = createArtworkDownloads(libraryPage) { libraryEntries }
         libraryMenu = LibraryMenu(this, pages, libraryFlow, catalog, identity.strings,
-            { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp, blankDisks)
+            { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp, newGameWorkflow) { open ->
+            if (::lowerLibrary.isInitialized) lowerLibrary.making(open)
+        }
         libraryPage.openMenuAction = libraryMenu::open
         if (libraryMenu.makesGames) libraryPage.newGameAction = libraryMenu::openNewGame
         // On a dual-screen device, search is typed on the lower screen so its keyboard leaves the results visible.

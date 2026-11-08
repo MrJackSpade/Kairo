@@ -105,6 +105,13 @@
     <string name="kairo_blank_hard_disk">ハードディスク · %1$s</string>
     <!-- EN: Create -->
     <string name="kairo_create">作成</string>
+    <!-- The New game workflow (Kairo#181): a step's button to the next step, the name step's title, and the first step's choice of what to make. -->
+    <!-- EN: Next -->
+    <string name="kairo_next">次へ</string>
+    <!-- EN: Name -->
+    <string name="kairo_create_name_title">名前</string>
+    <!-- EN: Kind -->
+    <string name="kairo_new_game_kind">種類</string>
     <!-- EN: Game name -->
     <string name="kairo_create_name_hint">ゲーム名</string>
     <!-- EN: New game -->

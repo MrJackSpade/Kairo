@@ -17,8 +17,10 @@ class LibraryMenu<T : LibraryItem>(
     private val artwork: () -> CatalogArtworkDownloadController<T, *>?,
     private val settings: () -> List<SettingsRow>,
     private val exit: () -> Unit,
-    /** The blank disks the app makes new games on (CreateGameFlow). */
-    private val blankDisks: List<BlankDisk>
+    /** The app's New game workflow (Kairo#181); null for an app that makes no new games. */
+    private val newGame: NewGameWorkflow?,
+    /** The New game workflow opened or closed (Kairo#179). */
+    private val newGameShown: (Boolean) -> Unit = {}
 ) {
     private val screen get() = flow.screen
     private var catalogState: CatalogUpdateState? = null
@@ -58,15 +60,15 @@ class LibraryMenu<T : LibraryItem>(
     }
 
     /** Whether the app makes new games (the library's New game button). */
-    val makesGames: Boolean get() = blankDisks.isNotEmpty()
+    val makesGames: Boolean get() = newGame != null
 
-    /** The library's New game button: the kinds of new game the app makes, each a row that names it and creates it. */
+    private val newGameFlow by lazy { newGame?.let { NewGameFlow(activity, pages, flow, it, strings.folder.resolve(activity), newGameShown) } }
+
+    /** The library's New game button, and Manage library's New game: the app's New game workflow, from its start. */
     fun openNewGame() {
         if (pages.isActive) return
         screen.dismissSearchKeyboard()
-        pages.push(GroupsPage(activity.getString(R.string.kairo_library_new_game), content = {
-            listOf(RowGroup(null, CreateGameFlow.rows(activity, flow, blankDisks, strings.folder.resolve(activity))))
-        }))
+        checkNotNull(newGameFlow) { "${strings.appName} makes no new games" }.open()
     }
 
     private fun status(): String {
@@ -103,8 +105,10 @@ class LibraryMenu<T : LibraryItem>(
                     if (!flow.scanning) flow.refresh(ScanDepth.EVERY_FILE, announce = true)
                 }),
                 activity.getString(R.string.kairo_library_source_foot)),
-            RowGroup(activity.getString(R.string.kairo_create_group),
-                CreateGameFlow.rows(activity, flow, blankDisks, strings.folder.resolve(activity))),
+            *listOfNotNull(newGameFlow?.let { workflow ->
+                RowGroup(activity.getString(R.string.kairo_create_group), listOf(
+                    SettingsRow.nav("create", activity.getString(R.string.kairo_library_new_game)) { workflow.open() }))
+            }).toTypedArray(),
             RowGroup(activity.getString(R.string.kairo_catalogs_group), listOfNotNull(
                 SettingsRow.action("catalogs", activity.getString(R.string.kairo_catalogs_update),
                     value = {

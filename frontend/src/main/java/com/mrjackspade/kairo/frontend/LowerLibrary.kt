@@ -37,6 +37,8 @@ class LowerLibraryController<T : LibraryItem>(
 ) {
     private var browsing: T? = null
     private var opened: T? = null
+    /** A new game is being made (Kairo#179): the lower screen shows no game while it is. */
+    private var making = false
     private val screens = ArrayList<Screen>()
 
     /** Whether a lower screen shows the open game's settings. */
@@ -61,6 +63,13 @@ class LowerLibraryController<T : LibraryItem>(
         opened = entry
         screens.forEach { it.render() }
         settingsMoved()
+    }
+
+    /** The New game workflow opened or closed: while it is open, no game's page shows here (Kairo#179). */
+    fun making(open: Boolean) {
+        if (making == open) return
+        making = open
+        screens.forEach { it.render() }
     }
 
     /** The newest lower screen's focus region, or null without a lower screen. */
@@ -105,7 +114,7 @@ class LowerLibraryController<T : LibraryItem>(
                 return
             }
             val entry = browsing
-            if (entry == null) { clear(); return }
+            if (entry == null || making) { clear(); return }
             val page = detail ?: GameDetailPage(catalog, play, viewScreenshot, { open(it) }, metadata, commandLaunch,
                 libraryButton = false, backElsewhere = { pages.crossEdge("up") }) {}.also {
                 clear()
