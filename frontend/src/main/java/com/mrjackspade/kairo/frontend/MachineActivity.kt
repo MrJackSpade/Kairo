@@ -1433,9 +1433,10 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /**
      * Empty ejects; then the running game's own disks ([ownMedia]); then Other, every disk of the
      * library the slot takes, on a page of its own: a player rarely needs one, and a library can
-     * hold thousands. Choose file takes a disk image on the device, outside the library.
+     * hold thousands. Choose file takes a disk image on the device, outside the library. A product
+     * that also offers its drives in Game settings gives the running game's this same choice there.
      */
-    private fun mediaChoice(slot: Int): ChoiceSpec {
+    protected fun mediaChoice(slot: Int): ChoiceSpec {
         fun takes(entry: E) = entry.playable && mediaSlots[slot].accepts(entry)
         return GameDisks.choice(this, text(mediaSlots[slot].label), { currentGame?.title }, {
             val current = currentEntry ?: return@choice emptyList()
