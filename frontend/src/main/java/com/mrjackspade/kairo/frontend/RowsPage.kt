@@ -88,8 +88,10 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
         var r = start
         return rows.values.mapNotNull { row ->
             if (row.kind == SettingsRow.Kind.INFO) return@mapNotNull null
-            NavItem(row.id, { body.rowView(row.id)?.line }, r++, 0.5f, { activate(row) }, { side(row, it) },
-                { selected -> body.rowView(row.id)?.let { view -> view.row?.let { view.bind(it, selected, it.id == trayRow) } } },
+            // A row built later is marked and shown as focused when it is built; a row focused before then is built at once.
+            NavItem(row.id, { body.builtRowView(row.id)?.line }, r++, 0.5f, { activate(row) }, { side(row, it) },
+                { selected -> (if (selected) body.rowView(row.id) else body.builtRowView(row.id))
+                    ?.let { view -> view.row?.let { view.bind(it, selected, it.id == trayRow) } } },
                 body.revealer(row.id))
         }
     }
@@ -277,8 +279,10 @@ internal interface RowsBody {
     fun render(groups: List<RowGroup>)
     /** Shows [groups]' current values; the rows are the same. */
     fun rebind(groups: List<RowGroup>)
-    /** The row's view, while it has one. */
+    /** The row's view, built now if the body builds it later ([StackedRows]); null while a recycled list has none. */
     fun rowView(id: String): RowView?
+    /** The row's view if it is built, never building it: for what only marks or shows the rows that exist. */
+    fun builtRowView(id: String): RowView?
     /** Scrolls [id]'s row into view, for a body whose rows are not all built; null otherwise. */
     fun revealer(id: String): (() -> Unit)?
     /** Up past the first row or Down past the last; false to leave it to the page. */
@@ -288,16 +292,29 @@ internal interface RowsBody {
     fun restore(position: Int)
 }
 
-/** Every row built at once, in group cards, inside the page's scroll view. */
+/**
+ * Every row, in group cards, inside the page's scroll view (KairoX86#333). The rows a screen can
+ * show are built at once and the rest a few a frame after it, so a long page shows without waiting
+ * for rows below the screen: a slow device spends about 5 ms a row. A row asked for before it is
+ * built ([rowView], and so focus, trays and scrolling to it) has the rest built first.
+ */
 internal class StackedRows(private val context: Context, private val host: RowHost, private val flat: Boolean,
                            private val bind: (RowView, SettingsRow) -> Unit) : RowsBody {
     override val view = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     private val rowViews = HashMap<String, RowView>()
     private val foots = HashMap<Int, TextView>()
+    /** A row not built yet, and the card it goes in, in page order. */
+    private class Pending(var row: SettingsRow, val card: LinearLayout)
+    private val pending = ArrayDeque<Pending>()
+    /** The rows built with the page: a screen's height of the shortest rows. */
+    private val firstRows get() = context.resources.displayMetrics.heightPixels / dp(48) + 1
+    private val buildMore = Runnable { build(ROWS_A_FRAME); schedule() }
     private val scroll: android.widget.ScrollView? get() = generateSequence(view.parent) { it.parent }
         .filterIsInstance<android.widget.ScrollView>().firstOrNull()
 
     override fun render(groups: List<RowGroup>) {
+        view.removeCallbacks(buildMore)
+        pending.clear()
         view.removeAllViews()
         rowViews.clear()
         foots.clear()
@@ -324,12 +341,7 @@ internal class StackedRows(private val context: Context, private val host: RowHo
                     showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE
                 }
             }
-            group.rows.forEach { row ->
-                val rowView = RowView(context, host, flat)
-                rowViews[row.id] = rowView
-                bind(rowView, row)
-                card.addView(rowView.root, LinearLayout.LayoutParams(-1, -2))
-            }
+            group.rows.forEach { row -> pending.addLast(Pending(row, card)) }
             view.addView(card, LinearLayout.LayoutParams(-1, -2))
             if (!flat) group.foot?.let { foot ->
                 val text = Ui.text(context, foot, Ui.SECONDARY, Ui.TEXT_MUTED).apply {
@@ -339,20 +351,60 @@ internal class StackedRows(private val context: Context, private val host: RowHo
                 view.addView(text)
             }
         }
+        build(firstRows)
+        schedule()
+    }
+
+    /** Builds up to [count] of the rows not built yet, in order, each into its card. */
+    private fun build(count: Int) {
+        repeat(minOf(count, pending.size)) {
+            val next = pending.removeFirst()
+            val rowView = RowView(context, host, flat)
+            rowViews[next.row.id] = rowView
+            bind(rowView, next.row)
+            TestAttributes.markItem(rowView.line, next.row.id)
+            next.card.addView(rowView.root, LinearLayout.LayoutParams(-1, -2))
+        }
+    }
+
+    private fun schedule() {
+        if (pending.isNotEmpty()) view.post(buildMore)
+    }
+
+    /** Every row built now, for whatever needs a row or the page's full height. */
+    private fun finish() {
+        view.removeCallbacks(buildMore)
+        build(pending.size)
     }
 
     override fun rebind(groups: List<RowGroup>) {
+        // A row still to be built takes its newest state when it is.
+        val newest = groups.flatMap { it.rows }.associateBy { it.id }
+        pending.forEach { waiting -> newest[waiting.row.id]?.let { waiting.row = it } }
         groups.forEachIndexed { index, group ->
             group.rows.forEach { row -> rowViews[row.id]?.let { bind(it, row) } }
             group.foot?.let { foots[index]?.text = it }
         }
     }
 
-    override fun rowView(id: String) = rowViews[id]
+    override fun rowView(id: String): RowView? {
+        if (id !in rowViews && pending.any { it.row.id == id }) finish()
+        return rowViews[id]
+    }
+
+    override fun builtRowView(id: String): RowView? = rowViews[id]
     override fun revealer(id: String): (() -> Unit)? = null
     override fun edge(direction: String) = false
     override fun position() = scroll?.scrollY ?: 0
-    override fun restore(position: Int) { scroll?.let { it.post { it.scrollTo(0, position) } } }
+    override fun restore(position: Int) {
+        finish()
+        scroll?.let { it.post { it.scrollTo(0, position) } }
+    }
 
     private fun dp(value: Int) = Ui.dp(context, value)
+
+    private companion object {
+        /** Rows built a frame after the first screen's: about 20 ms on the slowest device. */
+        const val ROWS_A_FRAME = 4
+    }
 }

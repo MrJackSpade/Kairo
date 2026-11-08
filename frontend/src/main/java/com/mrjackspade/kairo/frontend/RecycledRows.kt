@@ -129,6 +129,8 @@ internal class RecycledRows(private val context: Context, private val host: RowH
     override fun rowView(id: String): RowView? =
         bound.entries.firstOrNull { (holder, view) -> view.row?.id == id && holder.parent === list }?.value
 
+    override fun builtRowView(id: String): RowView? = rowView(id)
+
     override fun revealer(id: String): () -> Unit = { reveal(id) }
 
     /** Brings [id]'s row fully on screen with a margin, moving the list as little as it can. */
