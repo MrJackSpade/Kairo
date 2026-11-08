@@ -56,7 +56,8 @@ public:
 
     // A core's GPU picture, drawn into the preset's source texture in OpenGL's orientation.
     bool render(ANativeWindow* window, GpuPicture& picture) {
-        const uint32_t width = picture.width(), height = picture.height();
+        uint32_t width = 0, height = 0;
+        picture.drawn_size(width, height);
         if (!begin(window, &picture) || !size(width, height)) return false;
         if (!framebuffer_) {
             glGenFramebuffers(1, &framebuffer_);

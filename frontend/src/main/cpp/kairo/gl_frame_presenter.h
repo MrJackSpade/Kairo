@@ -42,7 +42,9 @@ public:
     // then the texture scaled as a software frame is.
     void render(ANativeWindow *window, GpuPicture &picture) {
         begin(window, &picture);
-        const FrameShape shape{picture.width(), picture.height(), 1, false};
+        uint32_t width = 0, height = 0;
+        picture.drawn_size(width, height);
+        const FrameShape shape{width, height, 1, false};
         size(shape.width, shape.height);
         if (!framebuffer_) {
             glGenFramebuffers(1, &framebuffer_);

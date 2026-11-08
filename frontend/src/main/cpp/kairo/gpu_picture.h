@@ -24,9 +24,17 @@ public:
 
     virtual ~GpuPicture() = default;
 
-    // The picture's size, the same for the picture's whole life; any thread.
+    // The picture's size: on the emulation thread, as the last take() left it; a picture whose size never changes
+    // (Kairo98's) may answer on any thread.
     virtual uint32_t width() const = 0;
     virtual uint32_t height() const = 0;
+    // Presenter thread: the size of the picture as the last apply() brought it, which draw() fills its framebuffer to.
+    // A picture whose size changes with the guest's mode (KairoX86's, KairoX86#330) gives each packet's; by default
+    // width() and height().
+    virtual void drawn_size(uint32_t &width_out, uint32_t &height_out) const {
+        width_out = width();
+        height_out = height();
+    }
 
     // Emulation thread, between frames.
     virtual std::unique_ptr<Packet> new_packet() = 0;
