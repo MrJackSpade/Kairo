@@ -29,7 +29,11 @@
 static std::mutex atomic_lock;
 fluid_mutex_t _atomic_lock = &atomic_lock;
 
-static thread_local std::map<fluid_private_t, void *> private_data;
+/* Kairo (KairoX86#306): each thread's values behind a plain pointer, made when the thread first sets one
+   and freed when its last one goes, so no thread registers a destructor in this library. A thread_local
+   object with a destructor is destroyed when its thread ends, by code in this library: a core loaded
+   afresh for each run unloads it while the threads that ran it live on. */
+static thread_local std::map<fluid_private_t, void *> *private_data;
 
 
 void fluid_msleep(unsigned int msecs)
@@ -250,17 +254,29 @@ void _fluid_private_init(fluid_private_t *priv)
 
 void fluid_private_free(fluid_private_t priv)
 {
-    private_data.erase(priv);
+    if (private_data == nullptr)
+        return;
+    private_data->erase(priv);
+    if (private_data->empty())
+    {
+        delete private_data;
+        private_data = nullptr;
+    }
 }
 
 void *fluid_private_get(fluid_private_t priv)
 {
-    return private_data[priv];
+    if (private_data == nullptr)
+        return nullptr;
+    auto value = private_data->find(priv);
+    return value == private_data->end() ? nullptr : value->second;
 }
 
 void fluid_private_set(fluid_private_t priv, void *value)
 {
-    private_data[priv] = value;
+    if (private_data == nullptr)
+        private_data = new std::map<fluid_private_t, void *>();
+    (*private_data)[priv] = value;
 }
 
 #if HAVE_CXX_FILESYSTEM
