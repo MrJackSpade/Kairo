@@ -21,9 +21,10 @@ sealed class BlankDisk(val id: String, val label: UiText, val unavailable: () ->
 
     /**
      * An empty drive the new game starts on at once ([start], with its name). The app writes the
-     * game to the games folder once it holds a file; an empty one leaves nothing behind.
+     * game to the games folder once it holds a file, at [path] (for its name) in the games folder;
+     * an empty one leaves nothing behind.
      */
-    class Drive(id: String, label: UiText, val start: (name: String) -> Unit) : BlankDisk(id, label)
+    class Drive(id: String, label: UiText, val path: (name: String) -> String, val start: (name: String) -> Unit) : BlankDisk(id, label)
 
     /**
      * A new entry written to the games folder at once as a folder of [files], each at its path in
@@ -50,14 +51,17 @@ object CreateGameFlow {
     /** The longest name a new game's folder and disk take. */
     private const val MAX_NAME = 128
 
+    /** Writes [blank] as [name]; once it is written (before a drive starts), [created] gets its path in the games folder. */
     fun <T : LibraryItem> create(activity: Activity, library: LibraryFlow<T>, blank: BlankDisk, name: String,
-                                         folder: String) {
+                                         folder: String, created: (String) -> Unit = {}) {
         val screen = library.screen
         if (!usable(name)) {
             screen.showStatus(activity.getString(R.string.kairo_create_bad_name))
             return
         }
         if (blank is BlankDisk.Drive) {
+            // What is kept for the game goes first: the drive starts with it.
+            created(blank.path(name))
             blank.start(name)
             return
         }
@@ -66,13 +70,14 @@ object CreateGameFlow {
         Thread {
             val result = runCatching {
                 when (blank) {
-                    is BlankDisk.Image -> write(activity.contentResolver, tree, blank, name, folder, activity)
-                    is BlankDisk.Folder -> write(activity.contentResolver, tree, blank, name, folder, activity)
+                    is BlankDisk.Image -> write(activity.contentResolver, tree, blank, name, folder, activity).let { "$name/$name.${blank.extension}" }
+                    is BlankDisk.Folder -> write(activity.contentResolver, tree, blank, name, folder, activity).let { name }
                     is BlankDisk.Drive -> error("${blank.id} starts a drive, it writes nothing")
                 }
             }
             activity.runOnUiThread {
-                result.onSuccess {
+                result.onSuccess { path ->
+                    created(path)
                     screen.showStatus(activity.getString(R.string.kairo_created, name), LibraryScreen.StatusKind.SUMMARY)
                     library.refresh(ScanDepth.EVERY_FOLDER, announce = true)
                 }.onFailure { failure ->

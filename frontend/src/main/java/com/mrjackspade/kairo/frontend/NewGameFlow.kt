@@ -116,7 +116,8 @@ class NewGameFlow<T : LibraryItem>(
         chosen[NewGameWorkflow.NAME] = trimmed
         val blank = workflow.create(values)
         first?.let(pages::popThrough)
-        CreateGameFlow.create(activity, library, blank, trimmed, folder)
+        val made = values
+        CreateGameFlow.create(activity, library, blank, trimmed, folder) { path -> workflow.created(made, path) }
     }
 
     /**

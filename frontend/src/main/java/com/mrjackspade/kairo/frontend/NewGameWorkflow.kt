@@ -10,6 +10,11 @@ package com.mrjackspade.kairo.frontend
  */
 class NewGameWorkflow(
     val pages: List<WorkflowPage>,
+    /**
+     * After the game is written: the choices and the game's path in the games folder (an image's
+     * `<name>/<name>.<extension>`, a folder's `<name>`), for what is kept beside it, such as its settings.
+     */
+    val created: (Map<String, String>, String) -> Unit = { _, _ -> },
     /** What the choices make, by field id ([NAME] holds the game's name). */
     val create: (Map<String, String>) -> BlankDisk
 ) {
@@ -49,11 +54,15 @@ class NewGameWorkflow(
          * name. An empty list of blank disks makes nothing.
          */
         fun ofBlankDisks(blanks: List<BlankDisk>, kindTitle: UiText, kindLabel: UiText): NewGameWorkflow =
-            NewGameWorkflow(listOf(WorkflowPage(KIND, kindTitle, listOf(WorkflowField.Select(KIND, kindLabel,
-                { blanks.map { ChoiceOption(it.id, it.label, null, it.unavailable()) } },
-                { blanks.firstOrNull { it.unavailable() == null }?.id ?: "" }))))) { values ->
-                blanks.first { it.id == values.getValue(KIND) }
-            }
+            NewGameWorkflow(listOf(kindPage(blanks, kindTitle, kindLabel))) { values -> chosen(blanks, values) }
+
+        /** The page that picks which of [blanks] to make, as [KIND]; one that cannot be made is shown but not taken. */
+        fun kindPage(blanks: List<BlankDisk>, title: UiText, label: UiText) = WorkflowPage(KIND, title, listOf(WorkflowField.Select(KIND, label,
+            { blanks.map { ChoiceOption(it.id, it.label, null, it.unavailable()) } },
+            { blanks.firstOrNull { it.unavailable() == null }?.id ?: "" })))
+
+        /** The one of [blanks] the [KIND] page picked. */
+        fun chosen(blanks: List<BlankDisk>, values: Map<String, String>): BlankDisk = blanks.first { it.id == values.getValue(KIND) }
     }
 }
 

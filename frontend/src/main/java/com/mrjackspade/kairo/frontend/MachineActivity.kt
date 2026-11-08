@@ -751,6 +751,34 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     // Machine options ---------------------------------------------------------------------------------
 
     /**
+     * New game (Kairo#181): the kind of new game (the app's blank disks), then, for a disk image, a
+     * Machine page with the machine options the catalog gives a game, narrowed and defaulted as Game
+     * settings narrow them; then the name. The choices that differ from the all-games defaults become
+     * the new game's own, kept under its key (its path in the games folder) as Game settings keep them,
+     * before a drive that starts at once ([BlankDisk.Drive]) starts. A folder of files ([BlankDisk.Folder])
+     * is an app's own kind of game, with its own workflow.
+     */
+    override val newGameWorkflow: NewGameWorkflow? by lazy {
+        val blanks = blankDisks.takeIf { it.isNotEmpty() } ?: return@lazy null
+        val options = newGameOptions()
+        val kind = NewGameWorkflow.kindPage(blanks, UiText.res(R.string.kairo_library_new_game), UiText.res(R.string.kairo_new_game_kind))
+        val machine = WorkflowPage("machine", UiText.res(R.string.kairo_option_machine), options.map { option ->
+            WorkflowField.Select(option.id, option.label, { values -> option.choices(values) }, { values -> optionDefault(option, values) })
+        }) { values -> NewGameWorkflow.chosen(blanks, values) !is BlankDisk.Folder }
+        NewGameWorkflow(listOf(kind) + listOfNotNull(machine.takeIf { options.isNotEmpty() }), created = { values, path ->
+            for (option in options) {
+                val value = values[option.id] ?: continue
+                if (value != optionDefault(option, values))
+                    catalog.setOverrideSubfield(GameKey(path), MachineOption.SECTION, option.id, option.stored(value))
+            }
+        }) { values -> NewGameWorkflow.chosen(blanks, values) }
+    }
+
+    /** The machine options a new game can be given: the catalog's choices, as the app offers them. */
+    private fun newGameOptions(): List<MachineOption> = catalog.schema.settings.filterIsInstance<CatalogSetting.Choice>()
+        .map { setting -> machineOptions.firstOrNull { it.id == setting.option.id } ?: setting.option }
+
+    /**
      * Whether the player has imported the firmware [option]'s [MachineOption.ownFirmware] choice
      * starts on, for a game whose other options are [values]. An app with such an option says.
      */
