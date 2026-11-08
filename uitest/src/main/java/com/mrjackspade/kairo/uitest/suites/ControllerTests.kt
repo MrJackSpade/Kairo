@@ -122,15 +122,6 @@ abstract class ControllerTests : KairoUiTest() {
         expect.equal("what A sends after Reset to defaults", before, sends(KeyEvent.KEYCODE_BUTTON_A))
     }
 
-    /** Frames a second the running game draws over [millis], optionally while [button] is held. */
-    private fun frameRate(millis: Long, button: Int? = null): Double {
-        val start = driver.probeNow().details.getValue("frames").toLong()
-        val time = android.os.SystemClock.elapsedRealtime()
-        if (button == null) Thread.sleep(millis) else driver.press(button, holdMillis = millis)
-        val frames = driver.probeNow().details.getValue("frames").toLong() - start
-        return frames * 1000.0 / (android.os.SystemClock.elapsedRealtime() - time)
-    }
-
     @Test
     fun aFastForwardButtonSpeedsUpTheGame() {
         play()
@@ -143,22 +134,7 @@ abstract class ControllerTests : KairoUiTest() {
         target.find(By.id("footer:save")).tap()
         target.waitUntilGone()
         screens.closeMenu()
-        // A game that still loads already runs flat out (MachineCore::booting), so fast-forward
-        // shows only once its load is done: one that reads its disk now and then between loads (a
-        // DOS booting from a floppy) has done so once it has not loaded for a while.
-        var quietSince = 0L
-        driver.waitUntil("the game to finish loading") {
-            val now = android.os.SystemClock.elapsedRealtime()
-            if (driver.probeNow().details["core.loading"] == "1") quietSince = 0L
-            else if (quietSince == 0L) quietSince = now
-            quietSince != 0L && now - quietSince >= LOADED_QUIET_MILLIS
-        }
-        val normal = frameRate(2000)
-        val fast = frameRate(2000, KeyEvent.KEYCODE_BUTTON_R1)
-        driver.log.step("measure", "%.1f frames a second normally, %.1f with R1 held".format(normal, fast))
-        expect.that("holding the fast-forward button runs the game faster", fast > normal * 1.3) { "%.1f against %.1f".format(fast, normal) }
-        val after = frameRate(2000)
-        expect.that("letting go returns to normal speed", after < normal * 1.15) { "%.1f against %.1f".format(after, normal) }
+        expectFastForwardWhileHeld("R1") { driver.press(KeyEvent.KEYCODE_BUTTON_R1, holdMillis = it) }
     }
 
     @Test

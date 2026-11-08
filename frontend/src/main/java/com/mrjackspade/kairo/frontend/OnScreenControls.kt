@@ -35,9 +35,13 @@ class OnScreenControls(
         LANDSCAPE(R.string.kairo_orientation_landscape, "onscreen_layout_landscape_v2")
     }
 
-    /** [label] is the control's legend, as a controller prints it; [group] is a key into [GROUPS]. */
+    /**
+     * [label] is the control's legend, as a controller prints it; [group] is a key into [GROUPS]. A
+     * button with an [action] runs that app action, held for as long as it is pressed; any other
+     * presses the control [id] (PhysicalControllerBindings.controls), which the mapping binds.
+     */
     private data class Spec(val id: String, val label: String, val group: String,
-                            val x: Float, val y: Float, val shown: Boolean)
+                            val x: Float, val y: Float, val shown: Boolean, val action: String? = null)
     private data class State(var shown: Boolean, var x: Float, var y: Float)
 
     private val specs = listOf(
@@ -63,6 +67,8 @@ class OnScreenControls(
         Spec("start", "Start", "SYSTEM", .57f, .91f, true),
         Spec("select", "Select", "SYSTEM", .43f, .91f, true),
         Spec("menu", "Menu", "SYSTEM", .50f, .18f, true),
+        // Fast forward while held, beside Menu; hidden until a player turns it on (Kairo98#131).
+        Spec("ff", "FF", "SYSTEM", .60f, .18f, false, action = "fastForward"),
         Spec("ls", "L", "STICKS", .30f, .80f, false),
         Spec("rs", "R", "STICKS", .70f, .80f, false)
     )
@@ -76,7 +82,7 @@ class OnScreenControls(
         "l2" to (.12f to .53f), "r2" to (.88f to .53f),
         "l3" to (.12f to .35f), "r3" to (.88f to .35f),
         "start" to (.59f to .91f), "select" to (.41f to .91f),
-        "menu" to (.50f to .54f),
+        "menu" to (.50f to .54f), "ff" to (.64f to .54f),
         "ls" to (.23f to .85f), "rs" to (.77f to .85f)
     )
     private val layouts = ControllerLayout.entries.associateWith {
@@ -342,7 +348,9 @@ class OnScreenControls(
                     MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                         val pointer = event.getPointerId(event.actionIndex)
                         if (held.add(pointer)) {
-                            mapper.pressVirtual(spec.id, "onscreen:${spec.id}:$pointer")
+                            val owner = "onscreen:${spec.id}:$pointer"
+                            if (spec.action != null) mapper.pressAction(spec.action, owner)
+                            else mapper.pressVirtual(spec.id, owner)
                             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                         }
                         view.isPressed = true
@@ -548,6 +556,7 @@ class OnScreenControls(
         "ls" -> str(R.string.kairo_onscreen_left_stick); "rs" -> str(R.string.kairo_onscreen_right_stick)
         "start" -> str(R.string.kairo_control_start); "select" -> str(R.string.kairo_control_select)
         "menu" -> str(R.string.kairo_control_menu)
+        "ff" -> str(R.string.kairo_onscreen_fast_forward)
         PAD8 -> str(R.string.kairo_onscreen_dpad_pad)
         else -> id.uppercase()
     }

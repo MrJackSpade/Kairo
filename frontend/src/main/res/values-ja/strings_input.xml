@@ -57,6 +57,8 @@
     <string name="kairo_onscreen_left_stick">左スティック</string>
     <!-- EN: Right stick -->
     <string name="kairo_onscreen_right_stick">右スティック</string>
+    <!-- EN: Fast forward -->
+    <string name="kairo_onscreen_fast_forward">早送り</string>
     <!-- EN: Done -->
     <string name="kairo_done">完了</string>
     <!-- EN: Controller mapping -->

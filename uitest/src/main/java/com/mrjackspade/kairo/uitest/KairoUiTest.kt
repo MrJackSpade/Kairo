@@ -1,10 +1,12 @@
 package com.mrjackspade.kairo.uitest
 
 import android.content.Intent
+import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import com.mrjackspade.kairo.frontend.UiTestDocuments
+import com.mrjackspade.kairo.uitest.suites.LOADED_QUIET_MILLIS
 import org.junit.Rule
 import org.junit.rules.TestRule
 import org.junit.runner.Description
@@ -27,6 +29,35 @@ abstract class KairoUiTest {
     val driver: Driver get() = session.driver
     val screens: Screens get() = session.screens
     val expect: Expect get() = session.driver.expect
+
+    /** Frames a second the running game draws over [millis], while [during] takes that long. */
+    private fun frameRate(millis: Long, during: (Long) -> Unit): Double {
+        val start = driver.probeNow().details.getValue("frames").toLong()
+        val time = SystemClock.elapsedRealtime()
+        during(millis)
+        val frames = driver.probeNow().details.getValue("frames").toLong() - start
+        return frames * 1000.0 / (SystemClock.elapsedRealtime() - time)
+    }
+
+    /** Holding [what] through [hold], for the milliseconds it is given, runs the game faster; letting go returns it to normal. */
+    protected fun expectFastForwardWhileHeld(what: String, hold: (Long) -> Unit) {
+        // A game that still loads already runs flat out (MachineCore::booting), so fast-forward
+        // shows only once its load is done: one that reads its disk now and then between loads (a
+        // DOS booting from a floppy) has done so once it has not loaded for a while.
+        var quietSince = 0L
+        driver.waitUntil("the game to finish loading") {
+            val now = SystemClock.elapsedRealtime()
+            if (driver.probeNow().details["core.loading"] == "1") quietSince = 0L
+            else if (quietSince == 0L) quietSince = now
+            quietSince != 0L && now - quietSince >= LOADED_QUIET_MILLIS
+        }
+        val normal = frameRate(2000, Thread::sleep)
+        val fast = frameRate(2000, hold)
+        driver.log.step("measure", "%.1f frames a second normally, %.1f with %s held".format(normal, fast, what))
+        expect.that("holding $what runs the game faster", fast > normal * 1.3) { "%.1f against %.1f".format(fast, normal) }
+        val after = frameRate(2000, Thread::sleep)
+        expect.that("letting go of $what returns to normal speed", after < normal * 1.15) { "%.1f against %.1f".format(after, normal) }
+    }
 }
 
 /** Starts the app for one test and ends it after, keeping the record (TestLog). */

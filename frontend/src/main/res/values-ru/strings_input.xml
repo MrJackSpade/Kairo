@@ -57,6 +57,8 @@
     <string name="kairo_onscreen_left_stick">Левый стик</string>
     <!-- EN: Right stick -->
     <string name="kairo_onscreen_right_stick">Правый стик</string>
+    <!-- EN: Fast forward -->
+    <string name="kairo_onscreen_fast_forward">Ускорение</string>
     <!-- EN: Done -->
     <string name="kairo_done">Готово</string>
     <!-- EN: Controller mapping -->
