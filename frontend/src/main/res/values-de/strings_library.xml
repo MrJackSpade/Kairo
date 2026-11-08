@@ -104,6 +104,9 @@
     <string name="kairo_library_source_foot">„Aktualisieren“ findet hinzugefügte und entfernte Spiele. „Alle Dateien neu prüfen“ identifiziert jede Datei erneut.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">NEUES SPIEL</string>
+    <!-- The library header's button, beside search, that makes a new game (a blank disk or machine). -->
+    <!-- EN: New game -->
+    <string name="kairo_library_new_game">Neues Spiel</string>
     <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">Diskette · %1$s</string>

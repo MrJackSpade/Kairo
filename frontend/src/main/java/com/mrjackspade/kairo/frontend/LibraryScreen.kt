@@ -92,9 +92,22 @@ class LibraryScreen<T : LibraryItem>(
     private val searchButton = Ui.iconButton(context, R.drawable.ic_search, context.getString(R.string.kairo_library_search)) {
         toggleSearch()
     }.testId("library.search")
-    /** Header focus: 0 menu, 1 search, 2 the task strip's Stop. -1 is the game list. */
+    /** New game, beside search: shown once [newGameAction] is set (an app that makes new games). */
+    private val newGameButton = Ui.secondaryButton(context, context.getString(R.string.kairo_library_new_game), R.drawable.ic_add) {
+        newGameAction?.invoke()
+    }.testId("library.new-game").apply { visibility = View.GONE }
+    /** Starts making a new game (CreateGameFlow); null for an app that makes none. */
+    var newGameAction: (() -> Unit)? = null
+        set(value) {
+            field = value
+            newGameButton.visibility = if (value != null) View.VISIBLE else View.GONE
+        }
+    /** The header's buttons in their order, left to right. */
+    private val headerRow: List<View> get() = listOfNotNull(menuButton, newGameButton.takeIf { it.visibility == View.VISIBLE }, searchButton)
+    /** Header focus: an index into [headerRow], or [stopIndex] for the task strip's Stop. -1 is the game list. */
     private var headerSelection = -1
     private var lastHeaderSelection = 0
+    private val stopIndex get() = headerRow.size
     private val searchRow = LinearLayout(context)
     private val search = object : android.widget.EditText(context) {
         override fun onKeyPreIme(keyCode: Int, event: android.view.KeyEvent): Boolean {
@@ -375,6 +388,9 @@ class LibraryScreen<T : LibraryItem>(
         header.addView(scanProgress, LinearLayout.LayoutParams(dp(24), dp(24)).apply {
             marginEnd = dp(6)
         })
+        header.addView(newGameButton,
+            LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(10) })
+        newGameButton.setPadding(dp(14), 0, dp(16), 0)
         header.addView(searchButton,
             LinearLayout.LayoutParams(dp(48), dp(48)))
         body.addView(header, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
@@ -641,12 +657,12 @@ class LibraryScreen<T : LibraryItem>(
     fun moveSelection(delta: Int) {
         if (headerSelection >= 0) {
             if (delta > 0) {
-                if (headerSelection < 2 && tasks.canStop) focusHeader(2) else focusGames()
-            } else if (headerSelection == 2) focusHeader(lastHeaderSelection)
+                if (headerSelection < stopIndex && tasks.canStop) focusHeader(stopIndex) else focusGames()
+            } else if (headerSelection == stopIndex) focusHeader(lastHeaderSelection)
             return
         }
         if (delta < 0 && (entries.isEmpty() || selectedIndex == 0)) {
-            focusHeader(if (tasks.canStop) 2 else lastHeaderSelection)
+            focusHeader(if (tasks.canStop) stopIndex else lastHeaderSelection)
             return
         }
         if (entries.isEmpty()) return
@@ -661,19 +677,18 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     private fun focusHeader(index: Int) {
-        headerSelection = if (index == 2 && tasks.canStop) 2 else index.coerceIn(0, 1)
-        if (headerSelection < 2) lastHeaderSelection = headerSelection
-        menuButton.isSelected = headerSelection == 0
-        searchButton.isSelected = headerSelection == 1
-        tasks.stopButton.isSelected = headerSelection == 2
+        val row = headerRow
+        headerSelection = if (index == stopIndex && tasks.canStop) stopIndex else index.coerceIn(0, row.lastIndex)
+        if (headerSelection < stopIndex) lastHeaderSelection = headerSelection
+        row.forEachIndexed { at, button -> button.isSelected = headerSelection == at }
+        tasks.stopButton.isSelected = headerSelection == stopIndex
         emptyButton.isSelected = false
         updateSelectionHighlight()
     }
 
     private fun focusGames() {
         headerSelection = -1
-        menuButton.isSelected = false
-        searchButton.isSelected = false
+        headerRow.forEach { it.isSelected = false }
         tasks.stopButton.isSelected = false
         emptyButton.isSelected = entries.isEmpty() && emptyButton.visibility == View.VISIBLE
         isFocusableInTouchMode = true
@@ -688,7 +703,7 @@ class LibraryScreen<T : LibraryItem>(
     }
 
     fun moveHeaderSelection(delta: Int) {
-        if (headerSelection in 0..1) focusHeader(headerSelection + delta)
+        if (headerSelection in headerRow.indices) focusHeader(headerSelection + delta)
     }
 
     fun leaveHeader(): Boolean {
@@ -699,7 +714,7 @@ class LibraryScreen<T : LibraryItem>(
 
     fun leaveSearch(up: Boolean) {
         dismissSearchKeyboard()
-        if (up) focusHeader(1)
+        if (up) focusHeader(headerRow.indexOf(searchButton))
     }
 
     private fun requestSelectionVisibility() {
@@ -756,9 +771,8 @@ class LibraryScreen<T : LibraryItem>(
     }
     fun activateSelection() {
         when (headerSelection) {
-            0 -> menuButton.performClick()
-            1 -> searchButton.performClick()
-            2 -> tasks.stopButton.performClick()
+            in headerRow.indices -> headerRow[headerSelection].performClick()
+            stopIndex -> tasks.stopButton.performClick()
             else -> if (entries.isEmpty()) {
                 if (emptyButton.visibility == View.VISIBLE) emptyButton.performClick()
             } else entries.getOrNull(selectedIndex)?.let(::openDetail)

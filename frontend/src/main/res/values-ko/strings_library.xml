@@ -94,6 +94,9 @@
     <string name="kairo_library_source_foot">새로고침은 추가되거나 삭제된 게임을 찾습니다. 모든 파일 다시 확인은 모든 파일을 다시 식별합니다.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">새 게임</string>
+    <!-- The library header's button, beside search, that makes a new game (a blank disk or machine). -->
+    <!-- EN: New game -->
+    <string name="kairo_library_new_game">새 게임</string>
     <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">플로피 디스크 · %1$s</string>

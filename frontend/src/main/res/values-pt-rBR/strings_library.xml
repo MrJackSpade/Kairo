@@ -114,6 +114,9 @@
     <string name="kairo_library_source_foot">Atualizar encontra jogos adicionados e removidos. Verificar todos os arquivos de novo identifica cada arquivo outra vez.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">JOGO NOVO</string>
+    <!-- The library header's button, beside search, that makes a new game (a blank disk or machine). -->
+    <!-- EN: New game -->
+    <string name="kairo_library_new_game">Novo jogo</string>
     <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">Disquete · %1$s</string>

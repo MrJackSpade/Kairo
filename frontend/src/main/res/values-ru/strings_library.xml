@@ -124,6 +124,9 @@
     <string name="kairo_library_source_foot">«Обновить» находит добавленные и удаленные игры. «Перепроверить все файлы» заново определяет каждый файл.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">НОВАЯ ИГРА</string>
+    <!-- The library header's button, beside search, that makes a new game (a blank disk or machine). -->
+    <!-- EN: New game -->
+    <string name="kairo_library_new_game">Новая игра</string>
     <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">Дискета · %1$s</string>

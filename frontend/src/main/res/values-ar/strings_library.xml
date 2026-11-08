@@ -144,6 +144,9 @@
     <string name="kairo_library_source_foot">يعثر «تحديث» على الألعاب المضافة والمحذوفة. وتتعرّف «إعادة فحص كل الملفات» على كل ملف من جديد.</string>
     <!-- EN: NEW GAME -->
     <string name="kairo_create_group">لعبة جديدة</string>
+    <!-- The library header's button, beside search, that makes a new game (a blank disk or machine). -->
+    <!-- EN: New game -->
+    <string name="kairo_library_new_game">لعبة جديدة</string>
     <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">قرص مرن · %1$s</string>

@@ -57,6 +57,18 @@ class LibraryMenu<T : LibraryItem>(
         }))
     }
 
+    /** Whether the app makes new games (the library's New game button). */
+    val makesGames: Boolean get() = blankDisks.isNotEmpty()
+
+    /** The library's New game button: the kinds of new game the app makes, each a row that names it and creates it. */
+    fun openNewGame() {
+        if (pages.isActive) return
+        screen.dismissSearchKeyboard()
+        pages.push(GroupsPage(activity.getString(R.string.kairo_library_new_game), content = {
+            listOf(RowGroup(null, CreateGameFlow.rows(activity, flow, blankDisks, strings.folder.resolve(activity))))
+        }))
+    }
+
     private fun status(): String {
         if (flow.tree == null) return activity.getString(R.string.kairo_library_choose_in_manage)
         if (flow.scanning || screen.working) return screen.status

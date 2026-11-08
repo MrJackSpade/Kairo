@@ -655,6 +655,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         libraryMenu = LibraryMenu(this, pages, libraryFlow, catalog, identity.strings,
             { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp, blankDisks)
         libraryPage.openMenuAction = libraryMenu::open
+        if (libraryMenu.makesGames) libraryPage.newGameAction = libraryMenu::openNewGame
         // On a dual-screen device, search is typed on the lower screen so its keyboard leaves the results visible.
         libraryPage.searchElsewhere = { query, changed, done -> secondaryKeyboard.openSearch(query, changed, done) }
         libraryPage.endSearchElsewhere = secondaryKeyboard::closeSearch
