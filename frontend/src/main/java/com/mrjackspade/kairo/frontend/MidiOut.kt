@@ -97,7 +97,7 @@ class MidiOut(private val context: Context, private val preferences: SharedPrefe
 
         fun open() {
             // The guest's messages queue from now on, while the device opens, and go once it has.
-            bridge.nativeMidiOpen()
+            bridge.midiOpen()
             manager.registerDeviceCallback(removed, main)
             manager.openDevice(port.info, { opened ->
                 if (closed) {
@@ -118,9 +118,9 @@ class MidiOut(private val context: Context, private val preferences: SharedPrefe
 
         /** Sends each message the core queues, whole, until the queue closes. */
         private fun send(input: MidiInputPort) {
-            val buffer = ByteArray(bridge.nativeMidiLongest())
+            val buffer = ByteArray(bridge.midiLongest())
             while (true) {
-                val length = bridge.nativeMidiTake(buffer)
+                val length = bridge.midiTake(buffer)
                 when {
                     length == CLOSED -> return
                     length == OVERFLOWED -> {
@@ -149,7 +149,7 @@ class MidiOut(private val context: Context, private val preferences: SharedPrefe
             if (closed) return
             closed = true
             manager.unregisterDeviceCallback(removed)
-            bridge.nativeMidiClose()
+            bridge.midiClose()
             sender?.join()
             input?.close()
             device?.close()

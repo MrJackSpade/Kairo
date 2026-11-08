@@ -123,9 +123,18 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeStartupStatus(): IntArray
     private external fun nativeScreenSignature(): LongArray?
     private external fun nativeCommand(line: String): String?
-    // The guest's MIDI output (MidiOut, cpp/kairo/midi_out.h)
-    internal external fun nativeMidiOpen()
-    internal external fun nativeMidiClose()
-    internal external fun nativeMidiTake(buffer: ByteArray): Int
-    internal external fun nativeMidiLongest(): Int
+    // The guest's MIDI output (MidiOut, cpp/kairo/midi_out.h). Private, as an internal JNI name would
+    // carry Kotlin's module suffix.
+    private external fun nativeMidiOpen()
+    private external fun nativeMidiClose()
+    private external fun nativeMidiTake(buffer: ByteArray): Int
+    private external fun nativeMidiLongest(): Int
+
+    /** The guest's MIDI queues for the device's port from now on (MidiOut). */
+    fun midiOpen() = nativeMidiOpen()
+    /** The guest's MIDI goes nowhere again, and a [midiTake] waiting returns. */
+    fun midiClose() = nativeMidiClose()
+    /** Waits for the guest's next MIDI message into [buffer] ([midiLongest] bytes): its length, or below 0 once closed or behind. */
+    fun midiTake(buffer: ByteArray): Int = nativeMidiTake(buffer)
+    fun midiLongest(): Int = nativeMidiLongest()
 }
