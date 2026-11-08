@@ -38,6 +38,7 @@
     <string name="kairo_no_games_folder">No se ha seleccionado ninguna carpeta de juegos</string>
     <!-- EN: Skip memory check -->
     <string name="kairo_option_skip_memory_check">Omitir comprobación de memoria</string>
+    <!-- EN: Hardware acceleration -->
     <string name="kairo_option_hardware_acceleration">Aceleración por hardware</string>
     <!-- A firmware file that is not installed but another installed file stands in for. -->
     <!-- EN: Covered by %1$s -->

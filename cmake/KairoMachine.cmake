@@ -23,7 +23,8 @@ function(kairo_machine_library target)
         # the product, so the app's own CMakeLists says once what its core is.
         add_executable(${target} "${KAIRO_SHARED_ROOT}/host-test/main.cpp" "${KAIRO_SHARED_ROOT}/host-test/harness.cpp"
             "${KAIRO_SHARED_ROOT}/host-test/checks.cpp"
-            "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp" ${ARGN})
+            "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp"
+            "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/midi_out.cpp" ${ARGN})
         target_compile_features(${target} PRIVATE cxx_std_17)
         target_include_directories(${target} PRIVATE "${KAIRO_SHARED_ROOT}/host-test/include"
             "${KAIRO_SHARED_ROOT}/host-test" "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp")
@@ -34,7 +35,8 @@ function(kairo_machine_library target)
         return()
     endif()
     add_library(${target} SHARED "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/machine_jni.cpp"
-        "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp" ${ARGN})
+        "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp"
+            "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/midi_out.cpp" ${ARGN})
     target_compile_features(${target} PRIVATE cxx_std_17)
     kairo_native_debug_defaults(${target})
     target_include_directories(${target} PRIVATE "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp")

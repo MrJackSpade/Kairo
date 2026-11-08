@@ -78,6 +78,8 @@
     <string name="kairo_touch_direct_explanation">يصيب النقر المباشر النقطة الملموسة في الألعاب التي تحرّك المؤشر بكسلًا واحدًا لكل وحدة حركة للماوس وتوقفه عند الحافة العلوية اليسرى للشاشة.</string>
     <!-- EN: TOUCH SCREEN -->
     <string name="kairo_touch_group">شاشة اللمس</string>
+    <!-- EN: MOUSE -->
+    <string name="kairo_mouse_group">MOUSE</string>
     <!-- EN: Screen tap -->
     <string name="kairo_touch_screen_tap">النقر على الشاشة</string>
     <!-- EN: Mouse touch -->
@@ -255,6 +257,28 @@
     <string name="kairo_import_empty">%1$s فارغ</string>
     <!-- EN: %1$d KiB -->
     <string name="kairo_size_kib">%1$d KiB</string>
+    <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
+    <!-- EN: MIDI -->
+    <string name="kairo_midi_group">MIDI</string>
+    <!-- EN: MIDI out -->
+    <string name="kairo_midi_out">مخرج MIDI</string>
+    <!-- A MIDI device that reports no name. -->
+    <!-- EN: MIDI device -->
+    <string name="kairo_midi_unnamed">جهاز MIDI</string>
+    <!-- Told at a game's start or while it runs: the game plays on without the MIDI port. %1$s is the port's name. -->
+    <!-- EN: This device has no MIDI -->
+    <string name="kairo_midi_unavailable">لا يدعم هذا الجهاز MIDI</string>
+    <!-- EN: %1$s is not connected -->
+    <string name="kairo_midi_not_connected">%1$s غير متصل</string>
+    <!-- EN: %1$s was disconnected -->
+    <string name="kairo_midi_disconnected">انقطع اتصال %1$s</string>
+    <!-- EN: %1$s could not be opened -->
+    <string name="kairo_midi_open_failed">تعذّر فتح %1$s</string>
+    <!-- EN: %1$s could not keep up with the game\'s MIDI and was closed -->
+    <string name="kairo_midi_behind">لم يواكب %1$s إشارات MIDI من اللعبة فأُغلق</string>
+    <!-- %2$s is the reason Android gives. -->
+    <!-- EN: Sending MIDI to %1$s failed: %2$s -->
+    <string name="kairo_midi_send_failed">تعذّر إرسال MIDI إلى %1$s: %2$s</string>
     <plurals name="kairo_size_bytes">
         <!-- EN: %1$d bytes -->
         <item quantity="zero">%1$d بايت</item>

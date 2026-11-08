@@ -123,4 +123,9 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativeStartupStatus(): IntArray
     private external fun nativeScreenSignature(): LongArray?
     private external fun nativeCommand(line: String): String?
+    // The guest's MIDI output (MidiOut, cpp/kairo/midi_out.h)
+    internal external fun nativeMidiOpen()
+    internal external fun nativeMidiClose()
+    internal external fun nativeMidiTake(buffer: ByteArray): Int
+    internal external fun nativeMidiLongest(): Int
 }

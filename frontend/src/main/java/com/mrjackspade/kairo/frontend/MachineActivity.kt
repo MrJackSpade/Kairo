@@ -622,6 +622,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 if (!current(generation)) return@runOnUiThread
                 if (failure == null) {
                     currentGame = game
+                    // The guest's MIDI goes to the port the player picked (none while its BIOS starts, which plays none).
+                    if (guestMidiOut) midiOut.start(bridge as NativeMachine)
                     // A machine that boots to a black screen (Kairo68#2) keeps the launch's message up
                     // until it shows something.
                     val blank = MachineStatus(bridge.status()).pictured == false
@@ -703,7 +705,19 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         launch(entry, sessionFromFrontend)
     }
 
+    /**
+     * Whether the guest has MIDI out the player can send to a MIDI port of the device (KairoX86#305):
+     * its core hands its messages to cpp/kairo/midi_out.h, and the Configurations page picks the port.
+     */
+    protected open val guestMidiOut: Boolean = false
+
+    private val midiOut by lazy { MidiOut(this, preferences) { message -> toast(message, long = true) } }
+
+    override fun configurationGroups(): List<RowGroup> =
+        if (guestMidiOut) listOf(RowGroup(getString(R.string.kairo_midi_group), listOf(midiOut.row()))) else emptyList()
+
     override fun sessionEnded() {
+        if (guestMidiOut) midiOut.stop()
         currentGame = null
         mounted.fill(null)
         selectedChoices = emptyList()

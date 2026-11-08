@@ -143,6 +143,19 @@
     <string name="kairo_import_too_large">%1$s is too large</string>
     <string name="kairo_import_empty">%1$s is empty</string>
     <string name="kairo_size_kib">%1$d KiB</string>
+    <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
+    <string name="kairo_midi_group">MIDI</string>
+    <string name="kairo_midi_out">MIDI out</string>
+    <!-- A MIDI device that reports no name. -->
+    <string name="kairo_midi_unnamed">MIDI device</string>
+    <!-- Told at a game's start or while it runs: the game plays on without the MIDI port. %1$s is the port's name. -->
+    <string name="kairo_midi_unavailable">This device has no MIDI</string>
+    <string name="kairo_midi_not_connected">%1$s is not connected</string>
+    <string name="kairo_midi_disconnected">%1$s was disconnected</string>
+    <string name="kairo_midi_open_failed">%1$s could not be opened</string>
+    <string name="kairo_midi_behind">%1$s could not keep up with the game\'s MIDI and was closed</string>
+    <!-- %2$s is the reason Android gives. -->
+    <string name="kairo_midi_send_failed">Sending MIDI to %1$s failed: %2$s</string>
     <plurals name="kairo_size_bytes">
         <item quantity="one">%1$d bytes</item>
         <item quantity="other">%1$d bytes</item>

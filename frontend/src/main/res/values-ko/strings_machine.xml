@@ -78,6 +78,8 @@
     <string name="kairo_touch_direct_explanation">직접 탭은 마우스 카운트당 커서를 1픽셀씩 움직이고 화면 왼쪽 위 가장자리에서 멈추는 게임에서 터치한 위치를 가리킵니다.</string>
     <!-- EN: TOUCH SCREEN -->
     <string name="kairo_touch_group">터치스크린</string>
+    <!-- EN: MOUSE -->
+    <string name="kairo_mouse_group">MOUSE</string>
     <!-- EN: Screen tap -->
     <string name="kairo_touch_screen_tap">화면 탭</string>
     <!-- EN: Mouse touch -->
@@ -235,6 +237,28 @@
     <string name="kairo_import_empty">%1$s이(가) 비어 있습니다</string>
     <!-- EN: %1$d KiB -->
     <string name="kairo_size_kib">%1$d KiB</string>
+    <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
+    <!-- EN: MIDI -->
+    <string name="kairo_midi_group">MIDI</string>
+    <!-- EN: MIDI out -->
+    <string name="kairo_midi_out">MIDI 출력</string>
+    <!-- A MIDI device that reports no name. -->
+    <!-- EN: MIDI device -->
+    <string name="kairo_midi_unnamed">MIDI 장치</string>
+    <!-- Told at a game's start or while it runs: the game plays on without the MIDI port. %1$s is the port's name. -->
+    <!-- EN: This device has no MIDI -->
+    <string name="kairo_midi_unavailable">이 기기는 MIDI를 지원하지 않습니다</string>
+    <!-- EN: %1$s is not connected -->
+    <string name="kairo_midi_not_connected">%1$s이(가) 연결되어 있지 않습니다</string>
+    <!-- EN: %1$s was disconnected -->
+    <string name="kairo_midi_disconnected">%1$s의 연결이 끊어졌습니다</string>
+    <!-- EN: %1$s could not be opened -->
+    <string name="kairo_midi_open_failed">%1$s을(를) 열 수 없습니다</string>
+    <!-- EN: %1$s could not keep up with the game\'s MIDI and was closed -->
+    <string name="kairo_midi_behind">%1$s이(가) 게임의 MIDI를 따라가지 못해 닫혔습니다</string>
+    <!-- %2$s is the reason Android gives. -->
+    <!-- EN: Sending MIDI to %1$s failed: %2$s -->
+    <string name="kairo_midi_send_failed">%1$s(으)로 MIDI를 보내지 못했습니다: %2$s</string>
     <plurals name="kairo_size_bytes">
         <!-- EN: %1$d bytes -->
         <item quantity="other">%1$d바이트</item>

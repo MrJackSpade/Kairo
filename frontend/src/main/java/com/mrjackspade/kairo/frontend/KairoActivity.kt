@@ -271,6 +271,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     protected abstract fun pauseGuest(paused: Boolean)
     /** The session ended, after [stopGuest]; forget what the product kept about it. */
     protected open fun sessionEnded() {}
+
+    /** The product's own groups on the Configurations page, for every game. */
+    protected open fun configurationGroups(): List<RowGroup> = emptyList()
     protected open fun pauseAudio() {}
     protected open fun resumeAudio() {}
     protected abstract fun setMuted(muted: Boolean)
@@ -839,7 +842,9 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             pages.push(controllerPages.controlsPage(currentEntry?.takeIf { !libraryVisible && it.contentId != null }))
         },
         machine = { pages.push(machinePage()) },
-        configurations = { pages.push(SessionMenus.configurationsPage(this, gameOrientation, saveFolder, text(identity.savesLabel))) },
+        configurations = {
+            pages.push(SessionMenus.configurationsPage(this, gameOrientation, saveFolder, text(identity.savesLabel), ::configurationGroups))
+        },
         soundOn = { !muted },
         setSound = { on -> if (on == muted) toggleMute() },
         about = { pages.push(aboutPage()) }))

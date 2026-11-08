@@ -23,11 +23,15 @@ object SessionMenus {
         SettingsRow.switch("f-sound", context.getString(R.string.kairo_sound), settings.soundOn, set = settings.setSound),
         SettingsRow.nav("f-about", context.getString(R.string.kairo_about), open = settings.about))
 
-    /** [saves] names what the save folder holds, such as SAVED GAMES or SAVE STATES. */
-    fun configurationsPage(context: Context, orientation: GameOrientation, saveFolder: SaveFolderSettings, saves: String) =
+    /**
+     * [saves] names what the save folder holds, such as SAVED GAMES or SAVE STATES; [more] are the
+     * product's own groups, such as where a guest's MIDI goes (MidiOut).
+     */
+    fun configurationsPage(context: Context, orientation: GameOrientation, saveFolder: SaveFolderSettings, saves: String,
+                           more: () -> List<RowGroup> = { emptyList() }) =
         GroupsPage(context.getString(R.string.kairo_configurations), { GameSource.ALL_GAMES }, {
             listOf(RowGroup(context.getString(R.string.kairo_display_group), listOf(orientation.row())),
-                RowGroup(saves, listOf(saveFolder.row())))
+                RowGroup(saves, listOf(saveFolder.row()))) + more()
         })
 
     /**

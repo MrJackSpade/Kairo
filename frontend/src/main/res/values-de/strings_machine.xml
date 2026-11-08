@@ -78,6 +78,8 @@
     <string name="kairo_touch_direct_explanation">„Direkt tippen“ trifft den berührten Punkt in Spielen, die den Cursor um ein Pixel pro Mausschritt bewegen und ihn am oberen linken Bildschirmrand anhalten.</string>
     <!-- EN: TOUCH SCREEN -->
     <string name="kairo_touch_group">TOUCHSCREEN</string>
+    <!-- EN: MOUSE -->
+    <string name="kairo_mouse_group">MOUSE</string>
     <!-- EN: Screen tap -->
     <string name="kairo_touch_screen_tap">Bildschirm antippen</string>
     <!-- EN: Mouse touch -->
@@ -239,6 +241,28 @@
     <string name="kairo_import_empty">%1$s ist leer</string>
     <!-- EN: %1$d KiB -->
     <string name="kairo_size_kib">%1$d KiB</string>
+    <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
+    <!-- EN: MIDI -->
+    <string name="kairo_midi_group">MIDI</string>
+    <!-- EN: MIDI out -->
+    <string name="kairo_midi_out">MIDI-Ausgang</string>
+    <!-- A MIDI device that reports no name. -->
+    <!-- EN: MIDI device -->
+    <string name="kairo_midi_unnamed">MIDI-Gerät</string>
+    <!-- Told at a game's start or while it runs: the game plays on without the MIDI port. %1$s is the port's name. -->
+    <!-- EN: This device has no MIDI -->
+    <string name="kairo_midi_unavailable">Dieses Gerät hat kein MIDI</string>
+    <!-- EN: %1$s is not connected -->
+    <string name="kairo_midi_not_connected">%1$s ist nicht verbunden</string>
+    <!-- EN: %1$s was disconnected -->
+    <string name="kairo_midi_disconnected">%1$s wurde getrennt</string>
+    <!-- EN: %1$s could not be opened -->
+    <string name="kairo_midi_open_failed">%1$s konnte nicht geöffnet werden</string>
+    <!-- EN: %1$s could not keep up with the game\'s MIDI and was closed -->
+    <string name="kairo_midi_behind">%1$s kam mit dem MIDI des Spiels nicht mit und wurde geschlossen</string>
+    <!-- %2$s is the reason Android gives. -->
+    <!-- EN: Sending MIDI to %1$s failed: %2$s -->
+    <string name="kairo_midi_send_failed">MIDI an %1$s senden fehlgeschlagen: %2$s</string>
     <plurals name="kairo_size_bytes">
         <!-- EN: %1$d bytes -->
         <item quantity="one">%1$d Byte</item>

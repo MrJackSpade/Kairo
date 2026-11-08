@@ -17,6 +17,7 @@
 #include "kairo/frame_machine.h"
 #include "kairo/jni_strings.h"
 #include "kairo/machine_core.h"
+#include "kairo/midi_out.h"
 #include "kairo/state_media.h"
 #include "kairo/state_paths.h"
 
@@ -193,6 +194,20 @@ NATIVE_MACHINE(nativeStart)(JNIEnv *env, jobject, jstring firmware, jstring home
 }
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeStop)(JNIEnv *, jobject) { machine.stop(); }
+
+// The guest's MIDI output (midi_out.h, MidiOut.kt): the app's MIDI thread opens the queue when a port is
+// open, takes each message into buffer (kLongestMessage bytes) and closes it with the port.
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMidiOpen)(JNIEnv *, jobject) { kairo::midi_out::open(); }
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeMidiClose)(JNIEnv *, jobject) { kairo::midi_out::close(); }
+extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeMidiTake)(JNIEnv *env, jobject, jbyteArray buffer) {
+    static std::vector<uint8_t> message(kairo::midi_out::kLongestMessage);
+    const int length = kairo::midi_out::take(message.data());
+    if (length > 0) env->SetByteArrayRegion(buffer, 0, length, reinterpret_cast<const jbyte *>(message.data()));
+    return length;
+}
+extern "C" JNIEXPORT jint JNICALL NATIVE_MACHINE(nativeMidiLongest)(JNIEnv *, jobject) {
+    return static_cast<jint>(kairo::midi_out::kLongestMessage);
+}
 
 extern "C" JNIEXPORT jstring JNICALL NATIVE_MACHINE(nativeCreateBlankDisk)(JNIEnv *env, jobject, jstring kind,
                                                                          jstring path) {
