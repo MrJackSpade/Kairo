@@ -22,3 +22,23 @@ Three built-in presets and their shader files use six unmodified files from [Lib
 | libpng (`third_party/libpng/`) | 1.6.59 | <https://codeload.github.com/pnggroup/libpng/tar.gz/refs/tags/v1.6.59> | `2540302a1844ad2b2b501977abecfa850f265f97b78f065a712ab4074a89f5b5` | 2026-09-28 |
 
 Both were copied on 2026-11-02 from KairoMSX's snapshots (imported 2026-10-22, zlib's archive checked against Mark Adler's release signature), file for file. Each archive is whole except for files no build uses: zlib's `amiga/`, `contrib/`, `doc/`, `msdos/`, `os400/`, `qnx/`, `test/`, `watcom/` and `win32/`; libpng's `ci/`. zlib is under the zlib license (`third_party/zlib/LICENSE`), libpng under the PNG Reference Library License version 2 (`third_party/libpng/LICENSE`).
+
+## MIDI synths and the default SoundFont
+
+`cmake/KairoMidi.cmake` builds the MIDI synths for any app's core that plays a game's MIDI music (`MT32Emu::mt32emu`, `FluidSynth::libfluidsynth`), so the apps share one version of each. The snapshots came from KairoDos's pinned archives (`third_party/staging-deps/sources/`), on 2026-11-08.
+
+| Library | Release | Archive | Archive SHA-256 | Licence |
+| --- | --- | --- | --- | --- |
+| Munt libmt32emu (`third_party/munt/`) | 2.7.3 | GitHub tag `libmt32emu_2_7_3` of `munt/munt` | `e51f3475771c9d07116e6cb5ae2e095ef3b11b3107d92c01d3a1dc03be13ff98` | LGPL-2.1-or-later |
+| FluidSynth (`third_party/fluidsynth/`) | 2.5.2 | GitHub tag `v2.5.2` of `FluidSynth/fluidsynth` | `1dcb13308b3aa383db658c60a7b63d73d0ff4601ccee589582ba7a816475410e` | LGPL-2.1-or-later |
+| GCEM (`third_party/gcem/`), FluidSynth's maths | 1.18.0 | GitHub tag `v1.18.0` of `kthohr/gcem` | `8e71a9f5b62956da6c409dda44b483f98c4a98ae72184f3aa4659ae5b3462e61` | Apache-2.0 |
+
+Each archive is whole except for files no build uses:
+
+- Munt: only `mt32emu/` (the library) and the top `README.md`. Its other programs and drivers are left out.
+- FluidSynth: `sf2/`, `test-android/` and `contrib/` are left out, and so is the empty `gcem/` submodule folder. Its tests' CMake stays, because the top `CMakeLists.txt` adds it.
+- GCEM: its `tests/`, `docs/`, `notebooks/` and `binder/` are left out.
+
+Unchanged. FluidSynth is built for its synthesis API only: C++11 threads, and no audio or MIDI drivers, file rendering, libsndfile, glib, OpenMP or network.
+
+`third_party/generaluser-gs/` holds the default SoundFont, GeneralUser GS 2.0.3 by S. Christian Collins. It is `GeneralUser-GS.sf2` (SHA-256 `9575028c7a1f589f5770fccc8cff2734566af40cd26ed836944e9a5152688cfe`) and `documentation/LICENSE.txt`, both from commit `684543d5e5efaef08d02be50dcda8d552478fa60` of `mrbumpy409/GeneralUser-GS` (2026-02-23). Its licence lets software ship and modify it.
