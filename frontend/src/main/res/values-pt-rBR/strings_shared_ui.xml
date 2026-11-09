@@ -34,6 +34,12 @@
     <string name="kairo_folder_title">Escolha uma pasta de jogos</string>
     <!-- EN: Hard disk -->
     <string name="kairo_hard_disk">Disco rígido</string>
+    <string name="kairo_custom_value">Personalizado…</string>
+    <string name="kairo_custom_hint">De %1$s a %2$s</string>
+    <string name="kairo_custom_not_number">Digite um número inteiro</string>
+    <string name="kairo_custom_not_decimal">Digite um número com até %1$d casas decimais</string>
+    <string name="kairo_custom_out_of_range">De %1$s a %2$s</string>
+    <string name="kairo_custom_off_step">Em passos de %1$s</string>
     <!-- EN: Fire -->
     <string name="kairo_joystick_fire">Disparo</string>
     <!-- EN: Fire 2 (unused) -->
@@ -52,6 +58,10 @@
     <!-- %1$d is a size in megabytes. -->
     <!-- EN: %1$d MB -->
     <string name="kairo_memory_mb">%1$d MB</string>
+    <string name="kairo_size_kb">%1$s KB</string>
+    <string name="kairo_size_mb">%1$s MB</string>
+    <string name="kairo_size_gb">%1$s GB</string>
+    <string name="kairo_disk_with_size">%1$s · %2$s</string>
     <!-- EN: CPU clock -->
     <string name="kairo_option_clock">Clock da CPU</string>
     <!-- EN: Machine -->

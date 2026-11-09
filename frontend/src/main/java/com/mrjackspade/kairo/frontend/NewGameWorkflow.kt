@@ -87,12 +87,16 @@ sealed class WorkflowField(val id: String, val label: UiText) {
         id: String,
         label: UiText,
         val choices: (Map<String, String>) -> List<ChoiceOption>,
-        val default: (Map<String, String>) -> String
+        val default: (Map<String, String>) -> String,
+        /** A value the player can type instead (Kairo#183), given the values before it; null for none. */
+        val custom: (Map<String, String>) -> CustomValue? = { null }
     ) : WorkflowField(id, label) {
         override fun resolve(chosen: String?, values: Map<String, String>): String? {
             val options = choices(values).filter { it.disabledReason == null }
-            if (options.isEmpty()) return null
-            return listOf(chosen, default(values)).firstOrNull { wanted -> options.any { it.id == wanted } } ?: options.first().id
+            val typed = custom(values)
+            fun fits(wanted: String?) = wanted != null && (options.any { it.id == wanted } || typed?.fits(wanted) == true)
+            if (options.isEmpty() && typed == null) return null
+            return listOf(chosen, default(values)).firstOrNull(::fits) ?: options.firstOrNull()?.id
         }
     }
 
@@ -119,6 +123,9 @@ sealed class WorkflowField(val id: String, val label: UiText) {
             val wanted = listOfNotNull(chosen?.toIntOrNull(), default(values)).firstOrNull(steps::fits)
             return (wanted ?: steps.min).toString()
         }
+
+        /** Any value of the range can be typed (Kairo#183). */
+        fun custom(values: Map<String, String>): CustomValue = range(values).let { CustomValue.range(it.min, it.max, it.step, labelOf = labelOf) }
     }
 
     /** Text, such as a name: [default] starts it, and [problem] says why a value cannot be taken (null when it can). */

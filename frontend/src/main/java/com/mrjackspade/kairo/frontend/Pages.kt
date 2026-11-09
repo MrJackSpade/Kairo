@@ -100,7 +100,11 @@ internal class Footer(private val page: Page, private val buttons: () -> List<Fo
     }
 }
 
-/** A titled page of row groups, with the scope chip naming what the page changes. */
+/**
+ * A titled page of row groups, with the scope chip naming what the page changes. A page whose only
+ * row is one choice (Kairo#182) lists that choice's options itself, as its choice page would, and a
+ * pick selects in place: the player never opens a page for the one thing this page sets.
+ */
 open class GroupsPage(
     val title: String,
     private val scope: () -> String? = { null },
@@ -112,7 +116,25 @@ open class GroupsPage(
     override val scroll: ScrollView? get() = scrollView
     override val testName: String get() = title
 
-    override fun groups() = content()
+    override fun groups(): List<RowGroup> {
+        val groups = content()
+        val only = onlyChoice(groups) ?: return groups
+        val spec = checkNotNull(only.choice)
+        return ChoicePage.optionGroups(this, spec, spec.groups(), { folder -> stack.push(ChoicePage.folder(spec, folder)) }) { id ->
+            spec.select(id)
+            refresh()
+        } + listOfNotNull(groups.single().foot?.let { RowGroup(null, emptyList(), it) })
+    }
+
+    /** The page's one row, when it is an enabled choice and nothing else is on the page. */
+    private fun onlyChoice(groups: List<RowGroup>): SettingsRow? = groups.singleOrNull()?.rows?.singleOrNull()
+        ?.takeIf { it.kind == SettingsRow.Kind.CHOICE && it.choice != null && it.enabled() }
+
+    /** On a page listing its one choice's options: the current option, or the folder holding it. */
+    override fun initialFocus(items: List<NavItem>): String? {
+        val spec = onlyChoice(content())?.choice ?: return super.initialFocus(items)
+        return ChoicePage.focusOf(spec, spec.groups(), items)
+    }
 
     override fun createView(): View {
         val page = LinearLayout(context).apply {
@@ -161,38 +183,78 @@ class ChoicePage private constructor(
 ) : GroupsPage(title, spec.scope, { emptyList() }) {
     constructor(spec: ChoiceSpec, rowId: String? = null) : this(spec, rowId, spec.title, spec.groups, null)
 
-    override fun groups(): List<RowGroup> {
-        val options = content().map { group ->
-            RowGroup(group.label, group.folders.map { folder ->
-                SettingsRow.nav("f:${folder.id}", folder.label, { folder.find(spec.selected())?.label?.resolve(context) ?: "" },
-                    { ValueTone.CURRENT }) { open(folder) }
-            } + group.options.map { option ->
-                val disabled = option.disabledReason?.resolve(context)
-                SettingsRow.option("o:${option.id}", option.label.resolve(context), option.description?.resolve(context),
-                    { spec.selected() == option.id }, enabled = { disabled == null }, disabledReason = { disabled },
-                    quoted = option.label is UiText.Fixed) { pick(option.id) }
-            }, group.foot)
-        }
-        val actions = if (first == null) spec.actions() else emptyList()
-        return if (actions.isEmpty()) options else options + RowGroup(null, actions)
-    }
+    override fun groups(): List<RowGroup> = optionGroups(this, spec, content(), ::open, actions = first == null, pick = ::pick)
 
-    /** The current option, or the folder that holds it. */
-    override fun initialFocus(items: List<NavItem>): String? {
-        val selected = spec.selected()
-        // The option itself when this page lists it, without reading the choice's groups again.
-        if (selected != null && items.any { it.id == "o:$selected" }) return "o:$selected"
-        val target = selected?.let { id ->
-            content().firstNotNullOfOrNull { group ->
-                group.options.firstOrNull { it.id == id }?.let { "o:$id" }
-                    ?: group.folders.firstOrNull { it.find(id) != null }?.let { "f:${it.id}" }
-            }
-        }
-        return target?.takeIf { id -> items.any { it.id == id } } ?: items.firstOrNull()?.id
-    }
+    override fun initialFocus(items: List<NavItem>): String? = focusOf(spec, content(), items)
 
     private fun open(folder: ChoiceFolder) =
         stack.push(ChoicePage(spec, rowId, folder.label, folder.groups, first ?: this))
+
+    companion object {
+        /**
+         * [groups] of [spec] as rows on [page]: each folder (opened with [open]) and each option (taken
+         * with [pick]), the current one marked; Custom… where the choice takes a typed value; then the
+         * choice's actions, unless [actions] is false.
+         */
+        fun optionGroups(page: RowsPage, spec: ChoiceSpec, groups: List<ChoiceGroup>, open: (ChoiceFolder) -> Unit,
+                         actions: Boolean = true, pick: (String) -> Unit): List<RowGroup> {
+            val context = page.context
+            val options = groups.map { group ->
+                RowGroup(group.label, group.folders.map { folder ->
+                    SettingsRow.nav("f:${folder.id}", folder.label, { folder.find(spec.selected())?.label?.resolve(context) ?: "" },
+                        { ValueTone.CURRENT }) { open(folder) }
+                } + group.options.map { option ->
+                    val disabled = option.disabledReason?.resolve(context)
+                    SettingsRow.option("o:${option.id}", option.label.resolve(context), option.description?.resolve(context),
+                        { spec.selected() == option.id }, enabled = { disabled == null }, disabledReason = { disabled },
+                        quoted = option.label is UiText.Fixed) { pick(option.id) }
+                }, group.foot)
+            }
+            val typed = spec.custom?.let { custom -> listOf(RowGroup(null, listOf(customRow(page, spec, custom, groups, pick)))) }.orEmpty()
+            val extra = if (actions) spec.actions() else emptyList()
+            return options + typed + (if (extra.isEmpty()) emptyList() else listOf(RowGroup(null, extra)))
+        }
+
+        /**
+         * Custom… (Kairo#183): the value typed on a page of its own (TextEntryPage, its field above the
+         * keyboard); Save takes it when it fits, and otherwise says why there, the typed value kept. The
+         * row shows the value when it is the current one (one no option lists).
+         */
+        private fun customRow(page: RowsPage, spec: ChoiceSpec, custom: CustomValue, groups: List<ChoiceGroup>,
+                              pick: (String) -> Unit): SettingsRow {
+            val context = page.context
+            fun typedNow() = spec.selected()?.takeIf { ChoiceSpec.find(groups, it) == null && custom.fits(it) }
+            val label = context.getString(R.string.kairo_custom_value)
+            return SettingsRow.nav("custom", label, { typedNow()?.let { custom.labelOf(it).resolve(context) } ?: "" },
+                { if (typedNow() != null) ValueTone.CURRENT else ValueTone.SUMMARY }) {
+                lateinit var entry: TextEntryPage
+                entry = TextEntryPage(spec.title, typedNow()?.let(custom.typedOf) ?: "", custom.hint.resolve(context), numeric = true,
+                    button = context.getString(R.string.kairo_save), fieldId = "custom.value",
+                    problem = { typed -> custom.problem(typed)?.resolve(context) }) { typed ->
+                    page.stack.popThrough(entry)
+                    pick(custom.valueOf(typed))
+                }
+                page.stack.push(entry)
+            }
+        }
+
+        /** Of [items], the current option of [spec], or the folder of [groups] that holds it; else the first. */
+        fun focusOf(spec: ChoiceSpec, groups: List<ChoiceGroup>, items: List<NavItem>): String? {
+            val selected = spec.selected()
+            // The option itself when the page lists it, without reading the choice's groups again.
+            if (selected != null && items.any { it.id == "o:$selected" }) return "o:$selected"
+            val target = selected?.let { id ->
+                groups.firstNotNullOfOrNull { group ->
+                    group.options.firstOrNull { it.id == id }?.let { "o:$id" }
+                        ?: group.folders.firstOrNull { it.find(id) != null }?.let { "f:${it.id}" }
+                }
+            }
+            return target?.takeIf { id -> items.any { it.id == id } } ?: items.firstOrNull()?.id
+        }
+
+        /** A folder of [spec] opened from a page that lists the choice itself: a pick returns to that page. */
+        fun folder(spec: ChoiceSpec, folder: ChoiceFolder) = ChoicePage(spec, null, folder.label, folder.groups, null)
+    }
 
     private fun pick(id: String) {
         spec.select(id)

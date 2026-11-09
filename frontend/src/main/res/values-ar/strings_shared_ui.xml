@@ -34,6 +34,12 @@
     <string name="kairo_folder_title">اختر مجلد ألعاب</string>
     <!-- EN: Hard disk -->
     <string name="kairo_hard_disk">قرص صلب</string>
+    <string name="kairo_custom_value">مخصص…</string>
+    <string name="kairo_custom_hint">من %1$s إلى %2$s</string>
+    <string name="kairo_custom_not_number">أدخل عددًا صحيحًا</string>
+    <string name="kairo_custom_not_decimal">أدخل عددًا بما لا يزيد عن %1$d منازل عشرية</string>
+    <string name="kairo_custom_out_of_range">من %1$s إلى %2$s</string>
+    <string name="kairo_custom_off_step">بخطوات قدرها %1$s</string>
     <!-- EN: Fire -->
     <string name="kairo_joystick_fire">إطلاق</string>
     <!-- EN: Fire 2 (unused) -->
@@ -52,6 +58,10 @@
     <!-- %1$d is a size in megabytes. -->
     <!-- EN: %1$d MB -->
     <string name="kairo_memory_mb">%1$d MB</string>
+    <string name="kairo_size_kb">%1$s ك.ب</string>
+    <string name="kairo_size_mb">%1$s م.ب</string>
+    <string name="kairo_size_gb">%1$s ج.ب</string>
+    <string name="kairo_disk_with_size">%1$s · %2$s</string>
     <!-- EN: CPU clock -->
     <string name="kairo_option_clock">ساعة المعالج</string>
     <!-- EN: Machine -->

@@ -887,8 +887,10 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             listOfNotNull(if (muted) getString(R.string.kairo_session_muted) else null)).joinToString(" · ")
     }
 
+    /** Every screen showing settings shows their values now: this screen's pages and a lower screen's (KairoX86#339). */
     protected fun refreshSettingValues() {
         if (::pages.isInitialized) pages.refresh()
+        if (::lowerLibrary.isInitialized) lowerLibrary.refresh()
     }
 
     private fun toggleMute() {

@@ -34,6 +34,12 @@
     <string name="kairo_folder_title">Выберите папку с играми</string>
     <!-- EN: Hard disk -->
     <string name="kairo_hard_disk">Жесткий диск</string>
+    <string name="kairo_custom_value">Своё значение…</string>
+    <string name="kairo_custom_hint">От %1$s до %2$s</string>
+    <string name="kairo_custom_not_number">Введите целое число</string>
+    <string name="kairo_custom_not_decimal">Введите число, не более %1$d знаков после запятой</string>
+    <string name="kairo_custom_out_of_range">От %1$s до %2$s</string>
+    <string name="kairo_custom_off_step">С шагом %1$s</string>
     <!-- EN: Fire -->
     <string name="kairo_joystick_fire">Огонь</string>
     <!-- EN: Fire 2 (unused) -->
@@ -52,6 +58,10 @@
     <!-- %1$d is a size in megabytes. -->
     <!-- EN: %1$d MB -->
     <string name="kairo_memory_mb">%1$d МБ</string>
+    <string name="kairo_size_kb">%1$s КБ</string>
+    <string name="kairo_size_mb">%1$s МБ</string>
+    <string name="kairo_size_gb">%1$s ГБ</string>
+    <string name="kairo_disk_with_size">%1$s · %2$s</string>
     <!-- EN: CPU clock -->
     <string name="kairo_option_clock">Частота ЦП</string>
     <!-- EN: Machine -->

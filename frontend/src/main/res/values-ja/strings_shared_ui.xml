@@ -34,6 +34,12 @@
     <string name="kairo_folder_title">ゲームフォルダを選択</string>
     <!-- EN: Hard disk -->
     <string name="kairo_hard_disk">ハードディスク</string>
+    <string name="kairo_custom_value">カスタム…</string>
+    <string name="kairo_custom_hint">%1$s～%2$s</string>
+    <string name="kairo_custom_not_number">整数を入力してください</string>
+    <string name="kairo_custom_not_decimal">小数点以下%1$d桁までの数値を入力してください</string>
+    <string name="kairo_custom_out_of_range">%1$s～%2$sの範囲で入力してください</string>
+    <string name="kairo_custom_off_step">%1$s単位で入力してください</string>
     <!-- EN: Fire -->
     <string name="kairo_joystick_fire">ファイア</string>
     <!-- EN: Fire 2 (unused) -->
@@ -52,6 +58,10 @@
     <!-- %1$d is a size in megabytes. -->
     <!-- EN: %1$d MB -->
     <string name="kairo_memory_mb">%1$d MB</string>
+    <string name="kairo_size_kb">%1$s KB</string>
+    <string name="kairo_size_mb">%1$s MB</string>
+    <string name="kairo_size_gb">%1$s GB</string>
+    <string name="kairo_disk_with_size">%1$s · %2$s</string>
     <!-- EN: CPU clock -->
     <string name="kairo_option_clock">CPU クロック</string>
     <!-- EN: Machine -->

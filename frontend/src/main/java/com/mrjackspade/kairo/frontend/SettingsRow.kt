@@ -65,11 +65,54 @@ class Confirm(val message: String, val verb: String, val danger: Boolean = false
  * player has not given). A choice with [folder] lists in that folder of its choice page, with the other
  * choices of the same folder, for a long choice (Kairo#143).
  */
+/**
+ * An option of a choice: [folder] puts it in a folder of that name, [section] under that labeled group
+ * of the list (an uppercase section label, such as "PRESETS"), where a list built from options groups them.
+ */
 class ChoiceOption(val id: String, val label: UiText, val description: UiText? = null,
-                   val disabledReason: UiText? = null, val folder: String? = null) {
+                   val disabledReason: UiText? = null, val folder: String? = null, val section: UiText? = null) {
     /** A choice named by text that is never translated, such as a file or a game's name. */
     constructor(id: String, label: String, description: String? = null) :
         this(id, UiText.fixed(label), description?.let(UiText::fixed))
+}
+
+/**
+ * A value typed instead of picked (Kairo#183): a number the choice's options need not list. The player
+ * types in [hint]'s unit; [problem] says why typed text cannot be taken (null when it can), [valueOf]
+ * turns typed text into the value kept and [typedOf] back, and [labelOf] says how a value reads ("700 MB").
+ */
+class CustomValue(val hint: UiText, val labelOf: (String) -> UiText, val problem: (String) -> UiText?,
+                  val valueOf: (String) -> String = { it }, val typedOf: (String) -> String = { it }) {
+    /** Whether the kept [value] is one the player could type. */
+    fun fits(value: String): Boolean = problem(typedOf(value)) == null
+
+    companion object {
+        /**
+         * A number typed with up to [decimals] places, counted in units of its last place (7.16 MHz with two
+         * places is 716), from [min] to [max] by [step] such units, kept as the units times [scale] (memory
+         * typed in MB and kept in KB; a clock typed in MHz to two places and kept in Hz), read as [labelOf]
+         * makes a kept value. A number off them is refused, never moved.
+         */
+        fun range(min: Int, max: Int, step: Int, scale: Int = 1, decimals: Int = 0, labelOf: (Int) -> UiText): CustomValue {
+            require(step > 0 && min <= max && scale > 0 && decimals >= 0) { "Range $min..$max by $step, scale $scale" }
+            val unit = (1..decimals).fold(1) { total, _ -> total * 10 }
+            val form = Regex(if (decimals == 0) "\\d+" else "\\d+(\\.\\d{1,$decimals})?")
+            fun label(units: Int) = labelOf(units * scale)
+            fun unitsOf(typed: String): Int? = typed.takeIf(form::matches)?.toBigDecimalOrNull()
+                ?.movePointRight(decimals)?.toBigInteger()?.takeIf { it.bitLength() < 31 }?.toInt()
+            fun typedOf(units: Int) = if (decimals == 0) units.toString() else "${units / unit}.${(units % unit).toString().padStart(decimals, '0')}"
+            return CustomValue(UiText.res(R.string.kairo_custom_hint, label(min), label(max)), { labelOf(it.toInt()) }, { typed ->
+                val units = unitsOf(typed)
+                when {
+                    units == null -> UiText.res(if (decimals == 0) R.string.kairo_custom_not_number else R.string.kairo_custom_not_decimal, decimals)
+                    units < min || units > max -> UiText.res(R.string.kairo_custom_out_of_range, label(min), label(max))
+                    (units - min) % step != 0 -> UiText.res(R.string.kairo_custom_off_step, label(step))
+                    else -> null
+                }
+            }, { (checkNotNull(unitsOf(it)) * scale).toString() },
+                { value -> value.toIntOrNull()?.takeIf { it % scale == 0 }?.let { typedOf(it / scale) } ?: "" })
+        }
+    }
 }
 
 /** Folders list before options; each opens its own choice page within the same choice. */
@@ -99,8 +142,13 @@ class ChoiceSpec(
     /** Whether Left and Right on the row step through the options in place. */
     val cycles: Boolean = true,
     /** After a pick has closed the choice's pages (not for [stay]): what the pick leads to, such as another question. */
-    val closed: () -> Unit = {}
+    val closed: () -> Unit = {},
+    /** A value the player can type instead (Custom…, Kairo#183), for a setting that could be any number in a range. */
+    val custom: CustomValue? = null
 ) {
+    /** How the value [id] reads: its option's label, else its typed value's. */
+    fun labelOf(id: String): UiText? = find(groups(), id)?.label ?: custom?.takeIf { it.fits(id) }?.labelOf?.invoke(id)
+
     /** Every option, folders included, in page order. */
     val options: List<ChoiceOption> get() = flatten(groups())
 
@@ -172,7 +220,7 @@ class SettingsRow private constructor(
                    tone: () -> ValueTone = { ValueTone.CURRENT }, tag: () -> String? = none,
                    enabled: () -> Boolean = always, disabledReason: () -> String? = none) =
             SettingsRow(id, Kind.CHOICE, label,
-                { context -> value() ?: spec.selected()?.let { ChoiceSpec.find(spec.groups(), it) }?.label?.resolve(context) ?: "" },
+                { context -> value() ?: spec.selected()?.let(spec::labelOf)?.resolve(context) ?: "" },
                 tone, tag, null, enabled, disabledReason, false, never, null, spec, never, null,
                 null, null, null)
 

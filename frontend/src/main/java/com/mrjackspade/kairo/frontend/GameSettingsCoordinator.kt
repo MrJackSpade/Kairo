@@ -70,8 +70,9 @@ object GameSettingsRows {
                disabledReason: () -> String? = { null }, foot: String? = null,
                defaultLabel: (() -> String)? = null,
                actions: (select: (String) -> Unit) -> List<SettingsRow> = { emptyList() },
-               closed: () -> Unit = {}): SettingsRow {
-        fun optionLabel(option: String) = options().firstOrNull { it.id == option }?.label?.resolve(context) ?: option
+               closed: () -> Unit = {}, custom: CustomValue? = null): SettingsRow {
+        fun optionLabel(option: String) = (options().firstOrNull { it.id == option }?.label
+            ?: custom?.takeIf { it.fits(option) }?.labelOf?.invoke(option))?.resolve(context) ?: option
         fun fallbackLabel() = defaultLabel?.invoke() ?: optionLabel(value.fallback())
         val select = { picked: String -> value.set(picked.takeIf { it != DEFAULT }) }
         val spec = ChoiceSpec(label, { scope() }, {
@@ -82,7 +83,7 @@ object GameSettingsRows {
             listOf(ChoiceGroup(null, listOf(ChoiceOption(DEFAULT, context.getString(R.string.kairo_default),
                 context.getString(R.string.kairo_settings_default_from, GameSource.text(context, value.source()), fallbackLabel()))) +
                 all.filter { it.folder == null }, foot, folders))
-        }, { value.custom() ?: DEFAULT }, select, actions = { actions(select) }, closed = closed)
+        }, { value.custom() ?: DEFAULT }, select, actions = { actions(select) }, closed = closed, custom = custom)
         return SettingsRow.choice(id, label, spec,
             value = { value.custom()?.let(::optionLabel) ?: fallbackLabel() },
             tone = { if (value.custom() != null) ValueTone.CUSTOM else ValueTone.CURRENT },

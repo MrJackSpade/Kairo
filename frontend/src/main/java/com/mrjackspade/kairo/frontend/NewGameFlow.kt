@@ -1,15 +1,6 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.content.Context
-import android.text.InputType
-import android.view.Gravity
-import android.view.KeyEvent
-import android.view.View
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
-import android.widget.LinearLayout
 
 /**
  * Runs an app's [NewGameWorkflow] (Kairo#181): one page for each of its pages shown for the choices so
@@ -83,117 +74,57 @@ class NewGameFlow<T : LibraryItem>(
     }
 
     private fun row(field: WorkflowField, now: Map<String, String>): SettingsRow? = when (field) {
-        is WorkflowField.Select -> choiceRow(field.id, field.label, { field.choices(values) })
+        is WorkflowField.Select -> choiceRow(field.id, field.label, { field.choices(values) }, field.custom(now))
         is WorkflowField.Range -> choiceRow(field.id, field.label, {
             field.range(values).values.map { ChoiceOption(it.toString(), field.labelOf(it)) }
-        })
+        }, field.custom(now))
         // Text is typed on a page of its own, where the keyboard leaves it in view: only the name page has one.
         is WorkflowField.Text -> error("${field.id}: a text field goes on the name page only")
     }.takeIf { now.containsKey(field.id) }
 
-    private fun choiceRow(id: String, label: UiText, options: () -> List<ChoiceOption>): SettingsRow {
+    private fun choiceRow(id: String, label: UiText, options: () -> List<ChoiceOption>, custom: CustomValue?): SettingsRow {
         val title = label.resolve(activity)
         return SettingsRow.choice("new-$id", title, ChoiceSpec(title, { null }, { groups(options()) }, { values[id] }, select = { picked ->
             chosen[id] = picked
             pages.refresh()
-        }))
+        }, custom = custom))
     }
 
-    /** Options in folders (a processor's family) open as folders; the rest list as they are. */
+    /**
+     * Options in folders (a processor's family) open as folders; the rest list as they are, under
+     * their sections' labels (KairoX86#335) in the order the sections first come.
+     */
     private fun groups(options: List<ChoiceOption>): List<ChoiceGroup> {
         val folders = options.mapNotNull { it.folder }.distinct().map { name ->
             ChoiceFolder(name, name) { listOf(ChoiceGroup(null, options.filter { it.folder == name })) }
         }
-        return listOf(ChoiceGroup(null, options.filter { it.folder == null }, null, folders))
+        val sections = options.filter { it.folder == null }.groupBy { it.section }
+        if (sections.isEmpty()) return listOf(ChoiceGroup(null, emptyList(), null, folders))
+        return sections.entries.mapIndexed { index, (section, listed) ->
+            ChoiceGroup(section?.resolve(activity), listed, null, if (index == 0) folders else emptyList())
+        }
     }
 
+    /** Writes the game the choices make, named [name] (checked by the name page). */
     private fun create(name: String) {
-        val trimmed = name.trim()
-        if (!CreateGameFlow.usable(trimmed)) {
-            Ui.message(activity, activity.getString(R.string.kairo_create_bad_name))
-            return
-        }
-        chosen[NewGameWorkflow.NAME] = trimmed
+        chosen[NewGameWorkflow.NAME] = name
         val blank = workflow.create(values)
         first?.let(pages::popThrough)
         val made = values
-        CreateGameFlow.create(activity, library, blank, trimmed, folder) { path -> workflow.created(made, path) }
+        CreateGameFlow.create(activity, library, blank, name, folder) { path -> workflow.created(made, path) }
     }
 
-    /**
-     * The name: a field at the top of its own page, so the on-screen keyboard leaves it in view, and
-     * Create in the footer, which the field's Done also presses.
-     */
-    private inner class NamePage : Page() {
-        private lateinit var field: EditText
-        private lateinit var footer: Footer
+    /** The name: the shared text page (its field at the top, in view above the keyboard), Create in its footer. */
+    private inner class NamePage : TextEntryPage(activity.getString(R.string.kairo_create_name_title),
+        chosen[NewGameWorkflow.NAME] ?: activity.getString(R.string.kairo_create_name_default),
+        activity.getString(R.string.kairo_create_name_hint), numeric = false, button = activity.getString(R.string.kairo_create),
+        fieldId = "new-game.name",
+        problem = { name -> if (CreateGameFlow.usable(name)) null else activity.getString(R.string.kairo_create_bad_name) },
+        done = { name -> create(name) }) {
         override val testName: String get() = "new-game-name"
-
-        override fun createView(): View {
-            val page = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Ui.BG)
-            }
-            page.addView(header(activity.getString(R.string.kairo_create_name_title), null), LinearLayout.LayoutParams(-1, dp(56)))
-            val column = MaxWidthColumn(context, dp(640)).apply { setPadding(dp(18), dp(8), dp(18), dp(8)) }
-            field = EditText(context).testId("new-game.name").apply {
-                setText(chosen[NewGameWorkflow.NAME] ?: activity.getString(R.string.kairo_create_name_default))
-                setSelection(text.length)
-                hint = activity.getString(R.string.kairo_create_name_hint)
-                textSize = Ui.BODY
-                isSingleLine = true
-                inputType = InputType.TYPE_CLASS_TEXT
-                // Typed in place: a landscape keyboard's full-screen entry would hide the page
-                imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN
-                setTextColor(Ui.TEXT)
-                setHintTextColor(Ui.TEXT_FAINT)
-                background = Ui.rounded(context, Ui.BG, Ui.RADIUS_SMALL, Ui.ACCENT)
-                setPadding(dp(12), 0, dp(12), 0)
-                setOnEditorActionListener { _, action, _ ->
-                    if (action == EditorInfo.IME_ACTION_DONE) { create(text.toString()); true } else false
-                }
-            }
-            column.addView(field, LinearLayout.LayoutParams(-1, dp(48)))
-            page.addView(android.widget.FrameLayout(context).apply {
-                addView(column, android.widget.FrameLayout.LayoutParams(-1, -2, Gravity.CENTER_HORIZONTAL))
-            }, LinearLayout.LayoutParams(-1, 0, 1f))
-            footer = Footer(this) { listOf(FooterButton("create", { activity.getString(R.string.kairo_create) }, ButtonTone.PRIMARY) {
-                create(field.text.toString())
-            }) }.also {
-                it.render()
-                page.addView(it.bar, LinearLayout.LayoutParams(-1, -2))
-            }
-            return page
-        }
-
-        override fun navItems(): List<NavItem> =
-            listOf(NavItem("name", field, 0, 0.5f, { editName() })) + footer.nav(1)
-
-        override fun onShown(first: Boolean) {
-            if (first) editName()
-        }
-
-        override fun onHidden() = hideKeyboard()
         override fun onRemoved() {
-            hideKeyboard()
+            super.onRemoved()
             removed(this)
         }
-
-        override fun handleKey(control: String?, event: KeyEvent): Boolean {
-            // Typing goes to the field; the controller's directions and buttons still move and press.
-            if (field.hasFocus() && control == null) return false
-            return super.handleKey(control, event)
-        }
-
-        private fun editName() {
-            field.requestFocus()
-            field.post { keyboard().showSoftInput(field, InputMethodManager.SHOW_IMPLICIT) }
-        }
-
-        private fun hideKeyboard() {
-            if (::field.isInitialized) keyboard().hideSoftInputFromWindow(field.windowToken, 0)
-        }
-
-        private fun keyboard() = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
 }

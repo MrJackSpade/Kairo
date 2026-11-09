@@ -763,7 +763,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val options = newGameOptions()
         val kind = NewGameWorkflow.kindPage(blanks, UiText.res(R.string.kairo_library_new_game), UiText.res(R.string.kairo_new_game_kind))
         val machine = WorkflowPage("machine", UiText.res(R.string.kairo_option_machine), options.map { option ->
-            WorkflowField.Select(option.id, option.label, { values -> option.choices(values) }, { values -> optionDefault(option, values) })
+            WorkflowField.Select(option.id, option.label, { values -> option.choices(values) }, { values -> optionDefault(option, values) },
+                custom = { values -> option.custom(values) })
         }) { values -> NewGameWorkflow.chosen(blanks, values) !is BlankDisk.Folder }
         NewGameWorkflow(listOf(kind) + listOfNotNull(machine.takeIf { options.isNotEmpty() }), created = { values, path ->
             for (option in options) {
@@ -830,7 +831,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                                 machineValue(entry, MachineOption.SECTION, option.id, { option.read(it) },
                                     { optionDefault(option, optionValues(catalog.resolve(entry))) }, GameSource.ALL_GAMES,
                                     toStored = option::stored),
-                                enabled, noHash, actions = option.actions)
+                                enabled, noHash, actions = option.actions, custom = option.custom(optionValues(catalog.resolve(entry))))
                     }
                     is CatalogSetting.Drive -> driveRow(entry, setting, scope, enabled, noHash)
                     is CatalogSetting.Lines -> linesRow(entry, setting, enabled, noHash)
@@ -881,7 +882,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val defaultLabel = option.labelOf?.let { label -> { text(label(value.fallback())) } }
         return GameSettingsRows.choice(this, option.id, text(option.label), { titleOf(entry) },
             { option.choices(storedValues(entry, store)) }, value, enabled, { GameSettingsRows.noHash(this) },
-            defaultLabel = defaultLabel, actions = option.actions, closed = after)
+            defaultLabel = defaultLabel, actions = option.actions, closed = after, custom = option.custom(storedValues(entry, store)))
     }
 
     /** The first of [entry]'s choices kept in [store] that its other choices no longer allow, or null. */
@@ -1472,7 +1473,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         }, {
             val current = currentEntry ?: return@choice emptyList()
             otherDisks(current, ::takes)
-        }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) }) {
+        }, { mounted[slot]?.id ?: GameDisks.EMPTY }, insert = { changeMedia(slot, it) }, sizeOf = ::diskSize, actions = {
             listOfNotNull(SettingsRow.action("choose", getString(R.string.kairo_choose_file)) {
                 pickingMediaSlot = slot
                 DocumentPicker.open(this, MEDIA_FILE_REQUEST, failed = ::toast)
@@ -1480,8 +1481,14 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 pickingMediaSlot = slot
                 DocumentPicker.openFolder(this, MEDIA_FOLDER_REQUEST, mediaFolderStart(), failed = ::toast)
             })
-        }
+        })
     }
+
+    /**
+     * A disk's size, shown beside its name in a drive's choices (KairoX86#340), for a product whose disk
+     * kinds a size tells apart; null where the product does not show it.
+     */
+    protected open fun diskSize(entry: E): Long? = null
 
     /**
      * The running game's own disks a drive offers first, those [takes] accepts: by default its

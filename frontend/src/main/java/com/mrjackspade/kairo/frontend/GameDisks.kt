@@ -28,9 +28,11 @@ object GameDisks {
     /**
      * Options for [entries]: a loose disk by its file name, one in an archive by the archive's, and
      * one of several images in an archive by both. Disks those would name alike, such as two copies
-     * of one image unpacked from a ZIP and from a 7z, are named by their paths instead.
+     * of one image unpacked from a ZIP and from a 7z, are named by their paths instead. Where [sizeOf]
+     * knows a disk's size (KairoX86#340), it follows the name ("win98.img · 811 MB"), so the player can
+     * tell a hard disk's image from a floppy's.
      */
-    fun <E : LibraryItem> options(entries: List<E>): List<ChoiceOption> {
+    fun <E : LibraryItem> options(entries: List<E>, sizeOf: (E) -> Long? = { null }): List<ChoiceOption> {
         val images = entries.groupingBy { it.uri }.eachCount()
         fun label(entry: E, full: Boolean): UiText {
             val archive = entry.zipEntry?.let { if (full) entry.path else entry.path.substringAfterLast('/') }
@@ -44,7 +46,24 @@ object GameDisks {
         val short = entries.map { label(it, full = false) }
         val alike = short.groupingBy { it }.eachCount()
         return entries.mapIndexed { index, entry ->
-            ChoiceOption(entry.id, if (alike.getValue(short[index]) > 1) label(entry, full = true) else short[index])
+            val name = if (alike.getValue(short[index]) > 1) label(entry, full = true) else short[index]
+            ChoiceOption(entry.id, sizeOf(entry)?.takeIf { it >= 0 }?.let { UiText.res(R.string.kairo_disk_with_size, name, sizeText(it)) } ?: name)
+        }
+    }
+
+    /** [bytes] as the player reads a disk's size: KB below 1 MB, MB below 1 GB (to two places below 10), else GB to two places. */
+    fun sizeText(bytes: Long): UiText {
+        val kb = 1024.0
+        val mb = kb * 1024
+        val gb = mb * 1024
+        fun number(value: Double, places: Int) = java.text.NumberFormat.getNumberInstance().apply {
+            maximumFractionDigits = places
+            minimumFractionDigits = 0
+        }.format(value)
+        return when {
+            bytes < mb -> UiText.res(R.string.kairo_size_kb, number(bytes / kb, 0))
+            bytes < gb -> UiText.res(R.string.kairo_size_mb, number(bytes / mb, if (bytes < 10 * mb) 2 else 0))
+            else -> UiText.res(R.string.kairo_size_gb, number(bytes / gb, 2))
         }
     }
 
@@ -54,14 +73,14 @@ object GameDisks {
      */
     fun <E : LibraryItem> choice(context: Context, title: String, scope: () -> String?, own: () -> List<E>, all: () -> List<E>,
                                  selected: () -> String?, insert: (E?) -> Unit,
-                                 actions: () -> List<SettingsRow> = { emptyList() }): ChoiceSpec {
+                                 actions: () -> List<SettingsRow> = { emptyList() }, sizeOf: (E) -> Long? = { null }): ChoiceSpec {
         val other = ChoiceFolder("other", context.getString(R.string.kairo_disks_other)) {
-            listOf(ChoiceGroup(null, options(all())))
+            listOf(ChoiceGroup(null, options(all(), sizeOf)))
         }
         return ChoiceSpec(title, scope, {
             val found = own()
             listOfNotNull(ChoiceGroup(null, listOf(ChoiceOption(EMPTY, UiText.res(R.string.kairo_empty)))),
-                found.takeIf { it.isNotEmpty() }?.let { ChoiceGroup(context.getString(R.string.kairo_disks_this_game), options(it)) },
+                found.takeIf { it.isNotEmpty() }?.let { ChoiceGroup(context.getString(R.string.kairo_disks_this_game), options(it, sizeOf)) },
                 ChoiceGroup(null, emptyList(), folders = listOf(other)))
         }, selected, { id ->
             if (id == EMPTY) insert(null)

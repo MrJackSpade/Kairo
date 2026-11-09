@@ -34,6 +34,12 @@
     <string name="kairo_folder_title">Pilih folder game</string>
     <!-- EN: Hard disk -->
     <string name="kairo_hard_disk">Hard disk</string>
+    <string name="kairo_custom_value">Kustom…</string>
+    <string name="kairo_custom_hint">%1$s sampai %2$s</string>
+    <string name="kairo_custom_not_number">Masukkan bilangan bulat</string>
+    <string name="kairo_custom_not_decimal">Masukkan angka dengan paling banyak %1$d angka desimal</string>
+    <string name="kairo_custom_out_of_range">Dari %1$s sampai %2$s</string>
+    <string name="kairo_custom_off_step">Dengan kelipatan %1$s</string>
     <!-- EN: Fire -->
     <string name="kairo_joystick_fire">Tembak</string>
     <!-- EN: Fire 2 (unused) -->
@@ -52,6 +58,10 @@
     <!-- %1$d is a size in megabytes. -->
     <!-- EN: %1$d MB -->
     <string name="kairo_memory_mb">%1$d MB</string>
+    <string name="kairo_size_kb">%1$s KB</string>
+    <string name="kairo_size_mb">%1$s MB</string>
+    <string name="kairo_size_gb">%1$s GB</string>
+    <string name="kairo_disk_with_size">%1$s · %2$s</string>
     <!-- EN: CPU clock -->
     <string name="kairo_option_clock">Clock CPU</string>
     <!-- EN: Machine -->

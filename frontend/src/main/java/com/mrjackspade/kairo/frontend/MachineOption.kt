@@ -41,7 +41,12 @@ class MachineOption(
     private val choicesWith: ((Map<String, String>) -> List<ChoiceOption>)? = null,
     private val defaultWith: ((Map<String, String>) -> String)? = null,
     /** How a value reads where no choice names it, such as a default the machine's choices do not include. */
-    val labelOf: ((String) -> UiText)? = null
+    val labelOf: ((String) -> UiText)? = null,
+    /**
+     * A value the player can type beside the choices (Custom…, Kairo#183), for a game whose options
+     * have the values given, for a setting that could be any number in a range; null for none.
+     */
+    private val customWith: ((Map<String, String>) -> CustomValue)? = null
 ) {
     constructor(id: String, label: UiText, choices: List<ChoiceOption>, default: String, numeric: Boolean = false,
                 ownFirmware: String? = null, question: UiText? = null) :
@@ -59,10 +64,16 @@ class MachineOption(
     /** The default of a game whose options have [values]. */
     fun default(values: Map<String, String>): String = defaultWith?.invoke(values) ?: default
 
-    /** Whether a game whose options have [values] can keep [value]. */
-    fun fits(value: String, values: Map<String, String>): Boolean = choices(values).any { it.id == value }
+    /** The typed value a game whose options have [values] can take, or null. */
+    fun custom(values: Map<String, String>): CustomValue? = customWith?.invoke(values)
 
-    private fun accepted(value: String) = accepts?.invoke(value) ?: choices.any { it.id == value }
+    /** Whether a game whose options have [values] can keep [value]: one of its choices, or a typed value that fits. */
+    fun fits(value: String, values: Map<String, String>): Boolean =
+        choices(values).any { it.id == value } || custom(values)?.fits(value) == true
+
+    // A typed value is a whole number; whether it fits the game's other options is [fits]'s to say.
+    private fun accepted(value: String) = accepts?.invoke(value) ?: (choices.any { it.id == value } ||
+        customWith != null && value.toIntOrNull() != null)
 
     /** The game's own choice, from its catalog layers, or null. */
     fun read(game: CatalogGame): String? =
