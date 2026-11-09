@@ -56,6 +56,8 @@ class LibraryScreen<T : LibraryItem>(
     private val preview: (T) -> Unit,
     private val details: (T) -> Unit,
     private val selectionChanged: (T?) -> Unit,
+    /** A pull down at the top of the list (Kairo#185): refreshes the library, as its menu's Refresh does. */
+    private val pullRefresh: () -> Unit,
     private val commandLaunch: ((T) -> Unit)? = null
 ) : FrameLayout(context), FocusRegion {
     /** The game whose page is open, or null once it closed: a lower screen shows its settings. */
@@ -78,6 +80,11 @@ class LibraryScreen<T : LibraryItem>(
     /** A new entry list is on screen; [showEntries] publishes it from a worker. */
     var entriesPublished: () -> Unit = {}
     private val list = ListView(context).testId("library.list")
+    /** The list, pulled down at its top to refresh; the disc stays while the scan it started runs. */
+    private val pull = PullRefresh(context, list) {
+        pullRefresh()
+        working
+    }
     private val emptyState = LinearLayout(context)
     private val emptyText = Ui.text(context, "", Ui.BODY, Ui.TEXT_MUTED).testId("library.status")
     private val emptyButton = Ui.primaryButton(context, context.getString(R.string.kairo_choose_named, strings.folder.resolve(context))) {
@@ -450,7 +457,7 @@ class LibraryScreen<T : LibraryItem>(
             isVerticalScrollBarEnabled = false
             adapter = this@LibraryScreen.adapter
         }
-        gameArea.addView(list, FrameLayout.LayoutParams(-1, -1))
+        gameArea.addView(pull, FrameLayout.LayoutParams(-1, -1))
         emptyState.apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -519,6 +526,7 @@ class LibraryScreen<T : LibraryItem>(
         statusKind = kind
         val busy = kind == StatusKind.WORK || kind == StatusKind.TASK
         scanProgress.visibility = if (working) View.VISIBLE else View.GONE
+        if (!working) pull.refreshing = false
         if (busy) tasks.show("status", message, 1) else tasks.hide("status")
         updateEmptyState()
         if (!busy && entries.isNotEmpty() && message.isNotEmpty() && kind != StatusKind.SUMMARY)

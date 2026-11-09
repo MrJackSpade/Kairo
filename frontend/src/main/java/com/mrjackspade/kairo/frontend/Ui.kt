@@ -341,9 +341,23 @@ class SpinnerView(context: Context, private val stroke: Int) : View(context) {
         canvas.drawArc(bounds, -135f, 90f, false, segment)
     }
 
+    /**
+     * Whether it turns by itself while shown; off, it stays at the rotation it is given, as pull to
+     * refresh turns it with the finger (Kairo#185).
+     */
+    var spinning = true
+        set(value) {
+            field = value
+            update(isShown)
+        }
+
     override fun onVisibilityAggregated(isVisible: Boolean) {
         super.onVisibilityAggregated(isVisible)
-        if (isVisible && isAttachedToWindow) { if (!spin.isStarted) spin.start() } else spin.cancel()
+        update(isVisible)
+    }
+
+    private fun update(visible: Boolean) {
+        if (spinning && visible && isAttachedToWindow) { if (!spin.isStarted) spin.start() } else spin.cancel()
     }
 
     override fun onDetachedFromWindow() {

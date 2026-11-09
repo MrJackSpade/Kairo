@@ -649,7 +649,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         val libraryPage = LibraryScreen(this, catalog, identity.strings, pages,
             ::chooseRomFolder, { preferences.getString("last_played_entry", null) },
             { launchFromLibrary(it, false) }, ::showDetailPreview, ::showGameDetails, ::showLibrarySelection,
-            commandLaunch)
+            { if (!libraryFlow.scanning) libraryFlow.refresh(ScanDepth.EVERY_FOLDER, announce = true) }, commandLaunch)
         libraryFlow = LibraryFlow(this, preferences, libraryPage, FOLDER_REQUEST,
             { folder -> movedToPaths(cachedLibrary(folder)) },
             { folder, depth, cancelled, progress -> movedToPaths(scanLibrary(folder, depth, cancelled, progress)) },
