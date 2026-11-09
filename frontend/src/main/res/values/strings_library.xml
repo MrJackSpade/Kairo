@@ -81,6 +81,7 @@
     <string name="kairo_create_name_default">New game</string>
     <!-- The new game's name. -->
     <string name="kairo_creating">Creating %1$s…</string>
+    <string name="kairo_create_progress">%2$d%% written: %1$s</string>
     <!-- The new game's name. -->
     <string name="kairo_created">Created %1$s</string>
     <!-- The new game's name. -->

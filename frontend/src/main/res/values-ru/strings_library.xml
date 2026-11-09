@@ -149,6 +149,7 @@
     <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">Создание: %1$s…</string>
+    <string name="kairo_create_progress">Записано %2$d%%: %1$s</string>
     <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
     <string name="kairo_created">Создано: %1$s</string>

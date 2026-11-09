@@ -6,8 +6,9 @@ import android.app.Activity
  * Runs an app's [NewGameWorkflow] (Kairo#181): one page for each of its pages shown for the choices so
  * far, then the name, each with Next (Create on the name) in its footer and Back to the page before.
  * What the player chose is kept while they go back and forth; a page shown again lists what fits
- * the choices before it. Nothing is written until Create, which closes the workflow and writes the
- * game ([CreateGameFlow.create]); leaving it writes nothing.
+ * the choices before it. Nothing is written until Create, which writes the game on a Creating page
+ * of its own ([CreatingPage], [CreateGameFlow.write]) and then closes the workflow onto the library;
+ * leaving it writes nothing.
  */
 class NewGameFlow<T : LibraryItem>(
     private val activity: Activity,
@@ -105,13 +106,29 @@ class NewGameFlow<T : LibraryItem>(
         }
     }
 
-    /** Writes the game the choices make, named [name] (checked by the name page). */
+    /**
+     * Writes the game the choices make, named [name] (checked by the name page), on the Creating
+     * page (Kairo#184); once it is written the workflow closes onto the library, which finds it. A
+     * failure stays on that page, and Back returns to the name with every choice kept. An empty drive
+     * writes nothing: what is kept for the game goes first, then the drive starts with it.
+     */
     private fun create(name: String) {
         chosen[NewGameWorkflow.NAME] = name
         val blank = workflow.create(values)
-        first?.let(pages::popThrough)
         val made = values
-        CreateGameFlow.create(activity, library, blank, name, folder) { path -> workflow.created(made, path) }
+        if (blank is BlankDisk.Drive) {
+            first?.let(pages::popThrough)
+            workflow.created(made, blank.path(name))
+            blank.start(name)
+            return
+        }
+        val tree = checkNotNull(library.tree) { activity.getString(R.string.kairo_library_choose_in_manage) }
+        pages.push(CreatingPage(activity, name, { progress -> CreateGameFlow.write(activity, tree, blank, name, folder, progress) }) { path ->
+            first?.let(pages::popThrough)
+            workflow.created(made, path)
+            library.screen.showStatus(activity.getString(R.string.kairo_created, name), LibraryScreen.StatusKind.SUMMARY)
+            library.refresh(ScanDepth.EVERY_FOLDER, announce = true)
+        })
     }
 
     /** The name: the shared text page (its field at the top, in view above the keyboard), Create in its footer. */

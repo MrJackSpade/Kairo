@@ -119,6 +119,7 @@
     <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">%1$s を作成中…</string>
+    <string name="kairo_create_progress">%2$d%% 書き込み済み: %1$s</string>
     <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
     <string name="kairo_created">%1$s を作成しました</string>

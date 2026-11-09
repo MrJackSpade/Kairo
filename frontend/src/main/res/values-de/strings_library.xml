@@ -129,6 +129,7 @@
     <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">%1$s wird erstellt…</string>
+    <string name="kairo_create_progress">%2$d %% geschrieben: %1$s</string>
     <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
     <string name="kairo_created">%1$s erstellt</string>

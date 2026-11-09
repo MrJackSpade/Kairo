@@ -169,6 +169,7 @@
     <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">جارٍ إنشاء %1$s…</string>
+    <string name="kairo_create_progress">تمت كتابة %2$d%%: %1$s</string>
     <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
     <string name="kairo_created">تم إنشاء %1$s</string>
