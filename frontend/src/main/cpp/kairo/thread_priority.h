@@ -3,6 +3,8 @@
 // priority belongs to a thread, not to the threads it starts later.
 #pragma once
 
+#include "emulation_core.h"
+
 namespace kairo {
 
 #if defined(_WIN32)
@@ -21,8 +23,10 @@ inline void name_thread(const char *) {}
 namespace kairo {
 
 // Emulation competes with the UI and compositor for a few small cores; give the calling thread
-// the same standing Android gives urgent display work. which names the thread in the log.
+// the same standing Android gives urgent display work, and the emulation core (emulation_core.h).
+// which names the thread in the log.
 inline void raise_emulation_priority(const char *which) {
+    add_emulation_thread();
     if (setpriority(PRIO_PROCESS, 0, -16) != 0) {
         __android_log_print(ANDROID_LOG_INFO, "KairoMachine", "%s priority unchanged", which);
     }

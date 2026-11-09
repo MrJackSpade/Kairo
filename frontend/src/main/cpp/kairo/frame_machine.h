@@ -231,6 +231,8 @@ private:
     // the audio queue holds this much so recoverable lateness never underruns.
     static constexpr auto kFrameStall = std::chrono::milliseconds(50);
     static constexpr uint32_t kAudioChunk = 1024;
+    // KairoX86#407: how often the worker keeps the emulation core (emulation_core.h), ~2 s of frames
+    static constexpr uint32_t kKeepCoreFrames = 120;
 
     void enqueue(Command command) {
         {
@@ -303,6 +305,11 @@ private:
         open_audio();
 
         std::vector<int16_t> samples(kAudioChunk * 2);
+        // KairoX86#407: the app's other threads kept off the emulation core, now and every kKeepCoreFrames
+        // frames (threads the core starts later, and Android's reset of every thread's CPUs as the app
+        // moves between cpusets)
+        keep_emulation_core();
+        uint32_t frames_to_keep_core = kKeepCoreFrames;
         FrameReport pacing;
         bool was_flat_out = false;
         paused_ = false;
@@ -360,6 +367,10 @@ private:
                 break;
             }
             const auto ran = std::chrono::steady_clock::now();
+            if (--frames_to_keep_core == 0) {
+                keep_emulation_core();
+                frames_to_keep_core = kKeepCoreFrames;
+            }
             if (publish(*core)) pacing.replaced();
             const auto published = std::chrono::steady_clock::now();
             uint32_t got;
