@@ -16,6 +16,7 @@ import android.os.PowerManager
 import android.util.Log
 import android.view.Display
 import android.view.Gravity
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Surface
@@ -23,6 +24,7 @@ import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -411,6 +413,15 @@ class SecondaryDisplayCoordinator(
     }
 
     companion object {
+        /**
+         * Whether [event] is typed into a text field focused on the lower screen ([focus]), such as a
+         * lower-screen page's Custom… value (Kairo#183): the field takes it there. Forwarding it would
+         * hand input focus back to the game screen and close the keyboard (a numeric keyboard sends
+         * its digits as keys). Back and the controller's buttons still go to the game screen.
+         */
+        fun typedHere(focus: View?, event: KeyEvent): Boolean = focus is EditText && event.keyCode != KeyEvent.KEYCODE_BACK &&
+            !event.isFromSource(InputDevice.SOURCE_GAMEPAD) && !event.isFromSource(InputDevice.SOURCE_JOYSTICK)
+
         private const val LAUNCH_ID = "com.mrjackspade.kairo.frontend.companionLaunch"
         private var nextLaunch = 0
         private var pending: Pair<Int, SecondaryDisplayCoordinator>? = null
@@ -451,7 +462,8 @@ class SecondaryDisplayCoordinator(
             super.onStop()
         }
 
-        override fun dispatchKeyEvent(event: KeyEvent) = forwardKey(event)
+        override fun dispatchKeyEvent(event: KeyEvent) =
+            if (typedHere(currentFocus, event)) super.dispatchKeyEvent(event) else forwardKey(event)
 
         override fun dispatchGenericMotionEvent(event: MotionEvent) = forwardMotion(event)
 

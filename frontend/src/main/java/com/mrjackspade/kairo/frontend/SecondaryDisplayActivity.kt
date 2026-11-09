@@ -118,6 +118,7 @@ class SecondaryDisplayActivity : Activity() {
             }
             return super.dispatchKeyEvent(event)
         }
+        if (SecondaryDisplayCoordinator.typedHere(currentFocus, event)) return super.dispatchKeyEvent(event)
         return owner?.forwardKey(event) ?: super.dispatchKeyEvent(event)
     }
 
