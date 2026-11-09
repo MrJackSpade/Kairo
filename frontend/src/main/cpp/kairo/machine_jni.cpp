@@ -78,6 +78,7 @@ public:
     }
     std::string error() override { return error_.empty() ? core_->error() : error_; }
     const uint8_t *frame(uint32_t &width, uint32_t &height) override { return core_->frame(width, height); }
+    bool picture_target(uint8_t *pixels, size_t bytes) override { return core_->picture_target(pixels, bytes); }
     uint32_t line_repeat() override { return core_->line_repeat(); }
     bool frame_bgra() override { return core_->frame_bgra(); }
     uint32_t frame_stride() override { return core_->frame_stride(); }

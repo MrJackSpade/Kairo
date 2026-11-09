@@ -280,6 +280,9 @@ private:
             pending_packet_.reset();
             spare_packets_.clear();
             has_pending_ = false;
+            // KairoX86#406: whether this core draws into the host's buffer (no buffer named yet)
+            spare_.clear();
+            takes_targets_ = !picture && core->picture_target(nullptr, 0);
         }
         std::thread presenter(&FrameMachine::present_loop, this, picture);
 
@@ -350,6 +353,8 @@ private:
             if (audio && was_flat_out && !flat_out) audio->trim_to_target();
             was_flat_out = flat_out;
             pacing.frame_started(started, started - next_frame);
+            // KairoX86#406: a core that draws into the host's buffer gets the spare one, sized for its last picture
+            if (!spare_.empty()) core->picture_target(spare_.data(), spare_.size());
             if (!core->run_frame()) {
                 report("Error", core->error());
                 break;
@@ -458,12 +463,21 @@ private:
         {
             std::lock_guard<std::mutex> guard(present_mutex_);
             replaced = has_pending_;
-            if (stride == row) pending_.assign(pixels, pixels + row * height);
-            else {
+            if (stride == row && !spare_.empty() && pixels == spare_.data()) {
+                // KairoX86#406: the core drew it in the spare buffer: handed over as it is, the pending one (an
+                // unshown picture, or the presenter's last) the next spare
+                pending_.swap(spare_);
+            } else if (stride == row && !pending_.empty() && pixels == pending_.data()) {
+                // The core's latest picture is the one already pending (no new picture this frame)
+            } else if (stride == row) {
+                pending_.assign(pixels, pixels + row * height);
+            } else {
                 pending_.resize(row * height);
                 for (uint32_t y = 0; y < height; ++y)
                     std::memcpy(pending_.data() + y * row, pixels + y * stride, row);
             }
+            // The spare is sized for this picture; a core that does not take it never gets one
+            if (takes_targets_ && spare_.size() < row * height) spare_.resize(row * height);
             pending_shape_ = shape;
             has_pending_ = true;
             pending_number_ = ++published_;
@@ -655,6 +669,9 @@ private:
     std::condition_variable present_ready_;
     bool present_stop_ = false;
     std::vector<uint8_t> pending_;
+    // KairoX86#406: the buffer the core draws its next picture in, for a core that takes one (takes_targets_)
+    std::vector<uint8_t> spare_;
+    bool takes_targets_ = false;
     FrameShape pending_shape_{};
     // A GPU picture's newest packet the presenter has not taken, and packets to reuse.
     std::unique_ptr<GpuPicture::Packet> pending_packet_;

@@ -55,6 +55,10 @@ public:
     // The last frame as RGBA8888 rows of width pixels; valid until the next run_frame(). A core with
     // a gpu_picture() returns null.
     virtual const uint8_t *frame(uint32_t &width, uint32_t &height) = 0;
+    // Where the next frame() is drawn: [bytes] of the host's, which the host neither reads nor writes until a later
+    // frame() replaces that picture (KairoX86#406). A picture too large for it is drawn in the core's own buffer.
+    // Before run_frame; false for a core that draws only in its own buffer (the host then copies its frames).
+    virtual bool picture_target(uint8_t *pixels, size_t bytes) { (void) pixels; (void) bytes; return false; }
     // The core's picture when the GPU composes it (gpu_picture.h), instead of frame(); the same
     // object for the core's whole life. Null for a core that draws its frames in software.
     virtual GpuPicture *gpu_picture() { return nullptr; }
