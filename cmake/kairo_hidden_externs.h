@@ -59,6 +59,10 @@
 #include <android/hardware_buffer.h>
 #include <android/log.h>
 
+/* libc data a core declares again itself (86Box's vfio.c and sdl_plat_unix.c: extern char **environ): an explicit
+   visibility outranks the pragma, so its later declarations keep binding to libc. */
+extern char **environ __attribute__((visibility("default")));
+
 #pragma GCC visibility push(hidden)
 
 #endif
