@@ -14,6 +14,7 @@
    "googlePlay": true,
    "firmware": true,
    "saveStates": true,
+   "catalogArtwork": true,
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "disk format",
@@ -37,6 +38,7 @@
    "googlePlay": true,
    "firmware": false,
    "saveStates": false,
+   "catalogArtwork": true,
    "artworkHosts": ["raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format",
@@ -61,6 +63,7 @@
    "googlePlay": true,
    "firmware": true,
    "saveStates": true,
+   "catalogArtwork": true,
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format"
@@ -73,6 +76,7 @@
    "googlePlay": true,
    "firmware": true,
    "saveStates": true,
+   "catalogArtwork": true,
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format"
@@ -85,6 +89,7 @@
    "googlePlay": true,
    "firmware": true,
    "saveStates": true,
+   "catalogArtwork": true,
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format"
@@ -97,6 +102,7 @@
    "googlePlay": true,
    "firmware": true,
    "saveStates": true,
+   "catalogArtwork": true,
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format"
@@ -109,6 +115,7 @@
    "googlePlay": true,
    "firmware": true,
    "saveStates": true,
+   "catalogArtwork": true,
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format"
@@ -121,6 +128,7 @@
    "googlePlay": true,
    "firmware": true,
    "saveStates": true,
+   "catalogArtwork": true,
    "artworkHosts": ["images.launchbox-app.com", "gamesdb-images.launchbox.gg", "raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "file format"
@@ -130,11 +138,10 @@
    "system": "IBM PC compatible",
    "module": "kairox86",
    "package": "com.loxifi.kairox86",
-   "released": false,
-   "listed": true,
-   "googlePlay": false,
+   "googlePlay": true,
    "firmware": true,
-   "saveStates": true,
+   "saveStates": false,
+   "catalogArtwork": false,
    "artworkHosts": ["raw.githubusercontent.com"],
    "privacyPage": true,
    "problemDetail": "disk format"

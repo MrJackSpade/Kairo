@@ -4,7 +4,8 @@
 Usage: docs.py <repository root> [--check]   (--check fails when a generated document is stale)
 
 docs/templates/apps.json lists every Kairo app and the facts its documents use (system, package,
-icon, Google Play, privacy details, external frontend names); the repository is identified by its
+icon, Google Play, privacy details, whether its -with-images APK has catalog artwork, external
+frontend names); the repository is identified by its
 origin remote. For an app it writes:
   LICENSE.md                                   from templates/LICENSE.md
   <module>/src/main/assets/PRIVACY_POLICY.txt  from templates/PRIVACY_POLICY.md
