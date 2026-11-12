@@ -104,10 +104,15 @@ class NewGameFlow<T : LibraryItem>(
             }
             val folder = SettingsRow.action("new-firmware-folder", activity.getString(R.string.kairo_firmware_import_folder),
                 busy = imports.busy, enabled = idle, disabledReason = wait) { imports.pickFolder() }
-            // The folder import's note: the set's own (which collection it is), else what the import does
-            val folderNote = needs.first().set.note?.resolve(activity) ?: activity.getString(R.string.kairo_firmware_import_folder_description)
+            // The folder import's note: the set's own (which collection it is), else what the import does;
+            // then the project the set belongs to
+            val set = needs.first().set
+            val folderNote = set.note?.resolve(activity) ?: activity.getString(R.string.kairo_firmware_import_folder_description)
+            val project = set.project?.let { link ->
+                SettingsRow.action("new-firmware-project", link.label.resolve(activity)) { link.open(activity) { Ui.message(activity, it) } }
+            }
             listOf(RowGroup(null, emptyList(), activity.getString(R.string.kairo_new_game_firmware_intro))) + files +
-                RowGroup(null, listOf(folder), folderNote)
+                RowGroup(null, listOfNotNull(folder, project), folderNote)
         }, {
             listOf(FooterButton("next", ::nextLabel, ButtonTone.PRIMARY, { needs.all { it.set.installed(it.part) } },
                 activity.getString(R.string.kairo_new_game_firmware_missing)) { show(index + 1) })

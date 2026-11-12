@@ -26,7 +26,12 @@ class FirmwareSet(
      * Whether the Firmware page lists each part as its own row; a set of a whole ROM collection,
      * such as 86Box's thousands of files, shows one row saying how many are installed instead.
      */
-    val listed: Boolean = true
+    val listed: Boolean = true,
+    /**
+     * The project the set belongs to (KairoX86's: 86Box's source), linked beside its firmware
+     * (KairoX86#438); never a page of firmware files itself.
+     */
+    val project: WebLink? = null
 ) {
     init { require(requirements.all { it.isNotEmpty() && parts.containsAll(it) }) }
 

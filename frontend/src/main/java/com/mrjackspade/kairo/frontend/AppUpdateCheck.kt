@@ -1,10 +1,7 @@
 package com.mrjackspade.kairo.frontend
 
 import android.app.Activity
-import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.content.SharedPreferences
-import android.net.Uri
 import android.util.Log
 import java.net.HttpURLConnection
 import java.net.URL
@@ -61,13 +58,7 @@ class AppUpdateCheck(
                 ModalButton(activity.getString(R.string.kairo_update_view), ButtonTone.PRIMARY) { open(release.url) })))
     }
 
-    private fun open(url: String) {
-        try {
-            activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-        } catch (error: ActivityNotFoundException) {
-            showStatus(activity.getString(R.string.kairo_update_no_app, url))
-        }
-    }
+    private fun open(url: String) = WebLink.open(activity, url, showStatus)
 
     private fun fetchReleases(): String {
         val connection = URL("https://api.github.com/repos/${identity.repository}/releases?per_page=100")

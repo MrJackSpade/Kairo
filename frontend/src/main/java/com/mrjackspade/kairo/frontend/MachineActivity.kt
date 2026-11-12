@@ -1067,7 +1067,11 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     resources.getQuantityString(R.plurals.kairo_firmware_files_installed, set.installedCount,
                         set.installedCount, set.parts.size)
                 })
-            RowGroup(text(label).uppercase(), rows, set.note?.let(::text))
+            // The project the set belongs to (KairoX86#438)
+            val project = set.project?.let { link ->
+                SettingsRow.action("firmware$index-project", text(link.label)) { link.open(this, ::toast) }
+            }
+            RowGroup(text(label).uppercase(), rows + listOfNotNull(project), set.note?.let(::text))
         }
         // "Files marked Required ..." only where a set has required files.
         val required = firmwareSets.any { (_, set) -> set.requirements.isNotEmpty() }
