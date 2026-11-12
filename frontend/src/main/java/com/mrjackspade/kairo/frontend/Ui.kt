@@ -175,6 +175,18 @@ object Ui {
     fun secondaryButton(context: Context, label: String, drawable: Int? = null, action: () -> Unit) =
         button(context, label, drawable, ACCENT_SOFT, focusable(context, Color.TRANSPARENT, LINE), action)
 
+    /** A secondary button that shows only its icon; [description] is read out and shown on a long press. */
+    fun secondaryIconButton(context: Context, drawable: Int, description: String, action: () -> Unit) = LinearLayout(context).apply {
+        gravity = Gravity.CENTER
+        isFocusable = true
+        isClickable = true
+        contentDescription = description
+        tooltipText = description
+        background = focusable(context, Color.TRANSPARENT, LINE)
+        setOnClickListener { action() }
+        addView(icon(context, drawable, ACCENT_SOFT))
+    }
+
     private fun button(context: Context, label: String, drawable: Int?, color: Int,
                        background: Drawable, action: () -> Unit) = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL

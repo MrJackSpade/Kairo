@@ -99,8 +99,11 @@ class LibraryScreen<T : LibraryItem>(
     private val searchButton = Ui.iconButton(context, R.drawable.ic_search, context.getString(R.string.kairo_library_search)) {
         toggleSearch()
     }.testId("library.search")
-    /** New game, beside search: shown once [newGameAction] is set (an app that makes new games). */
-    private val newGameButton = Ui.secondaryButton(context, context.getString(R.string.kairo_library_new_game), R.drawable.ic_add) {
+    /**
+     * New game, beside search: shown once [newGameAction] is set (an app that makes new games). Its icon
+     * alone, so a long product name keeps the header in portrait; its name is its description.
+     */
+    private val newGameButton = Ui.secondaryIconButton(context, R.drawable.ic_add, context.getString(R.string.kairo_library_new_game)) {
         newGameAction?.invoke()
     }.testId("library.new-game").apply { visibility = View.GONE }
     /** Starts making a new game (CreateGameFlow); null for an app that makes none. */
@@ -396,8 +399,7 @@ class LibraryScreen<T : LibraryItem>(
             marginEnd = dp(6)
         })
         header.addView(newGameButton,
-            LinearLayout.LayoutParams(-2, dp(44)).apply { marginEnd = dp(10) })
-        newGameButton.setPadding(dp(14), 0, dp(16), 0)
+            LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginEnd = dp(10) })
         header.addView(searchButton,
             LinearLayout.LayoutParams(dp(48), dp(48)))
         body.addView(header, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
