@@ -62,6 +62,10 @@
 /* libc data a core declares again itself (86Box's vfio.c and sdl_plat_unix.c: extern char **environ): an explicit
    visibility outranks the pragma, so its later declarations keep binding to libc. */
 extern char **environ __attribute__((visibility("default")));
+/* assert.h has no include guard: each later #include <assert.h> declares libc's assert calls again, under the
+   pragma. Only builds without NDEBUG call them (a debug build failed to link: undefined hidden symbol __assert2). */
+extern void __assert(const char *, int, const char *) __attribute__((visibility("default"), noreturn));
+extern void __assert2(const char *, int, const char *, const char *) __attribute__((visibility("default"), noreturn));
 
 #pragma GCC visibility push(hidden)
 
