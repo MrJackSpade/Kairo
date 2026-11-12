@@ -21,7 +21,7 @@
     <!-- EN: This file needs a successful hash before settings can be saved -->
     <string name="kairo_settings_no_hash">설정을 저장하려면 이 파일의 해시를 먼저 계산해야 합니다</string>
     <!-- The Default choice's description: %1$s is where the default comes from, %2$s its value. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_settings_default_from">%1$s: %2$s</string>
     <!-- EN: Reset all game settings -->
     <string name="kairo_settings_reset_all">모든 게임 설정 재설정</string>
@@ -67,7 +67,7 @@
     <!-- EN: THIS GAME -->
     <string name="kairo_disks_this_game">이 게임</string>
     <!-- One of several disk images in an archive: %1$s is the archive, %2$s the image. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_disk_in_archive">%1$s: %2$s</string>
     <!-- EN: Follows what the game reads -->
     <string name="kairo_touch_auto_help">게임이 읽는 방식에 따름</string>
@@ -79,7 +79,7 @@
     <!-- EN: TOUCH SCREEN -->
     <string name="kairo_touch_group">터치스크린</string>
     <!-- EN: MOUSE -->
-    <string name="kairo_mouse_group">MOUSE</string>
+    <string name="kairo_mouse_group">마우스</string>
     <!-- EN: Screen tap -->
     <string name="kairo_touch_screen_tap">화면 탭</string>
     <!-- EN: Mouse touch -->
@@ -167,10 +167,10 @@
     <!-- EN: Disk change failed -->
     <string name="kairo_media_change_failed">디스크 교체 실패</string>
     <!-- %1$s is the drive, such as Drive 1; %2$s the disk now in it, or Empty. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_media_changed">%1$s: %2$s</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
-    <!-- EN: %1$s BIOS -->
+    <!-- SAME: %1$s BIOS -->
     <string name="kairo_firmware_title">%1$s BIOS</string>
     <!-- EN: Pick each file below, or import them all from a folder. -->
     <string name="kairo_firmware_description">아래 파일을 각각 선택하거나 폴더에서 모두 가져오세요.</string>
@@ -235,10 +235,10 @@
     <string name="kairo_import_too_large">%1$s이(가) 너무 큽니다</string>
     <!-- EN: %1$s is empty -->
     <string name="kairo_import_empty">%1$s이(가) 비어 있습니다</string>
-    <!-- EN: %1$d KiB -->
+    <!-- SAME: %1$d KiB -->
     <string name="kairo_size_kib">%1$d KiB</string>
     <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
-    <!-- EN: MIDI -->
+    <!-- SAME: MIDI -->
     <string name="kairo_midi_group">MIDI</string>
     <!-- EN: MIDI out -->
     <string name="kairo_midi_out">MIDI 출력</string>

@@ -21,7 +21,7 @@
     <!-- EN: This file needs a successful hash before settings can be saved -->
     <string name="kairo_settings_no_hash">File ini perlu di-hash dengan berhasil sebelum setelan dapat disimpan</string>
     <!-- The Default choice's description: %1$s is where the default comes from, %2$s its value. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_settings_default_from">%1$s: %2$s</string>
     <!-- EN: Reset all game settings -->
     <string name="kairo_settings_reset_all">Reset semua setelan game</string>
@@ -67,7 +67,7 @@
     <!-- EN: THIS GAME -->
     <string name="kairo_disks_this_game">GAME INI</string>
     <!-- One of several disk images in an archive: %1$s is the archive, %2$s the image. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_disk_in_archive">%1$s: %2$s</string>
     <!-- EN: Follows what the game reads -->
     <string name="kairo_touch_auto_help">Mengikuti apa yang dibaca game</string>
@@ -78,13 +78,13 @@
     <string name="kairo_touch_direct_explanation">Ketuk langsung mengenai titik yang disentuh pada game yang menggerakkan kursor satu piksel per hitungan mouse dan menghentikannya di tepi kiri atas layar.</string>
     <!-- EN: TOUCH SCREEN -->
     <string name="kairo_touch_group">LAYAR SENTUH</string>
-    <!-- EN: MOUSE -->
+    <!-- SAME: MOUSE -->
     <string name="kairo_mouse_group">MOUSE</string>
     <!-- EN: Screen tap -->
     <string name="kairo_touch_screen_tap">Ketuk layar</string>
     <!-- EN: Mouse touch -->
     <string name="kairo_touch_mouse_touch">Sentuhan mouse</string>
-    <!-- EN: Touchpad -->
+    <!-- SAME: Touchpad -->
     <string name="kairo_touch_touchpad">Touchpad</string>
     <!-- EN: Drag to move, tap to click -->
     <string name="kairo_touch_touchpad_help">Seret untuk menggerakkan, ketuk untuk mengklik</string>
@@ -99,7 +99,7 @@
     <!-- EN: Using Without Sticks fallback -->
     <string name="kairo_mapping_without_sticks_fallback">Menggunakan cadangan Tanpa stik</string>
     <!-- EN: Reset disk -->
-    <string name="kairo_disk_reset">Reset disk</string>
+    <string name="kairo_disk_reset">Setel ulang disk</string>
     <!-- EN: Exit this game before resetting its disk -->
     <string name="kairo_disk_reset_exit_first">Keluar dari game ini sebelum mereset disk-nya</string>
     <!-- %1$s is the disk image's name. -->
@@ -110,7 +110,7 @@
     <!-- EN: Could not reset the disk -->
     <string name="kairo_disk_reset_failed">Tidak dapat mereset disk</string>
     <!-- %1$s is the state slot's number. -->
-    <!-- EN: Slot %1$s -->
+    <!-- SAME: Slot %1$s -->
     <string name="kairo_save_slot">Slot %1$s</string>
     <!-- EN: Save states are available for games started from the library. -->
     <string name="kairo_states_library_only">Status tersimpan tersedia untuk game yang dimulai dari pustaka.</string>
@@ -143,10 +143,10 @@
     <!-- EN: Stopped -->
     <string name="kairo_diagnostics_stopped">Berhenti</string>
     <!-- EN: Error -->
-    <string name="kairo_diagnostics_error">Error</string>
+    <string name="kairo_diagnostics_error">Kesalahan</string>
     <!-- EN: Frames -->
     <string name="kairo_diagnostics_frames">Frame</string>
-    <!-- EN: Audio -->
+    <!-- SAME: Audio -->
     <string name="kairo_diagnostics_audio">Audio</string>
     <!-- EN: Xruns -->
     <string name="kairo_diagnostics_xruns">Xrun</string>
@@ -167,7 +167,7 @@
     <!-- EN: Disk change failed -->
     <string name="kairo_media_change_failed">Penggantian disk gagal</string>
     <!-- %1$s is the drive, such as Drive 1; %2$s the disk now in it, or Empty. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_media_changed">%1$s: %2$s</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
     <!-- EN: %1$s BIOS -->
@@ -176,7 +176,7 @@
     <string name="kairo_firmware_description">Pilih setiap file di bawah, atau impor semuanya dari folder.</string>
     <!-- EN: Files marked Required are needed to start games. -->
     <string name="kairo_firmware_required_note">File yang ditandai Wajib diperlukan untuk memulai game.</string>
-    <!-- EN: FIRMWARE -->
+    <!-- SAME: FIRMWARE -->
     <string name="kairo_firmware_group">FIRMWARE</string>
     <!-- EN: Import all from a folder… -->
     <string name="kairo_firmware_import_folder">Impor semua dari folder…</string>
@@ -235,10 +235,10 @@
     <string name="kairo_import_too_large">%1$s terlalu besar</string>
     <!-- EN: %1$s is empty -->
     <string name="kairo_import_empty">%1$s kosong</string>
-    <!-- EN: %1$d KiB -->
+    <!-- SAME: %1$d KiB -->
     <string name="kairo_size_kib">%1$d KiB</string>
     <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
-    <!-- EN: MIDI -->
+    <!-- SAME: MIDI -->
     <string name="kairo_midi_group">MIDI</string>
     <!-- EN: MIDI out -->
     <string name="kairo_midi_out">Keluaran MIDI</string>

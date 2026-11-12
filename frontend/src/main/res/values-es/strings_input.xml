@@ -31,7 +31,7 @@
     <!-- EN: %1$d shown -->
     <string name="kairo_onscreen_shown_count">%1$d visibles</string>
     <!-- %1$s is the orientation, such as Portrait; %2$s the controller layout, such as With sticks. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_onscreen_visible_scope">%1$s · %2$s</string>
     <!-- EN: Arrange layout -->
     <string name="kairo_onscreen_arrange">Organizar diseño</string>
@@ -51,7 +51,7 @@
     <string name="kairo_onscreen_visible_reset">Botones visibles restablecidos</string>
     <!-- EN: Drag controls to reposition -->
     <string name="kairo_onscreen_drag">Arrastra los controles para moverlos</string>
-    <!-- EN: STICKS -->
+    <!-- SAME: STICKS -->
     <string name="kairo_onscreen_group_sticks">STICKS</string>
     <!-- EN: Left stick -->
     <string name="kairo_onscreen_left_stick">Stick izquierdo</string>

@@ -9,7 +9,7 @@
     <!-- EN: Hashing %1$s -->
     <string name="kairo_scan_hashing_file">ハッシュ計算中: %1$s</string>
     <!-- A large file's status, then how much of it is read. -->
-    <!-- EN: %1$s %2$d%% -->
+    <!-- SAME: %1$s %2$d%% -->
     <string name="kairo_scan_percent">%1$s %2$d%%</string>
     <!-- EN: Library cache unreadable; rescanning every file -->
     <string name="kairo_scan_cache_unreadable">ライブラリのキャッシュを読み込めません。すべてのファイルを再スキャンします</string>
@@ -31,10 +31,10 @@
     <!-- EN: Game folder has too many files -->
     <string name="kairo_scan_too_many_files">ゲームフォルダのファイルが多すぎます</string>
     <!-- A scan's summary: kairo_library_games, then kairo_library_hashes. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_library_summary">%1$s · %2$s</string>
     <!-- kairo_library_games, kairo_library_unreadable, then kairo_library_hashes. -->
-    <!-- EN: %1$s · %2$s · %3$s -->
+    <!-- SAME: %1$s · %2$s · %3$s -->
     <string name="kairo_library_summary_unreadable">%1$s · %2$s · %3$s</string>
     <plurals name="kairo_library_games">
         <!-- EN: %1$d games -->
@@ -75,10 +75,10 @@
     <!-- EN: Choose one in Manage library -->
     <string name="kairo_library_choose_in_manage">「ライブラリの管理」で選択してください</string>
     <!-- The games folder's name (kairo_games_folder or the app's own), then kairo_library_games. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_library_status">%1$s · %2$s</string>
     <!-- As kairo_library_status, then kairo_library_unreadable. -->
-    <!-- EN: %1$s · %2$s · %3$s -->
+    <!-- SAME: %1$s · %2$s · %3$s -->
     <string name="kairo_library_status_unreadable">%1$s · %2$s · %3$s</string>
     <!-- EN: SOURCE -->
     <string name="kairo_library_source_group">ソース</string>
@@ -119,6 +119,7 @@
     <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">%1$s を作成中…</string>
+    <!-- EN: %2$d%% written: %1$s -->
     <string name="kairo_create_progress">%2$d%% 書き込み済み: %1$s</string>
     <!-- The new game's name. -->
     <!-- EN: Created %1$s -->

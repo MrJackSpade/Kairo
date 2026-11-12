@@ -23,7 +23,7 @@
     <string name="kairo_save">حفظ</string>
     <!-- EN: Reset -->
     <string name="kairo_reset">إعادة تعيين</string>
-    <!-- EN: %1$d%% -->
+    <!-- SAME: %1$d%% -->
     <string name="kairo_percent">%1$d%%</string>
     <!-- EN: Up -->
     <string name="kairo_up">أعلى</string>
@@ -85,7 +85,7 @@
     <!-- EN: Could not save mapping -->
     <string name="kairo_mapping_save_failed">تعذّر حفظ التعيين</string>
     <!-- EN: D-PAD -->
-    <string name="kairo_control_group_dpad">D-PAD</string>
+    <string name="kairo_control_group_dpad">أزرار الاتجاه</string>
     <!-- EN: FACE BUTTONS -->
     <string name="kairo_control_group_face">الأزرار الأمامية</string>
     <!-- EN: SHOULDERS -->
@@ -128,9 +128,9 @@
     <string name="kairo_control_l3_button">الزر L3</string>
     <!-- EN: R3 button -->
     <string name="kairo_control_r3_button">الزر R3</string>
-    <!-- EN: Start -->
+    <!-- SAME: Start -->
     <string name="kairo_control_start">Start</string>
-    <!-- EN: Select -->
+    <!-- SAME: Select -->
     <string name="kairo_control_select">Select</string>
     <!-- EN: Menu -->
     <string name="kairo_control_menu">القائمة</string>
@@ -188,7 +188,7 @@
     <!-- %1$s is Android's axis name, such as GAS; %2$s its direction, + or -. -->
     <!-- EN: Axis %1$s %2$s -->
     <string name="kairo_input_axis_code">المحور %1$s %2$s</string>
-    <!-- EN: Hat %1$s %2$s -->
+    <!-- SAME: Hat %1$s %2$s -->
     <string name="kairo_input_hat_code">Hat %1$s %2$s</string>
     <!-- EN: CONNECTED -->
     <string name="kairo_inputs_group_connected">المتصلة</string>
@@ -271,7 +271,7 @@
     <!-- EN: Mouse %1$s -->
     <string name="kairo_binding_mouse_other">الماوس %1$s</string>
     <!-- %1$s is a mouse direction, such as Mouse up; %2$.1f its speed. -->
-    <!-- EN: %1$s · %2$.1f× -->
+    <!-- SAME: %1$s · %2$.1f× -->
     <string name="kairo_binding_mouse_speed">%1$s · %2$.1f×</string>
     <!-- %1$s is the guest's name for a joystick control, such as Fire 1. -->
     <!-- EN: Joystick %1$s -->
@@ -300,7 +300,7 @@
     <string name="kairo_target_mouse_foot">تستخدم اتجاهات العصا سرعة تناظرية. تتحرك الأزرار واتجاهات D-pad بالسرعة القصوى.</string>
     <!-- EN: Speed -->
     <string name="kairo_target_mouse_speed">السرعة</string>
-    <!-- EN: %1$.1f× -->
+    <!-- SAME: %1$.1f× -->
     <string name="kairo_target_mouse_speed_value">%1$.1f×</string>
     <!-- EN: Speed at full stick deflection. -->
     <string name="kairo_target_mouse_speed_foot">السرعة عند إمالة العصا بالكامل.</string>

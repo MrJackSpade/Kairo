@@ -23,7 +23,7 @@
     <string name="kairo_save">Salvar</string>
     <!-- EN: Reset -->
     <string name="kairo_reset">Redefinir</string>
-    <!-- EN: %1$d%% -->
+    <!-- SAME: %1$d%% -->
     <string name="kairo_percent">%1$d%%</string>
     <!-- EN: Up -->
     <string name="kairo_up">Cima</string>
@@ -85,7 +85,7 @@
     <!-- EN: Could not save mapping -->
     <string name="kairo_mapping_save_failed">Não foi possível salvar o mapeamento</string>
     <!-- EN: D-PAD -->
-    <string name="kairo_control_group_dpad">D-PAD</string>
+    <string name="kairo_control_group_dpad">DIRECIONAL</string>
     <!-- EN: FACE BUTTONS -->
     <string name="kairo_control_group_face">BOTÕES FRONTAIS</string>
     <!-- EN: SHOULDERS -->
@@ -128,11 +128,11 @@
     <string name="kairo_control_l3_button">Botão L3</string>
     <!-- EN: R3 button -->
     <string name="kairo_control_r3_button">Botão R3</string>
-    <!-- EN: Start -->
+    <!-- SAME: Start -->
     <string name="kairo_control_start">Start</string>
-    <!-- EN: Select -->
+    <!-- SAME: Select -->
     <string name="kairo_control_select">Select</string>
-    <!-- EN: Menu -->
+    <!-- SAME: Menu -->
     <string name="kairo_control_menu">Menu</string>
     <!-- EN: Start button -->
     <string name="kairo_control_start_button">Botão Start</string>
@@ -188,7 +188,7 @@
     <!-- %1$s is Android's axis name, such as GAS; %2$s its direction, + or -. -->
     <!-- EN: Axis %1$s %2$s -->
     <string name="kairo_input_axis_code">Eixo %1$s %2$s</string>
-    <!-- EN: Hat %1$s %2$s -->
+    <!-- SAME: Hat %1$s %2$s -->
     <string name="kairo_input_hat_code">Hat %1$s %2$s</string>
     <!-- EN: CONNECTED -->
     <string name="kairo_inputs_group_connected">CONECTADOS</string>
@@ -262,13 +262,13 @@
     <!-- EN: Mouse right button -->
     <string name="kairo_binding_mouse_right_button">Botão direito do mouse</string>
     <!-- %1$s is a mouse control the app does not name. -->
-    <!-- EN: Mouse %1$s -->
+    <!-- SAME: Mouse %1$s -->
     <string name="kairo_binding_mouse_other">Mouse %1$s</string>
     <!-- %1$s is a mouse direction, such as Mouse up; %2$.1f its speed. -->
-    <!-- EN: %1$s · %2$.1f× -->
+    <!-- SAME: %1$s · %2$.1f× -->
     <string name="kairo_binding_mouse_speed">%1$s · %2$.1f×</string>
     <!-- %1$s is the guest's name for a joystick control, such as Fire 1. -->
-    <!-- EN: Joystick %1$s -->
+    <!-- SAME: Joystick %1$s -->
     <string name="kairo_binding_joystick">Joystick %1$s</string>
     <!-- EN: Keys -->
     <string name="kairo_target_tab_keys">Teclas</string>
@@ -294,7 +294,7 @@
     <string name="kairo_target_mouse_foot">As direções do analógico usam velocidade analógica. Botões e direções do D-pad movem na velocidade máxima.</string>
     <!-- EN: Speed -->
     <string name="kairo_target_mouse_speed">Velocidade</string>
-    <!-- EN: %1$.1f× -->
+    <!-- SAME: %1$.1f× -->
     <string name="kairo_target_mouse_speed_value">%1$.1f×</string>
     <!-- EN: Speed at full stick deflection. -->
     <string name="kairo_target_mouse_speed_foot">Velocidade com o analógico totalmente inclinado.</string>

@@ -51,7 +51,7 @@
     <!-- EN: Downloading images %1$d/%2$d · %3$d failed -->
     <string name="kairo_artwork_downloading_failed">Baixando imagens %1$d/%2$d · %3$d com falha</string>
     <!-- Images done, then images to download. -->
-    <!-- EN: %1$d / %2$d -->
+    <!-- SAME: %1$d / %2$d -->
     <string name="kairo_artwork_progress">%1$d / %2$d</string>
     <!-- EN: Waiting… -->
     <string name="kairo_artwork_waiting">Aguardando…</string>
@@ -93,6 +93,6 @@
     <!-- EN: The image server did not respond -->
     <string name="kairo_artwork_no_response">O servidor de imagens não respondeu</string>
     <!-- Why images failed, then how many failed for it. -->
-    <!-- EN: %1$s (%2$d) -->
+    <!-- SAME: %1$s (%2$d) -->
     <string name="kairo_artwork_reason_count">%1$s (%2$d)</string>
 </resources>

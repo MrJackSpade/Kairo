@@ -9,7 +9,7 @@
     <string name="kairo_auto">Otomatis</string>
     <!-- EN: Empty -->
     <string name="kairo_empty">Kosong</string>
-    <!-- EN: Default -->
+    <!-- SAME: Default -->
     <string name="kairo_default">Default</string>
     <!-- EN: Cancel -->
     <string name="kairo_cancel">Batal</string>
@@ -21,14 +21,14 @@
     <string name="kairo_installed">Terpasang</string>
     <!-- EN: Continue -->
     <string name="kairo_continue">Lanjutkan</string>
-    <!-- EN: Keyboard -->
+    <!-- SAME: Keyboard -->
     <string name="kairo_keyboard">Keyboard</string>
-    <!-- EN: Mouse -->
+    <!-- SAME: Mouse -->
     <string name="kairo_mouse">Mouse</string>
-    <!-- EN: Joystick -->
+    <!-- SAME: Joystick -->
     <string name="kairo_joystick">Joystick</string>
     <!-- Joins a list, and the choices within one of its items: "IPL-ROM, CG-ROM or CG-ROM (XVI)". -->
-    <!-- EN: ", " -->
+    <!-- SAME: ", " -->
     <string name="kairo_list_separator">", "</string>
     <!-- EN: " or " -->
     <string name="kairo_list_or">" atau "</string>

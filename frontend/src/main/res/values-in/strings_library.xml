@@ -9,7 +9,7 @@
     <!-- EN: Hashing %1$s -->
     <string name="kairo_scan_hashing_file">Menghitung hash %1$s</string>
     <!-- A large file's status, then how much of it is read. -->
-    <!-- EN: %1$s %2$d%% -->
+    <!-- SAME: %1$s %2$d%% -->
     <string name="kairo_scan_percent">%1$s %2$d%%</string>
     <!-- EN: Library cache unreadable; rescanning every file -->
     <string name="kairo_scan_cache_unreadable">Cache pustaka tidak dapat dibaca; memindai ulang setiap file</string>
@@ -31,10 +31,10 @@
     <!-- EN: Game folder has too many files -->
     <string name="kairo_scan_too_many_files">Folder game berisi terlalu banyak file</string>
     <!-- A scan's summary: kairo_library_games, then kairo_library_hashes. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_library_summary">%1$s · %2$s</string>
     <!-- kairo_library_games, kairo_library_unreadable, then kairo_library_hashes. -->
-    <!-- EN: %1$s · %2$s · %3$s -->
+    <!-- SAME: %1$s · %2$s · %3$s -->
     <string name="kairo_library_summary_unreadable">%1$s · %2$s · %3$s</string>
     <plurals name="kairo_library_games">
         <!-- EN: %1$d games -->
@@ -75,10 +75,10 @@
     <!-- EN: Choose one in Manage library -->
     <string name="kairo_library_choose_in_manage">Pilih di Kelola pustaka</string>
     <!-- The games folder's name (kairo_games_folder or the app's own), then kairo_library_games. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_library_status">%1$s · %2$s</string>
     <!-- As kairo_library_status, then kairo_library_unreadable. -->
-    <!-- EN: %1$s · %2$s · %3$s -->
+    <!-- SAME: %1$s · %2$s · %3$s -->
     <string name="kairo_library_status_unreadable">%1$s · %2$s · %3$s</string>
     <!-- EN: SOURCE -->
     <string name="kairo_library_source_group">SUMBER</string>
@@ -101,7 +101,7 @@
     <!-- EN: Floppy disk · %1$s -->
     <string name="kairo_blank_floppy">Disket · %1$s</string>
     <!-- A blank disk Create game makes: its size and kind, such as 1.2 MB · 2HD. -->
-    <!-- EN: Hard disk · %1$s -->
+    <!-- SAME: Hard disk · %1$s -->
     <string name="kairo_blank_hard_disk">Hard disk · %1$s</string>
     <!-- EN: Create -->
     <string name="kairo_create">Buat</string>
@@ -119,6 +119,7 @@
     <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">Membuat %1$s…</string>
+    <!-- EN: %2$d%% written: %1$s -->
     <string name="kairo_create_progress">%2$d%% ditulis: %1$s</string>
     <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
@@ -171,7 +172,7 @@
     <!-- EN: No description available yet. -->
     <string name="kairo_detail_no_description">Belum ada deskripsi.</string>
     <!-- The game's file. -->
-    <!-- EN: File: %1$s -->
+    <!-- SAME: File: %1$s -->
     <string name="kairo_detail_file">File: %1$s</string>
     <!-- Why the game cannot be played (its error, or kairo_detail_unchecked). -->
     <!-- EN: Can’t play: %1$s. Fix the file, then Refresh from the library menu. -->
@@ -260,7 +261,7 @@
     <!-- EN: The %1$s this game needs is not in the library -->
     <string name="kairo_companion_missing">%1$s yang diperlukan game ini tidak ada di pustaka</string>
     <!-- A game's working copy of its disk, in a list of saves to keep. -->
-    <!-- EN: Disk -->
+    <!-- SAME: Disk -->
     <string name="kairo_disk_working_copy">Disk</string>
     <!-- The file's name. -->
     <!-- EN: %1$s needs its track data; open its folder or an archive that holds both -->

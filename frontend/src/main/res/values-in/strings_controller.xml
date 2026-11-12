@@ -22,8 +22,8 @@
     <!-- EN: Save -->
     <string name="kairo_save">Simpan</string>
     <!-- EN: Reset -->
-    <string name="kairo_reset">Reset</string>
-    <!-- EN: %1$d%% -->
+    <string name="kairo_reset">Setel ulang</string>
+    <!-- SAME: %1$d%% -->
     <string name="kairo_percent">%1$d%%</string>
     <!-- EN: Up -->
     <string name="kairo_up">Atas</string>
@@ -84,7 +84,7 @@
     <string name="kairo_mapping_reset_done">Pemetaan direset</string>
     <!-- EN: Could not save mapping -->
     <string name="kairo_mapping_save_failed">Tidak dapat menyimpan pemetaan</string>
-    <!-- EN: D-PAD -->
+    <!-- SAME: D-PAD -->
     <string name="kairo_control_group_dpad">D-PAD</string>
     <!-- EN: FACE BUTTONS -->
     <string name="kairo_control_group_face">TOMBOL DEPAN</string>
@@ -128,11 +128,11 @@
     <string name="kairo_control_l3_button">Tombol L3</string>
     <!-- EN: R3 button -->
     <string name="kairo_control_r3_button">Tombol R3</string>
-    <!-- EN: Start -->
+    <!-- SAME: Start -->
     <string name="kairo_control_start">Start</string>
-    <!-- EN: Select -->
+    <!-- SAME: Select -->
     <string name="kairo_control_select">Select</string>
-    <!-- EN: Menu -->
+    <!-- SAME: Menu -->
     <string name="kairo_control_menu">Menu</string>
     <!-- EN: Start button -->
     <string name="kairo_control_start_button">Tombol Start</string>
@@ -167,7 +167,7 @@
     <!-- %1$s is the button's name, such as A or THUMBL. -->
     <!-- EN: Button %1$s -->
     <string name="kairo_input_button">Tombol %1$s</string>
-    <!-- EN: Mode -->
+    <!-- SAME: Mode -->
     <string name="kairo_input_mode">Mode</string>
     <!-- EN: Left stick press -->
     <string name="kairo_input_left_stick_press">Tekan stik kiri</string>
@@ -188,7 +188,7 @@
     <!-- %1$s is Android's axis name, such as GAS; %2$s its direction, + or -. -->
     <!-- EN: Axis %1$s %2$s -->
     <string name="kairo_input_axis_code">Sumbu %1$s %2$s</string>
-    <!-- EN: Hat %1$s %2$s -->
+    <!-- SAME: Hat %1$s %2$s -->
     <string name="kairo_input_hat_code">Hat %1$s %2$s</string>
     <!-- EN: CONNECTED -->
     <string name="kairo_inputs_group_connected">TERHUBUNG</string>
@@ -258,13 +258,13 @@
     <!-- EN: Mouse right button -->
     <string name="kairo_binding_mouse_right_button">Tombol kanan mouse</string>
     <!-- %1$s is a mouse control the app does not name. -->
-    <!-- EN: Mouse %1$s -->
+    <!-- SAME: Mouse %1$s -->
     <string name="kairo_binding_mouse_other">Mouse %1$s</string>
     <!-- %1$s is a mouse direction, such as Mouse up; %2$.1f its speed. -->
-    <!-- EN: %1$s · %2$.1f× -->
+    <!-- SAME: %1$s · %2$.1f× -->
     <string name="kairo_binding_mouse_speed">%1$s · %2$.1f×</string>
     <!-- %1$s is the guest's name for a joystick control, such as Fire 1. -->
-    <!-- EN: Joystick %1$s -->
+    <!-- SAME: Joystick %1$s -->
     <string name="kairo_binding_joystick">Joystick %1$s</string>
     <!-- EN: Keys -->
     <string name="kairo_target_tab_keys">Tombol</string>
@@ -290,7 +290,7 @@
     <string name="kairo_target_mouse_foot">Arah stik menggunakan kecepatan analog. Tombol dan arah D-pad bergerak dengan kecepatan penuh.</string>
     <!-- EN: Speed -->
     <string name="kairo_target_mouse_speed">Kecepatan</string>
-    <!-- EN: %1$.1f× -->
+    <!-- SAME: %1$.1f× -->
     <string name="kairo_target_mouse_speed_value">%1$.1f×</string>
     <!-- EN: Speed at full stick deflection. -->
     <string name="kairo_target_mouse_speed_foot">Kecepatan saat stik didorong penuh.</string>

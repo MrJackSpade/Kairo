@@ -31,7 +31,7 @@
     <!-- EN: %1$d shown -->
     <string name="kairo_onscreen_shown_count">%1$d ditampilkan</string>
     <!-- %1$s is the orientation, such as Portrait; %2$s the controller layout, such as With sticks. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_onscreen_visible_scope">%1$s · %2$s</string>
     <!-- EN: Arrange layout -->
     <string name="kairo_onscreen_arrange">Atur tata letak</string>
@@ -71,7 +71,7 @@
     <string name="kairo_keyboard_touchpad_mode">Mode touchpad mouse</string>
     <!-- EN: Close × -->
     <string name="kairo_keyboard_close">Tutup ×</string>
-    <!-- EN: OK -->
+    <!-- SAME: OK -->
     <string name="kairo_ok">OK</string>
     <!-- EN: Guest mouse touchpad. Drag to move, tap to click, hold to drag. -->
     <string name="kairo_touchpad_description">Touchpad mouse mesin yang diemulasikan. Seret untuk menggerakkan, ketuk untuk mengklik, tahan untuk menyeret.</string>

@@ -36,7 +36,7 @@
     <!-- EN: Current -->
     <string name="kairo_saves_current">Atual</string>
     <!-- The game's title, then which save it is, such as Slot 1. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_saves_conflict_title">%1$s · %2$s</string>
     <!-- EN: Move saves -->
     <string name="kairo_saves_move">Mover jogos salvos</string>
@@ -82,7 +82,7 @@
     <!-- EN: Load failed: %1$s -->
     <string name="kairo_state_load_failed">Falha ao carregar: %1$s</string>
     <!-- A slot's number, then when it was saved. -->
-    <!-- EN: Slot %1$d, %2$s -->
+    <!-- SAME: Slot %1$d, %2$s -->
     <string name="kairo_state_slot_saved_at">Slot %1$d, %2$s</string>
     <!-- EN: Slot %1$d, empty -->
     <string name="kairo_state_slot_empty">Slot %1$d, vazio</string>

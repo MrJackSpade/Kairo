@@ -7,13 +7,13 @@
     <string name="kairo_cartridge">Modul</string>
     <!-- EN: Cassette -->
     <string name="kairo_cassette">Kassette</string>
-    <!-- EN: CD-ROM -->
+    <!-- SAME: CD-ROM -->
     <string name="kairo_cd_rom">CD-ROM</string>
     <!-- %1$s is a clock speed in megahertz, such as 2.5. -->
-    <!-- EN: %1$s MHz -->
+    <!-- SAME: %1$s MHz -->
     <string name="kairo_clock_mhz">%1$s MHz</string>
     <!-- The disc a game needs, as "The %1$s this game needs is not in the library" names it. -->
-    <!-- EN: CD -->
+    <!-- SAME: CD -->
     <string name="kairo_companion_cd">CD</string>
     <!-- EN: Drive 2 -->
     <string name="kairo_drive_2">Laufwerk 2</string>
@@ -24,7 +24,7 @@
     <!-- EN: Dictionary -->
     <string name="kairo_firmware_dictionary">Wörterbuch</string>
     <!-- A firmware file's description: %1$s is its file name; %2$s what it does. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_firmware_part">%1$s · %2$s</string>
     <!-- EN: Floppy disk -->
     <string name="kairo_floppy_disk">Diskette</string>
@@ -34,11 +34,17 @@
     <string name="kairo_folder_title">Spieleordner auswählen</string>
     <!-- EN: Hard disk -->
     <string name="kairo_hard_disk">Festplatte</string>
+    <!-- EN: Custom… -->
     <string name="kairo_custom_value">Eigener Wert…</string>
+    <!-- EN: %1$s to %2$s -->
     <string name="kairo_custom_hint">%1$s bis %2$s</string>
+    <!-- EN: Enter a whole number -->
     <string name="kairo_custom_not_number">Ganze Zahl eingeben</string>
+    <!-- EN: Enter a number with up to %1$d decimal places -->
     <string name="kairo_custom_not_decimal">Zahl mit höchstens %1$d Nachkommastellen eingeben</string>
+    <!-- EN: From %1$s to %2$s -->
     <string name="kairo_custom_out_of_range">Von %1$s bis %2$s</string>
+    <!-- EN: In steps of %1$s -->
     <string name="kairo_custom_off_step">In Schritten von %1$s</string>
     <!-- EN: Fire -->
     <string name="kairo_joystick_fire">Feuer</string>
@@ -46,21 +52,25 @@
     <string name="kairo_joystick_fire_2">Feuer 2 (unbenutzt)</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">Symbole</string>
-    <!-- EN: Funktion -->
+    <!-- EN: Function -->
     <string name="kairo_keyboard_function">Funktion</string>
-    <!-- EN: Ziffernblock -->
+    <!-- EN: Keypad -->
     <string name="kairo_keyboard_keypad">Ziffernblock</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">Der Ordnerzugriff ist abgelaufen. Wählen Sie den Spieleordner erneut aus.</string>
     <!-- %1$d is a size in kilobytes. -->
-    <!-- EN: %1$d KB -->
+    <!-- SAME: %1$d KB -->
     <string name="kairo_memory_kb">%1$d KB</string>
     <!-- %1$d is a size in megabytes. -->
-    <!-- EN: %1$d MB -->
+    <!-- SAME: %1$d MB -->
     <string name="kairo_memory_mb">%1$d MB</string>
+    <!-- SAME: %1$s KB -->
     <string name="kairo_size_kb">%1$s KB</string>
+    <!-- SAME: %1$s MB -->
     <string name="kairo_size_mb">%1$s MB</string>
+    <!-- SAME: %1$s GB -->
     <string name="kairo_size_gb">%1$s GB</string>
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_disk_with_size">%1$s · %2$s</string>
     <!-- EN: CPU clock -->
     <string name="kairo_option_clock">CPU-Takt</string>
@@ -68,7 +78,7 @@
     <string name="kairo_option_machine">Maschine</string>
     <!-- EN: Memory -->
     <string name="kairo_option_memory">Arbeitsspeicher</string>
-    <!-- EN: System -->
+    <!-- SAME: System -->
     <string name="kairo_option_system">System</string>
     <!-- EN: Program -->
     <string name="kairo_program">Programm</string>

@@ -3,10 +3,15 @@
 Every values/strings*.xml has a copy in values-<language>/ under the same name, holding every
 translatable string. Above each string is an `EN:` comment: the English that string translates,
 as it was when it was translated, with the English file's notes on its arguments. A string not yet
-translated holds the English, so the app shows English until it is.
+translated holds the English, so the app shows English until it is. A string a translator kept as
+the English on purpose (a unit, a name, a format such as "%1$s · %2$s") has a `SAME:` comment in
+place of its `EN:` one, so check counts it translated until the English changes.
 
   python shared/tools/translations.py sync [res ...]   create missing copies, add new strings, drop removed ones
   python shared/tools/translations.py check [res ...]  report what needs a translator, and fail on broken strings
+  python shared/tools/translations.py export out.json [res ...]  write what check reports as TODO or STALE, for a translator
+  python shared/tools/translations.py apply in.json   write translations back: each sets one string (or plural quantity)
+                                                      of one language, with the current English as its EN comment
 
 `res` is a res directory (such as frontend/src/main/res); without one, every module's src/main/res in
 the current checkout, the shared submodule excepted. Sync never touches a translation or its EN
@@ -16,6 +21,7 @@ arguments differ from the English, a missing or extra string, or a plural withou
 quantities.
 """
 import argparse
+import json
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -35,6 +41,7 @@ LANGUAGES = {
 }
 
 EN = "EN:"
+SAME = "SAME:"
 FORMAT = re.compile(r"%(?:\d+\$)?[-#+ 0,(]*\d*(?:\.\d+)?[a-zA-Z%]")
 
 
@@ -49,17 +56,27 @@ def is_comment(node):
 class Entry:
     """One string or plural of a file: its notes (comments above it) and its text by quantity ("" for a string)."""
 
-    def __init__(self, name, plural, notes, texts, english=None):
+    def __init__(self, name, plural, notes, texts, english=None, same=None):
         self.name = name
         self.plural = plural
         self.notes = notes
         self.texts = texts
-        # The EN comments, by quantity: the English this entry translates.
+        # The EN (or SAME) comments, by quantity: the English this entry translates.
         self.english = english if english is not None else {}
+        # The quantities whose comment is SAME: kept as the English on purpose.
+        self.same = same if same is not None else set()
 
 
 def text(node):
     return node.text or ""
+
+
+def marker(note):
+    """The English an EN or SAME comment names, and whether it is SAME; None for any other comment."""
+    for prefix in (EN, SAME):
+        if note.startswith(prefix):
+            return note[len(prefix):].strip(), prefix == SAME
+    return None
 
 
 def entries(root):
@@ -71,26 +88,35 @@ def entries(root):
             continue
         if node.tag in ("string", "plurals") and node.get("translatable") != "false":
             name = node.get("name")
+            kept = [n for n in notes if marker(n) is None]
             if node.tag == "string":
-                english = {"": n[len(EN):].strip() for n in notes if n.startswith(EN)}
-                kept = [n for n in notes if not n.startswith(EN)]
-                found.append(Entry(name, False, kept, {"": text(node)}, english))
+                english, same = {}, set()
+                for found_marker in filter(None, map(marker, notes)):
+                    english[""] = found_marker[0]
+                    if found_marker[1]:
+                        same.add("")
+                found.append(Entry(name, False, kept, {"": text(node)}, english, same))
             else:
-                texts, english, pending = {}, {}, None
+                texts, english, same, pending = {}, {}, set(), None
                 for item in node:
                     if is_comment(item):
-                        if item.text.strip().startswith(EN):
-                            pending = item.text.strip()[len(EN):].strip()
+                        pending = marker(item.text.strip()) or pending
                         continue
                     quantity = item.get("quantity")
                     texts[quantity] = text(item)
                     if pending is not None:
-                        english[quantity] = pending
+                        english[quantity] = pending[0]
+                        if pending[1]:
+                            same.add(quantity)
                     pending = None
-                kept = [n for n in notes if not n.startswith(EN)]
-                found.append(Entry(name, True, kept, texts, english))
+                found.append(Entry(name, True, kept, texts, english, same))
         notes = []
     return found
+
+
+def kept_same(entry, quantity, source_text):
+    """Whether a translator kept [quantity] as this very English on purpose."""
+    return quantity in entry.same and entry.english.get(quantity) == source_text == entry.texts[quantity]
 
 
 def comment(value):
@@ -121,18 +147,21 @@ def render(language, source_name, english, existing):
             translated = old if old is not None and not old.plural else None
             value = translated.texts[""] if translated else entry.texts[""]
             source = translated.english.get("", value) if translated else entry.texts[""]
-            lines.append("    " + comment(f"{EN} {source}"))
+            prefix = SAME if translated and "" in translated.same else EN
+            lines.append("    " + comment(f"{prefix} {source}"))
             lines.append(f'    <string name="{entry.name}">{escape(value)}</string>')
             continue
         translated = old if old is not None and old.plural else None
         lines.append(f'    <plurals name="{entry.name}">')
         for quantity in quantities:
+            prefix = EN
             if translated and quantity in translated.texts:
                 value = translated.texts[quantity]
                 source = translated.english.get(quantity, english_for(entry, quantity))
+                prefix = SAME if quantity in translated.same else EN
             else:
                 value = source = english_for(entry, quantity)
-            lines.append("        " + comment(f"{EN} {source}"))
+            lines.append("        " + comment(f"{prefix} {source}"))
             lines.append(f'        <item quantity="{quantity}">{escape(value)}</item>')
         lines.append("    </plurals>")
     lines.append("</resources>")
@@ -194,7 +223,7 @@ def check(res):
                     if formats(value) != formats(source_text):
                         print(f"BROKEN  {target}: {label} has {formats(value)} where the English has {formats(source_text)}")
                         broken += 1
-                    if value == source_text:
+                    if value == source_text and not kept_same(theirs, quantity, source_text):
                         untranslated += 1
                     elif theirs.english.get(quantity) != source_text:
                         stale.append(label)
@@ -205,21 +234,94 @@ def check(res):
     return broken
 
 
+def pending(res):
+    """What check reports as TODO or STALE, one item per string (or plural quantity) and language."""
+    items = []
+    for source in sources(res):
+        english = entries(parse(source))
+        for language, (_, quantities) in LANGUAGES.items():
+            translated = {entry.name: entry for entry in entries(parse(res / f"values-{language}" / source.name))}
+            for entry in english:
+                theirs = translated[entry.name]
+                for quantity in ([""] if not entry.plural else quantities):
+                    source_text = entry.texts[""] if not entry.plural else english_for(entry, quantity)
+                    value = theirs.texts[quantity]
+                    if kept_same(theirs, quantity, source_text) or (
+                            value != source_text and theirs.english.get(quantity) == source_text):
+                        continue
+                    items.append({"res": str(res), "file": source.name, "language": language, "name": entry.name,
+                                  "quantity": quantity, "english": source_text, "notes": entry.notes,
+                                  "translation": None if value == source_text else value,
+                                  "translated_from": theirs.english.get(quantity)})
+    return items
+
+
+def apply(items):
+    """Writes each item's translation into its language's file, its EN comment the current English."""
+    by_file = {}
+    for item in items:
+        by_file.setdefault((item["res"], item["file"], item["language"]), []).append(item)
+    for (res, name, language), changes in by_file.items():
+        res = Path(res)
+        english = entries(parse(res / "values" / name))
+        target = res / f"values-{language}" / name
+        existing = {entry.name: entry for entry in entries(parse(target))}
+        current = {entry.name: entry for entry in english}
+        for item in changes:
+            entry, source = existing[item["name"]], current[item["name"]]
+            quantity = item["quantity"]
+            source_text = source.texts[""] if not source.plural else english_for(source, quantity)
+            if source_text != item["english"]:
+                raise SystemExit(f"{target}: {item['name']} {quantity!r}: the English is now {source_text!r}, "
+                                 f"not {item['english']!r}; export again")
+            # Android resource text: an apostrophe outside double quotes (which keep spaces, as in ", ") needs
+            # its backslash, or aapt2 rejects it.
+            if re.search(r"(?<!\\)'", re.sub(r'(?<!\\)"[^"]*"', "", item["text"])):
+                raise SystemExit(f"{target}: {item['name']} {quantity!r}: escape ' as \\' in {item['text']!r}")
+            if formats(item["text"]) != formats(source_text):
+                raise SystemExit(f"{target}: {item['name']} {quantity!r}: {formats(item['text'])} where the English "
+                                 f"has {formats(source_text)}")
+            entry.texts[quantity] = item["text"]
+            entry.english[quantity] = source_text
+            # The English kept as it is: SAME, so check counts it translated.
+            if item["text"] == source_text:
+                entry.same.add(quantity)
+            else:
+                entry.same.discard(quantity)
+        target.write_text(render(language, name, english, list(existing.values())), encoding="utf-8", newline="\n")
+        print(f"wrote {target}: {len(changes)}")
+
+
 def modules(root):
     return sorted(res for res in root.glob("*/src/main/res") if (res / "values").is_dir() and sources(res))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("command", choices=["sync", "check"])
-    parser.add_argument("res", nargs="*", type=Path)
+    parser.add_argument("command", choices=["sync", "check", "export", "apply"])
+    parser.add_argument("paths", nargs="*", type=Path, help="res directories; for export and apply, the JSON file first")
     args = parser.parse_args()
-    dirs = args.res or modules(Path.cwd())
+    if args.command == "apply":
+        if len(args.paths) != 1:
+            sys.exit("apply takes one JSON file")
+        apply(json.loads(args.paths[0].read_text(encoding="utf-8")))
+        return
+    json_path = None
+    if args.command == "export":
+        if not args.paths:
+            sys.exit("export takes the JSON file to write, then res directories")
+        json_path, args.paths = args.paths[0], args.paths[1:]
+    dirs = args.paths or modules(Path.cwd())
     if not dirs:
         sys.exit("No res directory with values/strings*.xml here")
     if args.command == "sync":
         for res in dirs:
             sync(res)
+        return
+    if args.command == "export":
+        items = [item for res in dirs for item in pending(res)]
+        json_path.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"{json_path}: {len(items)} to translate")
         return
     broken = sum(check(res) for res in dirs)
     if broken:

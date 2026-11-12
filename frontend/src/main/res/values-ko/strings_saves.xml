@@ -36,7 +36,7 @@
     <!-- EN: Current -->
     <string name="kairo_saves_current">현재</string>
     <!-- The game's title, then which save it is, such as Slot 1. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_saves_conflict_title">%1$s · %2$s</string>
     <!-- EN: Move saves -->
     <string name="kairo_saves_move">저장 데이터 이동</string>

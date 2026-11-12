@@ -4,27 +4,27 @@
     <!-- EN: Automatic -->
     <string name="kairo_automatic">Otomatis</string>
     <!-- EN: Cartridge -->
-    <string name="kairo_cartridge">Cartridge</string>
+    <string name="kairo_cartridge">Kartrid</string>
     <!-- EN: Cassette -->
     <string name="kairo_cassette">Kaset</string>
-    <!-- EN: CD-ROM -->
+    <!-- SAME: CD-ROM -->
     <string name="kairo_cd_rom">CD-ROM</string>
     <!-- %1$s is a clock speed in megahertz, such as 2.5. -->
-    <!-- EN: %1$s MHz -->
+    <!-- SAME: %1$s MHz -->
     <string name="kairo_clock_mhz">%1$s MHz</string>
     <!-- The disc a game needs, as "The %1$s this game needs is not in the library" names it. -->
-    <!-- EN: CD -->
+    <!-- SAME: CD -->
     <string name="kairo_companion_cd">CD</string>
-    <!-- EN: Drive 2 -->
+    <!-- SAME: Drive 2 -->
     <string name="kairo_drive_2">Drive 2</string>
-    <!-- EN: Drive A -->
+    <!-- SAME: Drive A -->
     <string name="kairo_drive_a">Drive A</string>
-    <!-- EN: Drive B -->
+    <!-- SAME: Drive B -->
     <string name="kairo_drive_b">Drive B</string>
     <!-- EN: Dictionary -->
     <string name="kairo_firmware_dictionary">Kamus</string>
     <!-- A firmware file's description: %1$s is its file name; %2$s what it does. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_firmware_part">%1$s · %2$s</string>
     <!-- EN: Floppy disk -->
     <string name="kairo_floppy_disk">Disket</string>
@@ -32,13 +32,19 @@
     <string name="kairo_folder_button">Pilih folder game…</string>
     <!-- EN: Choose a games folder -->
     <string name="kairo_folder_title">Pilih folder game</string>
-    <!-- EN: Hard disk -->
+    <!-- SAME: Hard disk -->
     <string name="kairo_hard_disk">Hard disk</string>
+    <!-- EN: Custom… -->
     <string name="kairo_custom_value">Kustom…</string>
+    <!-- EN: %1$s to %2$s -->
     <string name="kairo_custom_hint">%1$s sampai %2$s</string>
+    <!-- EN: Enter a whole number -->
     <string name="kairo_custom_not_number">Masukkan bilangan bulat</string>
+    <!-- EN: Enter a number with up to %1$d decimal places -->
     <string name="kairo_custom_not_decimal">Masukkan angka dengan paling banyak %1$d angka desimal</string>
+    <!-- EN: From %1$s to %2$s -->
     <string name="kairo_custom_out_of_range">Dari %1$s sampai %2$s</string>
+    <!-- EN: In steps of %1$s -->
     <string name="kairo_custom_off_step">Dengan kelipatan %1$s</string>
     <!-- EN: Fire -->
     <string name="kairo_joystick_fire">Tembak</string>
@@ -46,21 +52,25 @@
     <string name="kairo_joystick_fire_2">Tembak 2 (tidak digunakan)</string>
     <!-- EN: Symbols -->
     <string name="kairo_keyboard_symbols">Simbol</string>
-    <!-- EN: Fungsi -->
+    <!-- EN: Function -->
     <string name="kairo_keyboard_function">Fungsi</string>
-    <!-- EN: Keypad -->
+    <!-- SAME: Keypad -->
     <string name="kairo_keyboard_keypad">Keypad</string>
     <!-- EN: Folder access expired. Select the games folder again. -->
     <string name="kairo_library_expired">Akses folder kedaluwarsa. Pilih folder game lagi.</string>
     <!-- %1$d is a size in kilobytes. -->
-    <!-- EN: %1$d KB -->
+    <!-- SAME: %1$d KB -->
     <string name="kairo_memory_kb">%1$d KB</string>
     <!-- %1$d is a size in megabytes. -->
-    <!-- EN: %1$d MB -->
+    <!-- SAME: %1$d MB -->
     <string name="kairo_memory_mb">%1$d MB</string>
+    <!-- SAME: %1$s KB -->
     <string name="kairo_size_kb">%1$s KB</string>
+    <!-- SAME: %1$s MB -->
     <string name="kairo_size_mb">%1$s MB</string>
+    <!-- SAME: %1$s GB -->
     <string name="kairo_size_gb">%1$s GB</string>
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_disk_with_size">%1$s · %2$s</string>
     <!-- EN: CPU clock -->
     <string name="kairo_option_clock">Clock CPU</string>
@@ -70,7 +80,7 @@
     <string name="kairo_option_memory">Memori</string>
     <!-- EN: System -->
     <string name="kairo_option_system">Sistem</string>
-    <!-- EN: Program -->
+    <!-- SAME: Program -->
     <string name="kairo_program">Program</string>
     <!-- EN: SAVE STATES -->
     <string name="kairo_saves_group">STATUS TERSIMPAN</string>

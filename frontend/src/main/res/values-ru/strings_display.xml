@@ -26,7 +26,7 @@
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">Отступ от выреза в портретной ориентации</string>
     <!-- %1$d is a length in density-independent pixels. -->
-    <!-- EN: %1$d dp -->
+    <!-- SAME: %1$d dp -->
     <string name="kairo_dp">%1$d dp</string>
     <!-- EN: Game orientation -->
     <string name="kairo_orientation_game">Ориентация игры</string>
@@ -48,7 +48,7 @@
     <string name="kairo_shader_sharp_bilinear">Четкий билинейный</string>
     <!-- EN: Sharp bilinear + scanlines -->
     <string name="kairo_shader_sharp_bilinear_scanlines">Четкий билинейный + строки развертки</string>
-    <!-- EN: CRT EasyMode -->
+    <!-- SAME: CRT EasyMode -->
     <string name="kairo_shader_crt_easymode">CRT EasyMode</string>
     <!-- EN: Import shader pack… -->
     <string name="kairo_shader_import">Импортировать набор шейдеров…</string>

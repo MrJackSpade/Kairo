@@ -86,7 +86,7 @@
     <string name="kairo_external_no_playable">Не найдено игр %1$s, в которые можно играть</string>
     <!-- EN: Choose a disk to start -->
     <string name="kairo_external_choose_disk">Выберите диск для запуска</string>
-    <!-- EN: Выберите игру -->
+    <!-- EN: Choose a game -->
     <string name="kairo_collection_choose">Выберите игру</string>
     <!-- EN: Refresh this entry before playing -->
     <string name="kairo_launch_refresh_first">Обновите эту запись перед игрой</string>
@@ -212,7 +212,7 @@
     <!-- EN: Play manually -->
     <string name="kairo_play_manually">Играть вручную</string>
     <!-- A startup choice's step: the choice's title, the option, and which of its keys. -->
-    <!-- EN: %1$s: %2$s (%3$d/%4$d) -->
+    <!-- SAME: %1$s: %2$s (%3$d/%4$d) -->
     <string name="kairo_startup_step_choice">%1$s: %2$s (%3$d/%4$d)</string>
     <!-- %1$s is the drive, such as Floppy A; %2$s the disk. -->
     <!-- EN: Swapping %1$s: %2$s -->

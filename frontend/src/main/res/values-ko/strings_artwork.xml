@@ -51,7 +51,7 @@
     <!-- EN: Downloading images %1$d/%2$d · %3$d failed -->
     <string name="kairo_artwork_downloading_failed">이미지 다운로드 중 %1$d/%2$d · %3$d개 실패</string>
     <!-- Images done, then images to download. -->
-    <!-- EN: %1$d / %2$d -->
+    <!-- SAME: %1$d / %2$d -->
     <string name="kairo_artwork_progress">%1$d / %2$d</string>
     <!-- EN: Waiting… -->
     <string name="kairo_artwork_waiting">대기 중…</string>

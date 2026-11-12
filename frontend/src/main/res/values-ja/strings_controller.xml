@@ -23,7 +23,7 @@
     <string name="kairo_save">保存</string>
     <!-- EN: Reset -->
     <string name="kairo_reset">リセット</string>
-    <!-- EN: %1$d%% -->
+    <!-- SAME: %1$d%% -->
     <string name="kairo_percent">%1$d%%</string>
     <!-- EN: Up -->
     <string name="kairo_up">上</string>
@@ -85,7 +85,7 @@
     <!-- EN: Could not save mapping -->
     <string name="kairo_mapping_save_failed">割り当てを保存できませんでした</string>
     <!-- EN: D-PAD -->
-    <string name="kairo_control_group_dpad">D-PAD</string>
+    <string name="kairo_control_group_dpad">十字キー</string>
     <!-- EN: FACE BUTTONS -->
     <string name="kairo_control_group_face">フェイスボタン</string>
     <!-- EN: SHOULDERS -->
@@ -128,9 +128,9 @@
     <string name="kairo_control_l3_button">L3 ボタン</string>
     <!-- EN: R3 button -->
     <string name="kairo_control_r3_button">R3 ボタン</string>
-    <!-- EN: Start -->
+    <!-- SAME: Start -->
     <string name="kairo_control_start">Start</string>
-    <!-- EN: Select -->
+    <!-- SAME: Select -->
     <string name="kairo_control_select">Select</string>
     <!-- EN: Menu -->
     <string name="kairo_control_menu">メニュー</string>
@@ -261,7 +261,7 @@
     <!-- EN: Mouse %1$s -->
     <string name="kairo_binding_mouse_other">マウス %1$s</string>
     <!-- %1$s is a mouse direction, such as Mouse up; %2$.1f its speed. -->
-    <!-- EN: %1$s · %2$.1f× -->
+    <!-- SAME: %1$s · %2$.1f× -->
     <string name="kairo_binding_mouse_speed">%1$s · %2$.1f×</string>
     <!-- %1$s is the guest's name for a joystick control, such as Fire 1. -->
     <!-- EN: Joystick %1$s -->
@@ -290,7 +290,7 @@
     <string name="kairo_target_mouse_foot">スティックの方向はアナログ速度で動きます。ボタンと D-pad の方向は最高速度で動きます。</string>
     <!-- EN: Speed -->
     <string name="kairo_target_mouse_speed">速度</string>
-    <!-- EN: %1$.1f× -->
+    <!-- SAME: %1$.1f× -->
     <string name="kairo_target_mouse_speed_value">%1$.1f×</string>
     <!-- EN: Speed at full stick deflection. -->
     <string name="kairo_target_mouse_speed_foot">スティックを最大まで倒したときの速度。</string>

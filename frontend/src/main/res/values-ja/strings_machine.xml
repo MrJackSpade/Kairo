@@ -21,7 +21,7 @@
     <!-- EN: This file needs a successful hash before settings can be saved -->
     <string name="kairo_settings_no_hash">設定を保存するには、このファイルのハッシュ計算が完了している必要があります</string>
     <!-- The Default choice's description: %1$s is where the default comes from, %2$s its value. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_settings_default_from">%1$s: %2$s</string>
     <!-- EN: Reset all game settings -->
     <string name="kairo_settings_reset_all">すべてのゲーム設定をリセット</string>
@@ -67,7 +67,7 @@
     <!-- EN: THIS GAME -->
     <string name="kairo_disks_this_game">このゲーム</string>
     <!-- One of several disk images in an archive: %1$s is the archive, %2$s the image. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_disk_in_archive">%1$s: %2$s</string>
     <!-- EN: Follows what the game reads -->
     <string name="kairo_touch_auto_help">ゲームの読み取りに従う</string>
@@ -79,7 +79,7 @@
     <!-- EN: TOUCH SCREEN -->
     <string name="kairo_touch_group">タッチスクリーン</string>
     <!-- EN: MOUSE -->
-    <string name="kairo_mouse_group">MOUSE</string>
+    <string name="kairo_mouse_group">マウス</string>
     <!-- EN: Screen tap -->
     <string name="kairo_touch_screen_tap">画面タップ</string>
     <!-- EN: Mouse touch -->
@@ -167,10 +167,10 @@
     <!-- EN: Disk change failed -->
     <string name="kairo_media_change_failed">ディスクの交換に失敗しました</string>
     <!-- %1$s is the drive, such as Drive 1; %2$s the disk now in it, or Empty. -->
-    <!-- EN: %1$s: %2$s -->
+    <!-- SAME: %1$s: %2$s -->
     <string name="kairo_media_changed">%1$s: %2$s</string>
     <!-- %1$s is the machine's name, such as PC-88. -->
-    <!-- EN: %1$s BIOS -->
+    <!-- SAME: %1$s BIOS -->
     <string name="kairo_firmware_title">%1$s BIOS</string>
     <!-- EN: Pick each file below, or import them all from a folder. -->
     <string name="kairo_firmware_description">下の各ファイルを選択するか、フォルダからまとめてインポートしてください。</string>
@@ -235,10 +235,10 @@
     <string name="kairo_import_too_large">%1$s が大きすぎます</string>
     <!-- EN: %1$s is empty -->
     <string name="kairo_import_empty">%1$s は空です</string>
-    <!-- EN: %1$d KiB -->
+    <!-- SAME: %1$d KiB -->
     <string name="kairo_size_kib">%1$d KiB</string>
     <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
-    <!-- EN: MIDI -->
+    <!-- SAME: MIDI -->
     <string name="kairo_midi_group">MIDI</string>
     <!-- EN: MIDI out -->
     <string name="kairo_midi_out">MIDI出力</string>

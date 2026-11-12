@@ -23,12 +23,12 @@
     <string name="kairo_continue">Continuar</string>
     <!-- EN: Keyboard -->
     <string name="kairo_keyboard">Teclado</string>
-    <!-- EN: Mouse -->
+    <!-- SAME: Mouse -->
     <string name="kairo_mouse">Mouse</string>
-    <!-- EN: Joystick -->
+    <!-- SAME: Joystick -->
     <string name="kairo_joystick">Joystick</string>
     <!-- Joins a list, and the choices within one of its items: "IPL-ROM, CG-ROM or CG-ROM (XVI)". -->
-    <!-- EN: ", " -->
+    <!-- SAME: ", " -->
     <string name="kairo_list_separator">", "</string>
     <!-- EN: " or " -->
     <string name="kairo_list_or">" ou "</string>

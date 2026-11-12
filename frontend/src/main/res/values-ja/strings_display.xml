@@ -26,7 +26,7 @@
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">縦画面のノッチ余白</string>
     <!-- %1$d is a length in density-independent pixels. -->
-    <!-- EN: %1$d dp -->
+    <!-- SAME: %1$d dp -->
     <string name="kairo_dp">%1$d dp</string>
     <!-- EN: Game orientation -->
     <string name="kairo_orientation_game">ゲームの画面の向き</string>
@@ -48,7 +48,7 @@
     <string name="kairo_shader_sharp_bilinear">シャープ バイリニア</string>
     <!-- EN: Sharp bilinear + scanlines -->
     <string name="kairo_shader_sharp_bilinear_scanlines">シャープ バイリニア + スキャンライン</string>
-    <!-- EN: CRT EasyMode -->
+    <!-- SAME: CRT EasyMode -->
     <string name="kairo_shader_crt_easymode">CRT EasyMode</string>
     <!-- EN: Import shader pack… -->
     <string name="kairo_shader_import">シェーダーパックをインポート…</string>

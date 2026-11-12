@@ -9,7 +9,7 @@
     <!-- EN: Hashing %1$s -->
     <string name="kairo_scan_hashing_file">Calculando hash de %1$s</string>
     <!-- A large file's status, then how much of it is read. -->
-    <!-- EN: %1$s %2$d%% -->
+    <!-- SAME: %1$s %2$d%% -->
     <string name="kairo_scan_percent">%1$s %2$d%%</string>
     <!-- EN: Library cache unreadable; rescanning every file -->
     <string name="kairo_scan_cache_unreadable">Cache da biblioteca ilegível; verificando todos os arquivos de novo</string>
@@ -39,10 +39,10 @@
     <!-- EN: Game folder has too many files -->
     <string name="kairo_scan_too_many_files">A pasta do jogo tem arquivos demais</string>
     <!-- A scan's summary: kairo_library_games, then kairo_library_hashes. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_library_summary">%1$s · %2$s</string>
     <!-- kairo_library_games, kairo_library_unreadable, then kairo_library_hashes. -->
-    <!-- EN: %1$s · %2$s · %3$s -->
+    <!-- SAME: %1$s · %2$s · %3$s -->
     <string name="kairo_library_summary_unreadable">%1$s · %2$s · %3$s</string>
     <plurals name="kairo_library_games">
         <!-- EN: %1$d games -->
@@ -95,10 +95,10 @@
     <!-- EN: Choose one in Manage library -->
     <string name="kairo_library_choose_in_manage">Escolha uma em Gerenciar biblioteca</string>
     <!-- The games folder's name (kairo_games_folder or the app's own), then kairo_library_games. -->
-    <!-- EN: %1$s · %2$s -->
+    <!-- SAME: %1$s · %2$s -->
     <string name="kairo_library_status">%1$s · %2$s</string>
     <!-- As kairo_library_status, then kairo_library_unreadable. -->
-    <!-- EN: %1$s · %2$s · %3$s -->
+    <!-- SAME: %1$s · %2$s · %3$s -->
     <string name="kairo_library_status_unreadable">%1$s · %2$s · %3$s</string>
     <!-- EN: SOURCE -->
     <string name="kairo_library_source_group">ORIGEM</string>
@@ -139,6 +139,7 @@
     <!-- The new game's name. -->
     <!-- EN: Creating %1$s… -->
     <string name="kairo_creating">Criando %1$s…</string>
+    <!-- EN: %2$d%% written: %1$s -->
     <string name="kairo_create_progress">%2$d%% gravado: %1$s</string>
     <!-- The new game's name. -->
     <!-- EN: Created %1$s -->
@@ -344,7 +345,7 @@
     <!-- EN: Disk image size changed during read -->
     <string name="kairo_disk_image_size_changed">O tamanho da imagem de disco mudou durante a leitura</string>
     <!-- About. -->
-    <!-- EN: APP -->
+    <!-- SAME: APP -->
     <string name="kairo_about_app_group">APP</string>
     <!-- EN: Version -->
     <string name="kairo_about_version">Versão</string>

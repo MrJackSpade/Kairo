@@ -26,7 +26,7 @@
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">Margem do entalhe na vertical</string>
     <!-- %1$d is a length in density-independent pixels. -->
-    <!-- EN: %1$d dp -->
+    <!-- SAME: %1$d dp -->
     <string name="kairo_dp">%1$d dp</string>
     <!-- EN: Game orientation -->
     <string name="kairo_orientation_game">Orientação do jogo</string>
@@ -36,9 +36,9 @@
     <string name="kairo_orientation_portrait">Vertical</string>
     <!-- EN: Rotation was attempted but did not apply. A system setting is likely blocking it. -->
     <string name="kairo_orientation_blocked">A rotação foi tentada, mas não foi aplicada. Provavelmente uma configuração do sistema está bloqueando.</string>
-    <!-- EN: SHADER -->
+    <!-- SAME: SHADER -->
     <string name="kairo_shader_group">SHADER</string>
-    <!-- EN: Shader -->
+    <!-- SAME: Shader -->
     <string name="kairo_shader">Shader</string>
     <!-- EN: BUILT-IN -->
     <string name="kairo_shader_group_built_in">INTEGRADOS</string>
@@ -48,7 +48,7 @@
     <string name="kairo_shader_sharp_bilinear">Bilinear nítido</string>
     <!-- EN: Sharp bilinear + scanlines -->
     <string name="kairo_shader_sharp_bilinear_scanlines">Bilinear nítido + scanlines</string>
-    <!-- EN: CRT EasyMode -->
+    <!-- SAME: CRT EasyMode -->
     <string name="kairo_shader_crt_easymode">CRT EasyMode</string>
     <!-- EN: Import shader pack… -->
     <string name="kairo_shader_import">Importar pacote de shaders…</string>

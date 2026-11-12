@@ -26,7 +26,7 @@
     <!-- EN: Portrait notch padding -->
     <string name="kairo_notch_padding">세로 화면 노치 여백</string>
     <!-- %1$d is a length in density-independent pixels. -->
-    <!-- EN: %1$d dp -->
+    <!-- SAME: %1$d dp -->
     <string name="kairo_dp">%1$d dp</string>
     <!-- EN: Game orientation -->
     <string name="kairo_orientation_game">게임 화면 방향</string>
@@ -48,7 +48,7 @@
     <string name="kairo_shader_sharp_bilinear">샤프 바이리니어</string>
     <!-- EN: Sharp bilinear + scanlines -->
     <string name="kairo_shader_sharp_bilinear_scanlines">샤프 바이리니어 + 스캔라인</string>
-    <!-- EN: CRT EasyMode -->
+    <!-- SAME: CRT EasyMode -->
     <string name="kairo_shader_crt_easymode">CRT EasyMode</string>
     <!-- EN: Import shader pack… -->
     <string name="kairo_shader_import">셰이더 팩 가져오기…</string>

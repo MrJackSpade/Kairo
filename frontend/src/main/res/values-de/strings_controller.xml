@@ -11,7 +11,7 @@
     <string name="kairo_controller_layout">Controller-Layout</string>
     <!-- EN: Custom -->
     <string name="kairo_custom">Benutzerdefiniert</string>
-    <!-- EN: Standard -->
+    <!-- SAME: Standard -->
     <string name="kairo_standard">Standard</string>
     <!-- EN: Unassigned -->
     <string name="kairo_unassigned">Nicht belegt</string>
@@ -38,7 +38,7 @@
     <string name="kairo_controls_foot_own_mapping">%1$s verwendet eine eigene Tastenbelegung, nicht die für alle Spiele.</string>
     <!-- EN: %1$s uses the all-games mapping. It can have its own in Game settings. -->
     <string name="kairo_controls_foot_all_games_mapping">%1$s verwendet die Belegung für alle Spiele. In den Spieleinstellungen kann es eine eigene erhalten.</string>
-    <!-- EN: CONTROLLER -->
+    <!-- SAME: CONTROLLER -->
     <string name="kairo_controls_group_controller">CONTROLLER</string>
     <!-- EN: %1$s mapping -->
     <string name="kairo_controls_game_mapping">Belegung für %1$s</string>
@@ -85,12 +85,12 @@
     <!-- EN: Could not save mapping -->
     <string name="kairo_mapping_save_failed">Belegung konnte nicht gespeichert werden</string>
     <!-- EN: D-PAD -->
-    <string name="kairo_control_group_dpad">D-PAD</string>
+    <string name="kairo_control_group_dpad">STEUERKREUZ</string>
     <!-- EN: FACE BUTTONS -->
     <string name="kairo_control_group_face">AKTIONSTASTEN</string>
     <!-- EN: SHOULDERS -->
     <string name="kairo_control_group_shoulders">SCHULTERTASTEN</string>
-    <!-- EN: SYSTEM -->
+    <!-- SAME: SYSTEM -->
     <string name="kairo_control_group_system">SYSTEM</string>
     <!-- EN: LEFT STICK -->
     <string name="kairo_control_group_left_stick">LINKER STICK</string>
@@ -128,9 +128,9 @@
     <string name="kairo_control_l3_button">L3-Taste</string>
     <!-- EN: R3 button -->
     <string name="kairo_control_r3_button">R3-Taste</string>
-    <!-- EN: Start -->
+    <!-- SAME: Start -->
     <string name="kairo_control_start">Start</string>
-    <!-- EN: Select -->
+    <!-- SAME: Select -->
     <string name="kairo_control_select">Select</string>
     <!-- EN: Menu -->
     <string name="kairo_control_menu">Menü</string>
@@ -188,11 +188,11 @@
     <!-- %1$s is Android's axis name, such as GAS; %2$s its direction, + or -. -->
     <!-- EN: Axis %1$s %2$s -->
     <string name="kairo_input_axis_code">Achse %1$s %2$s</string>
-    <!-- EN: Hat %1$s %2$s -->
+    <!-- SAME: Hat %1$s %2$s -->
     <string name="kairo_input_hat_code">Hat %1$s %2$s</string>
     <!-- EN: CONNECTED -->
     <string name="kairo_inputs_group_connected">VERBUNDEN</string>
-    <!-- EN: Controller -->
+    <!-- SAME: Controller -->
     <string name="kairo_inputs_controller">Controller</string>
     <!-- EN: None connected -->
     <string name="kairo_inputs_none_connected">Keiner verbunden</string>
@@ -263,10 +263,10 @@
     <!-- EN: Mouse %1$s -->
     <string name="kairo_binding_mouse_other">Maus %1$s</string>
     <!-- %1$s is a mouse direction, such as Mouse up; %2$.1f its speed. -->
-    <!-- EN: %1$s · %2$.1f× -->
+    <!-- SAME: %1$s · %2$.1f× -->
     <string name="kairo_binding_mouse_speed">%1$s · %2$.1f×</string>
     <!-- %1$s is the guest's name for a joystick control, such as Fire 1. -->
-    <!-- EN: Joystick %1$s -->
+    <!-- SAME: Joystick %1$s -->
     <string name="kairo_binding_joystick">Joystick %1$s</string>
     <!-- EN: Keys -->
     <string name="kairo_target_tab_keys">Tasten</string>
@@ -292,7 +292,7 @@
     <string name="kairo_target_mouse_foot">Stick-Richtungen nutzen analoge Geschwindigkeit. Tasten und D-Pad-Richtungen bewegen mit voller Geschwindigkeit.</string>
     <!-- EN: Speed -->
     <string name="kairo_target_mouse_speed">Geschwindigkeit</string>
-    <!-- EN: %1$.1f× -->
+    <!-- SAME: %1$.1f× -->
     <string name="kairo_target_mouse_speed_value">%1$.1f×</string>
     <!-- EN: Speed at full stick deflection. -->
     <string name="kairo_target_mouse_speed_foot">Geschwindigkeit bei vollem Stick-Ausschlag.</string>

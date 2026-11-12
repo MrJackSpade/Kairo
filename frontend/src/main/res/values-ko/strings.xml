@@ -28,7 +28,7 @@
     <!-- EN: Joystick -->
     <string name="kairo_joystick">조이스틱</string>
     <!-- Joins a list, and the choices within one of its items: "IPL-ROM, CG-ROM or CG-ROM (XVI)". -->
-    <!-- EN: ", " -->
+    <!-- SAME: ", " -->
     <string name="kairo_list_separator">", "</string>
     <!-- EN: " or " -->
     <string name="kairo_list_or">" 또는 "</string>
