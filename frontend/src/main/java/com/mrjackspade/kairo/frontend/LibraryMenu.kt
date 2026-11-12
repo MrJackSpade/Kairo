@@ -19,6 +19,8 @@ class LibraryMenu<T : LibraryItem>(
     private val exit: () -> Unit,
     /** The app's New game workflow (Kairo#181); null for an app that makes no new games. */
     private val newGame: NewGameWorkflow?,
+    /** The app's firmware imports, for New game's firmware page (KairoX86#438); null without firmware. */
+    private val firmwareImports: FirmwareImports?,
     /** The New game workflow opened or closed (Kairo#179). */
     private val newGameShown: (Boolean) -> Unit = {}
 ) {
@@ -62,7 +64,7 @@ class LibraryMenu<T : LibraryItem>(
     /** Whether the app makes new games (the library's New game button). */
     val makesGames: Boolean get() = newGame != null
 
-    private val newGameFlow by lazy { newGame?.let { NewGameFlow(activity, pages, flow, it, strings.folder.resolve(activity), newGameShown) } }
+    private val newGameFlow by lazy { newGame?.let { NewGameFlow(activity, pages, flow, it, strings.folder.resolve(activity), firmwareImports, newGameShown) } }
 
     /** The library's New game button, and Manage library's New game: the app's New game workflow, from its start. */
     fun openNewGame() {

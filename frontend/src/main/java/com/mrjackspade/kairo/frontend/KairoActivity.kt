@@ -202,6 +202,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             NewGameWorkflow.ofBlankDisks(it, UiText.res(R.string.kairo_library_new_game), UiText.res(R.string.kairo_new_game_kind))
         }
     }
+    /** The firmware imports New game's firmware page runs (KairoX86#438); null for an app without firmware. */
+    protected open val firmwareImports: FirmwareImports? get() = null
     /**
      * Game settings › Library › Disks: the disks the player puts in [entry]'s game (Kairo#134), or
      * null when it has none it could hold.
@@ -664,7 +666,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { message -> if (firstRunSetup.isOpen) toast(message) }, writableFolder, ::storeLibrary)
         artworkDownloads = createArtworkDownloads(libraryPage) { libraryEntries }
         libraryMenu = LibraryMenu(this, pages, libraryFlow, catalog, identity.strings,
-            { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp, newGameWorkflow) { open ->
+            { catalogUpdates.check(false) }, { artworkDownloads }, ::settingsRows, ::exitApp, newGameWorkflow, firmwareImports) { open ->
             if (::lowerLibrary.isInitialized) lowerLibrary.making(open)
         }
         libraryPage.openMenuAction = libraryMenu::open

@@ -142,6 +142,18 @@
     <string name="kairo_create_name_title">Название</string>
     <!-- EN: Kind -->
     <string name="kairo_new_game_kind">Тип</string>
+    <!-- EN: Firmware -->
+    <string name="kairo_new_game_firmware_title">Прошивка</string>
+    <!-- EN: This machine needs the firmware below. Each file is a copy of a chip from the real hardware, owned by its maker, so the app cannot include it. Choose each file: it is recognized by its contents, so its name does not matter. -->
+    <string name="kairo_new_game_firmware_intro">Этой машине нужна прошивка ниже. Каждый файл — копия микросхемы настоящего оборудования и принадлежит её производителю, поэтому приложение не может включить его. Выберите каждый файл: он распознаётся по содержимому, поэтому его имя не важно.</string>
+    <!-- EN: File name -->
+    <string name="kairo_new_game_firmware_file_name">Имя файла</string>
+    <!-- EN: Folder -->
+    <string name="kairo_new_game_firmware_folder">Папка</string>
+    <!-- EN: Size -->
+    <string name="kairo_new_game_firmware_size">Размер</string>
+    <!-- EN: Choose every firmware file first -->
+    <string name="kairo_new_game_firmware_missing">Сначала выберите каждый файл прошивки</string>
     <!-- EN: Game name -->
     <string name="kairo_create_name_hint">Название игры</string>
     <!-- EN: New game -->

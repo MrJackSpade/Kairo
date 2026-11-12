@@ -132,6 +132,18 @@
     <string name="kairo_create_name_title">Nome</string>
     <!-- EN: Kind -->
     <string name="kairo_new_game_kind">Tipo</string>
+    <!-- SAME: Firmware -->
+    <string name="kairo_new_game_firmware_title">Firmware</string>
+    <!-- EN: This machine needs the firmware below. Each file is a copy of a chip from the real hardware, owned by its maker, so the app cannot include it. Choose each file: it is recognized by its contents, so its name does not matter. -->
+    <string name="kairo_new_game_firmware_intro">Esta máquina precisa do firmware abaixo. Cada arquivo é uma cópia de um chip do hardware real e pertence ao fabricante, então o app não pode incluí-lo. Escolha cada arquivo: ele é reconhecido pelo conteúdo, então o nome não importa.</string>
+    <!-- EN: File name -->
+    <string name="kairo_new_game_firmware_file_name">Nome do arquivo</string>
+    <!-- EN: Folder -->
+    <string name="kairo_new_game_firmware_folder">Pasta</string>
+    <!-- EN: Size -->
+    <string name="kairo_new_game_firmware_size">Tamanho</string>
+    <!-- EN: Choose every firmware file first -->
+    <string name="kairo_new_game_firmware_missing">Escolha primeiro cada arquivo de firmware</string>
     <!-- EN: Game name -->
     <string name="kairo_create_name_hint">Nome do jogo</string>
     <!-- EN: New game -->

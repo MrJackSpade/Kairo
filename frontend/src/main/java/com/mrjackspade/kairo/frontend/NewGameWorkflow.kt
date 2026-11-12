@@ -6,7 +6,8 @@ package com.mrjackspade.kairo.frontend
  * games folder. Fields are resolved in order, so a field's choices, range and default may depend on
  * any field before it ([resolve]): a choice that no longer fits is dropped for the field's default.
  * The shared runner ([NewGameFlow]) adds the name page last; an app with nothing to choose has no
- * pages of its own and goes straight to the name.
+ * pages of its own and goes straight to the name. Before the name, a firmware page lists any file
+ * the choices need that the player has not imported, each with a picker (KairoX86#438).
  */
 class NewGameWorkflow(
     val pages: List<WorkflowPage>,
@@ -15,6 +16,8 @@ class NewGameWorkflow(
      * `<name>/<name>.<extension>`, a folder's `<name>`), for what is kept beside it, such as its settings.
      */
     val created: (Map<String, String>, String) -> Unit = { _, _ -> },
+    /** The firmware files the choices need, imported or not (KairoX86#438); none by default. */
+    val firmware: (Map<String, String>) -> List<FirmwareNeed> = { emptyList() },
     /** What the choices make, by field id ([NAME] holds the game's name). */
     val create: (Map<String, String>) -> BlankDisk
 ) {
@@ -65,6 +68,19 @@ class NewGameWorkflow(
         fun chosen(blanks: List<BlankDisk>, values: Map<String, String>): BlankDisk = blanks.first { it.id == values.getValue(KIND) }
     }
 }
+
+/**
+ * A firmware file a new game's choices need (KairoX86#438): [part] of [set], whose label says what it is
+ * and whose description what it does and why the machine needs it; the firmware page shows both, with
+ * the file's name, where it goes in the set and its size.
+ */
+class FirmwareNeed(val set: FirmwareSet, val part: FirmwareSet.Part)
+
+/**
+ * The app's firmware imports, as New game's firmware page runs them (KairoX86#438): the picker of one
+ * file for a part, the folder import, and whether an import is running.
+ */
+class FirmwareImports(val pickFile: (FirmwareSet, FirmwareSet.Part) -> Unit, val pickFolder: () -> Unit, val busy: () -> Boolean)
 
 /** A page of a [NewGameWorkflow]: its [title], its [fields], and whether it is shown for the choices so far. */
 class WorkflowPage(

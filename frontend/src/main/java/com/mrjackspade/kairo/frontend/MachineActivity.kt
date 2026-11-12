@@ -1059,9 +1059,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val usable = { firmwareConfigurable() && !firmwareImporting }
         val folder = SettingsRow.action("firmware-folder", getString(R.string.kairo_firmware_import_folder),
             description = getString(R.string.kairo_firmware_import_folder_description),
-            busy = { firmwareImporting }, enabled = usable, disabledReason = reason) {
-            firmwareSets.first().second.chooseFolder(this, FIRMWARE_REQUEST, firmwareFolderStart(), ::toast)
-        }
+            busy = { firmwareImporting }, enabled = usable, disabledReason = reason, run = ::pickFirmwareFolder)
         val sets = firmwareSets.mapIndexed { index, (label, set) ->
             // A whole ROM collection is one row: how many of its files are installed.
             val rows = if (set.listed) set.parts.map { part -> firmwareRow(index, set, part, usable, reason) }
@@ -1087,17 +1085,27 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             description = text(part.description), busy = { firmwareImporting }, enabled = usable, disabledReason = reason,
             tray = {
                 val choose = TrayButton(getString(if (set.installed(part)) R.string.kairo_firmware_replace else R.string.kairo_choose_file),
-                    ButtonTone.PRIMARY) {
-                    pickingPart = set to part
-                    DocumentPicker.open(this, FIRMWARE_FILE_REQUEST, failed = ::toast)
-                }
+                    ButtonTone.PRIMARY) { pickFirmwareFile(set, part) }
                 TraySpec(buttons = if (set.installed(part)) listOf(TrayButton(text(part.removeLabel)) {
                     set.remove(this, part)
+                    firmwareFilesChanged()
                     firmwareChanged()
                 }, choose) else listOf(choose))
             })
 
-    /** The firmware folder picker opens at the folder chosen last, or beside the games folder. */
+    /** Opens the file picker for [part] of [set]; the file picked is imported for it (FIRMWARE_FILE_REQUEST). */
+    private fun pickFirmwareFile(set: FirmwareSet, part: FirmwareSet.Part) {
+        pickingPart = set to part
+        DocumentPicker.open(this, FIRMWARE_FILE_REQUEST, failed = ::toast)
+    }
+
+    /** Opens the folder picker; every file the sets recognize in the folder picked is imported (FIRMWARE_REQUEST). */
+    private fun pickFirmwareFolder() = firmwareSets.first().second.chooseFolder(this, FIRMWARE_REQUEST, firmwareFolderStart(), ::toast)
+
+    /** New game's firmware page (KairoX86#438) imports as the Firmware rows do. */
+    override val firmwareImports: FirmwareImports?
+        get() = if (firmwareSets.isEmpty()) null else FirmwareImports(::pickFirmwareFile, ::pickFirmwareFolder) { firmwareImporting }
+
     /** Where Choose folder opens: the folder picked last, else beside the games folder. */
     private fun mediaFolderStart(): Uri? =
         preferences.getString(MEDIA_FOLDER, null)?.let { FolderStart.at(Uri.parse(it)) } ?: tree?.let(FolderStart::beside)
@@ -1160,13 +1168,23 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
      */
     protected open fun firmwareImported() {}
 
+    /**
+     * After the player's firmware files changed: an import that succeeded (on its worker thread, before
+     * [firmwareImported]) or a file removed. For a product that keeps what it read from them, such as
+     * KairoX86's record of which hardware has its firmware (KairoX86#438).
+     */
+    protected open fun firmwareFilesChanged() {}
+
     /** Runs a firmware import off the UI thread and reports its result. */
     private fun importFirmware(run: () -> String) {
         firmwareImporting = true
         firmwareChanged()
         Thread {
             val message = try {
-                run().also { firmwareImported() }
+                run().also {
+                    firmwareFilesChanged()
+                    firmwareImported()
+                }
             } catch (error: Exception) {
                 getString(R.string.kairo_firmware_import_failed, error.message ?: error.javaClass.simpleName)
             }

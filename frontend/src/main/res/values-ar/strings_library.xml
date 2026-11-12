@@ -162,6 +162,18 @@
     <string name="kairo_create_name_title">الاسم</string>
     <!-- EN: Kind -->
     <string name="kairo_new_game_kind">النوع</string>
+    <!-- EN: Firmware -->
+    <string name="kairo_new_game_firmware_title">البرامج الثابتة</string>
+    <!-- EN: This machine needs the firmware below. Each file is a copy of a chip from the real hardware, owned by its maker, so the app cannot include it. Choose each file: it is recognized by its contents, so its name does not matter. -->
+    <string name="kairo_new_game_firmware_intro">يحتاج هذا الجهاز إلى البرامج الثابتة أدناه. كل ملف نسخة من شريحة في العتاد الحقيقي ويملكه صانعه، لذا لا يمكن للتطبيق تضمينه. اختر كل ملف: يُتعرَّف عليه من محتواه، لذا لا يهم اسمه.</string>
+    <!-- EN: File name -->
+    <string name="kairo_new_game_firmware_file_name">اسم الملف</string>
+    <!-- EN: Folder -->
+    <string name="kairo_new_game_firmware_folder">المجلد</string>
+    <!-- EN: Size -->
+    <string name="kairo_new_game_firmware_size">الحجم</string>
+    <!-- EN: Choose every firmware file first -->
+    <string name="kairo_new_game_firmware_missing">اختر كل ملفات البرامج الثابتة أولًا</string>
     <!-- EN: Game name -->
     <string name="kairo_create_name_hint">اسم اللعبة</string>
     <!-- EN: New game -->

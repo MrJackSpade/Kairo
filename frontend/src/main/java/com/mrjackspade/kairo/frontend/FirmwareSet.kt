@@ -313,9 +313,12 @@ class FirmwareSet(
             }
         }
 
-        private fun describe(context: Context, bytes: Long): String =
+        /** A file's size as the player reads it: whole KiB, else bytes. */
+        fun sizeText(context: Context, bytes: Long): String =
             if (bytes % 1024 == 0L) context.getString(R.string.kairo_size_kib, bytes / 1024)
             else bytes(context, bytes)
+
+        private fun describe(context: Context, bytes: Long): String = sizeText(context, bytes)
 
         private fun bytes(context: Context, count: Long): String = context.resources.getQuantityString(
             R.plurals.kairo_size_bytes, count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(), count)

@@ -77,6 +77,12 @@
     <string name="kairo_next">Next</string>
     <string name="kairo_create_name_title">Name</string>
     <string name="kairo_new_game_kind">Kind</string>
+    <string name="kairo_new_game_firmware_title">Firmware</string>
+    <string name="kairo_new_game_firmware_intro">This machine needs the firmware below. Each file is a copy of a chip from the real hardware, owned by its maker, so the app cannot include it. Choose each file: it is recognized by its contents, so its name does not matter.</string>
+    <string name="kairo_new_game_firmware_file_name">File name</string>
+    <string name="kairo_new_game_firmware_folder">Folder</string>
+    <string name="kairo_new_game_firmware_size">Size</string>
+    <string name="kairo_new_game_firmware_missing">Choose every firmware file first</string>
     <string name="kairo_create_name_hint">Game name</string>
     <string name="kairo_create_name_default">New game</string>
     <!-- The new game's name. -->

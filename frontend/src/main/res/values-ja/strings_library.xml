@@ -112,6 +112,18 @@
     <string name="kairo_create_name_title">名前</string>
     <!-- EN: Kind -->
     <string name="kairo_new_game_kind">種類</string>
+    <!-- EN: Firmware -->
+    <string name="kairo_new_game_firmware_title">ファームウェア</string>
+    <!-- EN: This machine needs the firmware below. Each file is a copy of a chip from the real hardware, owned by its maker, so the app cannot include it. Choose each file: it is recognized by its contents, so its name does not matter. -->
+    <string name="kairo_new_game_firmware_intro">このマシンには下のファームウェアが必要です。各ファイルは実機のチップのコピーで、メーカーに権利があるため、アプリには含められません。各ファイルを選択してください。内容で認識するので、ファイル名は問いません。</string>
+    <!-- EN: File name -->
+    <string name="kairo_new_game_firmware_file_name">ファイル名</string>
+    <!-- EN: Folder -->
+    <string name="kairo_new_game_firmware_folder">フォルダ</string>
+    <!-- EN: Size -->
+    <string name="kairo_new_game_firmware_size">サイズ</string>
+    <!-- EN: Choose every firmware file first -->
+    <string name="kairo_new_game_firmware_missing">先にすべてのファームウェアファイルを選択してください</string>
     <!-- EN: Game name -->
     <string name="kairo_create_name_hint">ゲーム名</string>
     <!-- EN: New game -->

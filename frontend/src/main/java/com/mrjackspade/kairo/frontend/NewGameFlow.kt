@@ -17,6 +17,8 @@ class NewGameFlow<T : LibraryItem>(
     private val workflow: NewGameWorkflow,
     /** What the games folder is called, in messages. */
     private val folder: String,
+    /** The app's firmware imports, for the firmware page; null for an app without firmware. */
+    private val imports: FirmwareImports? = null,
     /** The workflow opened (true) or closed (false), as a two-screen device's lower screen follows it (Kairo#179). */
     private val shown: (Boolean) -> Unit = {}
 ) {
@@ -46,7 +48,13 @@ class NewGameFlow<T : LibraryItem>(
 
     private fun show(index: Int) {
         val shown = workflow.shownPages(values)
-        val page = if (index < shown.size) choicesPage(shown[index], index) else NamePage()
+        // After the choices, the firmware they need that the player has not imported (KairoX86#438), then the name
+        val missing = if (index == shown.size) workflow.firmware(values).filterNot { it.set.installed(it.part) } else emptyList()
+        val page = when {
+            index < shown.size -> choicesPage(shown[index], index)
+            missing.isNotEmpty() -> firmwarePage(missing, index)
+            else -> NamePage()
+        }
         if (first == null) {
             first = page
             this.shown(true)
@@ -61,6 +69,50 @@ class NewGameFlow<T : LibraryItem>(
         val now = values
         listOf(RowGroup(null, page.fields.mapNotNull { field -> row(field, now) }))
     }, { listOf(FooterButton("next", ::nextLabel, ButtonTone.PRIMARY) { show(index + 1) }) })
+
+    /**
+     * The firmware page (KairoX86#438): what the choices need that the player has not imported, each
+     * file in its own group: what it is, its name, where it goes in the set and its size, then a row to
+     * choose it, which says whether it is there; what it does and why it is needed below. Last, the
+     * folder import, for a whole set at once. Next goes on to the name once every file is there.
+     */
+    private fun firmwarePage(needs: List<FirmwareNeed>, index: Int): Page {
+        val imports = checkNotNull(imports) { "The New game workflow needs firmware, but the app imports none" }
+        val idle = { !imports.busy() }
+        val wait = { activity.getString(R.string.kairo_firmware_wait) }
+        return StepPage(activity.getString(R.string.kairo_new_game_firmware_title), {
+            val files = needs.mapIndexed { i, need ->
+                val part = need.part
+                val name = part.name.substringAfterLast('/')
+                val place = part.name.substringBeforeLast('/', "")
+                RowGroup(part.label.resolve(activity), listOfNotNull(
+                    SettingsRow.info("new-firmware$i-name", activity.getString(R.string.kairo_new_game_firmware_file_name)) { name },
+                    place.takeIf { it.isNotEmpty() }?.let {
+                        SettingsRow.info("new-firmware$i-folder", activity.getString(R.string.kairo_new_game_firmware_folder)) { it }
+                    },
+                    part.sizes.singleOrNull()?.let { size ->
+                        SettingsRow.info("new-firmware$i-size", activity.getString(R.string.kairo_new_game_firmware_size)) {
+                            FirmwareSet.sizeText(activity, size)
+                        }
+                    },
+                    SettingsRow.action("new-firmware$i-choose",
+                        activity.getString(if (need.set.installed(part)) R.string.kairo_firmware_replace else R.string.kairo_choose_file),
+                        value = { activity.getString(if (need.set.installed(part)) R.string.kairo_installed else R.string.kairo_missing) },
+                        tone = { if (need.set.installed(part)) ValueTone.CURRENT else ValueTone.SUMMARY },
+                        busy = imports.busy, enabled = idle, disabledReason = wait) { imports.pickFile(need.set, part) }),
+                    part.description.resolve(activity))
+            }
+            val folder = SettingsRow.action("new-firmware-folder", activity.getString(R.string.kairo_firmware_import_folder),
+                busy = imports.busy, enabled = idle, disabledReason = wait) { imports.pickFolder() }
+            // The folder import's note: the set's own (which collection it is), else what the import does
+            val folderNote = needs.first().set.note?.resolve(activity) ?: activity.getString(R.string.kairo_firmware_import_folder_description)
+            listOf(RowGroup(null, emptyList(), activity.getString(R.string.kairo_new_game_firmware_intro))) + files +
+                RowGroup(null, listOf(folder), folderNote)
+        }, {
+            listOf(FooterButton("next", ::nextLabel, ButtonTone.PRIMARY, { needs.all { it.set.installed(it.part) } },
+                activity.getString(R.string.kairo_new_game_firmware_missing)) { show(index + 1) })
+        })
+    }
 
     /** The workflow's first page went (Back from it, or Create): the workflow is over. */
     private fun removed(page: Page) {
