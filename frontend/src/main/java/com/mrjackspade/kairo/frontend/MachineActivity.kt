@@ -1397,7 +1397,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         Thread {
             val failure = try {
                 for ((slot, entry) in changes) {
-                    val image = entry?.let { library.prepareMedia(it, AtomicBoolean(false)) { } }
+                    val image = entry?.let { library.prepareMedia(it, AtomicBoolean(false), preparingProgress(slot)) }
                     check(bridge.media(slot, image?.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
                     runOnUiThread { mounted[slot] = entry }
                 }
@@ -1406,6 +1406,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             } catch (error: Exception) { error.message ?: getString(R.string.kairo_media_change_failed) }
             runOnUiThread {
                 mediaBusy = false
+                preparing.clear()
                 refreshSettingValues()
                 failure?.let { toast(it) }
             }
@@ -1415,6 +1416,21 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** What each media slot holds, by library entry; null for an empty slot or media the library lacks. */
     private val mounted: MutableList<E?> by lazy { MutableList(mediaSlots.size) { null } }
     @Volatile private var mediaBusy = false
+    /**
+     * What the library says while it prepares a slot's disk, such as unpacking it from an archive
+     * ("Preparing <disk>…"), shown on that slot's Disks row until the disk is in (Kairo#174). Main thread.
+     */
+    private val preparing = HashMap<Int, String>()
+
+    /** The library's progress for [slot]'s disk, shown on its row. */
+    private fun preparingProgress(slot: Int): (String) -> Unit = { message ->
+        runOnUiThread {
+            if (mediaBusy) {
+                preparing[slot] = message
+                refreshSettingValues()
+            }
+        }
+    }
     /** Which slots the running machine has a drive for ([MachineBridge.mediaDrives]); empty for every one. */
     private var drives: List<Boolean> = emptyList()
 
@@ -1443,6 +1459,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     /** Ends a change [beginMediaChange] started; [slot] now holds [entry] when [changed]. */
     protected fun endMediaChange(slot: Int, entry: E?, changed: Boolean) = runOnUiThread {
         mediaBusy = false
+        preparing.clear()
         if (changed) mounted[slot] = entry
         refreshSettingValues()
     }
@@ -1476,8 +1493,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     })
 
     private fun mediaRow(slot: Int) = SettingsRow.choice("media$slot", text(mediaSlots[slot].label), mediaChoice(slot),
-        value = { mounted[slot]?.displayName ?: getString(R.string.kairo_empty) },
-        tone = { if (mounted[slot] == null) ValueTone.EMPTY else ValueTone.CURRENT },
+        value = { preparing[slot] ?: mounted[slot]?.displayName ?: getString(R.string.kairo_empty) },
+        tone = { if (preparing[slot] == null && mounted[slot] == null) ValueTone.EMPTY else ValueTone.CURRENT },
         enabled = { machineRunning && !mediaBusy },
         disabledReason = { getString(if (mediaBusy) R.string.kairo_media_wait else R.string.kairo_media_start_first) })
 
@@ -1579,7 +1596,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
             // unpacks from an archive becomes the machine's own (KairoX86#217).
             var held = entry
             val failure = try {
-                val image = entry?.let { library.prepareMedia(it, AtomicBoolean(false)) { } }
+                val image = entry?.let { library.prepareMedia(it, AtomicBoolean(false), preparingProgress(slot)) }
                 check(bridge.media(slot, image?.absolutePath)) { getString(R.string.kairo_media_insert_failed) }
                 if (image != null) held = library.entryForWorkingImage(image.absolutePath, libraryEntries) ?: entry
                 null
