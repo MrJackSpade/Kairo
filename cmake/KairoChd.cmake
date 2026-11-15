@@ -20,6 +20,9 @@ function(kairo_chd_library)
     target_link_libraries(kairo_chd PRIVATE chdr-static)
     if(ANDROID)
         target_link_libraries(kairo_chd PUBLIC log)
+        # Bionic declares funopen64 (kairo_chd_fopen) for BSD sources: set for the target, so it holds
+        # before any header, a force-included one too (kairo_hide_c_externs, Kairo98#134).
+        target_compile_definitions(kairo_chd PRIVATE _BSD_SOURCE)
     else()
         target_link_libraries(kairo_chd PUBLIC pthread)
     endif()

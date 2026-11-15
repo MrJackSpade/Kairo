@@ -20,6 +20,10 @@ option(KAIRO_SHADERS "Present frames through the Slang shader runtime" ON)
 # <product>_test to run it on the device (shared/tools/device-perf.ps1, Kairo#192).
 option(KAIRO_DEVICE_TEST "Build the shared boot test as the app's library, to run on the device" OFF)
 
+# The Android system libraries the app's library links, and so the device test's: a core may draw
+# its picture with OpenGL ES (Kairo98's GPU picture), and the frame host plays through AAudio.
+set(KAIRO_ANDROID_LIBRARIES log android aaudio EGL GLESv3)
+
 function(kairo_machine_library target)
     set(_test_sources "${KAIRO_SHARED_ROOT}/host-test/main.cpp" "${KAIRO_SHARED_ROOT}/host-test/harness.cpp"
         "${KAIRO_SHARED_ROOT}/host-test/checks.cpp"
@@ -46,7 +50,7 @@ function(kairo_machine_library target)
         target_compile_features(${target} PRIVATE cxx_std_17)
         kairo_native_debug_defaults(${target})
         target_include_directories(${target} PRIVATE "${KAIRO_SHARED_ROOT}/host-test" "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp")
-        target_link_libraries(${target} PRIVATE log android)
+        target_link_libraries(${target} PRIVATE ${KAIRO_ANDROID_LIBRARIES})
         add_executable(${target}_test "${KAIRO_SHARED_ROOT}/host-test/entry.cpp")
         target_link_libraries(${target}_test PRIVATE ${target})
         return()
@@ -64,7 +68,7 @@ function(kairo_machine_library target)
         target_compile_definitions(${target} PRIVATE KAIRO_NO_SHADERS)
     endif()
     # Frames reach the window through OpenGL ES with or without shaders (gl_frame_presenter.h).
-    target_link_libraries(${target} PRIVATE log android aaudio EGL GLESv3)
+    target_link_libraries(${target} PRIVATE ${KAIRO_ANDROID_LIBRARIES})
 endfunction()
 
 # On the PC: a library the core loads by file name (KairoST's Hatari, KairoDos's Staging) beside the

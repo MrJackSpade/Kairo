@@ -134,19 +134,19 @@ if ($Step -eq 'Build') {
     foreach ($name in $wanted) {
         if ($name.StartsWith('app:')) {
             $local = Join-Path $root $name.Substring(4)
-            if (-not (Test-Path $local)) { throw "The table names $name, which is not in the app" }
+            if (-not (Test-Path -LiteralPath $local)) { throw "The table names $name, which is not in the app" }
             Push-Path $local "$remote/app/$($name.Substring(4))"
             continue
         }
         $local = Join-Path $resources $name
-        if (-not (Test-Path $local)) { throw "The table names $name, which is not in the test resources" }
-        if (Test-Path $local -PathType Container) {
+        if (-not (Test-Path -LiteralPath $local)) { throw "The table names $name, which is not in the test resources" }
+        if (Test-Path -LiteralPath $local -PathType Container) {
             Push-Path $local "$remote/resources/$name"
             continue
         }
         # With the files the test copies beside it: those of the same name (a CUE's track data).
-        $item = Get-Item $local
-        foreach ($sibling in Get-ChildItem $item.DirectoryName -File | Where-Object { $_.BaseName -eq $item.BaseName }) {
+        $item = Get-Item -LiteralPath $local
+        foreach ($sibling in Get-ChildItem -LiteralPath $item.DirectoryName -File | Where-Object { $_.BaseName -eq $item.BaseName }) {
             Push-Path $sibling.FullName "$remote/resources/$(Split-Path -Parent $name)/$($sibling.Name)".Replace('\', '/')
         }
     }
@@ -178,6 +178,10 @@ if ($Step -eq 'Round') {
             $testName = $Matches[1]
             $rate = [double]$Matches[4]
             $md5 = (Invoke-Adb shell "md5sum '$work/$testName/profile-hashes.txt'") -split ' ' | Select-Object -First 1
+            # Every round's frames kept, so the report can say where two runs part.
+            $kept = Join-Path $state "hashes\$round-$name-$testName.txt"
+            New-Item -ItemType Directory -Force (Split-Path -Parent $kept) | Out-Null
+            Invoke-Adb pull "$work/$testName/profile-hashes.txt" $kept | Out-Null
             $results += [pscustomobject]@{ round = $round; variant = $name; test = $testName; rate = $rate; hashes = $md5 }
             "round {0} {1,-12} {2,-28} {3,8:F2} frames/s  {4}" -f $round, $name, $testName, $rate, $md5
         }
@@ -205,5 +209,23 @@ foreach ($group in $results | Group-Object test) {
                  else { 'FRAMES DIFFER from the base' }
         "  {0,-12} {1,8:F2} frames/s ({2:F2}-{3:F2}) {4,7:+0.00;-0.00}%  {5}" -f $name, $stats.Average, $stats.Minimum,
             $stats.Maximum, (100 * ($stats.Average / $baseMean - 1)), $exact
+    }
+    # Where each run that differs from the base's first run parts from it: the first frame, and
+    # whether its picture, its sound or both differ.
+    $first = $baseRuns | Sort-Object round | Select-Object -First 1
+    $firstFile = Join-Path $state "hashes\$($first.round)-$base-$($group.Name).txt"
+    foreach ($run in $group.Group | Where-Object { $_.hashes -ne $first.hashes }) {
+        $file = Join-Path $state "hashes\$($run.round)-$($run.variant)-$($group.Name).txt"
+        if (-not (Test-Path -LiteralPath $file) -or -not (Test-Path -LiteralPath $firstFile)) { continue }
+        $a = [IO.File]::ReadAllLines($firstFile); $b = [IO.File]::ReadAllLines($file)
+        for ($i = 0; $i -lt [Math]::Min($a.Count, $b.Count); $i++) {
+            if ($a[$i] -ne $b[$i]) {
+                $x = $a[$i] -split ' '; $y = $b[$i] -split ' '
+                $kind = @(if ($x[1] -ne $y[1]) { 'picture' }) + @(if ($x[2] -ne $y[2]) { 'sound' })
+                $later = 0; for ($j = $i; $j -lt [Math]::Min($a.Count, $b.Count); $j++) { if ($a[$j] -ne $b[$j]) { $later++ } }
+                "    round $($run.round) $($run.variant): parts from round $($first.round) $base at timed frame $i ($($kind -join ' and ')); $later frames differ"
+                break
+            }
+        }
     }
 }

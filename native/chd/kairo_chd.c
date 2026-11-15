@@ -1,7 +1,5 @@
-#if defined(__ANDROID__)
-/* Bionic declares funopen64 (kairo_chd_fopen) for BSD sources. */
-#define _BSD_SOURCE
-#endif
+/* On Android the target defines _BSD_SOURCE, under which Bionic declares funopen64 (kairo_chd_fopen):
+   KairoChd.cmake. */
 
 #include "kairo_chd.h"
 
