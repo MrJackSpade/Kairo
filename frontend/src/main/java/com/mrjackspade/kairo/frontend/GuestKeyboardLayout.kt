@@ -71,4 +71,19 @@ data class GuestKeyboardLayout(
     fun keysFor(key: KeyboardKey, locks: Set<Int>): List<Int> =
         if (key.chordShift && !(key.kana != null && kanaCode?.let { it in locks } == true)) listOf(chordShiftCode, key.code)
         else listOf(key.code)
+
+    /**
+     * The guest keys that type [char], a symbol, with [locks] on: the key whose legend it is on any
+     * page, Shift chorded as that key is, or a key whose Shift legend it is; null for a letter, a
+     * digit, a space or control, or a symbol no key has. A hardware keyboard's symbols reach the
+     * guest as the characters typed, not as the guest key in the same place (Kairo#136: US
+     * Shift+; is :, but JIS Shift+; is +).
+     */
+    fun symbolKeys(char: Char, locks: Set<Int>): List<Int>? {
+        if (char.isLetterOrDigit() || char.isWhitespace() || char.isISOControl()) return null
+        val text = char.toString()
+        val keys = pages.asSequence().flatMap { it.rows.asSequence().flatten() }
+        keys.firstOrNull { it.label == text }?.let { return keysFor(it, locks) }
+        return keys.firstOrNull { it.shifted == text }?.let { listOf(chordShiftCode, it.code) }
+    }
 }

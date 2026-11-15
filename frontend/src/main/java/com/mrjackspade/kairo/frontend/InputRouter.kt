@@ -21,6 +21,11 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
     /** Each source's held keys, as it holds them together. */
     @Synchronized fun holds(): List<List<Int>> = owners.values.map { it.toList() }
 
+    /** The sources whose name starts with [prefix] holding any of [codes], with what each holds. */
+    @Synchronized fun holding(prefix: String, codes: Set<Int>): List<Pair<String, List<Int>>> =
+        owners.filter { (owner, scans) -> owner.startsWith(prefix) && scans.any { it in codes } }
+            .map { (owner, scans) -> owner to scans.toList() }
+
     @Synchronized fun hold(owner: String, scans: List<Int>) {
         require(owner.isNotBlank() && scans.isNotEmpty() && scans.size <= 8)
         require(scans.distinct().size == scans.size && scans.all { it in counts.indices })

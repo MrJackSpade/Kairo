@@ -17,8 +17,14 @@ class InputDispatchCoordinator(
     private val cancelAutomation: () -> Unit = {},
     private val automationOwners: Set<String> = emptySet(),
     /** The focus across a two-screen device's screens, or null on one screen. */
-    private val dualScreen: () -> DualScreenFocus? = { null }
+    private val dualScreen: () -> DualScreenFocus? = { null },
+    /** The guest keys that type the symbol a hardware key event types, or null to send its key by place. */
+    private val symbolKeys: (KeyEvent) -> List<Int>? = { null },
+    /** The guest's Shift keys. */
+    private val shiftCodes: () -> Set<Int> = { emptySet() }
 ) {
+    /** For each hardware key typing a symbol, the hardware Shift holds it lifted while it is down. */
+    private val liftedShifts = HashMap<String, List<Pair<String, List<Int>>>>()
     private var motionScreen: Screen? = null
 
     /** Takes controller input ahead of a running game, as keyboard mapping does while a key waits. */
@@ -118,13 +124,38 @@ class InputDispatchCoordinator(
         // Unmapped controller buttons must never masquerade as guest keyboard keys.
         if (KeyEvent.isGamepadButton(event.keyCode) || event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
             event.isFromSource(InputDevice.SOURCE_JOYSTICK)) return true
-        val scan = scanCode(event.keyCode) ?: return false
         val owner = "keyboard:${event.deviceId}:${event.keyCode}"
         when (event.action) {
-            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) keys.hold(owner, listOf(scan))
-            KeyEvent.ACTION_UP -> keys.release(owner)
+            KeyEvent.ACTION_DOWN -> {
+                // A symbol is the character the player typed, on the guest's own layout (Kairo#136).
+                val symbol = if (event.isCtrlPressed || event.isAltPressed || event.isMetaPressed) null else symbolKeys(event)
+                val scan = scanCode(event.keyCode)
+                if (symbol == null && scan == null) return false
+                if (event.repeatCount == 0) {
+                    if (symbol != null) pressSymbol(owner, symbol, event.deviceId) else keys.hold(owner, listOf(scan!!))
+                }
+            }
+            KeyEvent.ACTION_UP -> {
+                if (owner !in liftedShifts && scanCode(event.keyCode) == null) return false
+                keys.release(owner)
+                liftedShifts.remove(owner)?.let { lifted ->
+                    if (event.isShiftPressed) lifted.forEach { (shift, scans) -> keys.hold(shift, scans) }
+                }
+            }
         }
         return true
+    }
+
+    /**
+     * Holds [symbol]'s guest keys for [owner]. A symbol the guest types without Shift, such as JIS
+     * : for US Shift+;, lifts the guest Shift the hardware Shift holds while it is down.
+     */
+    private fun pressSymbol(owner: String, symbol: List<Int>, deviceId: Int) {
+        val shifts = shiftCodes()
+        val lifted = if (symbol.any { it in shifts }) emptyList() else keys.holding("keyboard:$deviceId:", shifts)
+        lifted.forEach { (shift, _) -> keys.release(shift) }
+        liftedShifts[owner] = lifted
+        keys.hold(owner, symbol)
     }
 
     fun releaseInputs(preserveAutomation: Boolean = false) {
@@ -132,12 +163,14 @@ class InputDispatchCoordinator(
         if (!preserveAutomation) cancelAutomation()
         mapper.releaseAll()
         keys.releaseAll(if (preserveAutomation) automationOwners else emptySet())
+        liftedShifts.clear()
         releaseTouch()
     }
 
     fun releaseDevice(deviceId: Int) {
         mapper.releaseDevice(deviceId)
         keys.releasePrefix("keyboard:$deviceId:")
+        liftedShifts.keys.removeAll { it.startsWith("keyboard:$deviceId:") }
     }
 
     private companion object {

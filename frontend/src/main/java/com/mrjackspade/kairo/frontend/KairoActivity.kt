@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.Surface
@@ -372,6 +373,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
      * every keyboard panel and for the lock keys.
      */
     protected fun useKeyboard(layout: GuestKeyboardLayout) {
+        machineKeyboard = layout
         inputRouter.setLockCodes(layout.lockCodes)
         if (::keyboardPanel.isInitialized) {
             keyboardPanel.setLayout(layout)
@@ -413,8 +415,16 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
                 if (::root.isInitialized && root.isInTouchMode)
                     (currentFocus ?: screen).requestFocusFromTouch()
             }, ::releaseTouchInputs, ::cancelAutomation, automationOwners,
-            { if (::dualScreen.isInitialized) dualScreen else null })
+            { if (::dualScreen.isInitialized) dualScreen else null },
+            { event ->
+                event.getUnicodeChar(event.metaState).takeIf { it > 0 && it and KeyCharacterMap.COMBINING_ACCENT == 0 }
+                    ?.let { activeKeyboard.symbolKeys(it.toChar(), inputRouter.lockedKeys()) }
+            },
+            { activeKeyboard.shiftCodes })
     }
+    /** The keyboard of the running machine ([useKeyboard]), or the app's own. */
+    private val activeKeyboard: GuestKeyboardLayout get() = machineKeyboard ?: keyboard
+    private var machineKeyboard: GuestKeyboardLayout? = null
     /** Input owners of automation, such as typed startup commands, kept while a controller is released. */
     protected open val automationOwners: Set<String> = emptySet()
     protected open fun cancelAutomation() {}
