@@ -6,13 +6,15 @@ import android.content.res.Configuration
 
 /**
  * Kairo activities handle configuration changes in place so a running machine survives
- * them. Views still take pixel and text sizes from density and font settings when they
- * are built, so this records those settings for the owner to rebuild after they change.
+ * them. Views still take pixel and text sizes from density and font settings, and their
+ * text from the app's language, when they are built, so this records those settings for
+ * the owner to rebuild after they change (Kairo#186: a language changed while the library
+ * was open left its header and groups in the old one).
  */
 class ViewScale(private val context: Context) {
     private var built = Configuration(context.resources.configuration)
 
-    /** Density or font settings differ from those the current views were built with. */
+    /** Density, font or language settings differ from those the current views were built with. */
     val changed: Boolean
         get() = (built.diff(context.resources.configuration) and CHANGES) != 0
 
@@ -21,6 +23,7 @@ class ViewScale(private val context: Context) {
 
     private companion object {
         const val CHANGES = ActivityInfo.CONFIG_DENSITY or ActivityInfo.CONFIG_FONT_SCALE or
-            ActivityInfo.CONFIG_FONT_WEIGHT_ADJUSTMENT
+            ActivityInfo.CONFIG_FONT_WEIGHT_ADJUSTMENT or ActivityInfo.CONFIG_LOCALE or
+            ActivityInfo.CONFIG_LAYOUT_DIRECTION
     }
 }
