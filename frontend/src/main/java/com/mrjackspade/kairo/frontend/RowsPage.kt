@@ -185,6 +185,12 @@ abstract class RowsPage(private val flat: Boolean = false) : Page(), RowHost {
 
     fun replaceTray(spec: TraySpec) { trayRow?.let { openTray(it, spec) } }
 
+    /** The tray's field and buttons, scrolled back above the keyboard that now covers the page's bottom. */
+    override fun keyboardShown() {
+        val id = trayRow?.takeIf { tray?.entry != null } ?: return
+        body.revealer(id)?.invoke() ?: body.rowView(id)?.root?.let(::reveal)
+    }
+
     fun closeTray() {
         if (tray == null) return
         dropTray()

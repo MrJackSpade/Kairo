@@ -7,12 +7,14 @@ import android.animation.ObjectAnimator
 import android.app.Activity
 import android.content.Context
 import android.graphics.Rect
+import android.os.Build
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
@@ -71,6 +73,25 @@ class PageStack(
         isClickable = false
         addView(scrim, LayoutParams(-1, -1))
         host.addView(this, LayoutParams(-1, -1))
+    }
+
+    /**
+     * While the Android keyboard is open and not full-screen, the pages end above it, and the top
+     * page brings the field being edited back into view (Kairo#166). The windows are full-screen, so
+     * Android does not resize them for the keyboard; its height arrives as the IME inset (Android 11+).
+     */
+    override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val keyboard = insets.getInsets(WindowInsets.Type.ime()).bottom
+            val location = IntArray(2).also(::getLocationInWindow)
+            // The part of this stack the keyboard covers: none on a screen it does not reach.
+            val covered = if (keyboard > 0) (location[1] + height - (rootView.height - keyboard)).coerceAtLeast(0) else 0
+            if (covered != paddingBottom) {
+                setPadding(paddingLeft, paddingTop, paddingRight, covered)
+                if (covered > 0) post { top?.keyboardShown() }
+            }
+        }
+        return super.onApplyWindowInsets(insets)
     }
 
     fun push(page: Page) {
@@ -381,6 +402,8 @@ abstract class Page {
     internal fun hidden() { visible = false; onHidden() }
     internal fun removed() { onRemoved() }
     protected open fun onShown(first: Boolean) {}
+    /** The Android keyboard now covers the bottom of the stack: bring the field being edited into view. */
+    internal open fun keyboardShown() {}
     protected open fun onHidden() {}
     protected open fun onRemoved() {}
     open fun refresh() {}
