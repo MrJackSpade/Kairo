@@ -48,13 +48,15 @@ abstract class ControllerTests : KairoUiTest() {
         expect.that("B sends Space (key ${app.spaceKey})", b.contains("key ${app.spaceKey} down")) { b.joinToString() }
     }
 
+    /** Each D-pad press sends the game exactly one thing, what the system's catalog mapping binds:
+     *  never the arrow keys and a joystick, never two keys. */
     @Test
-    fun theDPadReachesTheArrowKeys() {
+    fun eachDPadPressSendsOneThing() {
         play()
         val pad = listOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT)
-        for ((button, key) in pad.zip(app.arrowKeys)) {
+        for (button in pad) {
             val events = sends(button)
-            expect.that("${KeyEvent.keyCodeToString(button)} sends cursor key $key", events.contains("key $key down")) { events.joinToString() }
+            expect.that("${KeyEvent.keyCodeToString(button)} sends exactly one thing", events.count { it.endsWith("down") } == 1) { events.joinToString() }
         }
     }
 

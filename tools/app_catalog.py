@@ -47,8 +47,10 @@ catalog_files.py) holds one record per game:
 
 catalog/system-v2.json is the system's definition: its controller mapping,
 {"schemaVersion": 2, "controller": {"bindings": [...]}}, the lowest layer of every game's mapping
-(shared ControllerDefaults.cascade). It binds every control (the D-pad to the arrow keys) and holds
-no explicit null ("unbound"): what we ship leaves no control dead. The catalog ships it as
+(shared ControllerDefaults.cascade). It binds every control and holds no explicit null ("unbound"):
+what we ship leaves no control dead; a D-pad direction it leaves unset fails the build. Every binding we ship,
+the system's and every game's, sends one thing per press (single_output): never two keys, never
+keys and a joystick. The catalog ships it as
 system-v2.json, which apps read since the C and Z buttons, and as system-v1.json without the
 controls released apps before them do not know (V1_CONTROLS): they download every update, and their
 mapping reader rejects a mapping that names a control it lacks. For the same reason a game's own
@@ -130,10 +132,12 @@ def lookup_name(value, media_extensions):
 COMMAND_LINE = re.compile(r"[ -~]{1,40}")
 
 
-def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, launch_fields=None, disk_swaps=None):
+def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, launch_fields=None, disk_swaps=None,
+              modifiers=frozenset()):
     """[launch_fields] maps each launch field an app has besides "commands" to the pattern its value
     matches, or to a function that says whether a value is valid. [disk_swaps] is the app's
-    DISK_SWAPS, the media slots its disk swaps use and the kinds of disk each takes."""
+    DISK_SWAPS, the media slots its disk swaps use and the kinds of disk each takes. [modifiers] is
+    the app's MODIFIER_KEYS (single_output)."""
     launch_fields = {name: rule if callable(rule) else
                      (lambda value, pattern=re.compile(rule): isinstance(value, str) and bool(pattern.fullmatch(value)))
                      for name, rule in (launch_fields or {}).items()}
@@ -197,6 +201,8 @@ def validator(kinds, artwork, media_roles=frozenset(), machine_options=None, lau
             # Released apps read every game's defaults and reject a control they lack (V1_CONTROLS).
             require(all(v1_input(b["input"]) for bindings in defaults.values() for b in bindings),
                     "controller defaults bind a control released apps do not know")
+            for variant, bindings in defaults.items():
+                require_single_outputs(bindings, f"controller defaults {variant}", modifiers)
         if "launch" in record:
             # The lines typed at the machine's prompt to start the game, one command each.
             # The lines typed at the machine's prompt to start the game, one command each, and the
@@ -242,10 +248,38 @@ def v1_input(value):
     return isinstance(value, str) and (not value.startswith("virtual:") or value.removeprefix("virtual:") in V1_CONTROLS)
 
 
-DPAD = ("virtual:up", "virtual:down", "virtual:left", "virtual:right")
+DPAD = {"virtual:up": "up", "virtual:down": "down", "virtual:left": "left", "virtual:right": "right"}
+# What a binding can send. One press sends exactly one of them.
+OUTPUTS = ("keys", "joystick", "mouse", "action", "cycleKeys")
 
 
-def validate_system(system):
+def single_output(binding, modifiers=frozenset()):
+    """Whether a press of [binding] sends one thing: one output kind, and one key. The one exception
+    is a key typed with the app's [modifiers] held (its catalog_config.MODIFIER_KEYS, such as DOS's
+    Shift, Ctrl and Alt): Ctrl+P is the one keystroke a game reads. Two keys, keys and a joystick,
+    keys and a mouse: never."""
+    kinds = [kind for kind in OUTPUTS if kind in binding]
+    if len(kinds) != 1 or ("mouseSpeed" in binding and kinds != ["mouse"]):
+        return False
+    if "keys" in binding:
+        keys = binding["keys"]
+        if not isinstance(keys, list) or not keys:
+            return False
+        # One key, or one key with modifiers held.
+        return len(keys) == 1 or len([key for key in keys if key not in modifiers]) == 1
+    if "cycleKeys" in binding:
+        # Each press sends the next key of the cycle: one key.
+        return isinstance(binding["cycleKeys"], list) and all(isinstance(key, int) for key in binding["cycleKeys"])
+    return True
+
+
+def require_single_outputs(bindings, where, modifiers=frozenset()):
+    for binding in bindings:
+        require(single_output(binding, modifiers),
+                f"{where}: {binding.get('input')} sends more than one thing on one press: {binding}")
+
+
+def validate_system(system, modifiers=frozenset()):
     """The system's definition: one controller mapping, every binding an input and what it sends, and
     the named layers a game's machine settings choose over it ("layers", shared
     LayeredGameCatalog.systemControllerLayer), such as KairoTowns's sixButtonPad."""
@@ -263,10 +297,11 @@ def validate_system(system):
                 len(set(inputs)) == len(inputs), f"invalid system controller {name}")
         require(not any("unbound" in b or set(b) == {"input"} for b in mapping),
                 f"the system definition's {name} ship an explicit null")
-    # The D-pad's default is the arrow keys: what a game binds to it replaces them (cascade).
-    base = {b["input"]: b for b in bindings}
-    require(all(direction in base and base[direction].get("keys") for direction in DPAD),
-            "the system definition's D-pad does not send the arrow keys")
+        require_single_outputs(mapping, f"the system definition's {name}", modifiers)
+    # The lowest layer binds the whole D-pad, so no game's mapping, which cascades over it, leaves it
+    # unset. What it binds is the catalog's own choice in catalog/system-v2.json; nothing here fills it.
+    require(all(control in {b["input"] for b in bindings} for control in DPAD),
+            "the system definition leaves a D-pad direction unset")
 
 
 def system_v1(system):
@@ -322,13 +357,14 @@ def meta(name, content):
 
 def generate(root, check=False):
     config = load_config(root)
+    modifiers = frozenset(getattr(config, "MODIFIER_KEYS", ()))
     system = json.loads((root / "catalog/system-v2.json").read_text(encoding="utf-8"))
-    validate_system(system)
+    validate_system(system, modifiers)
     # The media roles a game's disks fill: its companions', or MEDIA_ROLES for an app without disk sets.
     media_roles = getattr(config, "MEDIA_ROLES", {rule[1] for rule in config.COMPANION.values()})
     validate_record = validator(config.KINDS, config.ARTWORK, media_roles,
                                 getattr(config, "MACHINE_OPTIONS", None), getattr(config, "LAUNCH_FIELDS", None),
-                                getattr(config, "DISK_SWAPS", None))
+                                getattr(config, "DISK_SWAPS", None), modifiers)
     media_extensions = re.compile(config.MEDIA_EXTENSIONS, re.I)
     research = catalog_files.read(root / "catalog/research/games-v1.json.gz")
     require(research.get("schemaVersion") == 1, "unsupported research schema")

@@ -2,7 +2,8 @@
 # Verifies a Kairo app's generated files and prepares its build, run from the app's root by the
 # shared build and release workflows (app-build.yml, app-release.yml): the shared .gitattributes,
 # the README's shared blocks, the catalog and artwork of an app on the shared catalog
-# (tools/catalog_config.py) with its shared media (audit_shared_media.py), the published catalog's
+# (tools/catalog_config.py) with its shared media (audit_shared_media.py), what its catalog ships
+# for controllers (check_shipped_controls.py: one output per press, no D-pad unset), the published catalog's
 # audit (adult artwork and descriptions kept out of the main catalog), the third-party notices (tools/notices_sources.py), the local changes to its
 # third-party snapshots (tools/patches.py), no name matching in run-time code
 # (check_name_matching.py), and the app's own checks and build preparation,
@@ -15,6 +16,7 @@ fi
 python3 shared/tools/docs.py . --check
 if [ -f tools/catalog_config.py ]; then
     python3 shared/tools/app_catalog.py . --check
+    python3 shared/tools/check_shipped_controls.py .
     python3 shared/tools/audit_shared_media.py .
     python3 shared/tools/fetch_artwork.py . --check
 fi

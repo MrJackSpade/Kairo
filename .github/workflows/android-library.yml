@@ -24,6 +24,7 @@ jobs:
       - name: No name matching in run-time code
         run: |
           python3 -m unittest discover -s tools -p test_check_name_matching.py
+          python3 -m unittest discover -s tools -p test_controller_outputs.py
           python3 tools/check_name_matching.py .
       - uses: ./.github/actions/setup-android
       - run: ./gradlew --no-daemon :frontend:assembleDebug :frontend:testDebugUnitTest

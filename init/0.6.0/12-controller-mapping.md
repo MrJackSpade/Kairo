@@ -14,7 +14,7 @@ Every new system.
 
 The mapping lives in `catalog/system-v1.json`, never in Kotlin defaults, so it ships with the catalog:
 - every input mapped, in both controller layouts (with and without sticks); a duplicate is better than an unmapped input;
-- the D-pad sends the arrow keys and the joystick (unless `{{ref:shared-lines}}` forbids it);
+- the D-pad sends one thing per press, never two: the joystick or the arrow keys, whichever the system's games use (the catalog's choice, never a code default); no D-pad direction is left unset;
 - A is Return, B is Space, X and Y the joystick's buttons;
 - the left stick the joystick, the right stick the mouse where there is one.
 
