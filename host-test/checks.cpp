@@ -2,9 +2,12 @@
 // table entry names the checks it runs in "checks", each with its own spec.
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <map>
 
 #include "harness.h"
@@ -464,6 +467,70 @@ void hard_disk(Test &test, const json::Value &spec) {
     session.close();
 }
 
+// A hash of every pixel of the core's last frame, with its size; the screen signature for a core
+// whose GPU composes its picture (frame() gives none).
+uint64_t picture_hash(MachineCore &core) {
+    uint32_t width = 0, height = 0;
+    const uint8_t *pixels = core.frame(width, height);
+    if (!pixels) return core.screen_signature();
+    const uint32_t stride = core.frame_stride() ? core.frame_stride() : width * 4;
+    uint64_t hash = (1469598103934665603ull ^ width) * 1099511628211ull;
+    hash = (hash ^ height) * 1099511628211ull;
+    for (uint32_t y = 0; y < height; ++y) {
+        const uint8_t *line = pixels + static_cast<size_t>(y) * stride;
+        for (uint32_t x = 0; x < width; x += 2) {
+            uint64_t word = 0;
+            std::memcpy(&word, line + x * 4, x + 1 < width ? 8 : 4);
+            hash = (hash ^ word) * 1099511628211ull;
+        }
+    }
+    return hash;
+}
+
+// profile (Kairo#192): the game's speed flat out, and every frame of it, to compare two builds of
+// the core (shared/tools/device-perf.ps1). The game types the spec's "commands" if it has any, runs
+// to frame "boot" pressing its "keys" ({"frame", "code"}) on the way, then runs "frames" frames
+// timed: the core's own work alone (its frame and the sound it made), not this check's hashing. It
+// prints "PROFILE <test> <frames> frames <seconds> s <rate> frames/s" and writes each timed frame's
+// picture hash (picture_hash) and sound hash to profile-hashes.txt in the test's folder: two builds
+// that run the guest the same way write the same file.
+void profile(Test &test, const json::Value &spec) {
+    Session session(test.launch(), test.folder, test.name);
+    if (spec.find("commands")) type_commands(session, test, spec);
+    run_with_keys(session, spec, test.frames(spec, "boot"));
+    const uint64_t frames = test.frames(spec, "frames");
+    MachineCore &core = session.core();
+    std::vector<int16_t> buffer(8192 * 2), sound;
+    const uint32_t max = static_cast<uint32_t>(buffer.size() / 2);
+    std::vector<uint64_t> pictures, sounds;
+    pictures.reserve(frames);
+    sounds.reserve(frames);
+    std::chrono::steady_clock::duration spent{};
+    for (uint64_t i = 0; i < frames; ++i) {
+        sound.clear();
+        const auto start = std::chrono::steady_clock::now();
+        if (!core.run_frame()) session.fail("the machine stopped in timed frame " + std::to_string(i) + ": " + core.error());
+        for (;;) {
+            const uint32_t got = core.read_audio(buffer.data(), max);
+            sound.insert(sound.end(), buffer.data(), buffer.data() + got * 2);
+            if (got < max) break;
+        }
+        spent += std::chrono::steady_clock::now() - start;
+        uint64_t hash = 1469598103934665603ull;
+        for (const int16_t sample : sound) hash = (hash ^ static_cast<uint16_t>(sample)) * 1099511628211ull;
+        sounds.push_back(hash);
+        pictures.push_back(picture_hash(core));
+    }
+    const double seconds = std::chrono::duration<double>(spent).count();
+    const fs::path file = test.folder / "profile-hashes.txt";
+    std::ofstream out(file, std::ios::binary);
+    for (uint64_t i = 0; i < frames; ++i) out << i << ' ' << hex(pictures[i]) << ' ' << hex(sounds[i]) << '\n';
+    if (!out) throw std::runtime_error("Could not write " + file.string());
+    std::printf("PROFILE %s %llu frames %.3f s %.2f frames/s\n", test.name.c_str(), static_cast<unsigned long long>(frames),
+        seconds, static_cast<double>(frames) / seconds);
+    session.close();
+}
+
 const std::map<std::string, Check> &checks() {
     static const std::map<std::string, Check> all = {
         {"boot", boot},
@@ -478,6 +545,7 @@ const std::map<std::string, Check> &checks() {
         {"mouseMotion", mouse_motion},
         {"clock", clock},
         {"hardDisk", hard_disk},
+        {"profile", profile},
     };
     return all;
 }

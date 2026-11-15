@@ -8,6 +8,9 @@
 // (checks.cpp). Every test runs in this one process, one after another, as the app runs one game
 // after another. Each writes under <work dir>/<test name>: working copies of its media, its states
 // and its pictures. The program exits with 0 only when every check of every test passed.
+//
+// On the device (KAIRO_DEVICE_TEST, Kairo#192) the same test is built into the app's library, and
+// <product>_test (entry.cpp) calls kairo_host_test_main there.
 
 #include <cstdio>
 #include <fstream>
@@ -19,7 +22,7 @@
 
 using namespace kairo::host;
 
-int main(int argc, char **argv) {
+int kairo_host_test_main(int argc, char **argv) {
     if (argc < 4) {
         std::fprintf(stderr, "usage: %s <table.json> <resources dir> <work dir> [test name ...]\n", argv[0]);
         return 2;

@@ -19,6 +19,7 @@ The measurements every other technique is found and judged with: counters inside
 - Whether the technique applies to {{app}}'s core, and whether the core already has it.
 - The gain on the RG DS, measured with `game_profile` and the frame host's reports (frames a second against the guest's, run time per frame, late frames, audio underruns), on the same games and setup before and after.
 - That the guest runs exactly as before: `game_profile ... check exact` hashes every picture and all sound of both builds.
+- Every app has the shared device harness (Kairo#192): `shared/tools/device-perf.ps1` builds variants of the app's library as the shared boot test, runs the `profile` checks of `core/test/perf-tests.json` on the device interleaved, and reports frames a second and whether every frame's picture and sound matched the base's. A `game_profile` adds what it lacks (guest counters, per-stage timers).
 
 ## Closing
 

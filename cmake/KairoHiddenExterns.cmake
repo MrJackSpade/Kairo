@@ -6,8 +6,12 @@
 # only: Windows' PE/COFF builds have no GOT to remove.
 include_guard(GLOBAL)
 
+# OFF builds the same sources without it, the base a device measurement holds it to
+# (shared/tools/device-perf.ps1, Kairo#192).
+option(KAIRO_HIDE_C_EXTERNS "Declare a core's C extern globals hidden (kairo_hide_c_externs)" ON)
+
 function(kairo_hide_c_externs)
-    if(NOT ANDROID)
+    if(NOT ANDROID OR NOT KAIRO_HIDE_C_EXTERNS)
         return()
     endif()
     set(_header "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/kairo_hidden_externs.h")

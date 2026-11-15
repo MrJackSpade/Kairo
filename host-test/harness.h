@@ -14,6 +14,16 @@
 #include "json.h"
 #include "kairo/machine_core.h"
 
+// The test's entry point (main.cpp): main calls it on the PC (entry.cpp); on the device it is
+// exported from the app's library built as the test (KAIRO_DEVICE_TEST, Kairo#192), and
+// <product>_test calls it.
+#if defined(__ANDROID__)
+#define KAIRO_HOST_TEST_ENTRY __attribute__((visibility("default")))
+#else
+#define KAIRO_HOST_TEST_ENTRY
+#endif
+extern "C" KAIRO_HOST_TEST_ENTRY int kairo_host_test_main(int argc, char **argv);
+
 namespace kairo::host {
 
 namespace fs = std::filesystem;

@@ -16,15 +16,19 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 get_filename_component(KAIRO_SHARED_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 option(KAIRO_SHADERS "Present frames through the Slang shader runtime" ON)
+# On Android: the shared boot test built into the app's library in place of the JNI surface, with
+# <product>_test to run it on the device (shared/tools/device-perf.ps1, Kairo#192).
+option(KAIRO_DEVICE_TEST "Build the shared boot test as the app's library, to run on the device" OFF)
 
 function(kairo_machine_library target)
+    set(_test_sources "${KAIRO_SHARED_ROOT}/host-test/main.cpp" "${KAIRO_SHARED_ROOT}/host-test/harness.cpp"
+        "${KAIRO_SHARED_ROOT}/host-test/checks.cpp"
+        "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp"
+        "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/midi_out.cpp")
     if(NOT ANDROID)
         # On the PC the same sources are the shared boot test (host-test/, Kairo#115), named after
         # the product, so the app's own CMakeLists says once what its core is.
-        add_executable(${target} "${KAIRO_SHARED_ROOT}/host-test/main.cpp" "${KAIRO_SHARED_ROOT}/host-test/harness.cpp"
-            "${KAIRO_SHARED_ROOT}/host-test/checks.cpp"
-            "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/state_paths.cpp"
-            "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/midi_out.cpp" ${ARGN})
+        add_executable(${target} ${_test_sources} "${KAIRO_SHARED_ROOT}/host-test/entry.cpp" ${ARGN})
         target_compile_features(${target} PRIVATE cxx_std_17)
         target_include_directories(${target} PRIVATE "${KAIRO_SHARED_ROOT}/host-test/include"
             "${KAIRO_SHARED_ROOT}/host-test" "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp")
@@ -32,6 +36,19 @@ function(kairo_machine_library target)
         if(MINGW)
             target_link_options(${target} PRIVATE -static)
         endif()
+        return()
+    endif()
+    if(KAIRO_DEVICE_TEST)
+        # The test in the library the app's CMakeLists links its core into, built as the app's
+        # library is (shared, PIC, hidden visibility, its profile), so the device measures the code
+        # the app runs; the NDK's own <android/log.h> in place of the PC's stand-in.
+        add_library(${target} SHARED ${_test_sources} ${ARGN})
+        target_compile_features(${target} PRIVATE cxx_std_17)
+        kairo_native_debug_defaults(${target})
+        target_include_directories(${target} PRIVATE "${KAIRO_SHARED_ROOT}/host-test" "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp")
+        target_link_libraries(${target} PRIVATE log android)
+        add_executable(${target}_test "${KAIRO_SHARED_ROOT}/host-test/entry.cpp")
+        target_link_libraries(${target}_test PRIVATE ${target})
         return()
     endif()
     add_library(${target} SHARED "${KAIRO_SHARED_ROOT}/frontend/src/main/cpp/kairo/machine_jni.cpp"
