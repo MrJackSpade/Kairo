@@ -171,6 +171,16 @@
       "ar": "بناء المدن",
       "id": "Membangun kota"
     },
+    "Compilation": {
+      "es": "Recopilación",
+      "pt-BR": "Coletânea",
+      "de": "Sammlung",
+      "ru": "Сборник",
+      "ja": "コンピレーション",
+      "ko": "모음집",
+      "ar": "مجموعة",
+      "id": "Kompilasi"
+    },
     "Construction and Management Simulation": {
       "es": "Simulación de construcción y gestión",
       "pt-BR": "Simulação de construção e gestão",
@@ -351,6 +361,16 @@
       "ar": "هوكي",
       "id": "Hoki"
     },
+    "Horror": {
+      "es": "Terror",
+      "pt-BR": "Terror",
+      "de": "Horror",
+      "ru": "Хоррор",
+      "ja": "ホラー",
+      "ko": "호러",
+      "ar": "رعب",
+      "id": "Horor"
+    },
     "Interactive Fiction": {
       "es": "Ficción interactiva",
       "pt-BR": "Ficção interativa",
@@ -390,6 +410,26 @@
       "ko": "카트 레이싱",
       "ar": "سباق الكارت",
       "id": "Balap kart"
+    },
+    "Life Simulation": {
+      "es": "Simulación de vida",
+      "pt-BR": "Simulação de vida",
+      "de": "Lebenssimulation",
+      "ru": "Симулятор жизни",
+      "ja": "生活シミュレーション",
+      "ko": "생활 시뮬레이션",
+      "ar": "محاكاة الحياة",
+      "id": "Simulasi kehidupan"
+    },
+    "MMO": {
+      "es": "MMO",
+      "pt-BR": "MMO",
+      "de": "MMO",
+      "ru": "MMO",
+      "ja": "MMO",
+      "ko": "MMO",
+      "ar": "MMO",
+      "id": "MMO"
     },
     "Maze": {
       "es": "Laberinto",
@@ -431,6 +471,16 @@
       "ar": "متعدد اللاعبين",
       "id": "Multipemain"
     },
+    "Music": {
+      "es": "Música",
+      "pt-BR": "Música",
+      "de": "Musik",
+      "ru": "Музыка",
+      "ja": "音楽",
+      "ko": "음악",
+      "ar": "موسيقى",
+      "id": "Musik"
+    },
     "Olympiad": {
       "es": "Olimpiadas",
       "pt-BR": "Olimpíadas",
@@ -450,6 +500,16 @@
       "ko": "패들·퐁",
       "ar": "المضرب وبونج",
       "id": "Paddle & Pong"
+    },
+    "Party": {
+      "es": "Juego de fiesta",
+      "pt-BR": "Jogo de festa",
+      "de": "Partyspiel",
+      "ru": "Игра для вечеринок",
+      "ja": "パーティーゲーム",
+      "ko": "파티 게임",
+      "ar": "لعبة جماعية",
+      "id": "Permainan pesta"
     },
     "Party Game": {
       "es": "Juego de fiesta",
@@ -521,6 +581,16 @@
       "ar": "اختبار معلومات",
       "id": "Kuis"
     },
+    "Racing": {
+      "es": "Carreras",
+      "pt-BR": "Corrida",
+      "de": "Rennspiel",
+      "ru": "Гонки",
+      "ja": "レース",
+      "ko": "레이싱",
+      "ar": "سباق",
+      "id": "Balap"
+    },
     "Racing & Driving": {
       "es": "Carreras y conducción",
       "pt-BR": "Corrida e direção",
@@ -590,6 +660,16 @@
       "ko": "럭비",
       "ar": "رغبي",
       "id": "Rugbi"
+    },
+    "Sandbox": {
+      "es": "Sandbox",
+      "pt-BR": "Sandbox",
+      "de": "Sandbox",
+      "ru": "Песочница",
+      "ja": "サンドボックス",
+      "ko": "샌드박스",
+      "ar": "عالم مفتوح",
+      "id": "Sandbox"
     },
     "Screensaver": {
       "es": "Salvapantallas",
@@ -681,6 +761,16 @@
       "ar": "رياضة",
       "id": "Olahraga"
     },
+    "Stealth": {
+      "es": "Sigilo",
+      "pt-BR": "Furtividade",
+      "de": "Stealth",
+      "ru": "Стелс",
+      "ja": "ステルス",
+      "ko": "잠입",
+      "ar": "تخفّي",
+      "id": "Siluman"
+    },
     "Strategy": {
       "es": "Estrategia",
       "pt-BR": "Estratégia",
@@ -740,6 +830,16 @@
       "ko": "대전 격투",
       "ar": "قتال ثنائي",
       "id": "Pertarungan satu lawan satu"
+    },
+    "Visual Novel": {
+      "es": "Novela visual",
+      "pt-BR": "Visual novel",
+      "de": "Visual Novel",
+      "ru": "Визуальная новелла",
+      "ja": "ビジュアルノベル",
+      "ko": "비주얼 노벨",
+      "ar": "رواية مرئية",
+      "id": "Novel visual"
     },
     "Volleyball": {
       "es": "Voleibol",

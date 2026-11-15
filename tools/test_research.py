@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from research import index_snapshots, match_title, moby_match, name_forms, parse_hint, relocate
+from research import game_tags, index_snapshots, match_title, moby_match, name_forms, parse_hint, relocate
 import catalog_files
 
 
@@ -12,6 +12,25 @@ def snapshot(*games):
     return index_snapshots({"atarist": {str(i): {"DatabaseID": str(i), "Name": name, "aliases": aliases, "ReleaseYear": str(year),
                                  "imageCounts": {}}
                         for i, (name, aliases, year) in enumerate(games, 1)}})
+
+
+class GameTagsTest(unittest.TestCase):
+    def test_year_genres_and_players_from_launchbox(self):
+        launchbox = {"Genres": "Action;Platform", "MaxPlayers": "1", "Cooperative": "false"}
+        self.assertEqual(["1987", "Action; Platform", "Single Player"], game_tags(1987, launchbox, ["Shooter"]))
+
+    def test_several_players_and_cooperative(self):
+        self.assertEqual(["Multiplayer"], game_tags(None, {"MaxPlayers": "2", "Cooperative": "false"}, None))
+        self.assertEqual(["Cooperative; Multiplayer"], game_tags(None, {"MaxPlayers": "4", "Cooperative": "true"}, None))
+
+    def test_mobygames_genres_where_launchbox_has_none(self):
+        moby = ["Action", "Side view", "Racing / Driving", "Licensed", "Role-playing (RPG)"]
+        self.assertEqual(["1990", "Action; Racing; Role-Playing"], game_tags(1990, {"Genres": "", "MaxPlayers": ""}, moby))
+        self.assertEqual(["1990", "Action; Racing; Role-Playing"], game_tags(1990, None, moby))
+
+    def test_nothing_known_is_no_tags(self):
+        self.assertEqual([], game_tags(None, None, None))
+        self.assertEqual([], game_tags(None, {"Genres": "", "MaxPlayers": "0"}, ["Side view"]))
 
 
 class ParseHintTest(unittest.TestCase):

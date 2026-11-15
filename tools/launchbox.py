@@ -3,6 +3,8 @@
 
 Commands:
   snapshot  Stream chosen platforms' records out of LaunchBox's Metadata.zip into ignored JSON.
+  tags      Stream chosen platforms' genres and player counts out of Metadata.zip into ignored
+            JSON (<platform>-tags.json beside the snapshots), for research.py's tags.
   listing   Cache a platform's public listing pages and their direct game-page URLs.
   enrich    Fill missing box art and screenshot URLs in a match catalog from cached game pages.
 
@@ -97,6 +99,29 @@ def extract(source, slugs=("pc88", "pc98")):
         for game in games.values():
             game["aliases"] = sorted(set(game["aliases"]))
             game["imageCounts"] = dict(Counter(image["type"] for image in game["images"]))
+    return result
+
+
+TAG_FIELDS = ("Genres", "MaxPlayers", "Cooperative")
+
+
+def extract_tags(source, slugs):
+    """{slug: {DatabaseID: {"Genres", "MaxPlayers", "Cooperative"}}}: what research.py makes a game's
+    genre and player tags of (Kairo#132), kept apart from the snapshots so adding them changes nothing else."""
+    wanted = {PLATFORMS[slug]: slug for slug in slugs}
+    result = {slug: {} for slug in slugs}
+    with zipfile.ZipFile(source) as archive, archive.open("Metadata.xml") as stream:
+        iterator = ET.iterparse(stream, events=("start", "end"))
+        _, root = next(iterator)
+        for event, node in iterator:
+            if event != "end" or node.tag not in ("Game", "GameAlternateName", "GameImage"):
+                continue
+            if node.tag == "Game":
+                platform = node.findtext("Platform")
+                game_id = node.findtext("DatabaseID")
+                if platform in wanted and game_id:
+                    result[wanted[platform]][game_id] = {field: node.findtext(field) or "" for field in TAG_FIELDS}
+            root.clear()
     return result
 
 
@@ -427,6 +452,10 @@ def main():
     snapshot.add_argument("source", type=Path)
     snapshot.add_argument("output_directory", type=Path)
     snapshot.add_argument("platforms", nargs="+", choices=PLATFORMS)
+    tags = commands.add_parser("tags", help="extract platforms' genres and players from Metadata.zip")
+    tags.add_argument("source", type=Path)
+    tags.add_argument("output_directory", type=Path)
+    tags.add_argument("platforms", nargs="+", choices=PLATFORMS)
     listing = commands.add_parser("listing", help="cache a platform's public listing")
     listing.add_argument("platform", choices=SITE_SLUGS)
     listing.add_argument("output", type=Path)
@@ -444,6 +473,11 @@ def main():
     if args.command == "snapshot":
         for platform, games in extract(args.source, args.platforms).items():
             destination = args.output_directory / f"{platform}-snapshot.json"
+            write_json(destination, games, sort_keys=True)
+            print(f"{platform}: {len(games)} games -> {destination}")
+    elif args.command == "tags":
+        for platform, games in extract_tags(args.source, args.platforms).items():
+            destination = args.output_directory / f"{platform}-tags.json"
             write_json(destination, games, sort_keys=True)
             print(f"{platform}: {len(games)} games -> {destination}")
     elif args.command == "listing":

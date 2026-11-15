@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Assemble an app's catalog research from LaunchBox, MobyGames, media scans and decisions.
 
-Usage: research.py <app root> [--mobygames <dump directory>]
+Usage: research.py <app root> [--mobygames <dump directory>] [--tags-only]
+
+Each game's tags are its year, its genres from LaunchBox (else MobyGames) and its players from
+LaunchBox, in LaunchBox's form (game_tags, Kairo#132), from .downloads/launchbox/<platform>-tags.json
+(launchbox.py tags). --tags-only recomputes just those on the research as it is.
 
 Writes catalog/research/games-v1.json.gz for tools/app_catalog.py. The app's tools/catalog_config.py
 names its PLATFORMS (LaunchBox slugs), MOBYGAMES (its MobyGames listing slug) and SCANS:
@@ -143,6 +147,36 @@ def first_url(game, categories, rejected):
             if image["type"] == category and URL.fullmatch(image["url"]) and image["url"] not in rejected:
                 return image["url"]
     return ""
+
+
+# MobyGames' genres as LaunchBox names them (Kairo#132); its other categories (perspective, setting,
+# theme, pacing) are not genres and make no tags.
+MOBY_GENRES = {
+    "Action": "Action", "Adventure": "Adventure", "Arcade": "Arcade", "Beat 'em up / brawler": "Beat 'em Up",
+    "Board game": "Board Game", "Compilation": "Compilation", "Educational": "Education", "Fighting": "Fighting",
+    "Game show / trivia / quiz": "Quiz", "Horror": "Horror", "Interactive fiction / text adventure": "Interactive Fiction",
+    "Music / rhythm": "Music", "Pinball": "Pinball", "Platform": "Platform", "Puzzle": "Puzzle",
+    "Racing / Driving": "Racing", "Role-playing (RPG)": "Role-Playing", "Shooter": "Shooter",
+    "Simulation": "Simulation", "Sports": "Sports", "Stealth": "Stealth", "Strategy / tactics": "Strategy",
+    "Vehicle simulator": "Vehicle Simulation", "Visual novel": "Visual Novel",
+}
+
+
+def game_tags(year, launchbox, moby_genres):
+    """A game's shipped tags in LaunchBox's form (KairoDos#141, Kairo#132): its year, its genres
+    ("Action; Platform") from LaunchBox, else from MobyGames, and its players from LaunchBox
+    ("Single Player", "Multiplayer", "Cooperative; Multiplayer")."""
+    tags = [str(year)] if year else []
+    genres = [part.strip() for part in (launchbox or {}).get("Genres", "").split(";") if part.strip()]
+    if not genres:
+        genres = [MOBY_GENRES[genre] for genre in moby_genres or [] if genre in MOBY_GENRES]
+    if genres:
+        tags.append("; ".join(dict.fromkeys(genres)))
+    players = (launchbox or {}).get("MaxPlayers", "")
+    if players.isdigit() and int(players) >= 1:
+        tags.append("Single Player" if int(players) == 1 else
+                    "Cooperative; Multiplayer" if launchbox.get("Cooperative") == "true" else "Multiplayer")
+    return tags
 
 
 def launchbox_entry(slug, game, rejected):
@@ -328,6 +362,7 @@ def assemble(root, moby_root):
     missing = [slug for slug, snapshot in snapshots.items() if snapshot is None]
     if missing:
         raise SystemExit(f"missing LaunchBox snapshots: {missing}")
+    launchbox_tags = load_launchbox_tags(root, config)
     indexes = index_snapshots(snapshots)
     # Both collections of a platform often hold the same game under the same name.
     matched = {}
@@ -353,8 +388,10 @@ def assemble(root, moby_root):
         listing = json.loads((moby_root / f"{config.MOBYGAMES}-listing.json").read_text(encoding="utf-8"))
     moby_names = {}  # each MobyGames name form: the (game key, year) of every game with that name
     moby_own_title = {}  # whether a game's MobyGames record carries the game's own title
+    moby_genres = {}  # each MobyGames game's genres, by its ID
     for game in listing:
         moby_id = str(game["id"])
+        moby_genres[game["id"]] = game.get("genres", [])
         names = moby_titles(moby_root, game)
         decision = moby_decisions["games"].get(moby_id)
         if decision is None:
@@ -530,6 +567,7 @@ def assemble(root, moby_root):
             games[key].pop("boxArtUrl", None)
             games[key].pop("screenshotUrl", None)
     japanese_titles.apply(research, games)
+    apply_tags(games, launchbox_tags, moby_genres)
     for entry in games.values():
         if "sourceGroups" in entry:
             entry["sourceGroups"] = sorted(entry["sourceGroups"])
@@ -595,13 +633,60 @@ def assemble(root, moby_root):
           f"{sum('adultDescription' in g for g in games.values())} with adult descriptions")
 
 
+def load_launchbox_tags(root, config):
+    """Each LaunchBox game's genres and players (launchbox.py tags), by platform slug."""
+    found = {slug: read(root / f".downloads/launchbox/{slug}-tags.json", None) for slug in config.PLATFORMS}
+    missing = [slug for slug, games in found.items() if games is None]
+    if missing:
+        raise SystemExit(f"missing LaunchBox tags (launchbox.py tags): {missing}")
+    return found
+
+
+def apply_tags(games, launchbox_tags, moby_genres):
+    """Every game's tags (game_tags) from its LaunchBox and MobyGames records and its year."""
+    for key, entry in games.items():
+        slug = key.split(":", 1)[0]
+        launchbox = launchbox_tags.get(slug, {}).get(entry["launchbox"]) if "launchbox" in entry else None
+        if "launchbox" in entry and launchbox is None:
+            raise SystemExit(f"{key}: LaunchBox game {entry['launchbox']} is not in {slug}-tags.json")
+        tags = game_tags(entry.get("year"), launchbox, moby_genres.get(entry.get("mobygames")))
+        if tags:
+            entry["tags"] = tags
+        else:
+            entry.pop("tags", None)
+
+
+def retag(root, moby_root):
+    """The research's tags alone, recomputed over its games as they are (Kairo#132), leaving every
+    match and decision unchanged."""
+    config = load_config(root)
+    path = root / "catalog/research/games-v1.json.gz"
+    research = read(path, None)
+    if research is None:
+        raise SystemExit(f"missing {path}")
+    games = research["games"]
+    if moby_root is None and any("mobygames" in entry for entry in games.values()):
+        raise SystemExit("the research has MobyGames games: pass --mobygames for their genres")
+    listing = [] if moby_root is None else \
+        json.loads((moby_root / f"{config.MOBYGAMES}-listing.json").read_text(encoding="utf-8"))
+    apply_tags(games, load_launchbox_tags(root, config), {game["id"]: game.get("genres", []) for game in listing})
+    write(path, research)
+    tagged = sum(1 for entry in games.values() if len(entry.get("tags", [])) > (1 if entry.get("year") else 0))
+    print(f"{config.APP}: {len(games)} games, {tagged} with genre or player tags")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", type=Path)
     parser.add_argument("--mobygames", type=Path,
                         help="the MobyGames dump; without it the catalog comes from LaunchBox alone")
+    parser.add_argument("--tags-only", action="store_true",
+                        help="recompute only the existing research's tags (game_tags), changing nothing else")
     args = parser.parse_args()
-    assemble(args.root.resolve(), args.mobygames)
+    if args.tags_only:
+        retag(args.root.resolve(), args.mobygames)
+    else:
+        assemble(args.root.resolve(), args.mobygames)
 
 
 if __name__ == "__main__":
