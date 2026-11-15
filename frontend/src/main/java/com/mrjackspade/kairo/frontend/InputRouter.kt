@@ -3,8 +3,13 @@ package com.mrjackspade.kairo.frontend
 /**
  * One guest key can be held by several independent input sources. [lockCodes] are keys the
  * guest toggles on each press, such as Caps Lock; the router tracks their state for every source.
+ * [sendAfterFrames] sends a key change once the guest has run that many more frames, after those
+ * sent before it, and [dropDeferred] drops the ones not yet due (MachineBridge.keyAfterFrames).
  */
-class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 127,
+class InputRouter(private val send: (Int, Boolean) -> Unit,
+                  private val sendAfterFrames: (Int, Boolean, Int) -> Unit,
+                  private val dropDeferred: () -> Unit,
+                  maxKeyCode: Int = 127,
                   private var lockCodes: Set<Int> = emptySet()) {
     init { require(maxKeyCode in 0..65535) }
     private val owners = LinkedHashMap<String, List<Int>>()
@@ -26,15 +31,20 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
         owners.filter { (owner, scans) -> owner.startsWith(prefix) && scans.any { it in codes } }
             .map { (owner, scans) -> owner to scans.toList() }
 
-    @Synchronized fun hold(owner: String, scans: List<Int>) {
+    /**
+     * [owner] holds [scans]. With [afterFrames], the guest gets the presses once it has run that
+     * many more frames, as a key its keyboard scan must see apart from a Shift change (Kairo#136).
+     */
+    @Synchronized fun hold(owner: String, scans: List<Int>, afterFrames: Int = 0) {
         require(owner.isNotBlank() && scans.isNotEmpty() && scans.size <= 8)
         require(scans.distinct().size == scans.size && scans.all { it in counts.indices })
+        require(afterFrames >= 0)
         if (owners[owner] == scans) return
         release(owner)
         owners[owner] = scans.toList()
         for (scan in scans) {
             if (counts[scan]++ == 0) {
-                send(scan, true)
+                emit(scan, true, afterFrames)
                 if (scan in lockCodes && !locks.remove(scan)) locks.add(scan)
             }
         }
@@ -71,19 +81,26 @@ class InputRouter(private val send: (Int, Boolean) -> Unit, maxKeyCode: Int = 12
         listeners.toList().forEach { it() }
     }
 
-    @Synchronized fun release(owner: String) {
+    /** [owner] lets go; with [afterFrames], the guest gets the releases once it has run that many more frames. */
+    @Synchronized fun release(owner: String, afterFrames: Int = 0) {
+        require(afterFrames >= 0)
         val scans = owners.remove(owner) ?: return
         for (scan in scans.asReversed()) {
-            if (--counts[scan] == 0) send(scan, false)
+            if (--counts[scan] == 0) emit(scan, false, afterFrames)
         }
         listeners.toList().forEach { it() }
     }
 
+    private fun emit(scan: Int, down: Boolean, afterFrames: Int) =
+        if (afterFrames == 0) send(scan, down) else sendAfterFrames(scan, down, afterFrames)
+
     @Synchronized fun releasePrefix(prefix: String) {
-        owners.keys.filter { it.startsWith(prefix) }.toList().forEach(::release)
+        owners.keys.filter { it.startsWith(prefix) }.toList().forEach { release(it) }
     }
 
     @Synchronized fun releaseAll(except: Set<String> = emptySet()) {
-        owners.keys.filter { it !in except }.toList().forEach(::release)
+        // A key change still queued for later would press a key after its release.
+        dropDeferred()
+        owners.keys.filter { it !in except }.toList().forEach { release(it) }
     }
 }

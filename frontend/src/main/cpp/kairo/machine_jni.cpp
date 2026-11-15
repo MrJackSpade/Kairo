@@ -234,6 +234,15 @@ extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeKey)(JNIEnv *, jobject, j
     machine.post([code, down](kairo::MachineCore &core) { core.key(code, down == JNI_TRUE); });
 }
 
+// A key change once the guest has run frames more frames (FrameMachine::post_after_frames).
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeKeyAfterFrames)(JNIEnv *, jobject, jint code, jboolean down, jint frames) {
+    machine.post_after_frames(frames, [code, down](kairo::MachineCore &core) { core.key(code, down == JNI_TRUE); });
+}
+
+extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeDropDeferredKeys)(JNIEnv *, jobject) {
+    machine.drop_deferred();
+}
+
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeJoystick)(JNIEnv *, jobject, jint control, jboolean down) {
     machine.post([control, down](kairo::MachineCore &core) { core.joystick(control, down == JNI_TRUE); });
 }

@@ -12,7 +12,7 @@ class GuestKeyboardHighlightsTest {
     private val modifiers = setOf(shift, ctrl)
 
     private fun lit(vararg holds: List<Int>): Set<Int> {
-        val router = InputRouter({ _, _ -> })
+        val router = InputRouter({ _, _ -> }, { _, _, _ -> }, {})
         holds.forEachIndexed { index, keys -> router.hold("h$index", keys) }
         return GuestKeyboardHighlights.litKeys(router.pressedKeys(), router.holds(), shifts, modifiers)
     }

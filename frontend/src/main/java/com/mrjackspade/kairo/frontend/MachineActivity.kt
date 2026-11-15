@@ -120,6 +120,8 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     protected val machineRunning: Boolean get() = currentEntry != null && MachineStatus(bridge.status()).running
 
     override fun sendKey(code: Int, down: Boolean) = bridge.key(code, down)
+    override fun sendKeyAfterFrames(code: Int, down: Boolean, frames: Int) = bridge.keyAfterFrames(code, down, frames)
+    override fun dropDeferredKeys() = bridge.dropDeferredKeys()
     override fun sendJoystick(control: Int, down: Boolean) = bridge.joystick(control, down)
     override fun sendMouseMove(dx: Int, dy: Int) = bridge.mouseMove(dx, dy)
     override fun sendMouseButton(button: Int, down: Boolean) = bridge.mouseButton(button, down)

@@ -14,6 +14,7 @@
 #include <deque>
 #include <functional>
 #include <future>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -108,6 +109,22 @@ public:
         Command command{Command::Task};
         command.task = std::move(task);
         enqueue(std::move(command));
+    }
+
+    // Runs task on the emulation thread once the guest has run frames more frames, after the
+    // tasks posted before it: a key change the guest's keyboard scan must see apart from the one
+    // before it, as a symbol's key after its Shift went up (Kairo#136). Tasks due on the same
+    // frame keep their order. Pause, stop and drop_deferred() drop the ones not yet due.
+    void post_after_frames(int frames, std::function<void(Core &)> task) {
+        std::lock_guard<std::mutex> guard(command_mutex_);
+        if (!active_) return;
+        deferred_.push_back({frames, std::move(task)});
+    }
+
+    // Drops the tasks post_after_frames queued that are not yet due, as when every input is released.
+    void drop_deferred() {
+        std::lock_guard<std::mutex> guard(command_mutex_);
+        deferred_.clear();
     }
 
     // On the emulation thread, from a task: while the session is paused, runs one
@@ -333,6 +350,7 @@ private:
                         break;
                     case Command::Pause:
                         paused_ = true;
+                        drop_deferred();
                         core->release_inputs();
                         if (audio) audio->pause();
                         report("Paused");
@@ -391,6 +409,14 @@ private:
                 ++frames_;
                 details_.swap(details);
                 if (audio) xruns_ = earlier_underruns + audio->underruns();
+                // A deferred task whose frames have run is due before the next frame, in order.
+                for (auto it = deferred_.begin(); it != deferred_.end();) {
+                    if (--it->frames > 0) { ++it; continue; }
+                    Command command{Command::Task};
+                    command.task = std::move(it->task);
+                    commands_.push_back(std::move(command));
+                    it = deferred_.erase(it);
+                }
             }
             // Each frame's slot lasts as long as the guest frame, stretched or shrunk
             // by at most 0.5% to hold the audio queue at its target, so the host
@@ -437,6 +463,7 @@ private:
             active_ = false;
             // Unanswered commands break their promises, so a caller waiting on one returns.
             commands_.clear();
+            deferred_.clear();
             audio_state_ = "off";
             if (state_ != "Error") state_ = "Stopped";
             end_session();
@@ -642,6 +669,12 @@ private:
     std::mutex command_mutex_;
     std::condition_variable command_ready_;
     std::deque<Command> commands_;
+    // post_after_frames' tasks, each with the guest frames still to run before it is due.
+    struct Deferred {
+        int frames;
+        std::function<void(Core &)> task;
+    };
+    std::list<Deferred> deferred_;
     bool active_ = false;
     std::string state_ = "Stopped";
     std::string error_;

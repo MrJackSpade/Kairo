@@ -24,6 +24,10 @@ interface MachineBridge {
     fun pause(paused: Boolean)
     fun reset()
     fun key(code: Int, down: Boolean)
+    /** A key change once the guest has run [frames] more frames, after the changes sent before it. */
+    fun keyAfterFrames(code: Int, down: Boolean, frames: Int)
+    /** Drops the key changes [keyAfterFrames] queued that are not yet due. */
+    fun dropDeferredKeys()
     fun joystick(control: Int, down: Boolean)
     /** Relative guest mouse movement, and button 1 (left), 2 (right) or 3 (middle, for a mouse with one). */
     fun mouseMove(dx: Int, dy: Int)

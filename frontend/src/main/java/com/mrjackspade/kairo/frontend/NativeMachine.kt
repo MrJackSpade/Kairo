@@ -36,6 +36,8 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     override fun pause(paused: Boolean) = nativePause(paused)
     override fun reset() = nativeReset()
     override fun key(code: Int, down: Boolean) = nativeKey(code, down)
+    override fun keyAfterFrames(code: Int, down: Boolean, frames: Int) = nativeKeyAfterFrames(code, down, frames)
+    override fun dropDeferredKeys() = nativeDropDeferredKeys()
     override fun joystick(control: Int, down: Boolean) = nativeJoystick(control, down)
     override fun mouseMove(dx: Int, dy: Int) = nativeMouseMove(dx, dy)
     override fun mouseButton(button: Int, down: Boolean) {
@@ -97,6 +99,8 @@ class NativeMachine(library: String, private val lockKeys: List<Int> = emptyList
     private external fun nativePause(paused: Boolean)
     private external fun nativeReset()
     private external fun nativeKey(code: Int, down: Boolean)
+    private external fun nativeKeyAfterFrames(code: Int, down: Boolean, frames: Int)
+    private external fun nativeDropDeferredKeys()
     private external fun nativeJoystick(control: Int, down: Boolean)
     private external fun nativeMouseMove(dx: Int, dy: Int)
     private external fun nativeMouseButton(button: Int, down: Boolean)

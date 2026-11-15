@@ -75,6 +75,10 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** The guest's joystick controls, in the order [sendJoystick] numbers them. */
     protected open val joystickControls: List<String> get() = JoystickInputRouter.DEFAULT_CONTROLS
     protected abstract fun sendKey(code: Int, down: Boolean)
+    /** A key change once the guest has run [frames] more frames ([MachineBridge.keyAfterFrames]). */
+    protected abstract fun sendKeyAfterFrames(code: Int, down: Boolean, frames: Int)
+    /** Drops the key changes [sendKeyAfterFrames] queued that are not yet due. */
+    protected abstract fun dropDeferredKeys()
     protected abstract fun sendJoystick(control: Int, down: Boolean)
     protected abstract fun sendMouseMove(dx: Int, dy: Int)
     protected abstract fun sendMouseButton(button: Int, down: Boolean)
@@ -362,11 +366,17 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** Everything sent to the guest, for the UI tests (GuestInputRecord). */
     val guestInput = GuestInputRecord()
     private fun recordedKey(code: Int, down: Boolean) { guestInput.key(code, down); sendKey(code, down) }
+    private fun recordedKeyAfterFrames(code: Int, down: Boolean, frames: Int) {
+        guestInput.key(code, down)
+        sendKeyAfterFrames(code, down, frames)
+    }
     private fun recordedJoystick(control: Int, down: Boolean) { guestInput.joystick(control, down); sendJoystick(control, down) }
     private fun recordedMove(dx: Int, dy: Int) { guestInput.move(dx, dy); sendMouseMove(dx, dy) }
     private fun recordedButton(button: Int, down: Boolean) { guestInput.button(button, down); sendMouseButton(button, down) }
     private fun recordedWheel(notches: Int) { guestInput.wheel(notches); sendMouseWheel(notches) }
-    protected val inputRouter by lazy { InputRouter(::recordedKey, maxKeyCode, keyboard.lockCodes) }
+    protected val inputRouter by lazy {
+        InputRouter(::recordedKey, ::recordedKeyAfterFrames, ::dropDeferredKeys, maxKeyCode, keyboard.lockCodes)
+    }
 
     /**
      * The running machine's own keyboard, where the app's machines differ ([keyboard] otherwise), on

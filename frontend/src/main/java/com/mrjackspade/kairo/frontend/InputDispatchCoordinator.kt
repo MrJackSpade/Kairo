@@ -136,10 +136,18 @@ class InputDispatchCoordinator(
                 }
             }
             KeyEvent.ACTION_UP -> {
-                if (owner !in liftedShifts && scanCode(event.keyCode) == null) return false
-                keys.release(owner)
-                liftedShifts.remove(owner)?.let { lifted ->
-                    if (event.isShiftPressed) lifted.forEach { (shift, scans) -> keys.hold(shift, scans) }
+                val lifted = liftedShifts.remove(owner)
+                if (lifted == null) {
+                    if (scanCode(event.keyCode) == null) return false
+                    keys.release(owner)
+                } else {
+                    // The symbol's key stays down for SYMBOL_HOLD_FRAMES once the guest has it, and
+                    // a Shift still held goes back down after it.
+                    keys.release(owner, SYMBOL_FRAMES + SYMBOL_HOLD_FRAMES)
+                    keys.release("$owner:shift", SYMBOL_FRAMES + SYMBOL_HOLD_FRAMES)
+                    if (event.isShiftPressed) lifted.forEach { (shift, scans) ->
+                        keys.hold(shift, scans, 2 * SYMBOL_FRAMES + SYMBOL_HOLD_FRAMES)
+                    }
                 }
             }
         }
@@ -147,15 +155,19 @@ class InputDispatchCoordinator(
     }
 
     /**
-     * Holds [symbol]'s guest keys for [owner]. A symbol the guest types without Shift, such as JIS
-     * : for US Shift+;, lifts the guest Shift the hardware Shift holds while it is down.
+     * Holds [symbol]'s guest keys for [owner], one Shift change at a time as the guest's keyboard
+     * scan needs to see them (Kairo#136): Shift goes up (a symbol the guest types without it, such
+     * as JIS : for US Shift+;, lifts the hardware Shift's) or down (its own) at once, and the
+     * symbol's key once the guest has run SYMBOL_FRAMES frames with that Shift.
      */
     private fun pressSymbol(owner: String, symbol: List<Int>, deviceId: Int) {
         val shifts = shiftCodes()
-        val lifted = if (symbol.any { it in shifts }) emptyList() else keys.holding("keyboard:$deviceId:", shifts)
-        lifted.forEach { (shift, _) -> keys.release(shift) }
+        val shift = symbol.filter { it in shifts }
+        val lifted = if (shift.isNotEmpty()) emptyList() else keys.holding("keyboard:$deviceId:", shifts)
+        lifted.forEach { (held, _) -> keys.release(held) }
+        if (shift.isNotEmpty()) keys.hold("$owner:shift", shift)
         liftedShifts[owner] = lifted
-        keys.hold(owner, symbol)
+        keys.hold(owner, symbol - shift.toSet(), SYMBOL_FRAMES)
     }
 
     fun releaseInputs(preserveAutomation: Boolean = false) {
@@ -176,6 +188,10 @@ class InputDispatchCoordinator(
     private companion object {
         val NAVIGATION_KEYS = setOf(KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_TAB)
+        /** Guest frames between a Shift change and the key after it, as the startup typer types (startup_typer.h). */
+        const val SYMBOL_FRAMES = 2
+        /** Guest frames a symbol's key stays down at the least, as the startup typer holds a key. */
+        const val SYMBOL_HOLD_FRAMES = 5
     }
 }
 
