@@ -2,15 +2,19 @@ package com.mrjackspade.kairo.frontend
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.BaseAdapter
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ListView
 import android.widget.ScrollView
 import android.widget.TextView
 
@@ -548,8 +552,23 @@ class ConfirmPage(context: Context, confirm: Confirm) : ModalPage(confirm.title,
 class DocumentPage(private val title: String, private val text: String,
                    private val textSize: Float = Ui.SECONDARY) : Page() {
     override val testName: String get() = title
-    private lateinit var scrollView: ScrollView
-    override val scroll: ScrollView get() = scrollView
+    private lateinit var list: ListView
+
+    /**
+     * The document as short chunks in a recycled list, so only what is on screen is measured and
+     * laid out: a 565 KB license file opens at once (Kairo#168). A paragraph longer than
+     * [CHUNK_LINES] lines is split; a chunk that ends a paragraph keeps the blank line after it.
+     */
+    private class Chunk(val text: String, val endsParagraph: Boolean)
+    private val chunks: List<Chunk> by lazy {
+        val paragraphs = text.replace("\r\n", "\n").split(Regex("\n[ \t]*\n"))
+        paragraphs.flatMap { paragraph ->
+            val lines = paragraph.trimEnd('\n').split('\n')
+            lines.chunked(CHUNK_LINES).let { parts ->
+                parts.mapIndexed { index, part -> Chunk(part.joinToString("\n"), index == parts.lastIndex) }
+            }
+        }
+    }
 
     override fun createView(): View {
         val page = LinearLayout(context).apply {
@@ -558,18 +577,47 @@ class DocumentPage(private val title: String, private val text: String,
         }
         page.addView(header(title, null), LinearLayout.LayoutParams(-1, dp(56)))
         // id document: quoted text, such as a license, that the UI tests' wording checks leave alone.
-        val card = Ui.text(context, text, textSize, Ui.TEXT_BODY).testId("document").apply {
+        list = ListView(context).apply {
+            testId("document")
+            divider = null
+            dividerHeight = 0
+            selector = ColorDrawable(Color.TRANSPARENT)
+            isFocusable = false
+            itemsCanFocus = false
+            descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            adapter = object : BaseAdapter() {
+                override fun getCount() = chunks.size
+                override fun getItem(position: Int) = chunks[position]
+                override fun getItemId(position: Int) = position.toLong()
+                override fun isEnabled(position: Int) = false
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val chunk = chunks[position]
+                    val view = (convertView as? TextView) ?: Ui.text(context, "", textSize, Ui.TEXT_BODY).apply {
+                        setLineSpacing(dp(4).toFloat(), 1f)
+                        setTextIsSelectable(false)
+                    }
+                    view.text = chunk.text
+                    view.setPadding(0, 0, 0, if (chunk.endsParagraph && position != chunks.lastIndex) dp(12) else 0)
+                    return view
+                }
+            }
+        }
+        // The card the document sits on, capped at the stacked pages' 640 dp column.
+        val card = FrameLayout(context).apply {
             background = Ui.rounded(context, Ui.SURFACE, Ui.RADIUS_LARGE)
             setPadding(dp(14), dp(14), dp(14), dp(14))
-            setLineSpacing(dp(4).toFloat(), 1f)
-            setTextIsSelectable(false)
+            addView(list, FrameLayout.LayoutParams(-1, -1))
         }
-        val body = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        val column = MaxWidthColumn(context, dp(640)).apply {
+            setPaddingRelative(dp(18), dp(8), dp(18), dp(24))
+            addView(card, LinearLayout.LayoutParams(-1, -1))
         }
-        scrollView = PageParts.scroll(this, body, intArrayOf(dp(18), 0, dp(18), dp(24)))
-        page.addView(scrollView, LinearLayout.LayoutParams(-1, 0, 1f))
+        val frame = FrameLayout(context).apply {
+            addView(column, FrameLayout.LayoutParams(-1, -1, Gravity.CENTER_HORIZONTAL))
+        }
+        page.addView(frame, LinearLayout.LayoutParams(-1, 0, 1f))
         return page
     }
 
@@ -577,9 +625,14 @@ class DocumentPage(private val title: String, private val text: String,
 
     override fun move(direction: String) {
         when (direction) {
-            "down" -> scrollView.smoothScrollBy(0, dp(96))
-            "up" -> scrollView.smoothScrollBy(0, -dp(96))
+            "down" -> list.smoothScrollBy(dp(96), SCROLL_MS)
+            "up" -> list.smoothScrollBy(-dp(96), SCROLL_MS)
         }
+    }
+
+    private companion object {
+        const val CHUNK_LINES = 40
+        const val SCROLL_MS = 150
     }
 }
 
