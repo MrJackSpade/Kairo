@@ -58,7 +58,7 @@ public:
             error = "Could not create " + narrow(folder) + ": " + windows_error();
             return nullptr;
         }
-        if (!delete_ended_copies(folder, error)) return nullptr;
+        if (!sweep_ended_copies(folder, error)) return nullptr;
         const std::wstring stem = widen(file.substr(0, file.rfind('.')));
         const std::wstring copy = folder + std::to_wstring(GetCurrentProcessId()) + L"-" +
                                   std::to_wstring(copies.fetch_add(1)) + L"-" + stem + L".dll";
@@ -127,6 +127,28 @@ private:
 #endif
 
 #if defined(_WIN32)
+    // delete_ended_copies, one process at a time (Kairo#178): a file another process is deleting
+    // stays listed and refuses a second DeleteFileW with access denied, so two sweeps reaching the
+    // same leftover at once failed the later start. The wait has no time limit.
+    static bool sweep_ended_copies(const std::wstring &folder, std::string &error) {
+        HANDLE sweep = CreateMutexW(nullptr, FALSE, L"Local\\kairo-fresh-library-sweep");
+        if (!sweep) {
+            error = "Could not create the fresh library sweep's mutex: " + windows_error();
+            return false;
+        }
+        // An abandoned mutex (its owner ended mid-sweep) is still ours to sweep under.
+        const DWORD waited = WaitForSingleObject(sweep, INFINITE);
+        if (waited != WAIT_OBJECT_0 && waited != WAIT_ABANDONED) {
+            error = "Could not wait for the fresh library sweep's mutex: " + windows_error();
+            CloseHandle(sweep);
+            return false;
+        }
+        const bool swept = delete_ended_copies(folder, error);
+        ReleaseMutex(sweep);
+        CloseHandle(sweep);
+        return swept;
+    }
+
     // Deletes the copies in [folder] ("<process id>-<n>-<name>.dll") whose process has ended.
     static bool delete_ended_copies(const std::wstring &folder, std::string &error) {
         WIN32_FIND_DATAW found;
