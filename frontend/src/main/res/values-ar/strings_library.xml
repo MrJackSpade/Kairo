@@ -21,7 +21,7 @@
     <plurals name="kairo_scan_folders">
         <!-- EN: %1$d folders -->
         <item quantity="zero">%1$d مجلد</item>
-        <!-- EN: %1$d folders -->
+        <!-- EN: %1$d folder -->
         <item quantity="one">%1$d مجلد</item>
         <!-- EN: %1$d folders -->
         <item quantity="two">%1$d مجلدان</item>
@@ -35,7 +35,7 @@
     <plurals name="kairo_scan_media_files">
         <!-- EN: %1$d media files -->
         <item quantity="zero">%1$d ملف وسائط</item>
-        <!-- EN: %1$d media files -->
+        <!-- EN: %1$d media file -->
         <item quantity="one">%1$d ملف وسائط</item>
         <!-- EN: %1$d media files -->
         <item quantity="two">%1$d ملفا وسائط</item>
@@ -59,7 +59,7 @@
     <plurals name="kairo_library_games">
         <!-- EN: %1$d games -->
         <item quantity="zero">%1$d لعبة</item>
-        <!-- EN: %1$d games -->
+        <!-- EN: %1$d game -->
         <item quantity="one">%1$d لعبة</item>
         <!-- EN: %1$d games -->
         <item quantity="two">%1$d لعبتان</item>
@@ -87,7 +87,7 @@
     <plurals name="kairo_library_hashes">
         <!-- EN: %1$d hashes this scan -->
         <item quantity="zero">%1$d تجزئة في هذا الفحص</item>
-        <!-- EN: %1$d hashes this scan -->
+        <!-- EN: %1$d hash this scan -->
         <item quantity="one">%1$d تجزئة في هذا الفحص</item>
         <!-- EN: %1$d hashes this scan -->
         <item quantity="two">%1$d تجزئتان في هذا الفحص</item>
@@ -274,7 +274,7 @@
     <plurals name="kairo_delete_zip_entries">
         <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
         <item quantity="zero">يحتوي ملف ZIP هذا على %1$d إدخال في المكتبة. ستتم إزالتها كلها.</item>
-        <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
+        <!-- EN: This ZIP contains %1$d library entry. It will be removed. -->
         <item quantity="one">يحتوي ملف ZIP هذا على %1$d إدخال في المكتبة. ستتم إزالته.</item>
         <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
         <item quantity="two">يحتوي ملف ZIP هذا على %1$d إدخالين في المكتبة. ستتم إزالتهما كليهما.</item>

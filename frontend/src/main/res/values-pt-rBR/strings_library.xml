@@ -19,7 +19,7 @@
     <!-- EN: Checking the games folder: %1$s, %2$s -->
     <string name="kairo_scan_listing">Verificando a pasta de jogos: %1$s, %2$s</string>
     <plurals name="kairo_scan_folders">
-        <!-- EN: %1$d folders -->
+        <!-- EN: %1$d folder -->
         <item quantity="one">%1$d pasta</item>
         <!-- EN: %1$d folders -->
         <item quantity="many">%1$d de pastas</item>
@@ -27,7 +27,7 @@
         <item quantity="other">%1$d pastas</item>
     </plurals>
     <plurals name="kairo_scan_media_files">
-        <!-- EN: %1$d media files -->
+        <!-- EN: %1$d media file -->
         <item quantity="one">%1$d arquivo de mídia</item>
         <!-- EN: %1$d media files -->
         <item quantity="many">%1$d de arquivos de mídia</item>
@@ -45,7 +45,7 @@
     <!-- SAME: %1$s · %2$s · %3$s -->
     <string name="kairo_library_summary_unreadable">%1$s · %2$s · %3$s</string>
     <plurals name="kairo_library_games">
-        <!-- EN: %1$d games -->
+        <!-- EN: %1$d game -->
         <item quantity="one">%1$d jogo</item>
         <!-- EN: %1$d games -->
         <item quantity="many">%1$d de jogos</item>
@@ -61,7 +61,7 @@
         <item quantity="other">%1$d ilegíveis</item>
     </plurals>
     <plurals name="kairo_library_hashes">
-        <!-- EN: %1$d hashes this scan -->
+        <!-- EN: %1$d hash this scan -->
         <item quantity="one">%1$d hash nesta verificação</item>
         <!-- EN: %1$d hashes this scan -->
         <item quantity="many">%1$d de hashes nesta verificação</item>
@@ -242,7 +242,7 @@
     <!-- EN: This cannot be undone. Game settings and saves are kept. -->
     <string name="kairo_delete_permanent">Esta ação não pode ser desfeita. As configurações e os jogos salvos são mantidos.</string>
     <plurals name="kairo_delete_zip_entries">
-        <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
+        <!-- EN: This ZIP contains %1$d library entry. It will be removed. -->
         <item quantity="one">Este ZIP contém %1$d entrada da biblioteca. Ela será removida.</item>
         <!-- EN: This ZIP contains %1$d library entries. All of them will be removed. -->
         <item quantity="many">Este ZIP contém %1$d de entradas da biblioteca. Todas serão removidas.</item>

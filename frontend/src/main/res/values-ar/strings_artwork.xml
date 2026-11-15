@@ -68,7 +68,7 @@
     <plurals name="kairo_artwork_downloaded">
         <!-- EN: Downloaded %1$d images -->
         <item quantity="zero">تم تنزيل %1$d صورة</item>
-        <!-- EN: Downloaded %1$d images -->
+        <!-- EN: Downloaded %1$d image -->
         <item quantity="one">تم تنزيل %1$d صورة</item>
         <!-- EN: Downloaded %1$d images -->
         <item quantity="two">تم تنزيل %1$d صورتين</item>

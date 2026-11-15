@@ -12,11 +12,11 @@
     <!-- The folders listed so far, then the media files found in them (kairo_scan_folders, kairo_scan_media_files). -->
     <string name="kairo_scan_listing">Checking the games folder: %1$s, %2$s</string>
     <plurals name="kairo_scan_folders">
-        <item quantity="one">%1$d folders</item>
+        <item quantity="one">%1$d folder</item>
         <item quantity="other">%1$d folders</item>
     </plurals>
     <plurals name="kairo_scan_media_files">
-        <item quantity="one">%1$d media files</item>
+        <item quantity="one">%1$d media file</item>
         <item quantity="other">%1$d media files</item>
     </plurals>
     <string name="kairo_scan_too_deep">Game folder is too deep</string>
@@ -27,7 +27,7 @@
     <!-- kairo_library_games, kairo_library_unreadable, then kairo_library_hashes. -->
     <string name="kairo_library_summary_unreadable">%1$s · %2$s · %3$s</string>
     <plurals name="kairo_library_games">
-        <item quantity="one">%1$d games</item>
+        <item quantity="one">%1$d game</item>
         <item quantity="other">%1$d games</item>
     </plurals>
     <plurals name="kairo_library_unreadable">
@@ -35,7 +35,7 @@
         <item quantity="other">%1$d unreadable</item>
     </plurals>
     <plurals name="kairo_library_hashes">
-        <item quantity="one">%1$d hashes this scan</item>
+        <item quantity="one">%1$d hash this scan</item>
         <item quantity="other">%1$d hashes this scan</item>
     </plurals>
 
@@ -145,7 +145,7 @@
     <string name="kairo_delete_folder_warning">This removes the folder and everything inside it.</string>
     <string name="kairo_delete_permanent">This cannot be undone. Game settings and saves are kept.</string>
     <plurals name="kairo_delete_zip_entries">
-        <item quantity="one">This ZIP contains %1$d library entries. All of them will be removed.</item>
+        <item quantity="one">This ZIP contains %1$d library entry. It will be removed.</item>
         <item quantity="other">This ZIP contains %1$d library entries. All of them will be removed.</item>
     </plurals>
     <string name="kairo_delete">Delete</string>

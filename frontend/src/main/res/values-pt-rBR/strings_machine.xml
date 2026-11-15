@@ -268,7 +268,7 @@
     <!-- EN: Sending MIDI to %1$s failed: %2$s -->
     <string name="kairo_midi_send_failed">Falha ao enviar MIDI para %1$s: %2$s</string>
     <plurals name="kairo_size_bytes">
-        <!-- EN: %1$d bytes -->
+        <!-- SAME: %1$d byte -->
         <item quantity="one">%1$d byte</item>
         <!-- EN: %1$d bytes -->
         <item quantity="many">%1$d de bytes</item>

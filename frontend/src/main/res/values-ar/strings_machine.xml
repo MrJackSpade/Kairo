@@ -282,7 +282,7 @@
     <plurals name="kairo_size_bytes">
         <!-- EN: %1$d bytes -->
         <item quantity="zero">%1$d بايت</item>
-        <!-- EN: %1$d bytes -->
+        <!-- EN: %1$d byte -->
         <item quantity="one">%1$d بايت</item>
         <!-- EN: %1$d bytes -->
         <item quantity="two">%1$d بايت</item>

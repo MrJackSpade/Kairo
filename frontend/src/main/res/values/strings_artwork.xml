@@ -38,7 +38,7 @@
     <!-- Images saved before the download stopped. -->
     <string name="kairo_artwork_stopped_result">Image download stopped · %1$d saved</string>
     <plurals name="kairo_artwork_downloaded">
-        <item quantity="one">Downloaded %1$d images</item>
+        <item quantity="one">Downloaded %1$d image</item>
         <item quantity="other">Downloaded %1$d images</item>
     </plurals>
     <!-- Images saved, images that failed, then why they failed (kairo_artwork_reason_count, separated by semicolons). -->

@@ -157,7 +157,7 @@
     <!-- %2$s is the reason Android gives. -->
     <string name="kairo_midi_send_failed">Sending MIDI to %1$s failed: %2$s</string>
     <plurals name="kairo_size_bytes">
-        <item quantity="one">%1$d bytes</item>
+        <item quantity="one">%1$d byte</item>
         <item quantity="other">%1$d bytes</item>
     </plurals>
 </resources>

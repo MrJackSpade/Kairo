@@ -66,7 +66,7 @@
     <!-- EN: Image download stopped · %1$d saved -->
     <string name="kairo_artwork_stopped_result">Download de imagens interrompido · %1$d salvas</string>
     <plurals name="kairo_artwork_downloaded">
-        <!-- EN: Downloaded %1$d images -->
+        <!-- EN: Downloaded %1$d image -->
         <item quantity="one">%1$d imagem baixada</item>
         <!-- EN: Downloaded %1$d images -->
         <item quantity="many">%1$d de imagens baixadas</item>
