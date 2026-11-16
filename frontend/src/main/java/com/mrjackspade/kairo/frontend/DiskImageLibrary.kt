@@ -69,8 +69,16 @@ data class DiskImageEntry(
 /** Entries from the same archive, or from the same folder for a loose image. */
 fun sameSource(entry: LibraryItem, other: LibraryItem): Boolean =
     if (entry.zipEntry != null) other.zipEntry != null && other.uri == entry.uri
-    else other.zipEntry == null &&
-        other.path.substringBeforeLast('/', "") == entry.path.substringBeforeLast('/', "")
+    else other.zipEntry == null && sameFolder(entry.path, other.path)
+
+/**
+ * Whether paths [a] and [b] have the same folder (all before the last '/', "" for none), compared in
+ * place: library-wide loops ask it of thousands of entries (Kairo#195).
+ */
+private fun sameFolder(a: String, b: String): Boolean {
+    val end = a.lastIndexOf('/')
+    return end == b.lastIndexOf('/') && (end <= 0 || a.regionMatches(0, b, 0, end))
+}
 
 /**
  * The library's copy of a disk a game names by content ID, preferring one from [source]'s own

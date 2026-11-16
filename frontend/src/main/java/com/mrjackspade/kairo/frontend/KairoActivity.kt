@@ -323,6 +323,13 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     /** True while a session starts or stops. */
     @Volatile protected var transitioning = false
     protected val libraryEntries: List<E> get() = libraryFlow.entries
+    private var lastLibraryIndex: LibraryIndex<E>? = null
+    /**
+     * [libraryEntries] by document, source and ID, built once for each list the library holds: a
+     * game's settings find what belongs with it by lookup, not by scanning the library (Kairo#195).
+     */
+    protected val libraryIndex: LibraryIndex<E>
+        get() = LibraryIndex.of(libraryEntries, lastLibraryIndex).also { lastLibraryIndex = it }
     /**
      * The disks a game being started can use beside its own: the library's, and those of a file
      * opened from outside it, which a game in that file needs as much (its CD, its user disk).
@@ -1410,7 +1417,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         val hashed = { id != null }
         val noHash = { GameSettingsRows.noHash(this) }
         val scope = { titleOf(entry) }
-        val inLibrary = libraryEntries.any { it.uri == entry.uri }
+        val inLibrary = libraryIndex.fromDocument(entry.uri).isNotEmpty()
         return listOfNotNull(
             RowGroup(getString(R.string.kairo_controls_group), listOf(controllerPages.gameRow(entry, hashed, { controllerSource(entry) })) +
                 (id?.let { touchSettingsCoordinator.gameRows(entry, scope, hashed) } ?: listOf(

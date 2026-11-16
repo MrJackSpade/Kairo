@@ -120,8 +120,11 @@ open class GroupsPage(
     override val scroll: ScrollView? get() = scrollView
     override val testName: String get() = title
 
+    /** What [content] gave the last [groups], for the focus: the page is not built twice (Kairo#195). */
+    private var contentGroups: List<RowGroup>? = null
+
     override fun groups(): List<RowGroup> {
-        val groups = content()
+        val groups = content().also { contentGroups = it }
         val only = onlyChoice(groups) ?: return groups
         val spec = checkNotNull(only.choice)
         return ChoicePage.optionGroups(this, spec, spec.groups(), { folder -> stack.push(ChoicePage.folder(spec, folder)) }) { id ->
@@ -136,7 +139,7 @@ open class GroupsPage(
 
     /** On a page listing its one choice's options: the current option, or the folder holding it. */
     override fun initialFocus(items: List<NavItem>): String? {
-        val spec = onlyChoice(content())?.choice ?: return super.initialFocus(items)
+        val spec = onlyChoice(contentGroups ?: content())?.choice ?: return super.initialFocus(items)
         return ChoicePage.focusOf(spec, spec.groups(), items)
     }
 

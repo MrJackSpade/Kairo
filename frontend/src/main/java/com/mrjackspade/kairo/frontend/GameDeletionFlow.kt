@@ -24,14 +24,17 @@ object GameDeletionFlow {
         threadName: String,
         deleteSource: () -> Unit
     ): SettingsRow {
-        val affectedEntries = library.entries.count { it.uri == entry.uri }
-        val question = listOfNotNull(
-            activity.getString(R.string.kairo_delete_question, prompt.path),
-            if (prompt.folder) activity.getString(R.string.kairo_delete_folder_warning) else null,
-            activity.getString(R.string.kairo_delete_permanent),
-            if (affectedEntries > 1) activity.resources.getQuantityString(R.plurals.kairo_delete_zip_entries,
-                affectedEntries, affectedEntries) else null
-        ).joinToString(" ")
+        // Asked when the confirm opens, not each time the page is built: it counts the library (Kairo#195).
+        fun question(): String {
+            val affectedEntries = library.entries.count { it.uri == entry.uri }
+            return listOfNotNull(
+                activity.getString(R.string.kairo_delete_question, prompt.path),
+                if (prompt.folder) activity.getString(R.string.kairo_delete_folder_warning) else null,
+                activity.getString(R.string.kairo_delete_permanent),
+                if (affectedEntries > 1) activity.resources.getQuantityString(R.plurals.kairo_delete_zip_entries,
+                    affectedEntries, affectedEntries) else null
+            ).joinToString(" ")
+        }
         val screen = library.screen
         return SettingsRow.action("delete",
             activity.getString(if (prompt.folder) R.string.kairo_delete_game_folder else R.string.kairo_delete_game_file), danger = true,
@@ -40,7 +43,7 @@ object GameDeletionFlow {
                 if (library.tree?.let(library::hasWriteGrant) != true) TraySpec(activity.getString(R.string.kairo_delete_grant, folder),
                     listOf(TrayButton(activity.getString(R.string.kairo_cancel)),
                         TrayButton(activity.getString(R.string.kairo_choose_named, folder), ButtonTone.PRIMARY) { library.chooseFolder() }), focus = 0)
-                else Confirm(question, activity.getString(R.string.kairo_delete), danger = true) {
+                else Confirm(question(), activity.getString(R.string.kairo_delete), danger = true) {
                     screen.showStatus(activity.getString(R.string.kairo_deleting, prompt.path), LibraryScreen.StatusKind.TASK)
                     Thread {
                         val result = runCatching(deleteSource)
