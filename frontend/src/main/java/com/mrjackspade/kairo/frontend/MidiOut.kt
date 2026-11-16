@@ -65,21 +65,43 @@ class MidiOut(private val context: Context, private val preferences: SharedPrefe
         }))
 
     private var session: Session? = null
+    /** The machine whose messages queue for the port ([queue] to [stop]). */
+    @Volatile private var queued: NativeMachine? = null
 
-    /** A game started on [bridge]: its MIDI goes to the picked port, once that is open. */
+    /**
+     * A game is about to start on [bridge], its previous machine stopped (Kairo#193): with a port picked,
+     * the guest's messages queue from its machine's first instruction, to go once [start] has opened the
+     * port, so the MIDI a game sends as it starts reaches the synth too. On the launch's thread.
+     */
+    fun queue(bridge: NativeMachine) {
+        if (picked == null) return
+        bridge.midiOpen()
+        queued = bridge
+    }
+
+    /** A game started on [bridge] after [queue]: its MIDI goes to the picked port, once that is open. */
     fun start(bridge: NativeMachine) {
-        stop()
+        check(session == null) { "MIDI out still has a previous game's port open" }
         val key = picked ?: return
-        val manager = manager ?: return report(context.getString(R.string.kairo_midi_unavailable))
+        check(queued === bridge) { "MIDI out started without queue() on this machine" }
+        val manager = manager ?: return unopened(context.getString(R.string.kairo_midi_unavailable))
         val port = ports().firstOrNull { it.key == key }
-            ?: return report(context.getString(R.string.kairo_midi_not_connected, preferences.getString(LABEL, key)))
+            ?: return unopened(context.getString(R.string.kairo_midi_not_connected, preferences.getString(LABEL, key)))
         session = Session(manager, bridge, port).also { it.open() }
     }
 
-    /** The game ended: nothing more goes to the port, which is closed. */
+    /** The port is not there: the queue closes, the player is told, and the game plays on without it. */
+    private fun unopened(message: String) {
+        stop()
+        report(message)
+    }
+
+    /** The game ended (or did not start): nothing more goes to the port, which is closed, nor queues. */
     fun stop() {
         session?.close()
         session = null
+        queued?.midiClose()
+        queued = null
     }
 
     private inner class Session(private val manager: MidiManager, private val bridge: NativeMachine, private val port: Port) {
@@ -96,8 +118,7 @@ class MidiOut(private val context: Context, private val preferences: SharedPrefe
         }
 
         fun open() {
-            // The guest's messages queue from now on, while the device opens, and go once it has.
-            bridge.midiOpen()
+            // The guest's messages have queued since the machine started (queue), and go once the device has opened.
             manager.registerDeviceCallback(removed, main)
             manager.openDevice(port.info, { opened ->
                 if (closed) {

@@ -603,10 +603,14 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         val cancelled = AtomicBoolean(false)
         // A new machine starts: its drives hold what the launch puts in them (mediaStarted), nothing before.
         mounted.fill(null)
+        // Nothing of the previous game's MIDI goes on (Kairo#193).
+        if (guestMidiOut) midiOut.stop()
         Thread {
             val failure = try {
                 bridge.stop()
                 if (current(generation)) {
+                    // The guest's MIDI queues from its machine's first instruction, for the port start opens.
+                    if (guestMidiOut) midiOut.queue(bridge as NativeMachine)
                     inputRouter.resetLocks()
                     // A game opened at its prompt is the player's: no automation.
                     swaps = if (atPrompt) emptyMap() else swapSources(entry, game)
@@ -624,7 +628,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                 if (!current(generation)) return@runOnUiThread
                 if (failure == null) {
                     currentGame = game
-                    // The guest's MIDI goes to the port the player picked (none while its BIOS starts, which plays none).
+                    // The guest's MIDI, queued since its machine started, goes to the port the player picked.
                     if (guestMidiOut) midiOut.start(bridge as NativeMachine)
                     // A machine that boots to a black screen (Kairo68#2) keeps the launch's message up
                     // until it shows something.
@@ -642,6 +646,7 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
                     }
                 } else {
                     keptMedia = null
+                    if (guestMidiOut) midiOut.stop()
                     launchFailed(failure)
                 }
             }
