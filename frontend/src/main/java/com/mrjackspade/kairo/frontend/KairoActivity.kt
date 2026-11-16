@@ -530,7 +530,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
     private lateinit var firstRunSetup: MachineFirstRun
     private val artwork by lazy {
         ArtworkCoordinator(this, pages, artworkStore, { entry: E -> entry.key }, ::artworkRecord, ::validArtworkPath,
-            ::saveArtworkOverride, { id -> libraryScreen.metadataChanged(id) }, ::titleOf, ::toast, ::validImageUrl)
+            ::saveArtworkOverride, { id -> libraryScreen.metadataChanged(id) }, ::refreshSettingValues, ::titleOf,
+            ::toast, ::validImageUrl)
     }
     protected lateinit var controllerPages: ControllerPages<E>
         private set

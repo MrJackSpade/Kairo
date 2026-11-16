@@ -15,6 +15,8 @@ class ArtworkCoordinator<Game : Any>(
     private val saveOverride: (GameKey, String, String?) -> Unit,
     /** A game's artwork override changed. */
     private val changed: (GameKey) -> Unit,
+    /** Every screen showing settings shows the new value: the one that chose it may be the lower (Kairo#170). */
+    private val refresh: () -> Unit,
     private val title: (Game) -> String,
     private val message: (String) -> Unit,
     private val validImageUrl: (String) -> Boolean = { false }
@@ -104,7 +106,7 @@ class ArtworkCoordinator<Game : Any>(
         } catch (error: Exception) {
             message(error.message ?: activity.getString(R.string.kairo_artwork_save_failed))
         }
-        pages.refresh()
+        refresh()
     }
 
     /** The full-size image page. A tap loads a larger version when the catalog has one. */
