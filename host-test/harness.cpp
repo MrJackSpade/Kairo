@@ -92,6 +92,17 @@ void Session::close() {
 
 fs::path Test::working_copy(const std::string &name) const {
     if (name.empty()) return {};
+    // A blank disk the core makes ("blank:<kind>.<extension>", kairo::create_blank_disk, as the
+    // app's New game makes it), written once for the test (KairoST#88).
+    if (name.rfind("blank:", 0) == 0) {
+        const fs::path file = fs::u8path(name.substr(6));
+        const fs::path copy = (folder / "media" / "blank" / file).make_preferred();
+        if (fs::exists(copy)) return copy;
+        fs::create_directories(copy.parent_path());
+        const std::string error = kairo::create_blank_disk(file.stem().u8string(), copy.u8string());
+        if (!error.empty()) throw std::runtime_error(entry->path() + ": " + name + ": " + error);
+        return copy;
+    }
     // A test resource, or the app's own file or folder ("app:<path in the repository>", KairoDos's
     // timing program).
     const bool own = name.rfind("app:", 0) == 0;
