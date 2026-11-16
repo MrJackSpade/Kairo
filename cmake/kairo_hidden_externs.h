@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/auxv.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
