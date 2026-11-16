@@ -231,12 +231,12 @@ extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeReset)(JNIEnv *, jobject)
 }
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeKey)(JNIEnv *, jobject, jint code, jboolean down) {
-    machine.post([code, down](kairo::MachineCore &core) { core.key(code, down == JNI_TRUE); });
+    machine.post([code, down](kairo::MachineCore &core) { machine.apply_key(core, code, down == JNI_TRUE); });
 }
 
 // A key change once the guest has run frames more frames (FrameMachine::post_after_frames).
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeKeyAfterFrames)(JNIEnv *, jobject, jint code, jboolean down, jint frames) {
-    machine.post_after_frames(frames, [code, down](kairo::MachineCore &core) { core.key(code, down == JNI_TRUE); });
+    machine.post_after_frames(frames, [code, down](kairo::MachineCore &core) { machine.apply_key(core, code, down == JNI_TRUE); });
 }
 
 extern "C" JNIEXPORT void JNICALL NATIVE_MACHINE(nativeDropDeferredKeys)(JNIEnv *, jobject) {

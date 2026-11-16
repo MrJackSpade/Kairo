@@ -19,6 +19,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -79,6 +80,7 @@ public:
             std::lock_guard<std::mutex> guard(command_mutex_);
             commands_.clear();
             frames_ = 0;
+            key_frames_.clear();
             pictured_ = false;
             pictured_seen_ = false;
             xruns_ = 0;
@@ -125,6 +127,27 @@ public:
     void drop_deferred() {
         std::lock_guard<std::mutex> guard(command_mutex_);
         deferred_.clear();
+        // A dropped key change no longer holds back the key's next one (apply_key).
+        for (auto &[code, frame] : key_frames_) frame = std::min(frame, frames_);
+    }
+
+    // On the emulation thread, from a task: changes [code] on the core no sooner than one guest
+    // frame after that key's last change, so a press and release that both fall between two frames
+    // (a tap shorter than a frame) reach the guest as a press it runs a frame with, then the
+    // release; a change a frame or more after the last goes at once (Kairo#196).
+    void apply_key(Core &core, int code, bool down) {
+        {
+            std::lock_guard<std::mutex> guard(command_mutex_);
+            const auto [last, first] = key_frames_.try_emplace(code, frames_);
+            const uint64_t at = first ? frames_ : std::max(frames_, last->second + 1);
+            last->second = at;
+            if (at > frames_) {
+                deferred_.push_back({static_cast<int>(at - frames_),
+                    [code, down](Core &later) { later.key(code, down); }});
+                return;
+            }
+        }
+        core.key(code, down);
     }
 
     // On the emulation thread, from a task: while the session is paused, runs one
@@ -675,6 +698,8 @@ private:
         std::function<void(Core &)> task;
     };
     std::list<Deferred> deferred_;
+    // Each key's frame (frames_) of its last change, applied or due (apply_key).
+    std::unordered_map<int, uint64_t> key_frames_;
     bool active_ = false;
     std::string state_ = "Stopped";
     std::string error_;
