@@ -30,13 +30,18 @@ void Session::run(uint64_t count) {
         signatures_.push_back(core_->screen_signature());
         // Taken every frame, as the audio output does: a core keeps only what one frame makes.
         uint64_t sound = 1469598103934665603ull;
+        bool heard = false;
         for (;;) {
             const uint32_t got = core_->read_audio(audio_.data(), max);
             audio_frames_ += got;
-            for (uint32_t s = 0; s < got * 2; ++s) sound = (sound ^ static_cast<uint16_t>(audio_[s])) * 1099511628211ull;
+            for (uint32_t s = 0; s < got * 2; ++s) {
+                sound = (sound ^ static_cast<uint16_t>(audio_[s])) * 1099511628211ull;
+                heard = heard || audio_[s] != 0;
+            }
             if (got < max) break;
         }
         sounds_.push_back(sound);
+        heard_frames_ += heard;
     }
 }
 

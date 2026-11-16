@@ -64,6 +64,8 @@ public:
     const std::vector<uint64_t> &sounds() const { return sounds_; }
     // Audio frames (stereo samples) read in this session.
     uint64_t audio_frames() const { return audio_frames_; }
+    // Frames run in this session whose sound has a sample that is not 0.
+    uint64_t heard_frames() const { return heard_frames_; }
     void mark() {
         signatures_.clear();
         sounds_.clear();
@@ -105,6 +107,7 @@ private:
     std::vector<uint64_t> signatures_;
     std::vector<uint64_t> sounds_;
     uint64_t audio_frames_ = 0;
+    uint64_t heard_frames_ = 0;
     std::vector<int16_t> audio_;
     bool closed_ = false;
     // Reads and discards what the core has queued (the sound a save or load made, which is from

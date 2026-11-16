@@ -142,6 +142,25 @@ void sessions(Test &test, const json::Value &spec) {
     }
 }
 
+// sound (KairoDos#154): the game runs "frames" frames flat out, as the app's fast-forward runs
+// them, twice in this process: every frame's sound must be the same both times, and some of it
+// must be heard (a sample that is not 0), so the sound device the game plays is what is checked.
+void sound(Test &test, const json::Value &spec) {
+    const uint64_t frames = test.frames(spec, "frames");
+    std::vector<uint64_t> first;
+    for (int round = 0; round < 2; ++round) {
+        fs::remove_all(test.folder / "media");
+        Session session(test.launch(), test.folder, test.name + " run " + std::to_string(round + 1));
+        session.core().flat_out(true);
+        session.run(frames);
+        if (session.heard_frames() == 0) session.fail("no frame had sound");
+        if (round == 0) first = session.sounds();
+        else if (const int64_t at = first_difference(first, session.sounds()); at >= 0)
+            session.fail("the sound of its frame " + std::to_string(at) + " differs from the first run's");
+        session.close();
+    }
+}
+
 // locks (Kairo#124): for each lock key in "keys" ({"code": the key's code, "bit": its bit in
 // locks()}), after "at" frames: pressing it turns it on in locks(); a state saved then, with the
 // key turned off again after it, loads with the key on. A core without save states (KairoDos) says
@@ -609,6 +628,7 @@ const std::map<std::string, Check> &checks() {
         {"boot", boot},
         {"state", state},
         {"sessions", sessions},
+        {"sound", sound},
         {"locks", locks},
         {"loading", loading},
         {"stateDisks", state_disks},
