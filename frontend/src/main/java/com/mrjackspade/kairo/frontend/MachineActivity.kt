@@ -311,11 +311,16 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
     override fun gameDisksRow(entry: E, enabled: () -> Boolean, disabledReason: () -> String): SettingsRow? {
         val own = entry.contentId?.let { catalog.matchId(entry) }
         fun set() = catalog.setDisks(entry).toSet()
-        fun candidates() = libraryEntries.filter { other ->
-            val id = other.takeIf { it.playable && it.id != entry.id }?.let(catalog::matchId)
-            id != null && id != own && (isDisk(other) && sameSource(entry, other) || id in set() ||
-                id in catalog.catalogSetDisks(entry))
-        }.distinctBy(catalog::matchId)
+        // The game's disks are read once for the whole library, not once for each of its games:
+        // per game, a large library kept the UI thread past Android's 5 s on opening Game settings (Kairo#194).
+        fun candidates(): List<E> {
+            val linked = set()
+            val catalogLinked = catalog.catalogSetDisks(entry).toSet()
+            return libraryEntries.filter { other ->
+                val id = other.takeIf { it.playable && it.id != entry.id }?.let(catalog::matchId)
+                id != null && id != own && (isDisk(other) && sameSource(entry, other) || id in linked || id in catalogLinked)
+            }.distinctBy(catalog::matchId)
+        }
         if (own != null && candidates().isEmpty()) return null
         val title = getString(R.string.kairo_game_disks)
         fun count() = set().size + 1
