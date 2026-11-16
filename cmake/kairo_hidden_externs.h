@@ -48,14 +48,17 @@
 #include <string.h>
 #include <strings.h>
 #include <sys/auxv.h>
+#include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
+#include <utime.h>
 #include <wchar.h>
 #include <wctype.h>
 #include <android/hardware_buffer.h>
