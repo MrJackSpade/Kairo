@@ -91,6 +91,17 @@ class MachineOption(
         fun skipMemoryCheck() = MachineOption(SKIP_MEMORY_CHECK, UiText.res(R.string.kairo_option_skip_memory_check),
             listOf(ChoiceOption("on", UiText.res(R.string.kairo_on)), ChoiceOption("off", UiText.res(R.string.kairo_off))), "on")
 
+        const val MIDI_OUT = "midiOut"
+
+        /**
+         * Where the guest's MIDI out goes (Kairo98#132, KairoDos#150, Kairo68#97, KairoST#93): "none", the
+         * machine as it has always run, or "port", the bytes the guest writes to its MIDI hardware sent to
+         * the MIDI port picked under Configurations › MIDI (the app's guestMidiOut). Read at the start.
+         */
+        fun midiOut() = MachineOption(MIDI_OUT, UiText.res(R.string.kairo_midi_out),
+            listOf(ChoiceOption("none", UiText.res(R.string.kairo_none)), ChoiceOption("port", UiText.res(R.string.kairo_midi_port))),
+            "none")
+
         const val HARDWARE_ACCELERATION = "hardwareAcceleration"
 
         /**

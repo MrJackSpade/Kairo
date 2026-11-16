@@ -34,4 +34,8 @@ void close();
 // them too slowly).
 int take(uint8_t *buffer);
 
+// The next queued message without waiting: its length, or 0 when none is queued (the shared boot test's
+// midiOut check reads what a guest sent after its frames).
+int take_queued(uint8_t *buffer);
+
 }  // namespace kairo::midi_out

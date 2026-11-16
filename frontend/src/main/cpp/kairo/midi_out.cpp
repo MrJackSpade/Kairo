@@ -81,4 +81,15 @@ int take(uint8_t *buffer) {
     return static_cast<int>(size);
 }
 
+int take_queued(uint8_t *buffer) {
+    std::lock_guard<std::mutex> guard(lock);
+    if (!is_open) return kClosed;
+    if (overflowed) return kOverflowed;
+    if (used == 0) return 0;
+    uint32_t size = 0;
+    get(reinterpret_cast<uint8_t *>(&size), sizeof(size));
+    get(buffer, size);
+    return static_cast<int>(size);
+}
+
 }  // namespace kairo::midi_out

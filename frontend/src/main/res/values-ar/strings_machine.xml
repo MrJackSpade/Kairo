@@ -262,6 +262,7 @@
     <string name="kairo_midi_group">MIDI</string>
     <!-- EN: MIDI out -->
     <string name="kairo_midi_out">مخرج MIDI</string>
+    <string name="kairo_midi_port">منفذ MIDI</string>
     <!-- A MIDI device that reports no name. -->
     <!-- EN: MIDI device -->
     <string name="kairo_midi_unnamed">جهاز MIDI</string>

@@ -146,6 +146,8 @@
     <!-- The Configurations page's group, and its row, for the MIDI input port of the device a game's MIDI music goes to (KairoX86#305). -->
     <string name="kairo_midi_group">MIDI</string>
     <string name="kairo_midi_out">MIDI out</string>
+    <!-- A game's MIDI out choice: its MIDI music to the port picked under Configurations > MIDI. -->
+    <string name="kairo_midi_port">MIDI port</string>
     <!-- A MIDI device that reports no name. -->
     <string name="kairo_midi_unnamed">MIDI device</string>
     <!-- Told at a game's start or while it runs: the game plays on without the MIDI port. %1$s is the port's name. -->

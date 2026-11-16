@@ -11,6 +11,7 @@
 #include <map>
 
 #include "harness.h"
+#include "kairo/midi_out.h"
 
 namespace kairo::host {
 namespace {
@@ -534,6 +535,42 @@ void profile(Test &test, const json::Value &spec) {
     session.close();
 }
 
+// midiOut (Kairo98#132): the guest's MIDI out reaches the shared sender as the guest wrote it. With the
+// sender open, as when the player has picked a port, the game types the spec's "commands" (typed by
+// "typedBy") and runs "frames" frames; the messages sent must be the spec's "messages" (each one's bytes
+// in hex, "90 3C 7F"), in order, and nothing else.
+void midi_out_check(Test &test, const json::Value &spec) {
+    kairo::midi_out::open();
+    struct Closed {
+        ~Closed() { kairo::midi_out::close(); }
+    } closed;
+    Session session(test.launch(), test.folder, test.name);
+    if (spec.find("commands")) type_commands(session, test, spec);
+    session.run(test.frames(spec, "frames"));
+    std::vector<std::string> sent;
+    std::vector<uint8_t> buffer(kairo::midi_out::kLongestMessage);
+    for (;;) {
+        const int length = kairo::midi_out::take_queued(buffer.data());
+        if (length == kairo::midi_out::kOverflowed) session.fail("the MIDI queue overflowed");
+        if (length == 0) break;
+        std::string text;
+        for (int i = 0; i < length; ++i) {
+            char byte[4];
+            std::snprintf(byte, sizeof byte, i ? " %02X" : "%02X", buffer[static_cast<size_t>(i)]);
+            text += byte;
+        }
+        sent.push_back(text);
+    }
+    std::vector<std::string> expected;
+    for (const json::Value &message : spec.at("messages").array()) expected.push_back(message.string());
+    if (sent != expected) {
+        std::string got = sent.empty() ? " nothing" : "";
+        for (const std::string &message : sent) got += "\n  " + message;
+        session.fail("the MIDI sent was" + got);
+    }
+    session.close();
+}
+
 const std::map<std::string, Check> &checks() {
     static const std::map<std::string, Check> all = {
         {"boot", boot},
@@ -549,6 +586,7 @@ const std::map<std::string, Check> &checks() {
         {"clock", clock},
         {"hardDisk", hard_disk},
         {"profile", profile},
+        {"midiOut", midi_out_check},
     };
     return all;
 }
