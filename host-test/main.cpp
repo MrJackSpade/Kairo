@@ -37,7 +37,10 @@ int kairo_host_test_main(int argc, char **argv) {
         // The table is the app's core/test/boot-tests.json.
         const fs::path app = fs::absolute(table_file).parent_path().parent_path().parent_path();
         if (!fs::is_directory(app / "shared")) throw std::runtime_error(table_file.string() + " is not in an app's core/test");
-        Paths paths{fs::u8path(argv[2]), fs::u8path(argv[3]), app, fs::u8path(argv[3]) / "home"};
+        // Absolute, as the app passes every path: a core may resolve a relative one against its own
+        // search path, as VICE does a drive ROM's (Kairo64#73).
+        const fs::path work = fs::absolute(fs::u8path(argv[3]));
+        Paths paths{fs::absolute(fs::u8path(argv[2])), work, app, work / "home"};
         fs::remove_all(paths.home);
         if (!fs::is_directory(paths.resources)) throw std::runtime_error("No resources at " + paths.resources.string());
         std::set<std::string> wanted;
