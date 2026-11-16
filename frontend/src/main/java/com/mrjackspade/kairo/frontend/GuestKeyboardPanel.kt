@@ -468,11 +468,12 @@ class GuestKeyboardPanel(
 
     private fun press(key: KeyboardKey) {
         highlightUntil[key.code] = Lit(SystemClock.uptimeMillis() + 90, keyList(key).size > 1 || shiftHeld())
-        input.hold("touch-key:${key.code}", keyList(key))
+        // A Shift chord's Shift reaches the guest before its key (Kairo#191).
+        input.holdShifted("touch-key:${key.code}", keyList(key), layout.shiftCodes)
     }
 
     private fun release(key: KeyboardKey) {
-        input.release("touch-key:${key.code}")
+        input.releaseShifted("touch-key:${key.code}")
         val delay = (highlightUntil[key.code]?.until ?: 0L) - SystemClock.uptimeMillis()
         if (delay > 0) handler.postDelayed({ updateHighlights() }, delay)
     }
