@@ -314,11 +314,16 @@ abstract class MachineActivity<E : LibraryItem> : KairoActivity<E>() {
         // The game's disks are read once for the whole library, not once for each of its games:
         // per game, a large library kept the UI thread past Android's 5 s on opening Game settings (Kairo#194).
         fun candidates(): List<E> {
-            val linked = set()
-            val catalogLinked = catalog.catalogSetDisks(entry).toSet()
+            val linked = set() + catalog.catalogSetDisks(entry)
+            // matchId reads catalog shards for an edited game, too slow to ask of every game in a large
+            // library: it is one of the two IDs a game carries, so a game whose IDs are not linked and
+            // that is not a disk beside this one cannot be a candidate, and only the rest are matched.
             return libraryEntries.filter { other ->
-                val id = other.takeIf { it.playable && it.id != entry.id }?.let(catalog::matchId)
-                id != null && id != own && (isDisk(other) && sameSource(entry, other) || id in linked || id in catalogLinked)
+                other.playable && other.id != entry.id && (isDisk(other) && sameSource(entry, other) ||
+                    other.contentId in linked || other.catalogId in linked)
+            }.filter { other ->
+                val id = catalog.matchId(other)
+                id != null && id != own && (isDisk(other) && sameSource(entry, other) || id in linked)
             }.distinctBy(catalog::matchId)
         }
         if (own != null && candidates().isEmpty()) return null
