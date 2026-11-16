@@ -34,7 +34,10 @@ param(
     # The speed table, relative to the app's root.
     [string]$Table = 'core\test\perf-tests.json',
     # Round: only these tests of the table.
-    [string[]]$Test
+    [string[]]$Test,
+    # Build: the CPUs every round runs on, as taskset's hexadecimal mask (the RP6's 2.8 GHz cluster is
+    # 78), so the scheduler moving the test between clusters adds no noise; kept with the measurement.
+    [string]$CpuMask
 )
 $ErrorActionPreference = 'Stop'
 
@@ -150,7 +153,8 @@ if ($Step -eq 'Build') {
             Push-Path $sibling.FullName "$remote/resources/$(Split-Path -Parent $name)/$($sibling.Name)".Replace('\', '/')
         }
     }
-    ConvertTo-Json @{ table = $Table; variants = $names } | Set-Content $variantsFile
+    if ($CpuMask -and $CpuMask -notmatch '^[0-9a-fA-F]+$') { throw "-CpuMask is taskset's hexadecimal mask, not $CpuMask" }
+    ConvertTo-Json @{ table = $Table; variants = $names; cpuMask = $CpuMask } | Set-Content $variantsFile
     '[]' | Set-Content $resultsFile
     "Built and pushed: $($names -join ', ')"
     return
@@ -169,7 +173,8 @@ if ($Step -eq 'Round') {
     foreach ($name in $order) {
         $folder = "$remote/variants/$name"
         $work = "$remote/work/$name"
-        $output = & $adb -s $Serial shell "cd '$remote' && LD_LIBRARY_PATH='$folder' '$folder/${module}_test' '$tableRemote' '$remote/resources' '$work' $quoted 2>&1" 2>&1
+        $pin = if ($setup.cpuMask) { "taskset $($setup.cpuMask) " } else { '' }
+        $output = & $adb -s $Serial shell "cd '$remote' && LD_LIBRARY_PATH='$folder' $pin'$folder/${module}_test' '$tableRemote' '$remote/resources' '$work' $quoted 2>&1" 2>&1
         $exit = $LASTEXITCODE
         $profiles = @($output | Where-Object { $_ -match '^PROFILE ' })
         if ($exit -ne 0 -or -not $profiles) { throw "Round $round, ${name}: the test failed (exit $exit):`n$($output -join "`n")" }
@@ -194,7 +199,7 @@ if ($Step -eq 'Round') {
 if (-not $results) { throw 'No rounds measured yet: run -Step Round' }
 $base = $setup.variants[0]
 $rounds = ($results | ForEach-Object { $_.round } | Sort-Object -Unique).Count
-"$rounds rounds; base $base"
+"$rounds rounds; base $base$(if ($setup.cpuMask) { "; CPUs $($setup.cpuMask)" })"
 foreach ($group in $results | Group-Object test) {
     $baseRuns = @($group.Group | Where-Object { $_.variant -eq $base })
     $baseMean = ($baseRuns.rate | Measure-Object -Average).Average
