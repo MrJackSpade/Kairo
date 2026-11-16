@@ -675,6 +675,45 @@ def retag(root, moby_root):
     print(f"{config.APP}: {len(games)} games, {tagged} with genre or player tags")
 
 
+def remachine(root):
+    """The research's per-disk machine settings alone (diskMachine), recomputed with the app's MACHINE from
+    the disks' names in its scan indexes, as assemble gives them, leaving every match and decision
+    unchanged (KairoTowns#77): for a change to MACHINE without rereading the media."""
+    config = load_config(root)
+    machine_of = getattr(config, "MACHINE", None)
+    if machine_of is None:
+        raise SystemExit(f"{config.APP} has no MACHINE")
+    path = root / "catalog/research/games-v1.json.gz"
+    research = read(path, None)
+    if research is None:
+        raise SystemExit(f"missing {path}")
+    settings = {}  # each content ID's settings, from every disk that has it
+    for set_name, (index_path, _) in config.SCANS.items():
+        index = read(root / index_path, None)
+        if index is None:
+            raise SystemExit(f"missing media scan {index_path}")
+        for archive in index["archives"]:
+            if archive["status"] != "ready":
+                continue
+            for disk in archive["disks"]:
+                found = machine_of(disk.get("entry") or archive["path"].rsplit("/", 1)[-1], set_name, disk["contentId"])
+                if found:
+                    if settings.get(disk["contentId"], found) != found:
+                        raise SystemExit(f"{disk['contentId']}: its disks ask for {settings[disk['contentId']]} and {found}")
+                    settings[disk["contentId"]] = found
+    games = research["games"]
+    for entry in games.values():
+        # A game's disks: those it lists, and those its earlier settings named (shared IDs it lost).
+        ids = set(entry.get("contentIds", [])) | set(entry.get("diskMachine", {}))
+        machine = {content_id: settings[content_id] for content_id in sorted(ids) if content_id in settings}
+        if machine:
+            entry["diskMachine"] = machine
+        else:
+            entry.pop("diskMachine", None)
+    write(path, research)
+    print(f"{config.APP}: {sum('diskMachine' in entry for entry in games.values())} of {len(games)} games with disk machine settings")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("root", type=Path)
@@ -682,9 +721,13 @@ def main():
                         help="the MobyGames dump; without it the catalog comes from LaunchBox alone")
     parser.add_argument("--tags-only", action="store_true",
                         help="recompute only the existing research's tags (game_tags), changing nothing else")
+    parser.add_argument("--machine-only", action="store_true",
+                        help="recompute only the existing research's disk machine settings (MACHINE), changing nothing else")
     args = parser.parse_args()
     if args.tags_only:
         retag(args.root.resolve(), args.mobygames)
+    elif args.machine_only:
+        remachine(args.root.resolve())
     else:
         assemble(args.root.resolve(), args.mobygames)
 
