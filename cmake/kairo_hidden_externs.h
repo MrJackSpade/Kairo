@@ -56,6 +56,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/system_properties.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/utsname.h>
