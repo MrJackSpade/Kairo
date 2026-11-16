@@ -63,10 +63,22 @@ void state(Test &test, const json::Value &spec) {
     session.run(frames);
     const std::vector<uint64_t> after_save = session.signatures();
     const std::vector<uint64_t> sound_after_save = session.sounds();
+    // "sameState": the machine itself, not only what it showed and played (Kairo68#72): a state saved
+    // after the frames that followed the save and one saved after the frames that followed the load
+    // hold the same bytes, file for file. For a core whose state files are its machine alone.
+    const json::Value *same = spec.find("sameState");
+    const bool compare_states = same && same->boolean();
+    const fs::path after_save_state = test.folder / "state-after-save";
+    const fs::path after_load_state = test.folder / "state-after-load";
+    if (compare_states) {
+        fs::remove_all(after_save_state);
+        fs::remove_all(after_load_state);
+        session.save_state(after_save_state, "the state after the frames that followed the save");
+    }
     session.load_state(saved);
     session.mark();
     session.run(frames);
-    const std::vector<uint64_t> &after_load = session.signatures();
+    const std::vector<uint64_t> after_load = session.signatures();
     const int64_t at = first_difference(after_save, after_load);
     if (at >= 0) {
         size_t differ = 0;
@@ -81,6 +93,27 @@ void state(Test &test, const json::Value &spec) {
         if (heard >= 0)
             session.fail("the sound of frame " + std::to_string(heard) + " after the load differs from the same frame's "
                 "after the save");
+    }
+    if (compare_states) {
+        session.save_state(after_load_state, "the state after the frames that followed the load");
+        const auto read = [](const fs::path &file) {
+            std::ifstream in(file, std::ios::binary);
+            return std::vector<char>(std::istreambuf_iterator<char>(in), {});
+        };
+        std::vector<std::string> names;
+        for (const fs::directory_entry &file : fs::directory_iterator(after_save_state)) names.push_back(file.path().filename().u8string());
+        for (const fs::directory_entry &file : fs::directory_iterator(after_load_state))
+            if (std::find(names.begin(), names.end(), file.path().filename().u8string()) == names.end())
+                session.fail("the state after the load's frames has " + file.path().filename().u8string() + ", the one after the save's has not");
+        for (const std::string &name : names) {
+            const std::vector<char> first = read(after_save_state / fs::u8path(name));
+            const std::vector<char> second = read(after_load_state / fs::u8path(name));
+            if (first == second) continue;
+            const size_t at = std::mismatch(first.begin(), first.end(), second.begin(), second.end()).first - first.begin();
+            session.fail("the state saved " + std::to_string(frames) + " frames after the save differs from the one saved " +
+                std::to_string(frames) + " frames after the load: " + name + " from byte " + std::to_string(at) +
+                " (" + std::to_string(first.size()) + " and " + std::to_string(second.size()) + " bytes)");
+        }
     }
     session.close();
 }
