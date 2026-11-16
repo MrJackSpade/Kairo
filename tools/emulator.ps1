@@ -101,11 +101,18 @@ if (-not (Test-Path $config)) {
     Write-Output "create $name"
     'no' | & (Join-Path $bin "avdmanager$bat") create avd --name $name --package $image --abi google_apis/x86_64 --force
     if ($LASTEXITCODE -ne 0) { throw "avdmanager could not create $name" }
-    # The RP6's screen: 1920x1080 landscape. 4 GB, as the RP6's apps see far more than they use.
+}
+
+$running = (& $adb devices) -match "^$serial\s+device"
+if (-not $running) {
+    # The RP6's screen: 1920x1080 landscape. 4 GB, as the RP6's apps see far more than they use. No
+    # hardware keyboard, as the RP6 and RG DS have none: with one, a tap leaves the touch keyboard
+    # closed (Kairo#176) and the touch tests cannot open it (Kairo68#93). Written before every boot,
+    # so an AVD made by an older version of this script boots with them too.
     $settings = [ordered]@{
         'hw.lcd.width' = '1920'; 'hw.lcd.height' = '1080'; 'hw.lcd.density' = '400'
         'hw.initialOrientation' = 'landscape'; 'hw.ramSize' = '4096'; 'vm.heapSize' = '512'
-        'hw.keyboard' = 'yes'; 'hw.gpu.enabled' = 'yes'; 'hw.gpu.mode' = 'swiftshader_indirect'
+        'hw.keyboard' = 'no'; 'hw.gpu.enabled' = 'yes'; 'hw.gpu.mode' = 'swiftshader_indirect'
         'disk.dataPartition.size' = '8G'
     }
     $lines = Get-Content $config | Where-Object { $key = ($_ -split '=', 2)[0].Trim(); -not $settings.Contains($key) }
@@ -113,7 +120,6 @@ if (-not (Test-Path $config)) {
     Set-Content -Path $config -Value $lines -Encoding ascii
 }
 
-$running = (& $adb devices) -match "^$serial\s+device"
 if ($running) {
     $sdk = (& $adb -s $serial shell getprop ro.build.version.sdk).Trim()
     if ($sdk -ne "$Api") { throw "$serial is already running API $sdk, not $Api; stop it first (-Stop)" }

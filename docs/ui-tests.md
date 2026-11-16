@@ -192,7 +192,7 @@ by repository name, and `-Workspace` for a folder of repositories other than the
 
 `-Emulator` (on `uitest.ps1` and `uitest-all.ps1`) runs the tests on the Android emulator of the apps'
 `minSdk`, API 26, instead of a device: `tools/emulator.ps1` creates the AVD (the google_apis x86_64
-image, the RP6's 1920x1080 landscape screen, a hardware keyboard, SwiftShader's GL), boots it headless
+image, the RP6's 1920x1080 landscape screen and, like the RP6, no hardware keyboard, SwiftShader's GL), boots it headless
 and gives its serial, and the app and its tests build for x86_64. `uitest-all.ps1 -Emulator` stops the
 emulator after each app's suite, so every app runs on a fresh one (Kairo#171).
 
