@@ -328,6 +328,16 @@ class SecondaryDisplayCoordinator(
         if (companion === value) updateContent()
     }
 
+    /**
+     * The companion's window gained or lost the focus, with the view that holds its content, or
+     * null once it is gone: a connected mouse is captured in whichever window has the focus (Kairo#177).
+     */
+    var companionFocus: ((android.view.View?, Boolean) -> Unit)? = null
+
+    fun companionFocusChanged(value: SecondaryDisplayActivity, content: android.view.View, hasFocus: Boolean) {
+        if (companion === value) companionFocus?.invoke(content, hasFocus)
+    }
+
     /** The companion closed without being dismissed here: the user closed the app's lower half. */
     fun detachCompanion(value: SecondaryDisplayActivity) {
         if (companion !== value) return
@@ -345,6 +355,7 @@ class SecondaryDisplayCoordinator(
 
     private fun forgetCompanion() {
         companion = null
+        companionFocus?.invoke(null, false)
         companionStopped = false
         clearPending()
         onAvailabilityChanged(false)

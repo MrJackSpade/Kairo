@@ -659,6 +659,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { surface, _, _ -> setGuestSurface(surface) },
             { event, width, height -> handleScreenTouch(event, width, height) },
             ::onSecondarySwapChanged) { width, height -> graphics.secondaryViewport(width, height, videoSize().third) }
+        // A mouse stays the guest's after a touch moves the focus to the lower screen (Kairo#177).
+        secondaryKeyboard.companionFocus = { content, hasFocus -> physicalMouse.secondaryWindow(content, hasFocus) }
         artwork.restoreInstanceState(savedInstanceState)
         controllerPages = ControllerPages(this, pages,
             controllerFlow::load, controllerFlow::save, controllerFlow::reset,

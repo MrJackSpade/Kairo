@@ -7,9 +7,11 @@ import android.view.View
 
 /**
  * A Bluetooth or USB mouse as the guest's mouse (Kairo#175). While the guest is on screen, the
- * game view holds pointer capture: the mouse's own counts and buttons go to the guest
+ * window with the focus holds pointer capture: the mouse's own counts and buttons go to the guest
  * ([PhysicalMouseInput]), with none of the touch rules. Whenever the app's UI is up, capture is
- * given back and Android's cursor works the menus.
+ * given back and Android's cursor works the menus. Capture belongs to the focused window, so on
+ * two screens (the RG DS) the lower screen's window takes it once a touch gives it the focus
+ * ([secondaryWindow], Kairo#177).
  */
 class PhysicalMouse(private val context: Context,
                     mouse: MouseInputRouter,
@@ -18,6 +20,8 @@ class PhysicalMouse(private val context: Context,
                     wheel: ((Int) -> Unit)?) {
     private val input = PhysicalMouseInput(mouse, middleButton, wheel) { speed }
     private var view: View? = null
+    /** The second screen's window, which captures while it has the focus. */
+    private var secondary: View? = null
     /** Whether the guest is on screen and should have the mouse. */
     private var guest = false
 
@@ -38,25 +42,47 @@ class PhysicalMouse(private val context: Context,
         update(guest)
     }
 
+    /**
+     * The second screen's window ([target], null once it closes) gained or lost the focus. Its view
+     * takes focus to receive captured events, so it is made focusable in touch mode.
+     */
+    fun secondaryWindow(target: View?, hasFocus: Boolean) {
+        if (secondary !== target) {
+            secondary?.let { old ->
+                if (old.hasPointerCapture()) old.releasePointerCapture()
+                old.setOnCapturedPointerListener(null)
+            }
+            secondary = target
+            target?.isFocusableInTouchMode = true
+            target?.setOnCapturedPointerListener { _, event -> captured(event) }
+        }
+        windowFocusChanged(hasFocus)
+    }
+
     /** Takes the mouse for the guest while [showingGuest], and gives it back otherwise. */
     fun update(showingGuest: Boolean) {
         guest = showingGuest
-        val target = view ?: return
-        if (showingGuest) {
-            // Capture needs the window's focus; focus coming back calls this again.
-            if (target.hasPointerCapture() || !target.hasWindowFocus()) return
-            // Captured events go to the focused view.
-            target.requestFocus()
-            target.requestPointerCapture()
-        } else {
-            if (target.hasPointerCapture()) target.releasePointerCapture()
+        val targets = listOfNotNull(view, secondary)
+        // Capture needs the window's focus; focus coming back to either window calls this again.
+        val focused = targets.firstOrNull { it.hasWindowFocus() }
+        // Released whether or not capture has arrived yet: a request still on its way (a window that
+        // just took the focus, with the menu opening on it) is withdrawn with it.
+        for (target in targets)
+            if (!showingGuest || target !== focused) target.releasePointerCapture()
+        if (!showingGuest) {
             input.releaseAll()
+            return
         }
+        if (focused == null || focused.hasPointerCapture()) return
+        // Captured events go to the focused view.
+        focused.requestFocus()
+        focused.requestPointerCapture()
     }
 
-    /** The window lost or regained focus; Android drops capture with the focus. */
+    /** A window lost or regained focus; Android drops capture with the focus. */
     fun windowFocusChanged(hasFocus: Boolean) {
-        if (hasFocus) update(guest) else input.releaseAll()
+        if (!hasFocus) input.releaseAll()
+        update(guest)
     }
 
     fun releaseDevice(deviceId: Int) = input.releaseDevice(deviceId)

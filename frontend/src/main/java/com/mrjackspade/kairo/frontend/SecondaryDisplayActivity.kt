@@ -51,6 +51,13 @@ class SecondaryDisplayActivity : Activity() {
             session::placeGame, session.lowerLibrary?.invoke(this))
         setContentView(content)
         session.updateCompanion(this)
+        // A rebuilt content view replaces the one that captures the mouse while this window has the focus.
+        session.companionFocusChanged(this, content, hasWindowFocus())
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (::content.isInitialized) owner?.companionFocusChanged(this, content, hasFocus)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
