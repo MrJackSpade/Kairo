@@ -243,6 +243,10 @@
     <!-- EN: MIDI out -->
     <string name="kairo_midi_out">MIDI 출력</string>
     <string name="kairo_midi_port">MIDI 포트</string>
+    <string name="kairo_option_sound_font">사운드폰트</string>
+    <string name="kairo_sound_font_import">사운드폰트 가져오기…</string>
+    <string name="kairo_sound_font_too_large">사운드폰트는 최대 2GB입니다. 이 파일은 그보다 큽니다</string>
+    <string name="kairo_sound_font_not_sf2">이 파일은 SoundFont 2(.sf2)가 아닙니다</string>
     <!-- A MIDI device that reports no name. -->
     <!-- EN: MIDI device -->
     <string name="kairo_midi_unnamed">MIDI 장치</string>

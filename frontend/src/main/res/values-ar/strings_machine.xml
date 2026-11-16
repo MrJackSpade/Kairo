@@ -263,6 +263,10 @@
     <!-- EN: MIDI out -->
     <string name="kairo_midi_out">مخرج MIDI</string>
     <string name="kairo_midi_port">منفذ MIDI</string>
+    <string name="kairo_option_sound_font">SoundFont</string>
+    <string name="kairo_sound_font_import">استيراد SoundFont…</string>
+    <string name="kairo_sound_font_too_large">لا يتجاوز حجم SoundFont ‏2 غيغابايت؛ هذا الملف أكبر</string>
+    <string name="kairo_sound_font_not_sf2">هذا الملف ليس SoundFont 2 (.sf2)</string>
     <!-- A MIDI device that reports no name. -->
     <!-- EN: MIDI device -->
     <string name="kairo_midi_unnamed">جهاز MIDI</string>
