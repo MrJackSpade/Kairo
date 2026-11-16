@@ -1,0 +1,23 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:${gradle.ext.versions.agp}"
+    }
+}
+
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.loxifi.kairo.midimonitor'
+    compileSdk gradle.ext.versions.compile_sdk.toInteger()
+    defaultConfig {
+        applicationId 'com.loxifi.kairo.midimonitor'
+        minSdk gradle.ext.versions.min_sdk.toInteger()
+        targetSdk gradle.ext.versions.target_sdk.toInteger()
+        versionCode 1
+        versionName '1'
+    }
+}

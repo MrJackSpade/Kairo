@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-feature android:name="android.software.midi" android:required="true" />
+    <application android:label="MIDI monitor">
+        <!-- A virtual MIDI device with one input port, which an app's MIDI out picks like a synth. -->
+        <service
+            android:name=".MonitorService"
+            android:exported="true"
+            android:permission="android.permission.BIND_MIDI_DEVICE_SERVICE">
+            <intent-filter>
+                <action android:name="android.media.midi.MidiDeviceService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.media.midi.MidiDeviceService"
+                android:resource="@xml/monitor_device" />
+        </service>
+    </application>
+</manifest>

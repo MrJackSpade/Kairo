@@ -1,0 +1,14 @@
+// The MIDI monitor (README.md): a test tool, built on its own with the shared Gradle wrapper, with the
+// Android Gradle Plugin and SDK levels the apps use (shared/gradle/android-versions.properties).
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+def versions = new Properties()
+new File(settingsDir, '../../gradle/android-versions.properties').withInputStream { versions.load(it) }
+gradle.ext.versions = versions
+rootProject.name = 'midi-monitor'
