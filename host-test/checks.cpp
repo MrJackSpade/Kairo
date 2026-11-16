@@ -496,6 +496,9 @@ uint64_t picture_hash(MachineCore &core) {
 // that run the guest the same way write the same file.
 void profile(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
+    // Flat out from the start, as the app's fast-forward runs: a core that keeps to real time itself
+    // (KairoDos's DOSBox Staging) stops doing so.
+    session.core().flat_out(true);
     if (spec.find("commands")) type_commands(session, test, spec);
     run_with_keys(session, spec, test.frames(spec, "boot"));
     const uint64_t frames = test.frames(spec, "frames");
