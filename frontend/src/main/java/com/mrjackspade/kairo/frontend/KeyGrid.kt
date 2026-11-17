@@ -10,13 +10,14 @@ import kotlin.math.roundToInt
  * row shares its width among its own keys by [KeyboardKey.width], around the columns that
  * taller keys from the rows above still occupy.
  */
-class KeyGrid(context: Context, private val gap: Int) : ViewGroup(context) {
+class KeyGrid(context: Context, private val gap: Int, rows: Int = 1) : ViewGroup(context) {
     /** A key's place: its row, the left and right edges as fractions of the width, and rows spanned. */
     data class Cell(val key: KeyboardKey, val row: Int, val left: Float, val right: Float, val rows: Int)
 
     private class Params(val cell: Cell) : LayoutParams(0, 0)
 
-    private var rowCount = 1
+    /** At least [rows], so the halves of a split page keep the same rows when one has none in its last. */
+    private var rowCount = rows
 
     fun add(view: View, cell: Cell) {
         rowCount = maxOf(rowCount, cell.row + cell.rows)
@@ -77,6 +78,30 @@ class KeyGrid(context: Context, private val gap: Int) : ViewGroup(context) {
             return cells
         }
 
+        /**
+         * [cells] cut down the middle into a left and a right half, each stretched to its own full
+         * width. A key goes to the half its centre is in; a key reaching at least one of its own
+         * units into both halves, as Space, is in both, each copy cut at the middle. The keys keep
+         * their rows and columns, so a half's inner edge is as ragged as the keyboard's stagger.
+         */
+        fun split(cells: List<Cell>): Pair<List<Cell>, List<Cell>> {
+            val left = ArrayList<Cell>()
+            val right = ArrayList<Cell>()
+            for (cell in cells) {
+                val unit = (cell.right - cell.left) / cell.key.width
+                if (MIDDLE - cell.left >= unit - EPSILON && cell.right - MIDDLE >= unit - EPSILON) {
+                    left.add(cell.copy(right = MIDDLE))
+                    right.add(cell.copy(left = MIDDLE))
+                } else if ((cell.left + cell.right) / 2 < MIDDLE) left.add(cell)
+                else right.add(cell)
+            }
+            val leftEnd = left.maxOfOrNull { it.right } ?: 1f
+            val rightStart = right.minOfOrNull { it.left } ?: 0f
+            return left.map { it.copy(left = it.left / leftEnd, right = it.right / leftEnd) } to
+                right.map { it.copy(left = (it.left - rightStart) / (1f - rightStart), right = (it.right - rightStart) / (1f - rightStart)) }
+        }
+
+        private const val MIDDLE = 0.5f
         private const val EPSILON = 0.0001f
     }
 }

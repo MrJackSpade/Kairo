@@ -71,6 +71,8 @@
     <string name="kairo_keyboard_touchpad_mode">Modo touchpad del mouse</string>
     <!-- EN: Close × -->
     <string name="kairo_keyboard_close">Cerrar ×</string>
+    <string name="kairo_keyboard_group">TECLADO</string>
+    <string name="kairo_split_keyboard">Teclado dividido</string>
     <!-- EN: OK -->
     <string name="kairo_ok">Aceptar</string>
     <!-- EN: Guest mouse touchpad. Drag to move, tap to click, hold to drag. -->

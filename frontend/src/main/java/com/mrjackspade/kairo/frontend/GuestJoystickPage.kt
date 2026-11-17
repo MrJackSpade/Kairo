@@ -29,6 +29,14 @@ internal class GuestJoystickPage(
     }
     private val mappingListener: () -> Unit = { updateMapping() }
     private var ports: List<JoystickPort> = emptyList()
+    private var split = false
+
+    /** Split, the ports' buttons, for the right half; empty otherwise. */
+    val buttonsHalf: LinearLayout = LinearLayout(context).apply {
+        orientation = VERTICAL
+        gravity = Gravity.CENTER
+        setPadding(dp(8), dp(4), dp(8), dp(4))
+    }
 
     init {
         orientation = VERTICAL
@@ -49,38 +57,66 @@ internal class GuestJoystickPage(
         updateMapping()
     }
 
+    /**
+     * Split, the keyboard's halves: this page holds every port's directions and [buttonsHalf]
+     * their buttons, for the left and right halves; otherwise this page holds both, side by side.
+     */
+    fun setSplit(value: Boolean) {
+        if (value == split) return
+        split = value
+        releaseAll()
+        showPorts(ports)
+        updatePressed()
+        updateMapping()
+    }
+
+
     private fun showPorts(value: List<JoystickPort>) {
         ports = value
         removeAllViews()
+        buttonsHalf.removeAllViews()
         controlViews.clear()
-        for (port in value) addView(portView(port), LayoutParams(-1, 0, 1f))
+        for (port in value) {
+            if (split) {
+                addView(labelled(port, pad(port)), LayoutParams(-1, 0, 1f))
+                buttonsHalf.addView(labelled(port, buttons(port)), LayoutParams(-1, 0, 1f))
+            } else {
+                val row = LinearLayout(context).apply {
+                    orientation = HORIZONTAL
+                    gravity = Gravity.CENTER
+                    addView(pad(port), LayoutParams(0, -1, 1f))
+                    addView(buttons(port), LayoutParams(0, -1, 1f).apply { marginStart = dp(16) })
+                }
+                addView(labelled(port, row), LayoutParams(-1, 0, 1f))
+            }
+        }
     }
 
-    private fun portView(port: JoystickPort): View {
-        val column = LinearLayout(context).apply { orientation = VERTICAL }
-        port.label?.let { column.addView(Ui.text(context, it.resolve(context), Ui.SECONDARY, Ui.TEXT_MUTED).apply { gravity = Gravity.CENTER }) }
-        val row = LinearLayout(context).apply {
-            orientation = HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        val pad = LinearLayout(context).apply { orientation = VERTICAL }
+    /** [content] under the port's name, where the port has one. */
+    private fun labelled(port: JoystickPort, content: View): View = LinearLayout(context).apply {
+        orientation = VERTICAL
+        port.label?.let { addView(Ui.text(context, it.resolve(context), Ui.SECONDARY, Ui.TEXT_MUTED).apply { gravity = Gravity.CENTER }) }
+        addView(content, LayoutParams(-1, 0, 1f))
+    }
+
+    private fun pad(port: JoystickPort): View = LinearLayout(context).apply {
+        orientation = VERTICAL
         for (line in listOf(listOf(null, port.up, null), listOf(port.left, null, port.right), listOf(null, port.down, null))) {
             val cells = LinearLayout(context).apply { orientation = HORIZONTAL }
             for (id in line) cells.addView(id?.let { control(it, arrow(it, port)) } ?: View(context),
                 LayoutParams(0, -1, 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
-            pad.addView(cells, LayoutParams(-1, 0, 1f))
+            addView(cells, LayoutParams(-1, 0, 1f))
         }
-        row.addView(pad, LayoutParams(0, -1, 1f))
-        val buttons = LinearLayout(context).apply { orientation = VERTICAL }
+    }
+
+    private fun buttons(port: JoystickPort): View = LinearLayout(context).apply {
+        orientation = VERTICAL
         for (pair in port.buttons.chunked(port.columns)) {
             val cells = LinearLayout(context).apply { orientation = HORIZONTAL }
             for (id in pair) cells.addView(control(id, spec.joystickLabel(context, id)),
                 LayoutParams(0, -1, 1f).apply { setMargins(dp(3), dp(3), dp(3), dp(3)) })
-            buttons.addView(cells, LayoutParams(-1, 0, 1f))
+            addView(cells, LayoutParams(-1, 0, 1f))
         }
-        row.addView(buttons, LayoutParams(0, -1, 1f).apply { marginStart = dp(16) })
-        column.addView(row, LayoutParams(-1, 0, 1f))
-        return column
     }
 
     private fun arrow(id: String, port: JoystickPort) = when (id) {
@@ -96,7 +132,8 @@ internal class GuestJoystickPage(
         contentDescription = spec.joystickTarget(context, id)
         testId("joystick.control", id)
         gravity = Gravity.CENTER
-        maxLines = 2
+        // One line: a narrow control, as in a split half, shrinks its label rather than breaking it mid-word.
+        maxLines = 1
         setTextColor(PanelKeyStyle.keyText())
         setAutoSizeTextTypeUniformWithConfiguration(9, 18, 1, TypedValue.COMPLEX_UNIT_SP)
         background = PanelKeyStyle.keyBackground(context, action = label.length > 1)

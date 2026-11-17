@@ -519,6 +519,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             ::updateViewport, ::applyPauseState,
             { if (::screen.isInitialized) screen.requestFocus() })
     }
+    /** Where the game screen's keyboard sits; its setting places the keyboard again at once. */
+    private val keyboardPlacement by lazy { KeyboardPlacement(this, preferences, ::updateViewport) }
     protected val touchSettingsCoordinator by lazy {
         TouchSettingsCoordinator(this, touchStore, touchModes, directTouchExplanation,
             changed = { entry ->
@@ -677,7 +679,7 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
             { controllerFlow.deadZone }, { controllerFlow.deadZone = it },
             controllerSpec, { bindingsCodec.toJson(it) }, controllerProfiles.configuration,
             { releaseInputs(); controllerFlow.refresh(null) }, ::controllerMappingStatus, ::titleOf, ::controllerSource,
-            onScreenControls, touchSettingsCoordinator, physicalMouse) { releaseInputs() }
+            onScreenControls, touchSettingsCoordinator, physicalMouse, keyboardPlacement) { releaseInputs() }
         val libraryPage = LibraryScreen(this, catalog, identity.strings, pages,
             ::chooseRomFolder, { preferences.getString("last_played_entry", null) },
             { launchFromLibrary(it, false) }, ::showDetailPreview, ::showGameDetails, ::showLibrarySelection,
@@ -931,14 +933,28 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         refreshSettingValues()
     }
 
-    /** Sizes the game's surface for its frame, the screen and the keyboard. */
+    /**
+     * Sizes the game's surface for its frame, the screen and the keyboard, and places the keyboard.
+     * Split, the picture is exactly as with no keyboard and the halves fill the free width beside
+     * it; docked, the rows run along the bottom and the picture fits above them.
+     */
     protected fun updateViewport() {
         if (!::root.isInitialized || root.width <= 0 || root.height <= 0) return
-        val keyboardHeight = if (::keyboardPanel.isInitialized &&
-            keyboardPanel.visibility == View.VISIBLE) keyboardPanel.layoutParams.height else 0
         val (width, height, aspect) = videoSize()
-        val viewport = graphics.viewport(root.width, root.height, keyboardHeight, width, height, aspect,
-            anchorFor(currentEntry)) ?: return
+        val anchor = anchorFor(currentEntry)
+        fun fit(keyboardHeight: Int) =
+            graphics.viewport(root.width, root.height, keyboardHeight, width, height, aspect, anchor)
+        val free = fit(0) ?: return
+        var sides: KeyboardSides? = null
+        var keyboardOpen = false
+        if (::keyboardPanel.isInitialized) {
+            // Halves too narrow to use leave the standard keyboard along the bottom.
+            sides = keyboardPlacement.split(root.width, root.height, free.leftMargin, free.width)
+                ?.takeIf { keyboardPanel.splitFits(it) }
+            keyboardPanel.setSplit(sides)
+            keyboardOpen = keyboardPanel.visibility == View.VISIBLE
+        }
+        val viewport = if (!keyboardOpen || sides != null) free else fit(keyboardPanel.layoutParams.height) ?: return
         val params = screen.layoutParams as FrameLayout.LayoutParams
         if (params.width != viewport.width || params.height != viewport.height ||
             params.leftMargin != viewport.leftMargin || params.topMargin != viewport.topMargin ||

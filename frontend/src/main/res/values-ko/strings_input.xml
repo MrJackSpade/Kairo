@@ -71,6 +71,8 @@
     <string name="kairo_keyboard_touchpad_mode">마우스 터치패드 모드</string>
     <!-- EN: Close × -->
     <string name="kairo_keyboard_close">닫기 ×</string>
+    <string name="kairo_keyboard_group">키보드</string>
+    <string name="kairo_split_keyboard">분할 키보드</string>
     <!-- EN: OK -->
     <string name="kairo_ok">확인</string>
     <!-- EN: Guest mouse touchpad. Drag to move, tap to click, hold to drag. -->

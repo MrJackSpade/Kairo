@@ -38,6 +38,8 @@
     <string name="kairo_keyboard_swap">Swap game and keyboard screens</string>
     <string name="kairo_keyboard_touchpad_mode">Mouse touchpad mode</string>
     <string name="kairo_keyboard_close">Close ×</string>
+    <string name="kairo_keyboard_group">KEYBOARD</string>
+    <string name="kairo_split_keyboard">Split Keyboard</string>
     <string name="kairo_ok">OK</string>
 
     <string name="kairo_touchpad_description">Guest mouse touchpad. Drag to move, tap to click, hold to drag.</string>

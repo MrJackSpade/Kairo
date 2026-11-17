@@ -40,6 +40,42 @@ class KeyGridTest {
         assertBounds(listOf(1f, 2f / 3, 1f, 1f), bounds(cells, "d"))
     }
 
+    @Test fun splitGivesEachKeyTheHalfItsCentreIsIn() {
+        val (left, right) = KeyGrid.split(KeyGrid.place(listOf(listOf(key("a"), key("b"), key("c"), key("d")))))
+        assertEquals(listOf("a", "b"), left.map { it.key.label })
+        assertEquals(listOf("c", "d"), right.map { it.key.label })
+        assertBounds(listOf(0f, 0f, 0.5f, 1f), bounds(left, "a"))
+        assertBounds(listOf(0f, 0.5f, 1f, 1f), bounds(left, "b"))
+        assertBounds(listOf(0f, 0f, 0.5f, 1f), bounds(right, "c"))
+    }
+
+    @Test fun splitPutsAWideMiddleKeyInBothHalves() {
+        val (left, right) = KeyGrid.split(KeyGrid.place(listOf(listOf(key("ctrl"), key("space", 4f), key("alt")))))
+        assertBounds(listOf(0f, 1f / 3, 1f, 1f), bounds(left, "space"))
+        assertBounds(listOf(0f, 0f, 2f / 3, 1f), bounds(right, "space"))
+    }
+
+    @Test fun splitGivesAKeyBarelyOverTheMiddleOnlyToItsCentresHalf() {
+        // b reaches half a unit past the middle: it stays whole on the left, which then ends at b's edge.
+        val (left, right) = KeyGrid.split(KeyGrid.place(listOf(listOf(key("a"), key("b", 1.5f), key("c", 1.5f)), listOf(key("d"), key("e")))))
+        assertEquals(listOf("a", "b", "d"), left.map { it.key.label })
+        assertEquals(listOf("c", "e"), right.map { it.key.label })
+        assertBounds(listOf(0f, 0.4f, 1f, 1f), bounds(left, "b"))
+        assertBounds(listOf(1f, 0f, 0.8f, 1f), bounds(left, "d"))
+        assertBounds(listOf(0f, 0.25f, 1f, 1f), bounds(right, "c"))
+    }
+
+    @Test fun splitKeepsTallKeysAndTheirRows() {
+        val (left, right) = KeyGrid.split(KeyGrid.place(listOf(
+            listOf(key("7"), key("8"), key("9"), key("+", rows = 2)),
+            listOf(key("4"), key("5"), key("6")),
+            listOf(key("0", 2f), key(".")))))
+        assertEquals(listOf("7", "8", "4", "5", "0"), left.map { it.key.label })
+        assertBounds(listOf(0f, 0.5f, 1f, 2f), bounds(right, "+"))
+        assertBounds(listOf(1f, 0f, 0.5f, 1f), bounds(right, "6"))
+        assertBounds(listOf(2f, 0f, 1f, 1f), bounds(left, "0"))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun aKeyOverlappingASpanIsRejected() {
         KeyGrid.place(listOf(listOf(key("a"), key("tall", rows = 2), key("b")), listOf(key("wide", 3f), key("c"))))

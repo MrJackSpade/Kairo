@@ -32,7 +32,6 @@ class SecondaryTouchpadView(
     private val hint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Ui.TEXT_MUTED
         textAlign = Paint.Align.CENTER
-        textSize = 15f * resources.displayMetrics.scaledDensity
     }
 
     init {
@@ -99,9 +98,19 @@ class SecondaryTouchpadView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        // The hints at their size, or smaller where the surface is narrower than they are, as a split keyboard's half.
+        hint.textSize = HINT_SP * resources.displayMetrics.scaledDensity
+        val room = width - 2 * HINT_MARGIN_DP * resources.displayMetrics.density
+        val widest = maxOf(hint.measureText(dragHint), hint.measureText(holdHint))
+        if (widest > room && room > 0) hint.textSize *= room / widest
         val center = height / 2f
         canvas.drawText(dragHint, width / 2f, center - hint.textSize / 2f, hint)
         canvas.drawText(holdHint, width / 2f, center + hint.textSize, hint)
+    }
+
+    private companion object {
+        const val HINT_SP = 15f
+        const val HINT_MARGIN_DP = 8f
     }
 
     private fun move(event: MotionEvent) {

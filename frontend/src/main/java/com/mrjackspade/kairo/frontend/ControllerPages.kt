@@ -244,6 +244,7 @@ class ControllerPages<Game : Any>(
     private val onScreen: OnScreenControls,
     private val touch: TouchSettingsCoordinator<Game>,
     private val physicalMouse: PhysicalMouse,
+    private val keyboardPlacement: KeyboardPlacement,
     /** Called after any mapping change, so the running game uses it at once. */
     private val changed: () -> Unit = {}
 ) {
@@ -288,6 +289,7 @@ class ControllerPages<Game : Any>(
                         setDeadZone(it / 100f)
                     })), foot),
             touch.globalGroup(),
+            keyboardPlacement.group(),
             physicalMouse.globalGroup(),
             onScreen.group())
     })
