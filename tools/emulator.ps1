@@ -29,6 +29,10 @@ shared\tools\emulator.ps1 -Api 34 -Port 5582
 A second emulator on Android 14, for a test that needs a newer Android.
 
 .EXAMPLE
+shared\tools\emulator.ps1 -Run { param($serial) adb -s $serial install -r app.apk }
+Boots an emulator, installs on it, and shuts it down after, even if this script is killed first.
+
+.EXAMPLE
 shared\tools\emulator.ps1 -Stop
 Shuts the emulator on the default port down.
 #>
@@ -40,7 +44,14 @@ param(
     # Shuts the emulator on -Port down instead of starting one.
     [switch]$Stop,
     # Shows the emulator's window instead of running headless.
-    [switch]$Window
+    [switch]$Window,
+    # The screen in pixels and dpi: the RP6's unless given, as a phone's 2400x1080 for a wider screen.
+    [int]$Width = 1920,
+    [int]$Height = 1080,
+    [int]$Density = 400,
+    # Work to do on the emulator, given its serial: the emulator boots, the block runs, and the
+    # emulator is shut down after, whether the block succeeds, fails or this script is killed.
+    [scriptblock]$Run
 )
 $ErrorActionPreference = 'Stop'
 if ($Port % 2 -ne 0) { throw "-Port must be even (the console port; adb uses the next one)" }
@@ -62,7 +73,7 @@ function Get-EmulatorProcess {
         Where-Object { $_.CommandLine -match "(^|\s)-port\s+$Port(\s|$)" }
 }
 
-if ($Stop) {
+function Stop-Emulator {
     # Its processes end directly: its console can stop answering (Kairo#171), and a -read-only
     # emulator holds nothing to save.
     $found = @(Get-EmulatorProcess)
@@ -74,7 +85,93 @@ if ($Stop) {
     # A start right after must not find the old one still listed.
     while ((& $adb devices) -match "^$serial\s") { Start-Sleep -Milliseconds 500 }
     Write-Output "stopped $serial ($($found.Count) process(es))"
+}
+
+if ($Stop) {
+    Stop-Emulator
     exit 0
+}
+
+# With -Run on Windows, the emulator starts suspended inside a job object that kills every process
+# in it when its last handle closes, which this process holds until it exits; then it resumes, so
+# the qemu it starts is in the job too. A script killed before its finally block runs (a caller's
+# time limit, a closed window) still takes the emulator down with it. Only the emulator is in the
+# job, not this script's process or the shell that ran it.
+if ($Run -and $IsWindows) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+public static class KairoEmulatorJob {
+    [StructLayout(LayoutKind.Sequential)] struct Security { public int Length; public IntPtr Descriptor; public bool Inherit; }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] struct Startup {
+        public int cb; public string Reserved, Desktop, Title;
+        public int X, Y, XSize, YSize, XCountChars, YCountChars, FillAttribute, Flags;
+        public short ShowWindow, Reserved2; public IntPtr Reserved3, StdInput, StdOutput, StdError;
+    }
+    [StructLayout(LayoutKind.Sequential)] struct ProcessInfo { public IntPtr Process, Thread; public int ProcessId, ThreadId; }
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern IntPtr CreateFile(string name, uint access, uint share, ref Security security, uint disposition, uint flags, IntPtr template);
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool CreateProcess(string application, System.Text.StringBuilder commandLine, IntPtr processSecurity, IntPtr threadSecurity,
+        bool inheritHandles, uint flags, IntPtr environment, string directory, ref Startup startup, out ProcessInfo info);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern uint ResumeThread(IntPtr thread);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool CloseHandle(IntPtr handle);
+    [StructLayout(LayoutKind.Sequential)] struct Basic {
+        public long PerProcessUserTimeLimit, PerJobUserTimeLimit; public uint LimitFlags;
+        public UIntPtr MinimumWorkingSetSize, MaximumWorkingSetSize; public uint ActiveProcessLimit;
+        public UIntPtr Affinity; public uint PriorityClass, SchedulingClass;
+    }
+    [StructLayout(LayoutKind.Sequential)] struct Io { public ulong R, W, O, RB, WB, OB; }
+    [StructLayout(LayoutKind.Sequential)] struct Extended {
+        public Basic BasicLimits; public Io IoInfo;
+        public UIntPtr ProcessMemoryLimit, JobMemoryLimit, PeakProcessMemoryUsed, PeakJobMemoryUsed;
+    }
+    [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr CreateJobObject(IntPtr attributes, string name);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool SetInformationJobObject(IntPtr job, int infoClass, ref Extended info, uint length);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+    const int ExtendedLimitInformation = 9;
+    const uint KillOnJobClose = 0x2000;
+    const uint CreateSuspended = 0x4, CreateNoWindow = 0x08000000;
+    const int UseStdHandles = 0x100, UseShowWindow = 0x1;
+    static readonly IntPtr Invalid = new IntPtr(-1);
+    // Held, never closed: this process's exit closes it, which ends the job's processes.
+    static IntPtr job;
+
+    static IntPtr Log(string path) {
+        var security = new Security { Length = Marshal.SizeOf(typeof(Security)), Inherit = true };
+        // GENERIC_WRITE, shared for reading, CREATE_ALWAYS.
+        var handle = CreateFile(path, 0x40000000, 1, ref security, 2, 0, IntPtr.Zero);
+        if (handle == Invalid) throw new Win32Exception();
+        return handle;
+    }
+
+    /** Starts [commandLine] with no window, its output in the two logs, in a job that ends with this process. */
+    public static Process Start(string commandLine, string output, string error) {
+        job = CreateJobObject(IntPtr.Zero, null);
+        if (job == IntPtr.Zero) throw new Win32Exception();
+        var limits = new Extended();
+        limits.BasicLimits.LimitFlags = KillOnJobClose;
+        if (!SetInformationJobObject(job, ExtendedLimitInformation, ref limits, (uint)Marshal.SizeOf(typeof(Extended)))) throw new Win32Exception();
+        var stdout = Log(output);
+        var stderr = Log(error);
+        var startup = new Startup { cb = Marshal.SizeOf(typeof(Startup)), Flags = UseStdHandles | UseShowWindow,
+            StdOutput = stdout, StdError = stderr };
+        ProcessInfo info;
+        if (!CreateProcess(null, new System.Text.StringBuilder(commandLine), IntPtr.Zero, IntPtr.Zero, true,
+                CreateSuspended | CreateNoWindow, IntPtr.Zero, null, ref startup, out info)) throw new Win32Exception();
+        CloseHandle(stdout);
+        CloseHandle(stderr);
+        if (!AssignProcessToJobObject(job, info.Process)) throw new Win32Exception();
+        var process = Process.GetProcessById(info.ProcessId);
+        if (ResumeThread(info.Thread) == uint.MaxValue) throw new Win32Exception();
+        CloseHandle(info.Thread);
+        CloseHandle(info.Process);
+        return process;
+    }
+}
+'@
 }
 
 if (-not $Api) {
@@ -105,12 +202,12 @@ if (-not (Test-Path $config)) {
 
 $running = (& $adb devices) -match "^$serial\s+device"
 if (-not $running) {
-    # The RP6's screen: 1920x1080 landscape. 4 GB, as the RP6's apps see far more than they use. No
+    # The RP6's screen unless -Width, -Height and -Density say otherwise: 1920x1080 landscape. 4 GB, as the RP6's apps see far more than they use. No
     # hardware keyboard, as the RP6 and RG DS have none: with one, a tap leaves the touch keyboard
     # closed (Kairo#176) and the touch tests cannot open it (Kairo68#93). Written before every boot,
     # so an AVD made by an older version of this script boots with them too.
     $settings = [ordered]@{
-        'hw.lcd.width' = '1920'; 'hw.lcd.height' = '1080'; 'hw.lcd.density' = '400'
+        'hw.lcd.width' = "$Width"; 'hw.lcd.height' = "$Height"; 'hw.lcd.density' = "$Density"
         'hw.initialOrientation' = 'landscape'; 'hw.ramSize' = '4096'; 'vm.heapSize' = '512'
         'hw.keyboard' = 'no'; 'hw.gpu.enabled' = 'yes'; 'hw.gpu.mode' = 'swiftshader_indirect'
         'disk.dataPartition.size' = '8G'
@@ -121,6 +218,8 @@ if (-not $running) {
 }
 
 if ($running) {
+    # -Run shuts its emulator down after, so it boots its own rather than ending one it did not start.
+    if ($Run) { throw "$serial is already running; -Run boots its own emulator: stop it first (-Stop) or pick another -Port" }
     $sdk = (& $adb -s $serial shell getprop ro.build.version.sdk).Trim()
     if ($sdk -ne "$Api") { throw "$serial is already running API $sdk, not $Api; stop it first (-Stop)" }
     Write-Output $serial
@@ -156,23 +255,44 @@ $arguments = @('-avd', $name, '-port', "$Port", '-read-only', '-no-snapshot', '-
     '-gpu', 'swiftshader_indirect', '-feature', 'GLESDynamicVersion')
 if (-not $Window) { $arguments += '-no-window' }
 Write-Output "boot $name as $serial (log $log)"
-$start = @{ FilePath = $emulator; ArgumentList = $arguments; PassThru = $true
-    RedirectStandardOutput = $log; RedirectStandardError = "$log.err" }
-if ($IsWindows) { $start.WindowStyle = 'Hidden' }
-$process = Start-Process @start
+if ($Run -and $IsWindows) {
+    $commandLine = (@($emulator) + $arguments | ForEach-Object { if ($_ -match '\s') { "`"$_`"" } else { $_ } }) -join ' '
+    $process = [KairoEmulatorJob]::Start($commandLine, $log, "$log.err")
+} else {
+    $start = @{ FilePath = $emulator; ArgumentList = $arguments; PassThru = $true
+        RedirectStandardOutput = $log; RedirectStandardError = "$log.err" }
+    if ($IsWindows) { $start.WindowStyle = 'Hidden' }
+    $process = Start-Process @start
+}
 
-# As long as booting takes: the emulator's own exit is the failure that ends the wait.
-while ($true) {
-    if ($process.HasExited) {
-        $tail = (Get-Content $log -Tail 15 -ErrorAction SilentlyContinue) -join "`n"
-        throw "The emulator exited (code $($process.ExitCode)) before Android booted:`n$tail"
+function Wait-Booted {
+    # As long as booting takes: the emulator's own exit is the failure that ends the wait.
+    while ($true) {
+        if ($process.HasExited) {
+            $tail = (Get-Content $log -Tail 15 -ErrorAction SilentlyContinue) -join "`n"
+            throw "The emulator exited (code $($process.ExitCode)) before Android booted:`n$tail"
+        }
+        $booted = & $adb -s $serial shell getprop sys.boot_completed 2>$null
+        if ("$booted".Trim() -eq '1') { break }
+        Start-Sleep -Seconds 2
     }
-    $booted = & $adb -s $serial shell getprop sys.boot_completed 2>$null
-    if ("$booted".Trim() -eq '1') { break }
-    Start-Sleep -Seconds 2
+    # No animations to wait out in a test.
+    foreach ($setting in 'window_animation_scale', 'transition_animation_scale', 'animator_duration_scale') {
+        & $adb -s $serial shell settings put global $setting 0 | Out-Null
+    }
 }
-# No animations to wait out in a test.
-foreach ($setting in 'window_animation_scale', 'transition_animation_scale', 'animator_duration_scale') {
-    & $adb -s $serial shell settings put global $setting 0 | Out-Null
+
+if (-not $Run) {
+    Wait-Booted
+    Write-Output $serial
+    exit 0
 }
-Write-Output $serial
+
+# The block's errors are its own and end the script once the emulator is down.
+try {
+    Wait-Booted
+    & $Run $serial
+} finally {
+    # An emulator that died booting has nothing left to stop, and its error is the one to see.
+    if (@(Get-EmulatorProcess).Count -gt 0) { Stop-Emulator }
+}
