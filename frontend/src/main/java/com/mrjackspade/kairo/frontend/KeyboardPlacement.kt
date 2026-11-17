@@ -21,7 +21,7 @@ class KeyboardPlacement(
     /**
      * The halves on a screen [width] by [height] beside a picture [pictureLeft] from the left and
      * [pictureWidth] wide, as drawn with no keyboard; null to dock: a narrower screen, Split
-     * Keyboard off, or a picture that leaves no free width at a side.
+     * Keyboard off, or a picture that leaves less than a sixth of the screen free at a side.
      */
     fun split(width: Int, height: Int, pictureLeft: Int, pictureWidth: Int): KeyboardSides? =
         if (splitEnabled && wide(width, height)) sides(width, pictureLeft, pictureWidth) else null
@@ -39,11 +39,23 @@ class KeyboardPlacement(
         /** A screen 16:10 or wider, such as 16:9. */
         fun wide(width: Int, height: Int) = width > 0 && height > 0 && width.toLong() * 10 >= height.toLong() * 16
 
-        /** The free width left and right of the picture, or null when either side has none. */
+        /**
+         * The narrowest half, as a share of the screen's width: one sixth, the 320 of 1920 pixels
+         * beside a 640x400 game at 2x on the RP6, tried on the device and usable.
+         */
+        const val MIN_SIDE_SHARE_DENOMINATOR = 6
+
+        /** Whether a half [side] wide is wide enough on a screen [width] wide. */
+        fun usable(side: Int, width: Int) = side > 0 && side.toLong() * MIN_SIDE_SHARE_DENOMINATOR >= width
+
+        /**
+         * The free width left and right of the picture, or null when either side is narrower than
+         * a sixth of the screen ([usable]); the keyboard then stays along the bottom.
+         */
         fun sides(width: Int, pictureLeft: Int, pictureWidth: Int): KeyboardSides? {
             val left = pictureLeft
             val right = width - pictureLeft - pictureWidth
-            return if (left > 0 && right > 0) KeyboardSides(left, right) else null
+            return if (usable(left, width) && usable(right, width)) KeyboardSides(left, right) else null
         }
     }
 }

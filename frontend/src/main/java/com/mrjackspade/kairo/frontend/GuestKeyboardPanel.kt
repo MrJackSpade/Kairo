@@ -3,7 +3,6 @@ package com.mrjackspade.kairo.frontend
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.graphics.drawable.StateListDrawable
@@ -233,30 +232,6 @@ class GuestKeyboardPanel(
             showPage(page)
         } else sizeColumns()
     }
-
-    /**
-     * Whether halves [value] wide are usable: every key on every page shows its whole legend in
-     * every state (Shift, kana, Num Lock) at the smallest size legends shrink to, and every page
-     * tab its name. Halves too narrow for that leave the keyboard docked.
-     */
-    fun splitFits(value: KeyboardSides): Boolean {
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = MIN_LEGEND_SP * resources.displayMetrics.scaledDensity }
-        val gap = dp(2)
-        for (keyboardPage in layout.pages) {
-            val (left, right) = KeyGrid.split(KeyGrid.place(keyboardPage.rows))
-            for ((cells, width) in listOf(left to value.left, right to value.right)) for (cell in cells) {
-                val room = (cell.right - cell.left) * width - 2 * gap
-                if (legends(cell.key).any { paint.measureText(it) > room }) return false
-            }
-        }
-        // The page tabs share the left half's header (arrange).
-        val tabRoom = (value.left - 2 * dp(4)) / layout.pages.size.toFloat() - 2 * dp(2)
-        return layout.pages.none { paint.measureText(it.label) > tabRoom }
-    }
-
-    /** Every legend [key] can show. */
-    private fun legends(key: KeyboardKey) =
-        listOfNotNull(key.label, key.label.uppercase(), key.shifted, key.kana, key.kanaShifted, key.numLockOff)
 
     /** Gives the split columns the widths of [sides]. */
     private fun sizeColumns() {

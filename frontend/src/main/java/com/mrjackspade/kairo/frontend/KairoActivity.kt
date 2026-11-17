@@ -948,9 +948,8 @@ abstract class KairoActivity<E : LibraryItem> : Activity(), SurfaceHolder.Callba
         var sides: KeyboardSides? = null
         var keyboardOpen = false
         if (::keyboardPanel.isInitialized) {
-            // Halves too narrow to use leave the standard keyboard along the bottom.
+            // Halves narrower than a sixth of the screen leave the standard keyboard along the bottom.
             sides = keyboardPlacement.split(root.width, root.height, free.leftMargin, free.width)
-                ?.takeIf { keyboardPanel.splitFits(it) }
             keyboardPanel.setSplit(sides)
             keyboardOpen = keyboardPanel.visibility == View.VISIBLE
         }
