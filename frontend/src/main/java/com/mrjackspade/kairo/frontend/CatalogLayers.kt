@@ -32,6 +32,11 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
         fun additions(): JSONObject
         /** The player's own record for [game], or null. */
         fun override(game: GameKey): JSONObject?
+        /**
+         * The record [contentId]'s own files give it, such as the launch an installer's shortcuts
+         * declare; null when they give none. The lowest layer: every catalog adds to it.
+         */
+        fun files(contentId: String): JSONObject? = null
     }
 
     /** The object fields: each layer's object merges with lower layers' subfield by subfield. */
@@ -120,6 +125,7 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
         }
         val updatedNames = updatedNames.value
         return CatalogFieldLayers.merge(LayeredGameCatalog.withMember(listOf(
+            CatalogFieldLayers.Source(FILES, sources.files(contentId)),
             CatalogFieldLayers.Source(SHIPPED, collectionShared(nameIndex)),
             CatalogFieldLayers.Source(SHIPPED, shared(nameIndex)),
             CatalogFieldLayers.Source(SHIPPED, translated(shippedLanguage)),
@@ -285,6 +291,8 @@ class CatalogLayers(private val schema: LayeredGameCatalog.Schema, private val s
             ?: sources.updated("base-v1.json")?.optJSONObject("games")?.optJSONObject(contentId)
 
     companion object {
+        /** The layer of what a game's own files give it ([Sources.files]). */
+        const val FILES = "Game files"
         const val SHIPPED = "Shipped catalog"
         const val UPDATED = "Updated catalog"
         private val SHARD_NAME = Regex("[0-9a-f]{2}")

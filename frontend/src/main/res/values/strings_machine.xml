@@ -9,6 +9,7 @@
     <string name="kairo_source_updated_catalog">Updated catalog</string>
     <string name="kairo_source_user_catalog">User catalog</string>
     <string name="kairo_source_filename">Filename</string>
+    <string name="kairo_source_game_files">Game files</string>
 
     <string name="kairo_game_settings">Game settings</string>
     <string name="kairo_settings_no_hash">This file needs a successful hash before settings can be saved</string>

@@ -27,8 +27,10 @@ import java.util.zip.InflaterInputStream
  *   packed bytes. [FILE_LIST] lists the files; [DATA], always last, holds them, and runs on from
  *   the end of the program through each part in order. A part starts with 4 bytes that are not data.
  * - The file list is its record count (u32), then the records, in one of two layouts ([Layout]),
- *   which tile it exactly. A record of type 0 is a file: its offset in the data block, its packed
- *   and unpacked sizes, a checksum and its path (Windows-1252, backslashes).
+ *   which tile it exactly. A record of type 0 or 1 is a file: its offset in the data block, its
+ *   packed and unpacked sizes, a checksum, flags, three FILETIMEs when its flags say so, its path
+ *   (Windows-1252, backslashes), then the shortcuts made to it ([Shortcut]). The files' data tiles
+ *   the data block; identical files share one copy.
  * - At a file's offset: 4 bytes (the previous stream's Adler-32 trailer), the method byte, then the
  *   packed stream, which ends 4 bytes past offset + packed size (its own trailer, read by the next
  *   record's first 4 bytes, or the data block's last 4). An empty file is its method byte alone
@@ -44,10 +46,15 @@ class ClickteamInstaller private constructor(
 ) : Closeable {
     /**
      * A file the installer installs: its [name] (forward slashes, a path relative to the folder it
-     * installs into), unpacked [size] and the installer's own [checksum] of it.
+     * installs into), unpacked [size], the installer's own [checksum] of it, and the [shortcuts] the
+     * installer makes to it (how the game's setup is started).
      */
     class Member internal constructor(val name: String, val size: Long, val checksum: Long,
-                                      internal val offset: Long, internal val packedSize: Long)
+                                      internal val offset: Long, internal val packedSize: Long,
+                                      val shortcuts: List<Shortcut> = emptyList())
+
+    /** A shortcut the installer makes (Start menu or desktop): its [name] (`X.lnk`) and the [arguments] it runs its file with. */
+    class Shortcut(val name: String, val arguments: String)
 
     /** One file of the installer, the program first, then its parts in order; this closes [closeable]. */
     class Part(val channel: FileChannel, val closeable: Closeable)
@@ -178,13 +185,15 @@ class ClickteamInstaller private constructor(
 
     /**
      * The two record layouts of the file list. [header] is the size of the record's size and type
-     * fields; the rest are a file record's fields, from the record's start.
+     * fields; the rest are a file record's fields, from the record's start. Its path starts at
+     * [nameAt] when its [flags] have [TIMES] (three FILETIMEs before it), [TIMES_SIZE] sooner otherwise.
      */
-    private enum class Layout(val header: Int, val offset: Int, val packed: Int, val size: Int, val checksum: Int, val nameAt: Int) {
+    private enum class Layout(val header: Int, val offset: Int, val packed: Int, val size: Int, val checksum: Int,
+                              val flags: Int, val nameAt: Int) {
         /** The current one: a u16 size and u16 type. */
-        CURRENT(4, 6, 10, 18, 22, 68),
+        CURRENT(4, 6, 10, 18, 22, 26, 68),
         /** Older installers': a u32 size and u32 type. */
-        EARLIER(8, 28, 32, 24, 20, 64);
+        EARLIER(8, 28, 32, 24, 20, 8, 64);
 
         fun recordSize(list: ByteBuffer, at: Int) =
             if (header == 4) list.getShort(at).toInt() and 0xFFFF else list.getInt(at)
@@ -203,6 +212,11 @@ class ClickteamInstaller private constructor(
         /** Blocks before the data block hold settings, pictures and lists: never this large. */
         private const val MAX_BLOCK = 64 * 1024 * 1024
         private val NAMES: Charset = Charset.forName("windows-1252")
+        /** Record types that are files; type 2 is the uninstaller's shortcut. */
+        private val FILE_TYPES = setOf(0, 1)
+        /** A file record's flag: three FILETIMEs come before its path. */
+        private const val TIMES = 0x08
+        private const val TIMES_SIZE = 24
 
         /** The name of part [index] (1 for `.D01`) of the installer program [program]: its name with `.Dnn`. */
         fun partName(program: String, index: Int): String {
@@ -298,22 +312,51 @@ class ClickteamInstaller private constructor(
                 require(position + layout.header <= list.size)
                 val size = layout.recordSize(buffer, position)
                 require(size >= layout.header && size <= list.size - position)
-                if (layout.recordType(buffer, position) == 0) {
-                    require(size > layout.nameAt)
-                    val end = (position + layout.nameAt until position + size).firstOrNull { list[it] == 0.toByte() }
+                if (layout.recordType(buffer, position) in FILE_TYPES) {
+                    val timed = list[position + layout.flags].toInt() and TIMES != 0
+                    val nameAt = position + layout.nameAt - if (timed) 0 else TIMES_SIZE
+                    require(nameAt < position + size)
+                    val end = (nameAt until position + size).firstOrNull { list[it] == 0.toByte() }
                     requireNotNull(end)
-                    val name = DiskArchive.safeName(String(list, position + layout.nameAt, end - position - layout.nameAt, NAMES))
+                    val name = DiskArchive.safeName(String(list, nameAt, end - nameAt, NAMES))
                     require(names.add(name.lowercase(Locale.ROOT)))
                     members += Member(name, buffer.getInt(position + layout.size).toLong() and 0xFFFFFFFFL,
                         buffer.getInt(position + layout.checksum).toLong() and 0xFFFFFFFFL,
                         buffer.getInt(position + layout.offset).toLong() and 0xFFFFFFFFL,
-                        buffer.getInt(position + layout.packed).toLong() and 0xFFFFFFFFL)
+                        buffer.getInt(position + layout.packed).toLong() and 0xFFFFFFFFL,
+                        shortcuts(list, end + 1, position + size))
                 }
                 position += size
                 records++
             }
             require(position == list.size && records == count)
+            // The files' data tiles the data block: each starts where the one before it ends, or
+            // shares its bytes (one copy of identical files). A misread record breaks this.
+            val byOffset = members.sortedBy { it.offset }
+            for (index in 1 until byOffset.size) {
+                val before = byOffset[index - 1]
+                val member = byOffset[index]
+                require(member.offset == before.offset || member.offset == before.offset + before.packedSize)
+            }
             return members
+        }
+
+        /**
+         * The shortcuts the installer makes to a file, from the strings after its path
+         * ([start] to [end]): its Start menu group, then a Start menu and a desktop shortcut, each
+         * its name, arguments and icon; an empty name is no shortcut.
+         */
+        private fun shortcuts(list: ByteArray, start: Int, end: Int): List<Shortcut> {
+            val fields = ArrayList<String>()
+            var at = start
+            while (at < end) {
+                val stop = (at until end).firstOrNull { list[it] == 0.toByte() } ?: end
+                fields += String(list, at, stop - at, NAMES)
+                at = stop + 1
+            }
+            return listOf(1, 4).mapNotNull { index ->
+                fields.getOrNull(index)?.takeIf { it.isNotEmpty() }?.let { Shortcut(it, fields.getOrNull(index + 1).orEmpty()) }
+            }
         }
 
         /** Where [program]'s overlay starts: the end of its furthest PE section; null when it is not a PE program. */

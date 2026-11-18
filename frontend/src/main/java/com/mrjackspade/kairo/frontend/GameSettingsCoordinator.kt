@@ -43,7 +43,7 @@ object GameSource {
     private val SHOWN = mapOf(CUSTOM to R.string.kairo_source_custom, ALL_GAMES to R.string.kairo_source_all_games,
         BUILT_IN to R.string.kairo_source_built_in, "Shipped catalog" to R.string.kairo_source_shipped_catalog,
         "Updated catalog" to R.string.kairo_source_updated_catalog, "User catalog" to R.string.kairo_source_user_catalog,
-        "Filename" to R.string.kairo_source_filename)
+        "Filename" to R.string.kairo_source_filename, CatalogLayers.FILES to R.string.kairo_source_game_files)
 }
 
 /** Per-game rows shared by both apps. Each app supplies its storage and machine rows. */

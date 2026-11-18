@@ -42,6 +42,27 @@ class ClickteamInstallerTest {
     }
 
     @Test
+    fun recordsWithoutTimesOrOfTypeOneAreFilesAndCarryTheirShortcuts() {
+        for (layout in Layout.entries) {
+            val bytes = Fixture.build(files, layout, method = 1, untimed = setOf("dosbox.conf"),
+                typeOne = setOf("CD\\track01.iso"), shortcuts = mapOf("HDD\\GAME\\GAME.EXE" to ("Game.lnk" to "-conf GAME.conf")))
+            ClickteamInstaller.open(open(write(bytes, Int.MAX_VALUE))).use { installer ->
+                assertFiles(installer)
+                val shortcut = installer.members.single { it.shortcuts.isNotEmpty() }
+                assertEquals("HDD/GAME/GAME.EXE", shortcut.name)
+                assertEquals(listOf("Game.lnk" to "-conf GAME.conf"), shortcut.shortcuts.map { it.name to it.arguments })
+            }
+        }
+    }
+
+    @Test
+    fun aRecordWhoseDataDoesNotTileTheDataBlockFailsTheInstaller() {
+        val bytes = Fixture.build(files, Layout.CURRENT, method = 1, misplaced = "dosbox.conf")
+        val failure = runCatching { ClickteamInstaller.open(open(write(bytes, Int.MAX_VALUE))).close() }.exceptionOrNull()
+        assertTrue("$failure", failure is IOException)
+    }
+
+    @Test
     fun aProgramIsAnInstallerOnlyWithTheSignatureAfterItsSections() {
         val installer = write(Fixture.build(files, Layout.CURRENT, method = 1), partSize = Int.MAX_VALUE).single()
         FileChannel.open(installer.toPath()).use { assertTrue(ClickteamInstaller.isInstaller(it)) }
@@ -145,7 +166,14 @@ class ClickteamInstallerTest {
             return at + 8
         }
 
-        fun build(content: Map<String, ByteArray>, layout: Layout, method: Int): ByteArray {
+        /**
+         * An installer of [content]. The files in [untimed] have no FILETIMEs, those in [typeOne]
+         * records of type 1; [shortcuts] gives a file a Start menu shortcut (its name and arguments);
+         * [misplaced] names a file whose record's offset is one byte off.
+         */
+        fun build(content: Map<String, ByteArray>, layout: Layout, method: Int, untimed: Set<String> = emptySet(),
+                  typeOne: Set<String> = emptySet(), shortcuts: Map<String, Pair<String, String>> = emptyMap(),
+                  misplaced: String? = null): ByteArray {
             // The data block: 4 bytes, then each file's method and whole stream, whose last 4 bytes
             // are the next file's first 4.
             val data = ByteArrayOutputStream().apply { write(byteArrayOf(1, 2, 3, 4)) }
@@ -159,7 +187,8 @@ class ClickteamInstallerTest {
                 val stream = if (bytes.isEmpty()) ByteArray(0) else pack(bytes, method)
                 data.write(method)
                 data.write(stream)
-                records += record(name, bytes.size, offset, stream.size + 1, layout)
+                records += record(name, bytes.size, offset + if (name == misplaced) 1 else 0, stream.size + 1, layout,
+                    timed = name !in untimed, type = if (name in typeOne) 1 else 0, shortcut = shortcuts[name])
             }
             val list = ByteArrayOutputStream()
             list.write(le32(records.size))
@@ -179,15 +208,24 @@ class ClickteamInstallerTest {
             else buffer.putInt(0, record.size).putInt(4, type)
         }
 
-        private fun record(name: String, size: Int, offset: Int, packed: Int, layout: Layout): ByteArray {
-            val nameAt = if (layout == Layout.CURRENT) 68 else 64
+        private fun record(name: String, size: Int, offset: Int, packed: Int, layout: Layout, timed: Boolean, type: Int,
+                           shortcut: Pair<String, String>?): ByteArray {
+            // Without FILETIMEs the path starts 24 bytes sooner.
+            val nameAt = (if (layout == Layout.CURRENT) 68 else 64) - if (timed) 0 else 24
+            // After the path: the Start menu group, then the Start menu and desktop shortcuts' name, arguments and icon.
+            val tail = if (shortcut == null) ByteArray(7) else
+                ("Collection Chamber\u0000${shortcut.first}\u0000${shortcut.second}\u0000Icon.ico\u0000\u0000\u0000\u0000\u0000")
+                    .toByteArray(Charsets.ISO_8859_1)
             val encoded = name.toByteArray(Charsets.ISO_8859_1)
-            val record = ByteArray(nameAt + encoded.size + 1 + 7)
-            header(record, layout, 0)
+            val record = ByteArray(nameAt + encoded.size + 1 + tail.size)
+            header(record, layout, type)
             encoded.copyInto(record, nameAt)
+            tail.copyInto(record, nameAt + encoded.size + 1)
             val buffer = ByteBuffer.wrap(record).order(ByteOrder.LITTLE_ENDIAN)
+            val flags = (if (timed) 0x08 else 0x00) or 0x00CFE000
             if (layout == Layout.CURRENT) buffer.putInt(6, offset).putInt(10, packed).putInt(18, size).putInt(22, name.hashCode())
-            else buffer.putInt(20, name.hashCode()).putInt(24, size).putInt(28, offset).putInt(32, packed)
+                .putInt(26, flags)
+            else buffer.putInt(8, flags).putInt(20, name.hashCode()).putInt(24, size).putInt(28, offset).putInt(32, packed)
             return record
         }
 

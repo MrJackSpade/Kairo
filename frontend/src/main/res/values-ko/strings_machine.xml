@@ -16,6 +16,7 @@
     <string name="kairo_source_user_catalog">사용자 카탈로그</string>
     <!-- EN: Filename -->
     <string name="kairo_source_filename">파일 이름</string>
+    <string name="kairo_source_game_files">게임 파일</string>
     <!-- EN: Game settings -->
     <string name="kairo_game_settings">게임 설정</string>
     <!-- EN: This file needs a successful hash before settings can be saved -->

@@ -65,7 +65,13 @@ class CatalogGame(
  * user's overrides. Catalog records are named by content ID; overrides belong to a game's key.
  * Nothing in a catalog is executed.
  */
-class LayeredGameCatalog(private val context: Context, val schema: Schema) : LibraryCatalog {
+class LayeredGameCatalog(private val context: Context, val schema: Schema,
+                         /**
+                          * The record a game's own files give it, by content ID (CatalogLayers.Sources.files):
+                          * what it has with no catalog record, which every catalog adds to. An app whose
+                          * files declare nothing gives none. Call [filesChanged] when one is added.
+                          */
+                         private val filesRecord: (String) -> JSONObject? = { null }) : LibraryCatalog {
     /** What a product's catalog holds beyond the common fields, and where its updates come from. */
     interface Schema {
         /** The installed-catalog platform, such as "pc88". */
@@ -157,7 +163,11 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema) : Lib
         override fun installed(): List<InstalledCatalogs.Catalog> = installedCatalogs.catalogs()
         override fun additions() = additions
         override fun override(game: GameKey) = overrides.record(game)
+        override fun files(contentId: String) = filesRecord(contentId)
     }, language)
+
+    /** A game's own files gave it a record ([filesRecord]): games are resolved again. */
+    @Synchronized fun filesChanged() = invalidate()
     private fun invalidate() = layers.invalidate()
     private fun invalidate(owner: GameKey) = layers.invalidate(owner)
     private val objectFields: Map<String, Set<String>> = layers.objectFields
