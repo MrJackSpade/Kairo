@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Record the Japanese titles games were released under, for Kairo#61.
 
-Usage: japanese_titles.py <app root> --launchbox <Metadata.zip> [--refresh-vndb]
+Usage: japanese_titles.py <app root> [--refresh-vndb]   (LaunchBox's names: launchbox.py's one export)
 
 A catalog shows a game's own title in the device's language (research "titles", app_catalog.py).
 This finds the Japanese one from known sources only; it never translates or invents one:
@@ -33,6 +33,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 import catalog_files
+import launchbox as launchbox_tool
 
 # A research key's platform -> VNDB's platform code.
 VNDB_PLATFORMS = {"pc98": "p98", "pc88": "p88", "x68000": "x68", "msx": "msx", "msx2": "msx", "fmtowns": "fmt"}
@@ -161,7 +162,6 @@ def apply(research, games):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("root", type=Path)
-    parser.add_argument("--launchbox", type=Path, required=True)
     parser.add_argument("--refresh-vndb", action="store_true")
     args = parser.parse_args()
     research = args.root / "catalog/research"
@@ -172,7 +172,7 @@ def main():
         for name, entries in vndb_index(vndb_entries(platform, args.root / f".downloads/vndb/{platform}.json",
                                                      args.refresh_vndb)).items():
             vndb.setdefault(name, []).extend(e for e in entries if e not in vndb.get(name, []))
-    launchbox = launchbox_names(args.launchbox, {str(g["launchbox"]) for g in games.values() if g.get("launchbox")})
+    launchbox = launchbox_names(launchbox_tool.metadata(), {str(g["launchbox"]) for g in games.values() if g.get("launchbox")})
     path = research / "titles-v1.json"
     decisions = json.loads(path.read_text(encoding="utf-8"))["games"] if path.exists() else {}
     added = {}

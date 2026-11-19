@@ -2,24 +2,29 @@
 """LaunchBox Games Database research shared by every Kairo app.
 
 Commands:
-  snapshot  Stream chosen platforms' records out of LaunchBox's Metadata.zip into ignored JSON.
-  tags      Stream chosen platforms' genres and player counts out of Metadata.zip into ignored
+  fetch     Download LaunchBox's current Metadata.zip over the one copy every app reads (METADATA,
+            Kairo/.downloads/launchbox/Metadata.zip, beside the apps). No command reads another.
+  snapshot  Stream chosen platforms' records out of that Metadata.zip into ignored JSON.
+  tags      Stream chosen platforms' genres and player counts out of it into ignored
             JSON (<platform>-tags.json beside the snapshots), for research.py's tags.
   listing   Cache a platform's public listing pages and their direct game-page URLs.
   enrich    Fill missing box art and screenshot URLs in a match catalog from cached game pages.
 
 Platforms are named by Kairo slugs (see PLATFORMS). None of these commands download images or
-game files; image URLs are recorded for the apps' own artwork download flow.
+game files (fetch downloads LaunchBox's database alone); image URLs are recorded for the apps' own artwork download flow.
 """
 
 import argparse
 import difflib
 import html
 import json
+import os
 import re
+import shutil
 import subprocess
 import time
 import unicodedata
+import urllib.request
 import zipfile
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -39,6 +44,9 @@ PLATFORMS = {
     "atarist": "Atari ST",
     "c64": "Commodore 64",
     "dos": "MS-DOS",
+    # Windows 3.x games (KairoDos runs them in DOSBox's Windows 3.1); LaunchBox files some under Windows.
+    "win3x": "Windows 3.X",
+    "windows": "Windows",
 }
 # Kairo platform slug -> public website listing slug, for the platforms whose listings are scraped.
 SITE_SLUGS = {
@@ -56,6 +64,37 @@ BOX_TYPES = ("Box - Front", "Fanart - Box - Front", "Box - Front - Reconstructed
              "Cart - Front", "Disc", "Advertisement Flyer - Front")
 SCREENSHOT_TYPES = ("Screenshot - Gameplay", "Screenshot - Game Title",
                     "Screenshot - Game Select")
+
+
+# --- Metadata.zip: one copy, LaunchBox's current one --------------------------------------
+
+# The one LaunchBox export every app's research reads, beside the apps (Kairo/<app>/shared/tools ->
+# Kairo/.downloads/launchbox): `fetch` replaces it with LaunchBox's current one, and no command takes
+# another, so research never reads an old or second copy.
+METADATA = Path(__file__).resolve().parents[3] / ".downloads" / "launchbox" / "Metadata.zip"
+METADATA_URL = "https://gamesdb.launchbox-app.com/Metadata.zip"
+
+
+def metadata():
+    """The kept export ([METADATA]); fails when there is none yet."""
+    if not METADATA.is_file():
+        raise SystemExit(f"No LaunchBox export at {METADATA}: run `launchbox.py fetch` first")
+    return METADATA
+
+
+def fetch_metadata():
+    """Downloads LaunchBox's current export over the kept one: written beside it, checked to be a
+    ZIP holding Metadata.xml, then moved into place, so a failed download leaves the old one."""
+    METADATA.parent.mkdir(parents=True, exist_ok=True)
+    partial = METADATA.with_name(METADATA.name + ".part")
+    request = urllib.request.Request(METADATA_URL, headers={"User-Agent": "Kairo catalog research"})
+    with urllib.request.urlopen(request) as response, partial.open("wb") as output:
+        shutil.copyfileobj(response, output, 1 << 20)
+    with zipfile.ZipFile(partial) as archive:
+        if "Metadata.xml" not in archive.namelist():
+            raise SystemExit(f"{METADATA_URL} gave a ZIP without Metadata.xml")
+    os.replace(partial, METADATA)
+    print(f"{METADATA}: {METADATA.stat().st_size} bytes")
 
 
 # --- Metadata.zip snapshot ---------------------------------------------------------------
@@ -449,11 +488,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     snapshot = commands.add_parser("snapshot", help="extract platforms from Metadata.zip")
-    snapshot.add_argument("source", type=Path)
     snapshot.add_argument("output_directory", type=Path)
     snapshot.add_argument("platforms", nargs="+", choices=PLATFORMS)
     tags = commands.add_parser("tags", help="extract platforms' genres and players from Metadata.zip")
-    tags.add_argument("source", type=Path)
     tags.add_argument("output_directory", type=Path)
     tags.add_argument("platforms", nargs="+", choices=PLATFORMS)
     listing = commands.add_parser("listing", help="cache a platform's public listing")
@@ -469,14 +506,17 @@ def main():
     media.add_argument("--delay", type=float, default=0.1)
     media.add_argument("--all-pages", action="store_true",
                        help="cache and check every matched game page, including entries with media")
+    commands.add_parser("fetch", help="download LaunchBox's current Metadata.zip over the one kept (METADATA)")
     args = parser.parse_args()
-    if args.command == "snapshot":
-        for platform, games in extract(args.source, args.platforms).items():
+    if args.command == "fetch":
+        fetch_metadata()
+    elif args.command == "snapshot":
+        for platform, games in extract(metadata(), args.platforms).items():
             destination = args.output_directory / f"{platform}-snapshot.json"
             write_json(destination, games, sort_keys=True)
             print(f"{platform}: {len(games)} games -> {destination}")
     elif args.command == "tags":
-        for platform, games in extract_tags(args.source, args.platforms).items():
+        for platform, games in extract_tags(metadata(), args.platforms).items():
             destination = args.output_directory / f"{platform}-tags.json"
             write_json(destination, games, sort_keys=True)
             print(f"{platform}: {len(games)} games -> {destination}")
