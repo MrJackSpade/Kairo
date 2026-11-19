@@ -42,10 +42,30 @@ class ClickteamInstallerTest {
     }
 
     @Test
-    fun recordsWithoutTimesOrOfTypeOneAreFilesAndCarryTheirShortcuts() {
+    fun aPatchedFileIsItsReferencePatched() {
+        // A type 1 record: the conf copied from its reference record, then literals (Fixture.patch).
+        val content = files + ("PATCHED.TXT" to files.getValue("dosbox.conf") + "REM patched\r\n".toByteArray())
+        val bytes = Fixture.build(content, Layout.CURRENT, method = 1, typeOne = mapOf("PATCHED.TXT" to "dosbox.conf"))
+        ClickteamInstaller.open(open(write(bytes, Int.MAX_VALUE))).use { installer ->
+            for (member in installer.members) {
+                assertArrayEquals(member.name, content.getValue(member.name.replace('/', '\\')), installer.open(member).use { it.readBytes() })
+            }
+        }
+        // A patched file is checked against its record's checksum.
+        val damaged = Fixture.build(content, Layout.CURRENT, method = 1, typeOne = mapOf("PATCHED.TXT" to "dosbox.conf"),
+            wrongChecksum = "PATCHED.TXT")
+        ClickteamInstaller.open(open(write(damaged, Int.MAX_VALUE))).use { installer ->
+            val failure = runCatching { installer.open(installer.members.single { it.name == "PATCHED.TXT" }).readBytes() }.exceptionOrNull()
+            assertTrue("$failure", failure is IOException)
+        }
+        assertEquals(0x24L, ClickteamInstaller.checksum("\r\n".toByteArray()))
+    }
+
+    @Test
+    fun recordsWithoutTimesAreFilesAndCarryTheirShortcuts() {
         for (layout in Layout.entries) {
             val bytes = Fixture.build(files, layout, method = 1, untimed = setOf("dosbox.conf"),
-                typeOne = setOf("CD\\track01.iso"), shortcuts = mapOf("HDD\\GAME\\GAME.EXE" to ("Game.lnk" to "-conf GAME.conf")))
+                shortcuts = mapOf("HDD\\GAME\\GAME.EXE" to ("Game.lnk" to "-conf GAME.conf")))
             ClickteamInstaller.open(open(write(bytes, Int.MAX_VALUE))).use { installer ->
                 assertFiles(installer)
                 val shortcut = installer.members.single { it.shortcuts.isNotEmpty() }
@@ -167,28 +187,41 @@ class ClickteamInstallerTest {
         }
 
         /**
-         * An installer of [content]. The files in [untimed] have no FILETIMEs, those in [typeOne]
-         * records of type 1; [shortcuts] gives a file a Start menu shortcut (its name and arguments);
-         * [misplaced] names a file whose record's offset is one byte off.
+         * An installer of [content]. The files in [untimed] have no FILETIMEs; those in [typeOne] are
+         * type 1 records patching the file named beside them ([patch]); [shortcuts] gives a file a
+         * Start menu shortcut (its name and arguments); [misplaced] names a file whose record's offset
+         * is one byte off, [wrongChecksum] one whose record's checksum is wrong.
          */
         fun build(content: Map<String, ByteArray>, layout: Layout, method: Int, untimed: Set<String> = emptySet(),
-                  typeOne: Set<String> = emptySet(), shortcuts: Map<String, Pair<String, String>> = emptyMap(),
-                  misplaced: String? = null): ByteArray {
+                  typeOne: Map<String, String> = emptyMap(), shortcuts: Map<String, Pair<String, String>> = emptyMap(),
+                  misplaced: String? = null, wrongChecksum: String? = null): ByteArray {
             // The data block: 4 bytes, then each file's method and whole stream, whose last 4 bytes
-            // are the next file's first 4.
+            // are the next file's first 4; a patch is its two blocks.
             val data = ByteArrayOutputStream().apply { write(byteArrayOf(1, 2, 3, 4)) }
             val records = ArrayList<ByteArray>()
             records += ByteArray(if (layout == Layout.CURRENT) 40 else 44).also { record ->
                 header(record, layout, 2)
             }
+            // Every record counts in a reference: the uninstaller's is record 0.
+            val indexes = content.keys.withIndex().associate { (index, name) -> name to index + 1 }
             for ((name, bytes) in content) {
                 val offset = data.size() - 4
-                // An empty file is its method byte alone.
-                val stream = if (bytes.isEmpty()) ByteArray(0) else pack(bytes, method)
-                data.write(method)
-                data.write(stream)
-                records += record(name, bytes.size, offset + if (name == misplaced) 1 else 0, stream.size + 1, layout,
-                    timed = name !in untimed, type = if (name in typeOne) 1 else 0, shortcut = shortcuts[name])
+                val reference = typeOne[name]
+                val packed = if (reference != null) {
+                    val blocks = patch(content.getValue(reference), bytes)
+                    data.write(blocks)
+                    blocks.size
+                } else {
+                    // An empty file is its method byte alone.
+                    val stream = if (bytes.isEmpty()) ByteArray(0) else pack(bytes, method)
+                    data.write(method)
+                    data.write(stream)
+                    stream.size + 1
+                }
+                val checksum = ClickteamInstaller.checksum(bytes).toInt() + if (name == wrongChecksum) 1 else 0
+                records += record(name, bytes.size, offset + if (name == misplaced) 1 else 0, packed, layout,
+                    timed = name !in untimed, type = if (reference != null) 1 else 0, shortcut = shortcuts[name],
+                    checksum = checksum, reference = reference?.let(indexes::getValue))
             }
             val list = ByteArrayOutputStream()
             list.write(le32(records.size))
@@ -208,8 +241,23 @@ class ClickteamInstallerTest {
             else buffer.putInt(0, record.size).putInt(4, type)
         }
 
+        /**
+         * [file] as a patch of [reference], which it starts with: an operations block (stored) of one
+         * copy of the whole reference (delta 0) and one literal run, then a literals block (zlib) of the rest.
+         */
+        private fun patch(reference: ByteArray, file: ByteArray): ByteArray {
+            require(file.copyOfRange(0, reference.size).contentEquals(reference) && reference.size in 1..128 &&
+                file.size - reference.size in 1..32)
+            val literals = file.copyOfRange(reference.size, file.size)
+            val operations = byteArrayOf((reference.size - 1).toByte(), 0x80.toByte(), (0x80 or (literals.size - 1)).toByte())
+            val packed = byteArrayOf(1) + pack(literals, 1)
+            return ByteBuffer.allocate(3 + operations.size + 5 + packed.size).order(ByteOrder.LITTLE_ENDIAN)
+                .put(0).putShort(operations.size.toShort()).put(operations)
+                .put(1).putShort(literals.size.toShort()).putShort(packed.size.toShort()).put(packed).array()
+        }
+
         private fun record(name: String, size: Int, offset: Int, packed: Int, layout: Layout, timed: Boolean, type: Int,
-                           shortcut: Pair<String, String>?): ByteArray {
+                           shortcut: Pair<String, String>?, checksum: Int, reference: Int?): ByteArray {
             // Without FILETIMEs the path starts 24 bytes sooner.
             val nameAt = (if (layout == Layout.CURRENT) 68 else 64) - if (timed) 0 else 24
             // After the path: the Start menu group, then the Start menu and desktop shortcuts' name, arguments and icon.
@@ -223,9 +271,9 @@ class ClickteamInstallerTest {
             tail.copyInto(record, nameAt + encoded.size + 1)
             val buffer = ByteBuffer.wrap(record).order(ByteOrder.LITTLE_ENDIAN)
             val flags = (if (timed) 0x08 else 0x00) or 0x00CFE000
-            if (layout == Layout.CURRENT) buffer.putInt(6, offset).putInt(10, packed).putInt(18, size).putInt(22, name.hashCode())
-                .putInt(26, flags)
-            else buffer.putInt(8, flags).putInt(20, name.hashCode()).putInt(24, size).putInt(28, offset).putInt(32, packed)
+            if (layout == Layout.CURRENT) buffer.putInt(6, offset).putInt(10, packed).putInt(18, size).putInt(22, checksum)
+                .putInt(26, flags).putInt(40, reference ?: 0)
+            else buffer.putInt(8, flags).putInt(20, checksum).putInt(24, size).putInt(28, offset).putInt(32, packed)
             return record
         }
 

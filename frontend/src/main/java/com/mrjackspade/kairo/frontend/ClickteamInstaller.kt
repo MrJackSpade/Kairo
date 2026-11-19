@@ -51,7 +51,11 @@ class ClickteamInstaller private constructor(
      */
     class Member internal constructor(val name: String, val size: Long, val checksum: Long,
                                       internal val offset: Long, internal val packedSize: Long,
-                                      val shortcuts: List<Shortcut> = emptyList())
+                                      val shortcuts: List<Shortcut> = emptyList(),
+                                      /** Its record's index in the file list, counting every record. */
+                                      internal val index: Int = -1,
+                                      /** A patched file's (a type 1 record) reference: the index of the record it patches. */
+                                      internal val reference: Int? = null)
 
     /** A shortcut the installer makes (Start menu or desktop): its [name] (`X.lnk`) and the [arguments] it runs its file with. */
     class Shortcut(val name: String, val arguments: String)
@@ -67,6 +71,7 @@ class ClickteamInstaller private constructor(
 
     /** Reads [member] unpacked; reading it to its end fails if it is not exactly its size or its stream's check fails. */
     fun open(member: Member): InputStream {
+        member.reference?.let { reference -> return java.io.ByteArrayInputStream(patched(member, reference)) }
         // An empty file is its method byte alone: no stream follows.
         if (member.packedSize <= 1) {
             if (member.size != 0L) throw IOException("${member.name}: ${member.size} bytes with no stream")
@@ -85,6 +90,109 @@ class ClickteamInstaller private constructor(
     }
 
     override fun close() = source.close()
+
+    private val byIndex by lazy { members.associateBy { it.index } }
+
+    /**
+     * A patched file (a type 1 record): Clickteam's patch against the file of record [reference],
+     * as ScummVM's common/compression/clickteam.cpp applies it. Its data is 4 bytes, an operations
+     * block and a literals block ([patchBlock]). Each operation byte b: with bit 7, (b & 0x1f) + 1
+     * literals when bits 5-6 are 0, else that many (bits 5-6) literals and a copy of (b & 0x1f) + 2;
+     * 0, a copy of u16 + 0x81; else a copy of b + 1. A copy's offset follows ([copyDelta]); it reads
+     * the reference from base + delta, and base moves past it. Every literal is used, the result is
+     * exactly the file's size, and its checksum ([checksum]) is its record's.
+     */
+    private fun patched(member: Member, reference: Int): ByteArray {
+        val original = byIndex[reference] ?: throw IOException("${member.name}: its reference record $reference is not a file")
+        val referenceBytes = open(original).use { it.readBytes() }
+        val raw = source.read(dataStart + member.offset, Math.toIntExact(member.packedSize + 4))
+        val (operations, afterOperations) = patchBlock(raw, 4, member.name)
+        val (literals, end) = patchBlock(raw, afterOperations, member.name)
+        if (end != raw.size) throw IOException("${member.name}: ${raw.size - end} bytes after its patch")
+        val size = Math.toIntExact(member.size)
+        val out = ByteArray(size)
+        var written = 0
+        var at = 0
+        var literal = 0
+        var base = 0L
+        fun put(bytes: ByteArray, from: Int, count: Int) {
+            if (written + count > size) throw IOException("${member.name}: its patch makes more than its $size bytes")
+            System.arraycopy(bytes, from, out, written, count)
+            written += count
+        }
+        while (at < operations.size) {
+            val b = operations[at++].toInt() and 0xFF
+            var length = 0
+            if (b and 0x80 != 0) {
+                val run = (b shr 5) and 3
+                val count = if (run == 0) (b and 0x1F) + 1 else run
+                if (run != 0) length = (b and 0x1F) + 2
+                if (literal + count > literals.size) throw IOException("${member.name}: its patch uses more literals than it holds")
+                put(literals, literal, count)
+                literal += count
+            } else if (b == 0) {
+                length = ((operations[at].toInt() and 0xFF) or ((operations[at + 1].toInt() and 0xFF) shl 8)) + 0x81
+                at += 2
+            } else length = b + 1
+            if (length > 0) {
+                val (delta, next) = copyDelta(operations, at)
+                at = next
+                val from = base + delta
+                if (from < 0 || from + length > referenceBytes.size)
+                    throw IOException("${member.name}: a patch copy of $length at $from leaves its ${referenceBytes.size}-byte reference")
+                put(referenceBytes, from.toInt(), length)
+                base = from + length
+            }
+        }
+        if (literal != literals.size) throw IOException("${member.name}: ${literals.size - literal} patch literals unused")
+        if (written != size) throw IOException("${member.name}: its patch made $written bytes, not $size")
+        if (checksum(out) != member.checksum) throw IOException("${member.name}: the patched file's checksum is not its record's")
+        return out
+    }
+
+    /**
+     * A patch block at [at] of [raw]: u8 codec (bit 0 packed, bit 1 a u32 unpacked size else u16,
+     * bit 2 a u32 packed size else u16), the unpacked size, the packed size when packed, then a
+     * method byte and its stream (packed) or the bytes. Returns the bytes and where the block ends.
+     */
+    private fun patchBlock(raw: ByteArray, at: Int, name: String): Pair<ByteArray, Int> {
+        val buffer = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN)
+        val codec = raw[at].toInt() and 0xFF
+        if (codec > 7 || codec and 5 == 4) throw IOException("$name: unknown patch block codec $codec")
+        var position = at + 1
+        val unpacked = if (codec and 2 != 0) buffer.getInt(position).also { position += 4 }
+            else (buffer.getShort(position).toInt() and 0xFFFF).also { position += 2 }
+        val packed = if (codec and 1 == 0) unpacked
+            else if (codec and 4 != 0) buffer.getInt(position).also { position += 4 }
+            else (buffer.getShort(position).toInt() and 0xFFFF).also { position += 2 }
+        if (unpacked < 0 || packed < 0 || position + packed > raw.size) throw IOException("$name: a patch block runs past its data")
+        if (codec and 1 == 0) return raw.copyOfRange(position, position + packed) to position + packed
+        val stream = raw.inputStream(position + 1, packed - 1)
+        val input = when (val method = raw[position].toInt() and 0xFF) {
+            ZLIB -> InflaterInputStream(stream, Inflater())
+            BZIP2 -> BZip2CompressorInputStream(stream, false)
+            else -> throw IOException("$name: unknown patch block method $method")
+        }
+        val bytes = SizedStream(input, unpacked.toLong(), name).use { it.readBytes() }
+        return bytes to position + packed
+    }
+
+    /** A patch copy's offset delta at [at] of [operations], and where it ends. */
+    private fun copyDelta(operations: ByteArray, at: Int): Pair<Long, Int> {
+        fun byte(index: Int) = operations[index].toInt() and 0xFF
+        fun signed(value: Int, bits: Int) = if (value and (1 shl (bits - 1)) != 0) value - (1 shl bits) else value
+        fun away(value: Int, amount: Int) = if (value >= 0) value + amount else value - amount
+        val c = byte(at)
+        return when {
+            c and 0xC0 == 0x80 -> signed(c and 0x3F, 6).toLong() to at + 1
+            c and 0xC0 == 0xC0 -> {
+                val value = ((c and 0x3F) shl 16) or (byte(at + 1) shl 8) or byte(at + 2)
+                if (value == 0x100000) ByteBuffer.wrap(operations, at + 3, 4).order(ByteOrder.BIG_ENDIAN).int.toLong() to at + 7
+                else away(signed(value, 22), 0x4020).toLong() to at + 3
+            }
+            else -> away(signed(((c and 0x7F) shl 8) or byte(at + 1), 15), 0x20).toLong() to at + 2
+        }
+    }
 
     /** The program and its parts as one stream of the overlay's bytes, read by position. */
     private class Source(private val parts: List<Part>) : Closeable {
@@ -189,11 +297,11 @@ class ClickteamInstaller private constructor(
      * [nameAt] when its [flags] have [TIMES] (three FILETIMEs before it), [TIMES_SIZE] sooner otherwise.
      */
     private enum class Layout(val header: Int, val offset: Int, val packed: Int, val size: Int, val checksum: Int,
-                              val flags: Int, val nameAt: Int) {
-        /** The current one: a u16 size and u16 type. */
-        CURRENT(4, 6, 10, 18, 22, 26, 68),
-        /** Older installers': a u32 size and u32 type. */
-        EARLIER(8, 28, 32, 24, 20, 8, 64);
+                              val flags: Int, val nameAt: Int, val reference: Int?) {
+        /** The current one: a u16 size and u16 type; a patched file's reference record is the u32 at 40. */
+        CURRENT(4, 6, 10, 18, 22, 26, 68, 40),
+        /** Older installers': a u32 size and u32 type. No installer of this layout patches a file, so where its reference is is not known. */
+        EARLIER(8, 28, 32, 24, 20, 8, 64, null);
 
         fun recordSize(list: ByteBuffer, at: Int) =
             if (header == 4) list.getShort(at).toInt() and 0xFFFF else list.getInt(at)
@@ -214,9 +322,18 @@ class ClickteamInstaller private constructor(
         private val NAMES: Charset = Charset.forName("windows-1252")
         /** Record types that are files; type 2 is the uninstaller's shortcut. */
         private val FILE_TYPES = setOf(0, 1)
+        /** A type 1 record's file is a patch against another file of the list ([patched]). */
+        private const val PATCHED = 1
         /** A file record's flag: three FILETIMEs come before its path. */
         private const val TIMES = 0x08
         private const val TIMES_SIZE = 24
+
+        /** A record's checksum of its file: per byte, rotate left by 1, then add the byte. */
+        fun checksum(bytes: ByteArray): Long {
+            var value = 0
+            for (byte in bytes) value = Integer.rotateLeft(value, 1) + (byte.toInt() and 0xFF)
+            return value.toLong() and 0xFFFFFFFFL
+        }
 
         /** The name of part [index] (1 for `.D01`) of the installer program [program]: its name with `.Dnn`. */
         fun partName(program: String, index: Int): String {
@@ -312,7 +429,8 @@ class ClickteamInstaller private constructor(
                 require(position + layout.header <= list.size)
                 val size = layout.recordSize(buffer, position)
                 require(size >= layout.header && size <= list.size - position)
-                if (layout.recordType(buffer, position) in FILE_TYPES) {
+                val type = layout.recordType(buffer, position)
+                if (type in FILE_TYPES) {
                     val timed = list[position + layout.flags].toInt() and TIMES != 0
                     val nameAt = position + layout.nameAt - if (timed) 0 else TIMES_SIZE
                     require(nameAt < position + size)
@@ -324,7 +442,9 @@ class ClickteamInstaller private constructor(
                         buffer.getInt(position + layout.checksum).toLong() and 0xFFFFFFFFL,
                         buffer.getInt(position + layout.offset).toLong() and 0xFFFFFFFFL,
                         buffer.getInt(position + layout.packed).toLong() and 0xFFFFFFFFL,
-                        shortcuts(list, end + 1, position + size))
+                        shortcuts(list, end + 1, position + size), index = records,
+                        reference = if (type != PATCHED) null else layout.reference?.let { buffer.getInt(position + it) }
+                            ?: throw IOException("$name: a patched file in an earlier installer, whose reference is not known"))
                 }
                 position += size
                 records++
