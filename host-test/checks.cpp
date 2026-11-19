@@ -29,10 +29,17 @@ int64_t first_difference(const std::vector<uint64_t> &a, const std::vector<uint6
     return a.size() == b.size() ? -1 : static_cast<int64_t>(n);
 }
 
-// boot: the game starts and runs for "frames" frames; its picture is kept as boot.ppm.
+// boot: the game starts and runs for "frames" frames; its picture is kept as boot.ppm. With
+// "every", its picture is also kept every that many frames as boot-<frame>.ppm, to see how far a
+// game got (a launch pass's judging by the picture).
 void boot(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
-    session.run(test.frames(spec, "frames"));
+    const uint64_t frames = test.frames(spec, "frames");
+    const uint64_t every = spec.find("every") ? test.frames(spec, "every") : frames;
+    for (uint64_t run = 0; run < frames; run += every) {
+        session.run(std::min(every, frames - run));
+        if (run + every < frames) session.picture("boot-" + std::to_string(run + every));
+    }
     session.picture("boot");
     // "audio": true: the sound lasts as long as the frames (frame_seconds at audio_rate), within 5%,
     // as the player hears it in step with the picture (Kairo68's own boot test, Kairo68#90).
