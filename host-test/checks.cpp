@@ -29,15 +29,18 @@ int64_t first_difference(const std::vector<uint64_t> &a, const std::vector<uint6
     return a.size() == b.size() ? -1 : static_cast<int64_t>(n);
 }
 
+void run_with_keys(Session &session, const json::Value &spec, uint64_t until);
+
 // boot: the game starts and runs for "frames" frames; its picture is kept as boot.ppm. With
 // "every", its picture is also kept every that many frames as boot-<frame>.ppm, to see how far a
-// game got (a launch pass's judging by the picture).
+// game got (a launch pass's judging by the picture). With "keys" ({"frame", "code"}), those keys
+// are pressed on the way, as a player answers a download's own menu.
 void boot(Test &test, const json::Value &spec) {
     Session session(test.launch(), test.folder, test.name);
     const uint64_t frames = test.frames(spec, "frames");
     const uint64_t every = spec.find("every") ? test.frames(spec, "every") : frames;
     for (uint64_t run = 0; run < frames; run += every) {
-        session.run(std::min(every, frames - run));
+        run_with_keys(session, spec, std::min(run + every, frames));
         if (run + every < frames) session.picture("boot-" + std::to_string(run + every));
     }
     session.picture("boot");
@@ -229,18 +232,33 @@ void loading(Test &test, const json::Value &spec) {
     }
 }
 
-// Presses the spec's "keys" ({"frame": when, "code": the key}) as the session reaches each frame,
-// for a game that needs keys to reach what a check looks at; runs to [until] frames.
+// Presses the spec's "keys" ({"frame": when, "code": the key}, or {"frame", "click": true}: the
+// mouse's left button for 4 frames) as the session reaches each frame, for a game that needs keys or
+// a click to reach what a check looks at; runs to [until] frames.
 void run_with_keys(Session &session, const json::Value &spec, uint64_t until) {
+    constexpr int click = -1;
     std::vector<std::pair<uint64_t, int>> keys;
     if (const json::Value *list = spec.find("keys"))
-        for (const json::Value &key : list->array())
-            keys.emplace_back(static_cast<uint64_t>(key.at("frame").integer()), static_cast<int>(key.at("code").integer()));
+        for (const json::Value &key : list->array()) {
+            const json::Value *clicks = key.find("click");
+            keys.emplace_back(static_cast<uint64_t>(key.at("frame").integer()),
+                clicks && clicks->boolean() ? click : static_cast<int>(key.at("code").integer()));
+        }
     std::sort(keys.begin(), keys.end());
     size_t next = 0;
     while (session.frames() < until) {
-        if (next < keys.size() && session.frames() >= keys[next].first) session.press(keys[next++].second);
-        else session.run(1);
+        if (next < keys.size() && session.frames() >= keys[next].first) {
+            const int code = keys[next++].second;
+            if (code != click) {
+                session.press(code);
+                continue;
+            }
+            session.core().mouse_button(1, true);
+            session.run(4);
+            session.core().mouse_button(1, false);
+        } else {
+            session.run(1);
+        }
     }
 }
 

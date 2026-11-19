@@ -108,6 +108,14 @@ fs::path Test::working_copy(const std::string &name) const {
         if (!error.empty()) throw std::runtime_error(entry->path() + ": " + name + ": " + error);
         return copy;
     }
+    // A path the launch names that is not there ("absent:<path>": a download's configuration mounting
+    // a folder or image it does not ship), passed as the app passes it, for the core to report as
+    // the emulator does.
+    if (name.rfind("absent:", 0) == 0) {
+        const fs::path missing = (folder / "media" / "absent" / fs::u8path(name.substr(7))).make_preferred();
+        if (fs::exists(missing)) throw std::runtime_error(entry->path() + ": " + name + " is there: " + missing.string());
+        return missing;
+    }
     // A test resource, or the app's own file or folder ("app:<path in the repository>", KairoDos's
     // timing program).
     const bool own = name.rfind("app:", 0) == 0;
@@ -139,7 +147,9 @@ fs::path Test::working_copy(const std::string &name) const {
             if (close == std::string::npos) throw std::runtime_error(source.string() + ": a FILE line without its closing quote");
             const fs::path track = source.parent_path() / fs::u8path(line.substr(open + 1, close - open - 1));
             if (!fs::is_regular_file(track)) throw std::runtime_error(source.string() + " names " + track.string() + ", which is not there");
-            if (std::find(files.begin(), files.end(), track) == files.end()) files.push_back(track);
+            // Named in any case, as a case-insensitive host finds it: one file is copied once.
+            if (std::none_of(files.begin(), files.end(), [&track](const fs::path &file) { return fs::equivalent(file, track); }))
+                files.push_back(track);
         }
     }
     for (const fs::path &file : files) fs::copy_file(file, copy.parent_path() / file.filename());
