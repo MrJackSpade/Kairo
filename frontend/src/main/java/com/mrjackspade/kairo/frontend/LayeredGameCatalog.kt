@@ -103,8 +103,8 @@ class LayeredGameCatalog(private val context: Context, val schema: Schema,
         val directTouch: Boolean get() = false
         /**
          * The guest keyboard's Esc keys and its Enter (Return) keys, keypad ones included, as catalog
-         * bindings write them; empty for a guest without one. No shipped mapping gives START Esc and
-         * SELECT Enter (ShippedControllerMappingTest).
+         * bindings write them; empty for a guest without one. No shipped mapping gives START
+         * Esc (ShippedControllerMappingTest).
          */
         val escapeKeys: Set<Int>
         val enterKeys: Set<Int>

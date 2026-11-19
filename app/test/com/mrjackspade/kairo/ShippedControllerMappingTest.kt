@@ -13,7 +13,7 @@ import java.io.File
  * What we ship maps every control: the system's catalog definition binds each one (the lowest
  * layer of every mapping, ControllerDefaults.cascade), and no shipped mapping holds an explicit
  * null, which would leave a control dead. Only a player's own saved layer may unbind a control.
- * No shipped mapping gives START Esc and SELECT Enter: not the system's, and not any game's over it.
+ * No shipped mapping gives START Esc: not the system's, and not any game's over it.
  * Every app runs this test against its own shipped controls catalog (catalog/parts/controls.json)
  * and its catalog rules (`kairoCatalogRules`), which name its Esc and Enter keys.
  */
@@ -54,7 +54,7 @@ class ShippedControllerMappingTest {
     }
 
     @Test
-    fun noShippedMappingGivesStartEscAndSelectEnter() {
+    fun noShippedMappingGivesStartEsc() {
         val system = bindingsByInput(systemBindings())
         val swapped = mutableListOf<String>()
         if (swaps(system)) swapped += LayeredGameCatalog.SYSTEM_DOCUMENT
@@ -81,8 +81,7 @@ class ShippedControllerMappingTest {
     private fun bindingsByInput(bindings: JSONArray): Map<String, JSONObject> =
         (0 until bindings.length()).map(bindings::getJSONObject).associateBy { it.getString("input") }
 
-    private fun swaps(mapping: Map<String, JSONObject>) =
-        sends(mapping["virtual:start"], schema.escapeKeys) && sends(mapping["virtual:select"], schema.enterKeys)
+    private fun swaps(mapping: Map<String, JSONObject>) = sends(mapping["virtual:start"], schema.escapeKeys)
 
     private fun sends(binding: JSONObject?, keys: Set<Int>): Boolean {
         val codes = binding?.optJSONArray("keys") ?: return false
